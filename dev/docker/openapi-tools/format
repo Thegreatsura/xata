@@ -1,0 +1,9 @@
+#!/bin/sh
+
+TMPDIR=$(mktemp -d -t lint-XXXXXXXXXX)
+trap 'rm -rf -- "$TMPDIR"' EXIT
+
+for var in "$@"; do
+	filename=$(basename "$var")
+	openapi-format -o "$TMPDIR/$filename" --yaml "$var"
+done

@@ -1,0 +1,93 @@
+{{- if .Values.cleanup.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Chart.Name }}-cleanup
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    description: "ServiceAccount for Control Plane Cleanup Job"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Chart.Name }}-cleanup
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: {{ .Values.cleanup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          serviceAccountName: {{ .Chart.Name }}-cleanup
+          restartPolicy: Never
+          {{- with .Values.cleanup.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: cleanup
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["/server"]
+              args:
+                - cleanup_terminated
+                - --retention-days={{ .Values.cleanup.retentionDays }}
+              env:
+                - name: POSTGRES_HOST
+                  value: {{ .Values.postgres.host | quote }}
+                {{- if .Values.postgres.port }}
+                - name: POSTGRES_PORT
+                  value: {{ .Values.postgres.port | quote }}
+                {{- end }}
+                - name: POSTGRES_DB
+                  value: {{ .Values.postgres.database | quote }}
+                - name: POSTGRES_SSLMODE
+                  value: {{ .Values.postgres.sslmode | quote }}
+                {{- if .Values.postgres.existingSecret }}
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.postgres.existingSecret }}
+                      key: {{ .Values.postgres.userKey }}
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.postgres.existingSecret }}
+                      key: {{ .Values.postgres.passwordKey }}
+                {{- end }}
+                {{- if .Values.postgres.existingSecret }}
+                - name: SCHEDULER_CONFIG_PATH
+                  value: "/config/scheduler.yaml"
+                {{- end }}
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                {{- toYaml .Values.cleanup.resources | nindent 16 }}
+              volumeMounts:
+                - name: scheduler-config
+                  mountPath: /config
+                  readOnly: true
+          volumes:
+            - name: scheduler-config
+              configMap:
+                name: scheduler-config
+{{- end }}

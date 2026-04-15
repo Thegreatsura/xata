@@ -1,0 +1,13 @@
+{
+  "operations": [
+    {
+      "alter_column": {
+        "table": "branches",
+        "column": "cell_id",
+        "nullable": false,
+        "up": "'cell-1'",
+        "down": "NULL"
+      }
+    }
+  ]
+}

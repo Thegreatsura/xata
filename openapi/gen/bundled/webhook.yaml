@@ -1,0 +1,60 @@
+openapi: 3.0.0
+info:
+  title: Authentication API
+  version: '1.0'
+  contact:
+    name: support@xata.io
+paths:
+  /webhooks/orb:
+    post:
+      operationId: orbWebhook
+      summary: Orb billing webhook
+      description: |
+        Endpoint used by Orb to deliver billing-related webhook events.
+        This endpoint is authenticated via Orb's HMAC signature headers,
+        not via the normal API authentication.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              description: Orb webhook event payload
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Webhook received and processed successfully
+        '400':
+          description: Invalid signature or malformed request
+        '500':
+          description: Internal error while handling the webhook
+      tags:
+        - Webhooks
+      x-excluded: true
+  /webhooks/stripe:
+    post:
+      operationId: stripeWebhook
+      summary: Stripe webhook
+      description: |
+        Endpoint used by Stripe to deliver webhook events.
+        This endpoint is authenticated via Stripe's signature headers,
+        not via the normal API authentication.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              description: Stripe webhook event payload
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Webhook received and processed successfully
+        '400':
+          description: Invalid signature or malformed request
+        '500':
+          description: Internal error while handling the webhook
+      tags:
+        - Webhooks
+      x-excluded: true
+components: {}

@@ -1,0 +1,91 @@
+{
+  "operations": [
+    {
+      "create_table": {
+        "name": "backups",
+        "columns": [
+          {
+            "name": "id",
+            "type": "text",
+            "pk": true
+          },
+          {
+            "name": "project_id",
+            "type": "text",
+            "nullable": false,
+            "references": {
+              "name": "project_id",
+              "table": "projects",
+              "column": "id",
+              "on_delete": "RESTRICT"
+            }
+          },
+          {
+            "name": "branch_id",
+            "type": "text",
+            "nullable": true,
+            "references": {
+              "name": "branch_id",
+              "table": "branches",
+              "column": "id",
+              "on_delete": "SET NULL"
+            }
+          },
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "type",
+            "type": "text"
+          },
+          {
+            "name": "description",
+            "type": "text"
+          },
+          {
+            "name": "retention_period",
+            "type": "integer"
+          },
+          {
+            "name": "orphan",
+            "type": "boolean"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp",
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp",
+            "default": "now()"
+          },
+          {
+            "name": "latest_recovery_time",
+            "type": "timestamp",
+            "default": "now()"
+          }
+        ]
+      }
+    },
+    {
+      "create_index": {
+        "name": "idx_backups_project_id",
+        "table": "backups",
+        "columns": {
+          "project_id": {}
+        }
+      }
+    },
+    {
+      "create_index": {
+        "name": "idx_backups_branch_id",
+        "table": "backups",
+        "columns": {
+          "branch_id": {}
+        }
+      }
+    }
+  ]
+}

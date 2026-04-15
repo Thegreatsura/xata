@@ -1,0 +1,86 @@
+image:
+  repository: ghcr.io/xataio/xata/keycloak
+  tag: latest
+
+instances: 2
+
+hostname:
+  hostname: ""
+  strict: false
+  admin: http://localhost:8080
+
+db:
+  vendor: postgres
+  host: ""
+  database: ""
+  usernameSecret: {}
+  passwordSecret: {}
+
+http:
+  httpEnabled: true
+  httpPort: 8080
+
+features:
+  enabled:
+    - docker
+    - authorization
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 2Gi
+  limits:
+    cpu: 1
+    memory: 2Gi
+
+proxy:
+  headers: xforwarded
+
+config:
+  api:
+    url: http://auth-keycloak-service:8080
+    realm: xata
+  realm:
+    smtp:
+      host: "email-smtp.us-east-1.amazonaws.com"
+      port: "2587"
+      ssl: "false"
+      from: "noreply@xata.io"
+      replyTo: "support@xata.io"
+
+realmImport:
+  ttlSecondsAfterFinished: 86400
+  image: adorsys/keycloak-config-cli:latest-26
+  # Name of a ConfigMap providing realm.json. When set, the chart does not
+  # generate its own ConfigMap from files/realm.json.
+  configMapName: ""
+  keycloakUrl: http://auth-keycloak-service:8080
+  keycloakUserSecret:
+    name: auth-keycloak-initial-admin
+    key: username
+  keycloakPasswordSecret:
+    name: auth-keycloak-initial-admin
+    key: password
+  env: []
+  resources:
+    requests:
+      cpu: 100m
+      memory: 1Gi
+    limits:
+      cpu: 200m
+      memory: 1Gi
+  securityContext:
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+
+tolerations:
+  - key: "xata.io/workload"
+    value: "controlplane"
+    effect: "NoSchedule"
+
+unsupported: {}

@@ -1,0 +1,4 @@
+# Set an explicit strategy for a specific region
+default: "Random"
+regions:
+  us-east-1: "AlwaysSecondary"

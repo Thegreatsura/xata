@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: xata
+
+helmCharts:
+  - name: auth
+    releaseName: auth
+    namespace: xata
+    valuesFile: values.yaml
+  - name: keycloak
+    releaseName: keycloak
+    namespace: xata
+    valuesFile: keycloak-values.yaml
+    includeCRDs: true
+
+helmGlobals:
+  chartHome: ../../../../charts
+
+resources:
+  - keycloak
+  - api-key-hmac-secret.yaml
+  - orb-secret.yaml
+  - posthog-secret.yaml
+  - stripe-secret.yaml
+  - slack-secret.yaml
+  - tackle-secret.yaml

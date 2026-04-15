@@ -1,0 +1,68 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Chart.Name }}-resource-cleanup
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    description: "ServiceAccount for Organization Resources Cleanup Job"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Chart.Name }}-resource-cleanup
+  namespace: {{ .Release.Namespace }}
+spec:
+  suspend: {{ .Values.resourceCleanup.suspend }}
+  schedule: {{ .Values.resourceCleanup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          serviceAccountName: {{ .Chart.Name }}-resource-cleanup
+          restartPolicy: Never
+          containers:
+            - name: resource-cleanup
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["/server"]
+              args:
+                - delete_wound_down_resources
+                - --disabled-for-days={{ .Values.resourceCleanup.disabledForDays }}
+                - --max-branches={{ .Values.resourceCleanup.maxBranches }}
+                - --dry-run={{ .Values.resourceCleanup.dryRun }}
+              env:
+                - name: PROJECTS_GRPC_URL
+                  value: "{{ .Values.dependencies.projectsGrpcUrl }}"
+                - name: API_KEY_HMAC_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: auth-api-key-hmac
+                      key: hmac-secret
+                - name: KEYCLOAK_ADMIN_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: auth-keycloak-initial-admin
+                      key: username
+                - name: KEYCLOAK_ADMIN_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: auth-keycloak-initial-admin
+                      key: password
+              envFrom:
+                - configMapRef:
+                    name: keycloak-api-settings
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                {{- toYaml .Values.resourceCleanup.resources | nindent 16 }}

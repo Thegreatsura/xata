@@ -1,0 +1,7 @@
+image:
+  repository: xatatech/gateway
+  tag: latest
+
+service:
+  port: 7654
+  httpPort: 8443

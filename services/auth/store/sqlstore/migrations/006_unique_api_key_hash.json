@@ -1,0 +1,15 @@
+{
+  "operations": [
+    {
+      "alter_column": {
+        "table": "api_keys",
+        "column": "key_hash",
+        "unique": {
+          "name": "unique_api_key_hash"
+        },
+        "up": "key_hash",
+        "down": "key_hash"
+      }
+    }
+  ]
+}

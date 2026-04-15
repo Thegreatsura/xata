@@ -1,0 +1,75 @@
+{
+	"operations": [
+		{
+			"create_table": {
+				"name": "github_repositories",
+				"columns": [
+					{
+						"name": "id",
+						"type": "text",
+						"pk": true
+					},
+					{
+						"name": "github_repository_id",
+						"type": "bigint",
+						"nullable": false
+					},
+					{
+						"name": "project_id",
+						"type": "text",
+						"nullable": false,
+						"references": {
+							"name": "fk_github_repositories_project_id",
+							"table": "projects",
+							"column": "id",
+							"on_delete": "CASCADE"
+						}
+					},
+					{
+						"name": "root_branch_id",
+						"type": "text",
+						"nullable": false,
+						"references": {
+							"name": "fk_github_repositories_root_branch_id",
+							"table": "branches",
+							"column": "id",
+							"on_delete": "CASCADE"
+						}
+					},
+					{
+						"name": "created_at",
+						"type": "timestamp",
+						"nullable": false,
+						"default": "now()"
+					},
+					{
+						"name": "updated_at",
+						"type": "timestamp",
+						"nullable": false,
+						"default": "now()"
+					}
+				]
+			}
+		},
+		{
+			"create_index": {
+				"name": "github_repositories_unique_project_id",
+				"table": "github_repositories",
+				"columns": {
+					"project_id": {}
+				},
+				"unique": true
+			}
+		},
+		{
+			"create_index": {
+				"name": "github_repositories_unique_repo_id",
+				"table": "github_repositories",
+				"columns": {
+					"github_repository_id": {}
+				},
+				"unique": true
+			}
+		}
+	]
+}

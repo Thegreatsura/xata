@@ -1,0 +1,37 @@
+openapi: 3.0.0
+info:
+  title: Xata API
+  description: Xata API
+  version: '1.0'
+  contact:
+    name: help@xata.io
+paths: {}
+components:
+  securitySchemes:
+    oidc:
+      type: openIdConnect
+      openIdConnectUrl: 'https://auth.xata.io/realms/xata/.well-known/openid-configuration'
+    apiKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: 'API key authentication using Bearer token format: Bearer <api_key>'
+    xata:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: 'https://auth.xata.io/realms/xata/protocol/openid-connect/auth'
+          scopes:
+            'org:read': Read organization information
+            'org:write': Create and modify organizations
+            'keys:read': Read API keys
+            'keys:write': Create and manage API keys
+            'project:read': Read project information
+            'project:write': Create and modify projects
+            'branch:read': Read branch information
+            'branch:write': Create and modify branches
+            'metrics:read': Read metrics data
+            'credentials:read': Read credentials
+            'marketplace:write': Register with cloud marketplaces
+externalDocs:
+  url: 'https://xata.io/docs/api'

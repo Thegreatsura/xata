@@ -1,0 +1,29 @@
+image:
+  repository: ghcr.io/xataio/xata/clusters
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+service:
+  grpcPort: 5002
+
+config:
+  clusters:
+    clustersNamespace: xata-clusters
+    storageClass: ""
+    nodeSelector: ""
+    volumeSnapshotClass: ""
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 200Mi
+  requests:
+    cpu: 100m
+    memory: 200Mi
+
+tolerations:
+  - key: "xata.io/workload"
+    value: "dataplane"
+    effect: "NoSchedule"

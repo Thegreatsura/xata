@@ -1,0 +1,6 @@
+.claude/**
+.cursor/
+.DS_Store
+.tilt-build/
+coverage
+tmp/

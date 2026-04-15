@@ -1,0 +1,13 @@
+{
+  "operations": [
+    {
+      "alter_column": {
+        "table": "api_keys",
+        "column": "last_used",
+        "nullable": true,
+        "up": "last_used",
+        "down": "last_used"
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clusters-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: clusters
+data:
+  XATA_CLUSTERS_NAMESPACE: {{ .Values.config.clusters.clustersNamespace | quote }}
+  XATA_CLUSTERS_STORAGE_CLASS: {{ .Values.config.clusters.storageClass | quote }}
+  {{- if .Values.config.clusters.nodeSelector }}
+  XATA_CLUSTERS_NODE_SELECTOR: {{ .Values.config.clusters.nodeSelector | quote }}
+  {{- end }}
+  {{- if .Values.config.clusters.volumeSnapshotClass }}
+  XATA_CLUSTERS_VOLUME_SNAPSHOT_CLASS: {{ .Values.config.clusters.volumeSnapshotClass | quote }}
+  {{- end }}

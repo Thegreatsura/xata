@@ -1,0 +1,20 @@
+{
+    "operations": [
+        {
+            "add_column": {
+                "table": "branches",
+                "column": {
+                    "name": "parent_id",
+                    "type": "text",
+                    "nullable": true,
+                    "references": {
+                        "name": "parent_id",
+                        "table": "branches",
+                        "column": "id",
+                        "on_delete": "SET NULL"
+                    }
+                }
+            }
+        }
+    ]
+}

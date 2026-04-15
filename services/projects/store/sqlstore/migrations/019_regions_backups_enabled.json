@@ -1,0 +1,16 @@
+{
+  "operations": [
+    {
+      "add_column": {
+        "table": "regions",
+        "up": "CASE WHEN organization_id = 'clararx' OR organization_id = 'dandy' THEN false ELSE true END",
+        "column": {
+          "name": "backups_enabled",
+          "type": "boolean",
+          "default": "true",
+          "nullable": false
+        }
+      }
+    }
+  ]
+}

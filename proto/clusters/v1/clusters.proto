@@ -1,0 +1,322 @@
+syntax = "proto3";
+
+package clusters.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// ClustersProvider service provides methods to manage Postgres clusters
+service ClustersService {
+  // Create a postgres cluster and return the cluster info
+  rpc CreatePostgresCluster(CreatePostgresClusterRequest) returns (CreatePostgresClusterResponse) {}
+
+  // Describe a postgres cluster and return the information
+  rpc DescribePostgresCluster(DescribePostgresClusterRequest) returns (DescribePostgresClusterResponse) {}
+
+  // Retrieve the credentials for a postgres cluster
+  rpc GetPostgresClusterCredentials(GetPostgresClusterCredentialsRequest) returns (GetPostgresClusterCredentialsResponse) {}
+
+  // Update a postgres cluster and return the information
+  rpc UpdatePostgresCluster(UpdatePostgresClusterRequest) returns (UpdatePostgresClusterResponse) {}
+
+  // Delete a postgres cluster
+  rpc DeletePostgresCluster(DeletePostgresClusterRequest) returns (DeletePostgresClusterResponse) {}
+
+  // Register a postgres cluster by creating the required global services
+  rpc RegisterPostgresCluster(RegisterPostgresClusterRequest) returns (RegisterPostgresClusterResponse) {}
+
+  // Deregister a postgres cluster by deleting the global services
+  rpc DeregisterPostgresCluster(DeregisterPostgresClusterRequest) returns (DeregisterPostgresClusterResponse) {}
+
+  // Get utilizatation information for the cell
+  rpc GetCellUtilization(GetCellUtilizationRequest) returns (GetCellUtilizationResponse) {}
+
+  // Get object store for a postgres cluster
+  rpc GetObjectStore(GetObjectStoreRequest) returns (GetObjectStoreResponse) {}
+
+  // Set IP filtering configuration for a branch
+  rpc SetBranchIPFiltering(SetBranchIPFilteringRequest) returns (SetBranchIPFilteringResponse) {}
+
+  // Set IP filtering configuration for multiple branches
+  rpc SetBranchesIPFiltering(SetBranchesIPFilteringRequest) returns (SetBranchesIPFilteringResponse) {}
+
+  // Get IP filtering configuration for a branch
+  rpc GetBranchIPFiltering(GetBranchIPFilteringRequest) returns (GetBranchIPFilteringResponse) {}
+
+  // Delete IP filtering configuration for a branch
+  rpc DeleteBranchIPFiltering(DeleteBranchIPFilteringRequest) returns (DeleteBranchIPFilteringResponse) {}
+}
+
+// CreatePostgresClusterRequest is the request object for CreatePostgresCluster
+message CreatePostgresClusterRequest {
+  // The id of the branch
+  string id = 1;
+  // the cluster configuration to be used
+  ClusterConfiguration configuration = 2;
+  // the id of the parent branch
+  optional string parent_id = 3;
+  string organization_id = 4;
+  string project_id = 5;
+  // the backup configuration for the continuous backup
+  BackupConfiguration backup_configuration = 6;
+  // the source of the data for the branch
+  oneof data_source {
+    ClusterSnapshot cluster_snapshot = 7;
+    ContinuousBackup continuous_backup = 8;
+    BaseBackup base_backup = 9;
+  }
+  // whether to try to adopt a cluster from a matching pool
+  optional bool use_pool = 10;
+}
+
+// CreatePostgresClusterResponse is the response object for CreatePostgresCluster
+message CreatePostgresClusterResponse {
+  string id = 1;
+  string status = 2;
+  string connection_string = 3;
+}
+
+// DeletePostgresClusterRequest is the request object for DeletePostgresCluster
+message DeletePostgresClusterRequest {
+  // The id of the cluster
+  string id = 1;
+}
+
+// DeletePostgresClusterResponse is the response object for DeletePostgresCluster
+message DeletePostgresClusterResponse {}
+
+// DescribePostgresClusterRequest is the request object for DescribePostgresCluster
+message DescribePostgresClusterRequest {
+  // The id of the branch
+  string id = 1;
+}
+
+// DescribePostgresClusterResponse is the response object for DescribePostgresCluster
+message DescribePostgresClusterResponse {
+  string id = 1;
+  ClusterConfiguration configuration = 2;
+  ClusterStatus status = 3;
+  BackupConfiguration backup_configuration = 4;
+}
+
+// UpdatePostgresClusterRequest is the request object for UpdatePostgresCluster
+message UpdatePostgresClusterRequest {
+  // The id of the cluster
+  string id = 1;
+
+  UpdateClusterConfiguration update_configuration = 2;
+}
+
+// UpdatePostgresClusterResponse is the response object for UpdatePostgresCluster
+message UpdatePostgresClusterResponse {}
+
+// GetPostgresClusterCredentialsRequest is the request object for GetPostgresClusterCredentials
+message GetPostgresClusterCredentialsRequest {
+  // The id of the cluster
+  string id = 1;
+  // Username
+  string username = 2;
+}
+
+// GetPostgresClusterCredentialsResponse is the response object for GetPostgresClusterCredentials
+message GetPostgresClusterCredentialsResponse {
+  string id = 1;
+  string username = 2;
+  string password = 3;
+}
+
+message RegisterPostgresClusterRequest {
+  string id = 1;
+}
+
+message RegisterPostgresClusterResponse {}
+
+message DeregisterPostgresClusterRequest {
+  string id = 1;
+}
+
+message DeregisterPostgresClusterResponse {}
+
+message GetCellUtilizationRequest {}
+
+message GetCellUtilizationResponse {
+  optional uint64 available_bytes = 1;
+}
+
+message ClusterConfiguration {
+  int32 num_instances = 1;
+  int32 storage_size = 2;
+  string image_name = 3;
+  string vcpu = 4 [deprecated = true]; // Deprecated: use vcpu_request and vcpu_limit instead.;
+  string memory = 5;
+  bool hibernate = 6;
+  ScaleToZero scale_to_zero = 7;
+  string vcpu_request = 8;
+  string vcpu_limit = 9;
+  map<string, string> postgres_configuration_parameters = 10;
+  repeated string preload_libraries = 11;
+}
+
+message UpdateClusterConfiguration {
+  optional int32 num_instances = 1;
+  optional int32 storage_size = 2;
+  optional string image_name = 3;
+  optional string vcpu = 4 [deprecated = true]; // Deprecated: use vcpu_request and vcpu_limit instead.;
+  optional string memory = 5;
+  optional bool hibernate = 6;
+  optional ScaleToZero scale_to_zero = 7;
+  optional string vcpu_request = 8;
+  optional string vcpu_limit = 9;
+  map<string, string> postgres_configuration_parameters = 10;
+  repeated string preload_libraries = 11;
+  optional BackupConfiguration backup_configuration = 12;
+}
+
+message ScaleToZero {
+  // Whether the scale to zero feature is enabled
+  bool enabled = 1;
+  // The period of inactivity after which the cluster will be scaled to zero
+  int64 inactivity_period_minutes = 2;
+}
+
+// LifeCycle shows phase of the cluster (whether it is Running, Creating, FailingOver,...)
+message LifeCycle {
+  // Either of Creating, Updating, Upgrading, Ready or Unknown
+  string state = 1;
+  string phase = 2;
+  string reason = 3;
+}
+
+message InstanceStatus {
+  // Readiness state of the instance
+  string status = 3;
+  // Whether the instance is primary
+  bool primary = 1;
+  // During switchover, whether the instance is the target primary
+  bool target_primary = 2;
+}
+
+message ClusterStatus {
+  // Status of the cluster reported by CNPG
+  string status = 1;
+  // State of the cluster based on the phase reported by CNPG
+  LifeCycle phase = 3 [deprecated = true];
+  // Number of instances in the cluster
+  int64 instance_count = 4;
+  // Number of instances that are ready
+  int64 instance_ready_count = 5;
+  map<string, InstanceStatus> instances = 6;
+  // Type of status:
+  // * unknown - status field is empty from CNPG
+  // * healthy
+  // * transient (no need for intervention), the operator is moving things around
+  // * fault (need human intervention to exit this state)
+  // * hibernated (the cluster is in a hibernated state, not running)
+  enum StatusType {
+    STATUS_TYPE_UNSPECIFIED = 0;
+    STATUS_TYPE_HEALTHY = 1;
+    STATUS_TYPE_TRANSIENT = 2;
+    STATUS_TYPE_FAULT = 3;
+    STATUS_TYPE_HIBERNATED = 4;
+  }
+  StatusType status_type = 7;
+}
+
+message BackupConfiguration {
+  string backup_schedule = 1; //cron expression
+  string backup_retention = 2;
+  bool backups_enabled = 3; // whether backups are enabled for this cluster
+}
+
+message GetObjectStoreRequest {
+  // The id of the cluster
+  string id = 1;
+}
+
+message GetObjectStoreResponse {
+  // Object store status information
+  ObjectStoreStatus status = 1;
+}
+
+message ObjectStoreStatus {
+  // Map of server names to their recovery windows
+  map<string, RecoveryWindow> server_recovery_window = 1;
+}
+
+message RecoveryWindow {
+  // The first recoverability point
+  string first_recoverability_point = 1;
+  // The last successful backup time
+  string last_successful_backup_time = 2;
+  // The last failed backup time
+  string last_failed_backup_time = 3;
+}
+
+//used for child clusters
+message ClusterSnapshot {
+  // ID of the cluster whose PVC is the snapshot source
+  string cluster_id = 1;
+}
+
+// used for point in time restore
+message ContinuousBackup {
+  // the ID of the cluster whose continuous backup will be used for point in time restore
+  string cluster_id = 1;
+  // when missing, restore to latest
+  optional google.protobuf.Timestamp timestamp = 2;
+}
+
+message BaseBackup {
+  // the ID of the Backup CR used for restoring
+  string backup_id = 1;
+}
+
+// SetBranchIPFilteringRequest is the request object for SetBranchIPFiltering
+message SetBranchIPFilteringRequest {
+  // The id of the branch
+  string branch_id = 1;
+  // IP filtering configuration
+  IPFilteringConfig ip_filtering = 2;
+}
+
+// SetBranchIPFilteringResponse is the response object for SetBranchIPFiltering
+message SetBranchIPFilteringResponse {}
+
+// SetBranchesIPFilteringRequest is the request object for SetBranchesIPFiltering
+message SetBranchesIPFilteringRequest {
+  // List of branch IDs to apply IP filtering to
+  repeated string branch_ids = 1;
+  // IP filtering configuration to apply to all branches
+  IPFilteringConfig ip_filtering = 2;
+}
+
+// SetBranchesIPFilteringResponse is the response object for SetBranchesIPFiltering
+message SetBranchesIPFilteringResponse {}
+
+// GetBranchIPFilteringRequest is the request object for GetBranchIPFiltering
+message GetBranchIPFilteringRequest {
+  // The id of the branch
+  string branch_id = 1;
+}
+
+// GetBranchIPFilteringResponse is the response object for GetBranchIPFiltering
+message GetBranchIPFilteringResponse {
+  // IP filtering configuration (will have ip_filtering=false if not found)
+  IPFilteringConfig ip_filtering = 1;
+}
+
+// IPFilteringConfig contains IP filtering configuration for a branch
+message IPFilteringConfig {
+  // Whether IP filtering is enabled
+  bool enabled = 1;
+  // List of allowed CIDR blocks
+  repeated string allowed = 2;
+}
+
+// DeleteBranchIPFilteringRequest is the request object for DeleteBranchIPFiltering
+message DeleteBranchIPFilteringRequest {
+  // The id of the branch
+  string branch_id = 1;
+}
+
+// DeleteBranchIPFilteringResponse is the response object for DeleteBranchIPFiltering
+message DeleteBranchIPFilteringResponse {}

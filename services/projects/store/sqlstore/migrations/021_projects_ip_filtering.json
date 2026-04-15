@@ -1,0 +1,26 @@
+{
+	"operations": [
+		{
+			"add_column": {
+				"table": "projects",
+				"column": {
+					"name": "ip_filtering_enabled",
+					"type": "boolean",
+					"default": "'false'",
+					"nullable": false
+				}
+			}
+		},
+		{
+			"add_column": {
+				"table": "projects",
+				"column": {
+					"name": "ip_filtering_cidrs",
+					"type": "text[]",
+					"nullable": false
+				},
+				"up": "ARRAY[]::text[]"
+			}
+		}
+	]
+}

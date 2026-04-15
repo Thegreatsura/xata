@@ -1,0 +1,47 @@
+image:
+  repository: ghcr.io/xataio/xata/gateway
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 5432
+  targetPort: 7654
+  httpPort: 443
+  httpTargetPort: 8443
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: external
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: instance
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: "*"
+
+http:
+  enabled: true
+
+networkPolicy:
+  namespace: xata-clusters
+
+resources:
+  limits:
+    cpu: 8000m
+    memory: 300Mi
+  requests:
+    cpu: 4000m
+    memory: 300Mi
+
+secret:
+  name: gateway-secret
+  mountPath: /pki
+
+config:
+  clustersConfigMap: clusters-config
+  clustersNamespaceKey: XATA_CLUSTERS_NAMESPACE
+
+extraEnv: []
+
+imagePullSecrets: []
+
+tolerations:
+  - effect: NoSchedule
+    key: xata.io/workload
+    value: dataplane

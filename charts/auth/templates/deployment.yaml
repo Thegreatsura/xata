@@ -1,0 +1,164 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: auth
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  selector:
+    matchLabels:
+      app: auth
+  template:
+    metadata:
+      labels:
+        app: auth
+    spec:
+      enableServiceLinks: false
+      initContainers:
+        - name: auth-init
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["/server"]
+          args: ["setup"]
+          env:
+            - name: AUTH_GRPC_URL
+              value: "{{ .Values.dependencies.authGrpcUrl }}"
+            - name: PROJECTS_GRPC_URL
+              value: "{{ .Values.dependencies.projectsGrpcUrl }}"
+            - name: POSTGRES_SSLMODE
+              value: {{ .Values.postgres.sslmode }}
+            - name: API_KEY_HMAC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth-api-key-hmac
+                  key: hmac-secret
+          envFrom:
+            - secretRef:
+                name: auth-api-key-hmac
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+      containers:
+        - name: auth
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http-port
+              containerPort: {{ .Values.service.httpPort }}
+              protocol: TCP
+            - name: grpc-port
+              containerPort: {{ .Values.service.grpcPort }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: AUTH_GRPC_URL
+              value: "{{ .Values.dependencies.authGrpcUrl }}"
+            - name: PROJECTS_GRPC_URL
+              value: "{{ .Values.dependencies.projectsGrpcUrl }}"
+            - name: POSTGRES_SSLMODE
+              value: {{ .Values.postgres.sslmode }}
+            - name: KEYCLOAK_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: auth-keycloak-initial-admin
+                  key: username
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: auth-keycloak-initial-admin
+                  key: password
+            - name: OTEL_SERVICE_NAME
+              value: "{{ .Values.observability.serviceName }}"
+            - name: API_KEY_HMAC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth-api-key-hmac
+                  key: hmac-secret
+            - name: ORB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: orb-secret
+                  key: api-key
+            - name: STRIPE_API_KEY
+              valueFrom:
+                  secretKeyRef:
+                    name: stripe-secret
+                    key: api-key
+            - name: ORB_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: orb-secret
+                  key: orb-webhook-secret
+            - name: STRIPE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: stripe-secret
+                  key: stripe-webhook-secret
+            - name: SLACK_BILLING_NOTIFICATIONS_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: slack-secret
+                  key: billing-notifications-webhook-url
+            - name: TACKLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tackle-secret
+                  key: client-id
+            - name: TACKLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: tackle-secret
+                  key: client-secret
+          envFrom:
+            - secretRef:
+                name: auth-api-key-hmac
+            - configMapRef:
+                name: keycloak-api-settings
+            - configMapRef:
+                name: otel-config
+            - secretRef:
+                name: auth-keycloak-initial-admin
+            - secretRef:
+                name: orb-secret
+            - secretRef:
+                name: posthog
+          readinessProbe:
+            httpGet:
+              path: /_hello
+              port: 5001
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /_hello
+              port: 5001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

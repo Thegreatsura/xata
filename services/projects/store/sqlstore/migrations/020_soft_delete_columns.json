@@ -1,0 +1,10 @@
+{
+  "operations": [
+    {
+      "sql": {
+        "up": "ALTER TABLE projects ADD COLUMN status text NOT NULL DEFAULT 'active', ADD COLUMN status_changed_at timestamp NOT NULL DEFAULT now(); ALTER TABLE branches ADD COLUMN status text NOT NULL DEFAULT 'active', ADD COLUMN status_changed_at timestamp NOT NULL DEFAULT now(); DROP INDEX unique_org_project; DROP INDEX unique_project_branch_name; CREATE UNIQUE INDEX unique_org_project_active ON projects (organization_id, name) WHERE status = 'active'; CREATE UNIQUE INDEX unique_project_branch_name_active ON branches (project_id, name) WHERE status = 'active'",
+        "down": "DROP INDEX unique_org_project_active; DROP INDEX unique_project_branch_name_active; CREATE UNIQUE INDEX unique_org_project ON projects (organization_id, name); CREATE UNIQUE INDEX unique_project_branch_name ON branches (project_id, name); ALTER TABLE projects DROP COLUMN status, DROP COLUMN status_changed_at; ALTER TABLE branches DROP COLUMN status, DROP COLUMN status_changed_at"
+      }
+    }
+  ]
+}

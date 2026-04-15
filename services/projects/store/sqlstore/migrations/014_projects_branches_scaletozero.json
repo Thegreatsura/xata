@@ -1,0 +1,70 @@
+{
+	"operations": [
+		{
+			"add_column": {
+				"table": "projects",
+				"column": {
+					"name": "scale_to_zero_base_enabled",
+					"type": "boolean",
+					"default": "'false'",
+					"nullable": false
+				}
+			}
+		},
+		{
+			"add_column": {
+				"table": "projects",
+				"column": {
+					"name": "scale_to_zero_base_inactivity_minutes",
+					"type": "integer",
+					"default": "'30'",
+					"nullable": false
+				}
+			}
+		},
+		{
+			"add_column": {
+				"table": "projects",
+				"column": {
+					"name": "scale_to_zero_child_enabled",
+					"type": "boolean",
+					"default": "'false'",
+					"nullable": false
+				}
+			}
+		},
+		{
+			"add_column": {
+				"table": "projects",
+				"column": {
+					"name": "scale_to_zero_child_inactivity_minutes",
+					"type": "integer",
+					"default": "'30'",
+					"nullable": false
+				}
+			}
+		},
+		{
+			"add_column": {
+				"table": "branches",
+				"column": {
+					"name": "scale_to_zero_enabled",
+					"type": "boolean",
+					"default": "'false'",
+					"nullable": false
+				}
+			}
+		},
+		{
+			"add_column": {
+				"table": "branches",
+				"column": {
+					"name": "scale_to_zero_inactivity_minutes",
+					"type": "integer",
+					"default": "'30'",
+					"nullable": false
+				}
+			}
+		}
+	]
+}

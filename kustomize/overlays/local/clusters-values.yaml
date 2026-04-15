@@ -1,0 +1,10 @@
+image:
+  repository: xatatech/clusters
+  tag: latest
+
+config:
+  clusters:
+    storageClass: "csi-hostpath-sc"
+    tolerations: "xata.io/workload=dataplane:NoSchedule"
+    useOperatorForNewBranches: "true"
+    volumeSnapshotClass: "csi-hostpath-snapclass"

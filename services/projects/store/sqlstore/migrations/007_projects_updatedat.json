@@ -1,0 +1,15 @@
+{
+  "operations": [
+    {
+      "add_column": {
+        "table": "projects",
+        "column": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "default": "now()",
+          "nullable": false
+        }
+      }
+    }
+  ]
+}

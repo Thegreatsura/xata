@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: product-analytics-clone-metastore
+  namespace: xata
+spec:
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        spec:
+          nodeSelector:
+            karpenter.sh/nodepool: default
+          tolerations:
+            - effect: NoSchedule
+              key: xata.io/workload
+              value: controlplane
+          restartPolicy: OnFailure
+          containers:
+            - name: product-analytics-clone-metastore
+              image: ghcr.io/xataio/xata:latest-pg17
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: XATA_CLI_SOURCE_POSTGRES_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: product-analytics-clone-metastore-secrets
+                      key: source-postgres-url
+                - name: XATA_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: product-analytics-clone-metastore-secrets
+                      key: XATA_API_KEY
+                - name: XATA_ORGANIZATIONID
+                  value: i0crsg
+                - name: XATA_PROJECTID
+                  value: prj_o454atrqod6kv7dj9d9igch9mc
+                - name: XATA_DATABASENAME
+                  value: pa
+                - name: XATA_BRANCHID
+                  value: t7n2u7rf696opessufg4vttn4o # dev branch, must be replaced
+              command:
+                - /bin/bash
+                - /scripts/clone.sh
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 512Mi
+                limits:
+                  cpu: 650m
+                  memory: 512Mi
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+          volumes:
+            - name: scripts
+              configMap:
+                name: product-analytics-clone-metastore-scripts
+                defaultMode: 0755

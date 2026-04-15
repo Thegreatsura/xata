@@ -1,0 +1,3 @@
+# A config file with an invalid strategy for a specific region
+regions:
+  us-east-1: "InvalidStrategy"

@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package auth.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "xata/gen/proto/auth/v1";
+
+message ValidateAccessRequest {
+  string token = 1;
+  string method = 2;
+  string path = 3;
+  repeated string scopes = 4;
+  string organization_id = 5;
+  string project_id = 6;
+  string branch_id = 7;
+}
+
+message ValidateAccessResponse {
+  // organizations (field 5) replaced by organizations (field 8).
+  reserved 5;
+
+  bool allow = 1;
+  string user_id = 2;
+  string user_email = 3;
+  repeated string scopes = 4;
+  repeated string projects = 6;
+  repeated string branches = 7;
+  map<string, Organization> organizations = 8;
+  string api_key_id = 9;
+}
+
+message Organization {
+  string id = 1;
+  string status = 2;
+  bool disabled_by_admin = 3;
+  optional string disabled_by_admin_reason = 4;
+  string billing_status = 5;
+  optional string billing_reason = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message UpdateOrganizationRequest {
+  string organization_id = 1;
+  bool disabled_by_admin = 2;
+  optional string disabled_by_admin_reason = 3;
+}
+
+message UpdateOrganizationResponse {
+  Organization organization = 1;
+}
+
+// AuthService is the service that provides authentication-related RPCs.
+service AuthService {
+  // ValidateAccess checks if the given token can call the specified endpoint
+  rpc ValidateAccess(ValidateAccessRequest) returns (ValidateAccessResponse);
+
+  // UpdateOrganization updates an organization's administrative status and triggers hibernation/wake-up of all branches under the organization.
+  rpc UpdateOrganization(UpdateOrganizationRequest) returns (UpdateOrganizationResponse);
+}

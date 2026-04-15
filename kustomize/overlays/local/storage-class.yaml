@@ -1,0 +1,16 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: csi-hostpath-sc
+provisioner: hostpath.csi.k8s.io
+parameters:
+  # These parameters might not work with the standard hostpath driver
+  # but let's try
+  fsType: ext4
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+reclaimPolicy: Delete
+# Try to mount with specific user permissions
+mountOptions:
+  - uid=999
+  - gid=999

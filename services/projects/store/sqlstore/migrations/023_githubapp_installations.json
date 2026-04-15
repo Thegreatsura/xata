@@ -1,0 +1,58 @@
+{
+	"operations": [
+		{
+			"create_table": {
+				"name": "github_installations",
+				"columns": [
+					{
+						"name": "id",
+						"type": "text",
+						"pk": true
+					},
+					{
+						"name": "installation_id",
+						"type": "bigint",
+						"nullable": false
+					},
+					{
+						"name": "organization",
+						"type": "text",
+						"nullable": false
+					},
+					{
+						"name": "created_at",
+						"type": "timestamp",
+						"nullable": false,
+						"default": "now()"
+					},
+					{
+						"name": "updated_at",
+						"type": "timestamp",
+						"nullable": false,
+						"default": "now()"
+					}
+				]
+			}
+		},
+		{
+			"create_index": {
+				"name": "github_installations_unique_org_installation",
+				"table": "github_installations",
+				"columns": {
+					"organization": {},
+					"installation_id": {}
+				},
+				"unique": true
+			}
+		},
+		{
+			"create_index": {
+				"name": "idx_github_installations_org",
+				"table": "github_installations",
+				"columns": {
+					"organization": {}
+				}
+			}
+		}
+	]
+}

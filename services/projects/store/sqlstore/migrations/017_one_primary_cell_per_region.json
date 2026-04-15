@@ -1,0 +1,15 @@
+{
+  "operations": [
+    {
+      "create_index": {
+        "name": "idx_cells_primary_unique",
+        "table": "cells",
+        "columns": {
+          "region_id": {}
+        },
+        "unique": true,
+        "predicate": "is_primary = true"
+      }
+    }
+  ]
+}

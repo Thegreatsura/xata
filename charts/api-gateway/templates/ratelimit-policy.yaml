@@ -1,0 +1,19 @@
+# Basic rate limit for general control plane APIs
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: general-api-ratelimit
+  namespace: {{ .Release.Namespace }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: eg
+  rateLimit:
+    type: Local
+    local:
+      rules:
+        # Default rate limit for all requests: 5000 requests per hour per Envoy instance
+        - limit:
+            requests: 5000
+            unit: Hour

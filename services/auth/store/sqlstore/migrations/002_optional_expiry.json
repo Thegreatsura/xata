@@ -1,0 +1,13 @@
+{
+  "operations": [
+    {
+      "alter_column": {
+        "table": "api_keys",
+        "column": "expiry",
+        "nullable": true,
+        "up": "expiry",
+        "down": "expiry"
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+checks:
+  ignorePaths:
+    - "**/*-patch.yaml"
+    - "**/*-patch.yml"
+  include:
+    - "schema-validation"
+  exclude:
+    - "latest-tag"

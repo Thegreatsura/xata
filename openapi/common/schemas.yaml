@@ -1,0 +1,6 @@
+OrganizationID:
+  title: OrganizationID
+  type: string
+  pattern: '[a-zA-Z0-9_-~:]+'
+  x-oapi-codegen-extra-tags:
+    validate: identifier

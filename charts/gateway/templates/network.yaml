@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway
+  namespace: {{ .Values.networkPolicy.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/podRole: instance
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+          podSelector:
+            matchLabels:
+              app: gateway
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-pooler
+  namespace: {{ .Values.networkPolicy.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/podRole: pooler
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+          podSelector:
+            matchLabels:
+              app: gateway

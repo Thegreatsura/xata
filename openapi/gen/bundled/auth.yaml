@@ -1,0 +1,1069 @@
+openapi: 3.0.0
+info:
+  title: Authentication API
+  version: '1.0'
+  contact:
+    name: support@xata.io
+tags:
+  - name: Organizations
+    description: Operations for creating, retrieving, updating, and deleting organizations
+  - name: Users
+    description: Operations for managing user accounts and profiles
+  - name: API Keys
+    description: Operations for managing API keys, including creation, listing, and deletion
+  - name: Marketplace
+    description: Operations for linking user accounts to cloud marketplace subscriptions
+paths:
+  /organizations:
+    summary: Organizations Management
+    description: This endpoint enables creating and listing organizations within Xata. Organizations are the top-level entity that contains projects, branches, and team members.
+    get:
+      operationId: getOrganizationsList
+      summary: Get list of organizations
+      description: Retrieve the list of all organizations the authenticated user belongs to, including their IDs and names. This endpoint allows users to view all organizations they have access to.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  organizations:
+                    description: List of organizations the user has access to
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          description: Unique identifier for the organization
+                          $ref: '#/components/schemas/OrganizationID'
+                        name:
+                          description: Human-readable name of the organization
+                          type: string
+                        status:
+                          description: Current status of the organization
+                          $ref: '#/components/schemas/OrganizationStatus'
+                      required:
+                        - id
+                        - name
+                        - status
+                required:
+                  - organizations
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - org:read
+      tags:
+        - Organizations
+    post:
+      operationId: createOrganization
+      summary: Create a new organization
+      description: Creates a new organization with the authenticated user as its single owner.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '201':
+          description: Organization successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - org:write
+      tags:
+        - Organizations
+  /organizations/{organizationID}:
+    summary: Organization Operations
+    description: This endpoint provides operations for a specific organization, allowing retrieval, updating, and deletion of an organization by its unique identifier.
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+    get:
+      operationId: getOrganization
+      summary: Get organization details
+      description: Retrieve detailed information about a specific organization by its ID.
+      responses:
+        '200':
+          description: Organization details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - org:read
+      tags:
+        - Organizations
+    put:
+      operationId: updateOrganization
+      summary: Update organization details
+      description: Update information for an existing organization, such as its name.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                id:
+                  description: Unique identifier for the organization to update
+                  $ref: '#/components/schemas/OrganizationID'
+                name:
+                  description: New name for the organization
+                  type: string
+      responses:
+        '200':
+          description: Organization successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - org:write
+      tags:
+        - Organizations
+    delete:
+      operationId: deleteOrganization
+      summary: Delete an organization
+      description: '[Not implemented yet] Permanently delete an organization. This action cannot be undone.'
+      responses:
+        '204':
+          description: Organization successfully deleted
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - org:write
+      tags:
+        - Organizations
+  /organizations/{organizationID}/api-keys:
+    get:
+      operationId: listOrganizationAPIKeys
+      summary: List API Keys for an organization
+      description: Retrieve a list of API keys for a specific organization.
+      parameters:
+        - $ref: '#/components/parameters/OrganizationIDParam'
+      responses:
+        '200':
+          description: List of API keys retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    description: Array of API keys for the organization
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/APIKeyPreview'
+                required:
+                  - keys
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - keys:read
+      tags:
+        - API Keys
+    post:
+      operationId: createOrganizationAPIKey
+      summary: Create an Organization API Key
+      description: Create a new API key for an organization.
+      parameters:
+        - $ref: '#/components/parameters/OrganizationIDParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAPIKeyRequest'
+      responses:
+        '201':
+          description: API Key created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    $ref: '#/components/schemas/FullAPIKey'
+                required:
+                  - key
+        '400':
+          description: API key limit reached or invalid request
+      security:
+        - xata:
+            - keys:write
+      tags:
+        - API Keys
+    delete:
+      operationId: deleteOrganizationAPIKeys
+      summary: Bulk delete API Keys for an organization
+      description: Delete multiple API keys in a single request.
+      parameters:
+        - $ref: '#/components/parameters/OrganizationIDParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  description: Array of API key IDs to delete
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 50
+              required:
+                - ids
+      responses:
+        '204':
+          description: API Keys deleted successfully
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+      security:
+        - xata:
+            - keys:write
+      tags:
+        - API Keys
+  /organizations/{organizationID}/members:
+    get:
+      operationId: listOrganizationMembers
+      summary: List members of an organization
+      parameters:
+        - $ref: '#/components/parameters/OrganizationIDParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  members:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserWithID'
+                required:
+                  - members
+      security:
+        - xata:
+            - org:read
+      tags:
+        - Organizations
+  /organizations/{organizationID}/members/{userID}:
+    delete:
+      operationId: removeOrganizationMember
+      summary: Remove a member from an organization
+      parameters:
+        - $ref: '#/components/parameters/OrganizationIDParam'
+        - $ref: '#/components/parameters/UserIDParam'
+      responses:
+        '204':
+          description: Member removed
+      security:
+        - xata:
+            - org:write
+      tags:
+        - Organizations
+  /organizations/{organizationID}/invitations:
+    get:
+      operationId: listOrganizationInvitations
+      summary: List invitations for an organization
+      description: Retrieve all invitations for an organization with optional filtering by status, email, and name.
+      parameters:
+        - $ref: '#/components/parameters/OrganizationIDParam'
+        - name: status
+          in: query
+          description: Filter invitations by status
+          schema:
+            type: string
+            enum:
+              - pending
+              - expired
+        - name: email
+          in: query
+          description: Filter invitations by email address
+          schema:
+            type: string
+        - name: first_name
+          in: query
+          description: Filter invitations by first name
+          schema:
+            type: string
+        - name: last_name
+          in: query
+          description: Filter invitations by last name
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: Search invitations by email or name
+          schema:
+            type: string
+        - name: first
+          in: query
+          description: Index of the first result to return (0-based offset for pagination)
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: max
+          in: query
+          description: Maximum number of results to return
+          schema:
+            type: integer
+            default: 100
+            maximum: 100
+            minimum: 1
+      responses:
+        '200':
+          description: List of invitations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrganizationInvitation'
+                required:
+                  - invitations
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - invite:read
+      tags:
+        - Organizations
+    post:
+      operationId: createOrganizationInvitation
+      summary: Send an invitation to join an organization
+      description: Send an invitation email to a user to join an organization.
+      parameters:
+        - $ref: '#/components/parameters/OrganizationIDParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationInvitationRequest'
+      responses:
+        '201':
+          description: Invitation sent successfully
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        '409':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - invite:write
+      tags:
+        - Organizations
+  /organizations/{organizationID}/invitations/{invitationID}:
+    get:
+      operationId: getOrganizationInvitation
+      summary: Get details of a specific invitation
+      description: Retrieve detailed information about a specific invitation by its ID.
+      parameters:
+        - $ref: '#/components/parameters/OrganizationIDParam'
+        - $ref: '#/components/parameters/InvitationIDParam'
+      responses:
+        '200':
+          description: Invitation details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationInvitation'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - invite:read
+      tags:
+        - Organizations
+    delete:
+      operationId: deleteOrganizationInvitation
+      summary: Delete an invitation
+      description: Permanently delete an invitation record.
+      parameters:
+        - $ref: '#/components/parameters/OrganizationIDParam'
+        - $ref: '#/components/parameters/InvitationIDParam'
+      responses:
+        '204':
+          description: Invitation deleted successfully
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - invite:write
+      tags:
+        - Organizations
+  /organizations/{organizationID}/invitations/{invitationID}/resend:
+    post:
+      operationId: resendOrganizationInvitation
+      summary: Resend an invitation
+      description: Resend a pending invitation with a fresh expiration time.
+      parameters:
+        - $ref: '#/components/parameters/OrganizationIDParam'
+        - $ref: '#/components/parameters/InvitationIDParam'
+      responses:
+        '204':
+          description: Invitation resent successfully
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - invite:write
+      tags:
+        - Organizations
+  /marketplace/register:
+    post:
+      operationId: registerMarketplace
+      summary: Register with a cloud marketplace
+      description: Links the authenticated user to a cloud marketplace subscription. Only one marketplace registration is allowed per user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarketplaceRegisterRequest'
+      responses:
+        '200':
+          description: Marketplace registration successful
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '409':
+          $ref: '#/components/responses/SimpleError'
+        '502':
+          description: Marketplace registration provider failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                required:
+                  - message
+      security:
+        - xata:
+            - marketplace:write
+      tags:
+        - Marketplace
+      x-excluded: true
+  /api-keys:
+    get:
+      operationId: listUserAPIKeys
+      summary: List API Keys for the authenticated user
+      description: Retrieve a list of API keys for the authenticated user.
+      responses:
+        '200':
+          description: List of API keys retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    description: Array of API keys for the user
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/APIKeyPreview'
+                required:
+                  - keys
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - keys:read
+      tags:
+        - API Keys
+    post:
+      operationId: createUserAPIKey
+      summary: Create a User API Key
+      description: Create a new API key for the authenticated user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAPIKeyRequest'
+      responses:
+        '201':
+          description: API Key created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    $ref: '#/components/schemas/FullAPIKey'
+                required:
+                  - key
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - keys:write
+      tags:
+        - API Keys
+    delete:
+      operationId: deleteUserAPIKeys
+      summary: Bulk delete API Keys for the authenticated user
+      description: Delete multiple API keys in a single request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  description: Array of API key IDs to delete (maximum 50 keys per request)
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 50
+              required:
+                - ids
+      responses:
+        '204':
+          description: API Keys deleted successfully
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - keys:write
+      tags:
+        - API Keys
+components:
+  parameters:
+    InvitationIDParam:
+      name: invitationID
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Unique identifier for an invitation
+    OrganizationIDParam:
+      name: organizationID
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/OrganizationID'
+      description: Unique identifier for a specific organization
+    UserIDParam:
+      name: userID
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UserID'
+      description: Unique identifier for a specific user account
+  schemas:
+    User:
+      description: User information including email, full name, and profile image
+      type: object
+      properties:
+        email:
+          description: Email address associated with the user account
+          type: string
+          format: email
+        name:
+          description: Name of the user
+          type: string
+      required:
+        - name
+        - email
+    UserID:
+      description: Unique identifier for a user account
+      type: string
+      pattern: '[a-zA-Z0-9_-~:]+'
+      title: UserID
+      x-oapi-codegen-extra-tags:
+        validate: identifier
+    UserWithID:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          description: Extended user object that includes the unique user identifier
+          properties:
+            id:
+              $ref: '#/components/schemas/UserID'
+          required:
+            - id
+    CreateOrganizationRequest:
+      description: Request payload for creating a new organization
+      type: object
+      properties:
+        name:
+          description: Name for the new organization
+          type: string
+      required:
+        - name
+    Organization:
+      description: Organization details including ID and name
+      type: object
+      properties:
+        id:
+          description: Unique identifier for the organization
+          $ref: '#/components/schemas/OrganizationID'
+        name:
+          description: Human-readable name of the organization
+          type: string
+        status:
+          description: Current status of the organization
+          $ref: '#/components/schemas/OrganizationStatus'
+        marketplace:
+          description: Marketplace provider for this organization (e.g. "aws"), if billed through a marketplace
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+        - status
+    OrganizationStatus:
+      type: object
+      properties:
+        status:
+          description: Indicates whether the organization is active, it's computed as `!disabled_by_admin AND billing_status == 'ok'`
+          type: string
+          enum:
+            - enabled
+            - disabled
+        disabled_by_admin:
+          description: Indicates if the organization has been disabled by an admin
+          type: boolean
+        admin_reason:
+          description: Reason for the current admin status
+          type: string
+        billing_status:
+          description: Indicates the status of the organization from a billing perspective
+          type: string
+          enum:
+            - ok
+            - no_payment_method
+            - invoice_overdue
+            - unknown
+        billing_reason:
+          description: Reason for the current billing status
+          type: string
+        usage_tier:
+          description: Usage tier of the organization. t1 is the default for new organizations, t2 is assigned when a valid payment method is on file.
+          type: string
+          enum:
+            - t1
+            - t2
+        last_updated:
+          description: Timestamp of the last update to the organization's status
+          type: string
+          format: date-time
+        created_at:
+          description: Timestamp when the organization was created
+          type: string
+          format: date-time
+      required:
+        - status
+        - disabled_by_admin
+        - billing_status
+        - usage_tier
+        - last_updated
+    CreateOrganizationInvitationRequest:
+      type: object
+      properties:
+        email:
+          description: Email address of the user to invite
+          type: string
+          format: email
+      required:
+        - email
+    OrganizationInvitation:
+      type: object
+      properties:
+        id:
+          description: Unique identifier for the invitation
+          type: string
+        organization_id:
+          description: ID of the organization the invitation is for
+          $ref: '#/components/schemas/OrganizationID'
+        email:
+          description: Email address of the invited user
+          type: string
+          format: email
+        first_name:
+          description: First name of the invited user
+          type: string
+          nullable: true
+        last_name:
+          description: Last name of the invited user
+          type: string
+          nullable: true
+        created_at:
+          description: Timestamp when the invitation was created
+          type: string
+          format: date-time
+        expires_at:
+          description: Timestamp when the invitation expires
+          type: string
+          format: date-time
+        status:
+          description: Current status of the invitation
+          type: string
+          enum:
+            - pending
+            - expired
+        invite_link:
+          description: URL link to accept the invitation
+          type: string
+      required:
+        - id
+        - organization_id
+        - email
+        - created_at
+        - expires_at
+        - status
+    MarketplaceRegisterRequest:
+      description: Request to register with a cloud marketplace
+      type: object
+      properties:
+        marketplace:
+          description: The cloud marketplace provider
+          type: string
+          enum:
+            - aws
+        company_name:
+          description: Company name for the marketplace registration
+          type: string
+        aws:
+          description: AWS-specific marketplace details
+          type: object
+          properties:
+            customer_id:
+              description: AWS Marketplace customer ID
+              type: string
+            product_id:
+              description: AWS Marketplace product ID
+              type: string
+            account_id:
+              description: AWS account ID
+              type: string
+          required:
+            - customer_id
+            - product_id
+            - account_id
+      required:
+        - marketplace
+        - company_name
+        - aws
+    CreateAPIKeyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        expiry:
+          description: Expiration date for the API key, null for no expiry
+          type: string
+          format: date-time
+          nullable: true
+        scopes:
+          description: Optional scopes assigned to the API key
+          type: array
+          items:
+            type: string
+          maxItems: 50
+        projects:
+          description: Limit access to these projects
+          type: array
+          items:
+            type: string
+          maxItems: 50
+        branches:
+          description: Limit access to these branches
+          type: array
+          items:
+            type: string
+          maxItems: 50
+      required:
+        - name
+    APIKeyPreview:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        preview:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        projects:
+          description: Projects this API key has access to
+          type: array
+          items:
+            type: string
+        branches:
+          description: Branches this API key has access to
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        expiry:
+          description: Date when the API key expires (null if no expiry)
+          type: string
+          format: date-time
+          nullable: true
+        last_used:
+          description: Timestamp of the last time the key was used (null if never)
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          description: ID of the user that created this API key
+          type: string
+          nullable: true
+        created_by_key:
+          description: ID of the API key that created this API key
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+        - preview
+        - created_at
+        - expiry
+        - last_used
+        - scopes
+        - projects
+        - branches
+    FullAPIKey:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        preview:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        projects:
+          description: Projects this API key has access to
+          type: array
+          items:
+            type: string
+        branches:
+          description: Branches this API key has access to
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        expiry:
+          description: Date when the API key expires (null if no expiry)
+          type: string
+          format: date-time
+          nullable: true
+        last_used:
+          description: Timestamp of the last time the key was used (null if never)
+          type: string
+          format: date-time
+          nullable: true
+        token:
+          description: The actual API key token
+          type: string
+        created_by:
+          description: ID of the user that created this API key
+          type: string
+          nullable: true
+        created_by_key:
+          description: ID of the API key that created this API key
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+        - preview
+        - created_at
+        - expiry
+        - last_used
+        - token
+        - scopes
+        - projects
+        - branches
+    OrganizationID:
+      title: OrganizationID
+      type: string
+      pattern: '[a-zA-Z0-9_-~:]+'
+      x-oapi-codegen-extra-tags:
+        validate: identifier
+  responses:
+    BadRequestError:
+      description: Error returned when the request is malformed or contains invalid parameters
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              id:
+                description: Error identifier for tracking and debugging
+                type: string
+              message:
+                description: Human-readable error message explaining the issue
+                type: string
+            required:
+              - message
+    AuthError:
+      description: Error returned when authentication or authorization fails
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              id:
+                description: Error identifier for tracking and debugging
+                type: string
+              message:
+                description: Human-readable error message explaining the issue
+                type: string
+            example:
+              message: invalid API key
+            required:
+              - message
+    SimpleError:
+      description: Generic error response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              id:
+                description: Error identifier for tracking and debugging
+                type: string
+              message:
+                description: Human-readable error message explaining the issue
+                type: string
+            required:
+              - message

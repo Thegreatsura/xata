@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scale-to-zero
+  namespace: cnpg-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: cnpg-i-scale-to-zero
+          env:
+            - name: SIDECAR_IMAGE
+              value: xatatech/scale-to-zero-sidecar

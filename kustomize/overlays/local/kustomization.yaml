@@ -1,0 +1,237 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+components:
+  - ../../components/cnpg-1.28.0
+  - ../../components/barman-cloud-0.10.0
+
+resources:
+  - ../../base/xata
+  - ../../base/otel
+  - postgres
+  - ../../common/db-bootstrap
+  - auth
+  - api-gateway
+  - gateway
+  - projects
+  # install Envoy Gateway:
+  - https://github.com/envoyproxy/gateway/releases/download/v1.2.4/install.yaml
+  # installs cert manager to communicate with barman
+  - https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
+
+  - storage-class.yaml
+  - volume-snapshot-class.yaml
+
+helmCharts:
+  - name: clusters
+    releaseName: clusters
+    namespace: xata
+    valuesFile: clusters-values.yaml
+  - name: branch-operator
+    releaseName: branch-operator
+    namespace: xata
+    valuesFile: branch-operator-values.yaml
+  - name: gateway
+    releaseName: gateway
+    namespace: xata
+    valuesFile: gateway-values.yaml
+
+helmGlobals:
+  chartHome: ../../../charts
+
+patches:
+  - path: otel-patch.yaml
+  - target:
+      kind: Deployment
+      name: clusters
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: XATA_CLUSTERS_STORAGE_REQUEST_GB
+          value: "1"
+  - target:
+      kind: Deployment
+      name: auth
+    patch: |-
+      - op: add
+        path: /spec/template/spec/initContainers/0/env/-
+        value:
+          name: POSTGRES_DB
+          value: "auth"
+      - op: add
+        path: /spec/template/spec/initContainers/0/env/-
+        value:
+          name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: xata-secrets
+              key: username
+      - op: add
+        path: /spec/template/spec/initContainers/0/env/-
+        value:
+          name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: xata-secrets
+              key: password
+      - op: add
+        path: /spec/template/spec/initContainers/0/env/-
+        value:
+          name: POSTGRES_HOST
+          value: postgres
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: POSTGRES_DB
+          value: "auth"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: xata-secrets
+              key: username
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: xata-secrets
+              key: password
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: POSTGRES_HOST
+          value: postgres
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: FRONTEND_URL
+          value: "http://localhost:3000"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: BILLING_REQUIRED
+          value: "false"
+      - op: add
+        path: /spec/template/spec/initContainers/0/envFrom/-
+        value:
+          secretRef:
+            name: xata-secrets
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom/-
+        value:
+          secretRef:
+            name: xata-secrets
+  - target:
+      kind: Deployment
+      name: gateway
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: GOMAXPROCS
+          value: "1"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          limits:
+            cpu: "200m"
+            memory: "100Mi"
+          requests:
+            cpu: "100m"
+            memory: "100Mi"
+  - target:
+      kind: Deployment
+      namespace: xata
+      name: branch-operator
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: XATA_BACKUPS_BUCKET
+          value: "s3://backups"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: XATA_BACKUPS_ENDPOINT
+          value: "http://minio-eu:9000"
+
+  - target:
+      kind: HelmRelease
+      name: kube-state-metrics
+    patch: |
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata:
+        name: kube-state-metrics
+      $patch: delete
+  - target:
+      kind: HelmRepository
+      name: prometheus-community
+    patch: |
+      apiVersion: source.toolkit.fluxcd.io/v1
+      kind: HelmRepository
+      metadata:
+        name: prometheus-community
+      $patch: delete
+
+  - path: cnpg/scale-to-zero.yaml.patch
+    target:
+      kind: Deployment
+      name: scale-to-zero
+
+  - target:
+      kind: Deployment
+      labelSelector: app=auth
+    patch: |-
+      apiVersion: v1
+      kind: Deployment
+      metadata:
+        name: __ignored__
+      spec:
+        template:
+          spec:
+            initContainers:
+              - name: create-dev-user
+                image: xatatech/auth:latest
+                args: ['create_dev_user']
+                env:
+                  - name: KEYCLOAK_ADMIN_USERNAME
+                    valueFrom:
+                      secretKeyRef:
+                        name: auth-keycloak-initial-admin
+                        key: username
+                  - name: KEYCLOAK_ADMIN_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: auth-keycloak-initial-admin
+                        key: password
+                  - name: API_KEY_HMAC_SECRET
+                    valueFrom:
+                      secretKeyRef:
+                        name: auth-api-key-hmac
+                        key: hmac-secret
+                envFrom:
+                  - configMapRef:
+                      name: keycloak-api-settings
+                  - secretRef:
+                      name: auth-api-key-hmac
+                resources:
+                  limits:
+                    cpu: 200m
+                    memory: 200Mi
+                  requests:
+                    cpu: 100m
+                    memory: 100Mi
+                securityContext:
+                  runAsUser: 1000
+                  allowPrivilegeEscalation: false
+                  readOnlyRootFilesystem: true
+                  runAsNonRoot: true
+                  capabilities:
+                    drop:
+                      - ALL

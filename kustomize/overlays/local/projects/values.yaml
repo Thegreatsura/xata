@@ -1,0 +1,5 @@
+image:
+  repository: xatatech/projects
+  tag: latest
+postgres.port: 5432
+defaultRegion: local

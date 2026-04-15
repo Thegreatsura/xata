@@ -1,0 +1,48 @@
+image:
+  repository: ghcr.io/xataio/xata/auth
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  httpPort: 5001
+  grpcPort: 5002
+
+dependencies:
+  authGrpcUrl: "auth:5002"
+  projectsGrpcUrl: "projects:5002"
+
+postgres:
+  sslmode: disable
+
+observability:
+  serviceName: auth
+
+httpRoute:
+  hostname: localhost
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 200Mi
+  requests:
+    cpu: 100m
+    memory: 200Mi
+
+tolerations:
+  - key: "xata.io/workload"
+    value: "controlplane"
+    effect: "NoSchedule"
+
+resourceCleanup:
+  schedule: "0 10 * * *"
+  disabledForDays: 15
+  maxBranches: 50
+  dryRun: true
+  suspend: false
+  resources:
+    limits:
+      cpu: 100m
+      memory: 64Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-api-settings
+  namespace: {{ .Release.Namespace }}
+data:
+  KEYCLOAK_URL: {{ .Values.config.api.url | quote }}
+  KEYCLOAK_REALM: {{ .Values.config.api.realm | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-config
+  namespace: {{ .Release.Namespace }}
+data:
+  SMTP_HOST: "{{ .Values.config.realm.smtp.host }}"
+  SMTP_PORT: "{{ .Values.config.realm.smtp.port }}" # STARTTLS
+  SMTP_SSL: "{{ .Values.config.realm.smtp.ssl }}"
+  SMTP_FROM: "{{ .Values.config.realm.smtp.from }}"
+  SMTP_REPLY_TO: "{{ .Values.config.realm.smtp.replyTo }}"

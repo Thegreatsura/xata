@@ -1,0 +1,6 @@
+apiVersion: v2
+name: projects
+description: Projects service for managing database projects and branches
+type: application
+version: 0.0.0
+appVersion: "latest"

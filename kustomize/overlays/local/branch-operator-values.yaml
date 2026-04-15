@@ -1,0 +1,7 @@
+image:
+  repository: xatatech/branch-operator
+  tag: latest
+
+config:
+  branchOperator:
+    clustersTolerations: "xata.io/workload=dataplane:NoSchedule"

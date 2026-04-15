@@ -1,0 +1,227 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Chart.Name }}
+  annotations:
+    {{- toYaml .Values.podAnnotations | nindent 4 }}
+spec:
+  {{- if and (not .Values.autoscaling.enabled) (hasKey .Values "replicaCount") }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      enableServiceLinks: false
+      initContainers:
+        - name: {{ .Chart.Name }}-init
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["/server"]
+          args: ["setup"]
+          env:
+            - name: AUTH_GRPC_URL
+              value: {{ .Values.dependencies.authGrpcUrl | quote }}
+            - name: CLUSTERS_GRPC_URL
+              value: {{ .Values.dependencies.clustersGrpcUrl | quote }}
+            - name: POSTGRES_SSLMODE
+              value: {{ .Values.postgres.sslmode | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
+            {{- if .Values.postgres.existingSecret }}
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.userKey }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.passwordKey }}
+            {{- end }}
+            {{- if .Values.metastoreReader.enabled }}
+            - name: METASTORE_READER_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.metastoreReader.existingSecret }}
+                  key: {{ .Values.metastoreReader.userKey }}
+            - name: METASTORE_READER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.metastoreReader.existingSecret }}
+                  key: {{ .Values.metastoreReader.passwordKey }}
+            {{- end }}
+            - name: POSTGRES_HOST
+              value: {{ .Values.postgres.host | quote }}
+            {{- if .Values.postgres.port }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgres.port | quote }}
+            {{- end }}
+            {{- if .Values.defaultRegion }}
+            - name: DEFAULT_REGION
+              value: {{ .Values.defaultRegion | quote }}
+            {{- end }}
+          {{- if .Values.xataSecrets.enabled }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.xataSecrets.secretName }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: scheduler-config
+              mountPath: /config
+              readOnly: true
+          securityContext:
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http-port
+              containerPort: {{ .Values.service.httpPort }}
+              protocol: TCP
+            - name: grpc-port
+              containerPort: {{ .Values.service.grpcPort }}
+              protocol: TCP
+          env:
+            - name: AUTH_GRPC_URL
+              value: {{ .Values.dependencies.authGrpcUrl | quote }}
+            - name: CLUSTERS_GRPC_URL
+              value: {{ .Values.dependencies.clustersGrpcUrl | quote }}
+            - name: POSTGRES_SSLMODE
+              value: {{ .Values.postgres.sslmode | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ .Values.observability.serviceName | quote }}
+            - name: XATA_CLUSTERS_NAMESPACE
+              value: {{ .Values.dependencies.clustersNamespace | quote }}
+            - name: SCHEDULER_CONFIG_PATH
+              value: "/config/scheduler.yaml"
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
+            {{- if .Values.postgres.existingSecret }}
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.userKey }}
+            {{- end }}
+            {{- if not .Values.postgres.port }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "deployment.environment={{ .Values.observability.environment }}"
+            {{- end }}
+            {{- if .Values.postgres.existingSecret }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.passwordKey }}
+            {{- end }}
+            - name: POSTGRES_HOST
+              value: {{ .Values.postgres.host | quote }}
+            {{- if .Values.postgres.port }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgres.port | quote }}
+            {{- end }}
+            {{- if .Values.postgres.port }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "deployment.environment={{ .Values.observability.environment }}"
+            {{- end }}
+            {{- if .Values.gateway.hostport }}
+            - name: GATEWAY_HOSTPORT
+              value: {{ .Values.gateway.hostport | quote }}
+            {{- end }}
+            {{- if .Values.defaultRegion }}
+            - name: DEFAULT_REGION
+              value: {{ .Values.defaultRegion | quote }}
+            {{- end }}
+          envFrom:
+            {{- range .Values.externalConfigMaps }}
+            - configMapRef:
+                name: {{ .name }}
+            {{- end }}
+            {{- if .Values.observability.otelConfigMap }}
+            - configMapRef:
+                name: {{ .Values.observability.otelConfigMap }}
+            {{- end }}
+            {{- if .Values.externalSecrets.projectsSecret }}
+            - secretRef:
+                name: {{ .Values.externalSecrets.projectsSecret }}
+            {{- end }}
+            {{- if .Values.externalSecrets.posthogSecret }}
+            - secretRef:
+                name: {{ .Values.externalSecrets.posthogSecret }}
+            {{- end }}
+            {{- if .Values.xataSecrets.enabled }}
+            - secretRef:
+                name: {{ .Values.xataSecrets.secretName }}
+            {{- end }}
+            {{- if .Values.externalSecrets.customerioSecret }}
+            - secretRef:
+                name: {{ .Values.externalSecrets.customerioSecret }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /_hello
+              port: 5001
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /_hello
+              port: 5001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: scheduler-config
+              mountPath: /config
+              readOnly: true
+          securityContext:
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: scheduler-config
+          configMap:
+            name: scheduler-config

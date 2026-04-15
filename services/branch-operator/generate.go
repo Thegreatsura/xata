@@ -1,0 +1,6 @@
+package branchoperator
+
+//go:generate go run sigs.k8s.io/controller-tools/cmd/controller-gen object paths=./api/...
+//go:generate go run sigs.k8s.io/controller-tools/cmd/controller-gen applyconfiguration paths=./api/...
+//go:generate go run sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./api/... output:crd:dir=../../charts/branch-operator/crds
+//go:generate go run sigs.k8s.io/controller-tools/cmd/controller-gen rbac:roleName=branch-operator,fileName=clusterrole.yaml paths=./pkg/... output:rbac:dir=../../charts/branch-operator/templates

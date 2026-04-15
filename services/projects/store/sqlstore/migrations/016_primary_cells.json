@@ -1,0 +1,17 @@
+{
+  "operations": [
+    {
+      "add_column": {
+        "table": "cells",
+        "column": {
+          "name": "is_primary",
+          "type": "boolean",
+          "nullable": false,
+          "default": "false",
+          "comment": "Is this cell the primary cell for the region?"
+        },
+        "up" : "true"
+      }
+    }
+  ]
+}

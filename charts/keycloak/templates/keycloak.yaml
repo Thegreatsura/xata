@@ -1,0 +1,55 @@
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  name: auth-keycloak
+  namespace: {{ .Release.Namespace }}
+spec:
+  instances: {{ .Values.instances }}
+  image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+  db:
+    vendor: {{ .Values.db.vendor }}
+    {{- if .Values.db.host }}
+    host: {{ .Values.db.host }}
+    {{- end }}
+    {{- if .Values.db.database }}
+    database: {{ .Values.db.database }}
+    {{- end }}
+    {{- with .Values.db.usernameSecret }}
+    {{- if and .name .key }}
+    usernameSecret:
+      name: {{ .name }}
+      key: {{ .key }}
+    {{- end }}
+    {{- end }}
+    {{- with .Values.db.passwordSecret }}
+    {{- if and .name .key }}
+    passwordSecret:
+      name: {{ .name }}
+      key: {{ .key }}
+    {{- end }}
+    {{- end }}
+  http:
+    httpEnabled: {{ .Values.http.httpEnabled }}
+    httpPort: {{ .Values.http.httpPort }}
+  hostname:
+    strict: {{ .Values.hostname.strict }}
+    admin: {{ .Values.hostname.admin | quote }}
+    {{- if .Values.hostname.hostname }}
+    hostname: {{ .Values.hostname.hostname | quote }}
+    {{- end }}
+  features:
+    enabled:
+      {{- toYaml .Values.features.enabled | nindent 6 }}
+  resources:
+    {{- toYaml .Values.resources | nindent 4 }}
+  proxy:
+    headers: {{ .Values.proxy.headers }} # double check your reverse proxy sets and overwrites the X-Forwarded-* headers
+  {{- with .Values.tolerations }}
+  scheduling:
+    tolerations:
+      {{- toYaml . | nindent 6 }}
+  {{- end }}
+  {{- with .Values.unsupported }}
+  unsupported:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}

@@ -1,0 +1,120 @@
+name: Build and Push Docker Image
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        description: "Service to build and push"
+        required: true
+        type: string
+      git_ref:
+        description: "Git ref to build (branch, commit sha or tag)"
+        required: true
+        type: string
+      latest:
+        description: "Tag the image as latest"
+        required: false
+        default: false
+        type: boolean
+      path:
+        description: "Parent directory of the Dockerfile"
+        required: false
+        default: "."
+        type: string
+      dockerfile:
+        description: "Path to Dockerfile (relative to repo root)"
+        required: false
+        default: "Dockerfile"
+        type: string
+      extra_build_args:
+        description: "Extra build args (newline-separated KEY=VALUE pairs)"
+        required: false
+        default: ""
+        type: string
+    outputs:
+      image:
+        description: "Docker image name"
+        value: ${{ jobs.docker.outputs.image }}
+      tag:
+        description: "Docker image tag"
+        value: ${{ jobs.docker.outputs.tag }}
+
+permissions:
+  contents: read
+  packages: write
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  REGISTRY: ghcr.io/xataio/xata
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
+      tag: ${{ steps.build-image.outputs.tag }}
+    steps:
+      - name: Checkout code
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        id: build-image
+        env:
+          SERVICE_NAME: ${{ inputs.service_name }}
+          DOCKERFILE: ${{ inputs.dockerfile }}
+          BUILD_PATH: ${{ inputs.path }}
+          TAG_AS_LATEST: ${{ inputs.latest }}
+          EXTRA_BUILD_ARGS: ${{ inputs.extra_build_args }}
+          GIT_COMMIT: ${{ steps.checkout.outputs.commit }}
+        run: |
+          commit="$GIT_COMMIT"
+          image_tag=$(date +%s)-${commit::7}
+          image_name="${REGISTRY}/${SERVICE_NAME}"
+          image_reference="${image_name}:${image_tag}"
+
+          extra_args=""
+          if [[ -n "$EXTRA_BUILD_ARGS" ]]; then
+            while IFS= read -r arg; do
+              [[ -n "$arg" ]] && extra_args+=" --build-arg $arg"
+            done <<< "$EXTRA_BUILD_ARGS"
+          fi
+
+          (set -x; docker buildx build \
+            -f "$DOCKERFILE" \
+            --build-arg "SERVICE_NAME=${SERVICE_NAME}" \
+            $extra_args \
+            --platform linux/amd64,linux/arm64 \
+            --cache-from "type=registry,ref=${image_name}:buildcache" \
+            --cache-to "type=registry,ref=${image_name}:buildcache,mode=max" \
+            --progress=plain \
+            --push \
+            -t "$image_reference" \
+            "$BUILD_PATH"
+          )
+
+          if [[ "$TAG_AS_LATEST" == "true" ]]; then
+            (set -x; docker buildx imagetools create --tag "$image_name:latest" "$image_reference")
+          fi
+
+          echo "image=$image_name" >> "$GITHUB_OUTPUT"
+          echo "tag=$image_tag" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,2 @@
+io.xata.keycloak.LoginTurnstileFactory
+io.xata.keycloak.ResetCredentialsTurnstile

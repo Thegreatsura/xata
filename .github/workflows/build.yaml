@@ -1,0 +1,167 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "openapi/gen/public.yaml"
+      - "services/**"
+      - "internal/**"
+      - "proto/**"
+      - "go.mod"
+      - "charts/**"
+      - "dev/docker/keycloak/**"
+      - "Dockerfile"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      auth: ${{ steps.changes.outputs.auth }}
+      projects: ${{ steps.changes.outputs.projects }}
+      clusters: ${{ steps.changes.outputs.clusters }}
+      gateway: ${{ steps.changes.outputs.gateway }}
+      branch-operator: ${{ steps.changes.outputs.branch-operator }}
+      scale-to-zero-sidecar: ${{ steps.changes.outputs.scale-to-zero-sidecar }}
+      keycloak: ${{ steps.changes.outputs.keycloak }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            auth:
+              - 'openapi/gen/public.yaml'
+              - 'services/auth/**'
+              - 'internal/**'
+              - 'go.mod'
+              - 'Dockerfile'
+            projects:
+              - 'services/projects/**'
+              - 'internal/**'
+              - 'go.mod'
+              - 'Dockerfile'
+            clusters:
+              - 'services/clusters/**'
+              - 'internal/**'
+              - 'go.mod'
+              - 'Dockerfile'
+            gateway:
+              - 'services/gateway/**'
+              - 'internal/**'
+              - 'go.mod'
+              - 'Dockerfile'
+            branch-operator:
+              - 'services/branch-operator/**'
+              - 'internal/**'
+              - 'go.mod'
+              - 'Dockerfile'
+            scale-to-zero-sidecar:
+              - 'services/scale-to-zero-sidecar/**'
+              - 'go.mod'
+            keycloak:
+              - 'dev/docker/keycloak/**'
+
+  auth:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.auth == 'true'
+    uses: ./.github/workflows/build-image.yml
+    with:
+      service_name: "auth"
+      git_ref: ${{ github.sha }}
+      latest: true
+    secrets: inherit
+
+  projects:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.projects == 'true'
+    uses: ./.github/workflows/build-image.yml
+    with:
+      service_name: "projects"
+      git_ref: ${{ github.sha }}
+      latest: true
+    secrets: inherit
+
+  clusters:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.clusters == 'true'
+    uses: ./.github/workflows/build-image.yml
+    with:
+      service_name: "clusters"
+      git_ref: ${{ github.sha }}
+      latest: true
+    secrets: inherit
+
+  gateway:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.gateway == 'true'
+    uses: ./.github/workflows/build-image.yml
+    with:
+      service_name: "gateway"
+      git_ref: ${{ github.sha }}
+      latest: true
+    secrets: inherit
+
+  branch-operator:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.branch-operator == 'true'
+    uses: ./.github/workflows/build-image.yml
+    with:
+      service_name: "branch-operator"
+      git_ref: ${{ github.sha }}
+      latest: true
+    secrets: inherit
+
+  scale-to-zero-sidecar:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.scale-to-zero-sidecar == 'true'
+    uses: ./.github/workflows/build-image.yml
+    with:
+      service_name: "scale-to-zero-sidecar"
+      dockerfile: "services/scale-to-zero-sidecar/Dockerfile"
+      git_ref: ${{ github.sha }}
+      latest: true
+    secrets: inherit
+
+  keycloak:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.keycloak == 'true'
+    uses: ./.github/workflows/build-image.yml
+    with:
+      service_name: "keycloak"
+      dockerfile: "dev/docker/keycloak/Dockerfile"
+      path: "dev/docker/keycloak"
+      git_ref: ${{ github.sha }}
+      latest: true
+      extra_build_args: "NO_THEME=true"
+    secrets: inherit
+
+  build-charts:
+    needs:
+      - auth
+      - projects
+      - clusters
+      - gateway
+      - branch-operator
+      - scale-to-zero-sidecar
+      - keycloak
+    if: always() && !cancelled()
+    uses: ./.github/workflows/build-charts.yaml
+    secrets: inherit
+    with:
+      ref: ${{ github.sha }}
+      image_specs: |
+        ${{ needs.auth.result == 'success' && format('IMAGE={0} TAG={1}', needs.auth.outputs.image, needs.auth.outputs.tag) || '' }}
+        ${{ needs.projects.result == 'success' && format('IMAGE={0} TAG={1}', needs.projects.outputs.image, needs.projects.outputs.tag) || '' }}
+        ${{ needs.clusters.result == 'success' && format('IMAGE={0} TAG={1}', needs.clusters.outputs.image, needs.clusters.outputs.tag) || '' }}
+        ${{ needs.gateway.result == 'success' && format('IMAGE={0} TAG={1}', needs.gateway.outputs.image, needs.gateway.outputs.tag) || '' }}
+        ${{ needs.branch-operator.result == 'success' && format('IMAGE={0} TAG={1}', needs.branch-operator.outputs.image, needs.branch-operator.outputs.tag) || '' }}
+        ${{ needs.keycloak.result == 'success' && format('IMAGE={0} TAG={1}', needs.keycloak.outputs.image, needs.keycloak.outputs.tag) || '' }}

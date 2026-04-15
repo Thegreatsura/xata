@@ -1,0 +1,112 @@
+image:
+  repository: ghcr.io/xataio/xata/projects
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  httpPort: 5001
+  grpcPort: 5002
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 90
+
+httpRoute:
+  enabled: true
+  hostname: localhost
+  parentRef:
+    name: eg
+    namespace: ""
+  pathPatterns:
+    - "^/organizations/([^/]+)/projects(.*)"
+    - "^/organizations/([^/]+)/regions"
+    - "^/organizations/([^/]+)/instanceTypes"
+    - "^/organizations/([^/]+)/credentials"
+    - "^/organizations/([^/]+)/images"
+    - "^/organizations/([^/]+)/extensions"
+    - "^/organizations/([^/]+)/githubapp(.*)"
+
+postgres:
+  host: postgres
+  port: ""
+  database: projects
+  sslmode: disable
+  existingSecret: ""
+  userKey: username
+  passwordKey: password
+
+metastoreReader:
+  enabled: false
+  existingSecret: ""
+  userKey: metastore_reader_user
+  passwordKey: metastore_reader_password
+
+xataSecrets:
+  enabled: false
+  secretName: xata-secrets
+
+dependencies:
+  authGrpcUrl: "auth:5002"
+  clustersGrpcUrl: "clusters:5002"
+  clustersNamespace: "xata-clusters"
+
+gateway:
+  hostport: ""
+
+# defaultRegion is the name of the default region to initialize on startup.
+# If empty, no default region/cell is created.
+defaultRegion: ""
+
+observability:
+  environment: local
+  serviceName: projects
+  otelConfigMap: otel-config
+
+externalSecrets:
+  projectsSecret: projects-secret
+  posthogSecret: posthog
+  customerioSecret: ""
+
+scheduler:
+  # A minimal CNPG cluster scheduler configuration. Override to configure
+  # specific schedulers for configured regions.
+  default: AlwaysPrimary
+  regions: {}
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 200Mi
+  requests:
+    cpu: 100m
+    memory: 200Mi
+
+tolerations:
+  - key: "xata.io/workload"
+    value: "controlplane"
+    effect: "NoSchedule"
+
+nodeSelector: {}
+
+affinity: {}
+
+podAnnotations:
+  reloader.stakater.com/auto: "true"
+
+podLabels: {}
+
+cleanup:
+  enabled: false
+  schedule: "0 3 * * *"
+  retentionDays: 90
+  nodeSelector: {}
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi

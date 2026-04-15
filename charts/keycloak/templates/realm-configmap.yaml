@@ -1,0 +1,12 @@
+{{- if not .Values.realmImport.configMapName }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+data:
+  realm.json: |
+{{ .Files.Get "files/realm.json" | indent 4 }}
+{{- end }}

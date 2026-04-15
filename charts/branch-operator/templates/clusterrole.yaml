@@ -1,0 +1,123 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: branch-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  - persistentvolumes
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - services
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - barmancloud.cnpg.io
+  resources:
+  - objectstores
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - clusters
+  - poolers
+  - scheduledbackups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshots
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - xata.io
+  resources:
+  - branches
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - xata.io
+  resources:
+  - branches/status
+  - wakeuprequests/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - xata.io
+  resources:
+  - clusterpools
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - xata.io
+  resources:
+  - wakeuprequests
+  verbs:
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - xata.io
+  resources:
+  - xvols
+  verbs:
+  - get
+  - list
+  - patch
+  - watch

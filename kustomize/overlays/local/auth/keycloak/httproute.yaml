@@ -1,0 +1,23 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: keycloak-eg-local
+  namespace: xata
+  labels:
+    xata.tech/gateway: auth
+spec:
+  parentRefs:
+    - name: keycloak-eg
+  hostnames:
+    - localhost
+  rules:
+    - backendRefs:
+        - group: ""
+          kind: Service
+          name: auth-keycloak-service
+          port: 8080
+          weight: 1
+      matches:
+        - path:
+            type: PathPrefix
+            value: /admin/

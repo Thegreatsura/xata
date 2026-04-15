@@ -1,0 +1,292 @@
+# SigNoz Helm chart values for local development
+# Chart: https://charts.signoz.io / signoz/signoz
+
+fullnameOverride: signoz-local
+
+# -- SigNoz backend
+signoz:
+  replicaCount: 1
+  persistence:
+    enabled: false  # emptyDir for SQLite (ephemeral local dev)
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  env:
+    signoz_user_root_enabled: "true"
+    signoz_user_root_email: "dev@xata.tech"
+    signoz_user_root_password: "XataDev1234!"
+    signoz_user_root_org_name: "Xata"
+    signoz_tokenizer_jwt_secret: "xata-local-dev-jwt-secret-not-for-production"
+
+# -- ClickHouse
+clickhouse:
+  enabled: true
+  layout:
+    shardsCount: 1
+    replicasCount: 1
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+  zookeeper:
+    enabled: true
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+# -- Schema migrator (runs as Helm hook)
+schemaMigrator:
+  enabled: true
+
+# -- OpenTelemetry Collector
+otelCollector:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups: [""]
+        resources: [pods, namespaces, nodes, nodes/stats, nodes/proxy]
+        verbs: [get, list, watch]
+      - apiGroups: [apps]
+        resources: [replicasets]
+        verbs: [get, list, watch]
+      - apiGroups: [extensions]
+        resources: [replicasets]
+        verbs: [get, list, watch]
+      - apiGroups: [batch]
+        resources: [jobs]
+        verbs: [get, list, watch]
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+            max_recv_msg_size_mib: 16
+          http:
+            endpoint: 0.0.0.0:4318
+      jaeger:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:14250
+          thrift_http:
+            endpoint: 0.0.0.0:14268
+      httplogreceiver/heroku:
+        endpoint: 0.0.0.0:8081
+        source: heroku
+      httplogreceiver/json:
+        endpoint: 0.0.0.0:8082
+        source: json
+      # Scrape CNPG Postgres metrics
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: kube-state-metrics
+              scrape_interval: 30s
+              static_configs:
+                - targets:
+                    - kube-state-metrics.xata.svc.cluster.local:8080
+            - job_name: cnpg-metrics
+              scrape_interval: 30s
+              scheme: https
+              tls_config:
+                insecure_skip_verify: true
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces:
+                    names:
+                      - xata-clusters
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_cnpg_io_podRole]
+                  action: keep
+                  regex: instance
+                - source_labels: [__address__]
+                  action: replace
+                  regex: ([^:]+)(?::\d+)?
+                  target_label: __address__
+                  replacement: $1:9187
+                - source_labels: [__meta_kubernetes_pod_name]
+                  target_label: k8s_pod_name
+                - source_labels: [__meta_kubernetes_namespace]
+                  target_label: k8s_namespace_name
+            - job_name: cnpg-pooler-metrics
+              scrape_interval: 30s
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces:
+                    names:
+                      - xata-clusters
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_cnpg_io_poolerName]
+                  action: keep
+                  regex: .+
+                - source_labels: [__meta_kubernetes_pod_container_port_name]
+                  action: keep
+                  regex: metrics
+                - source_labels: [__meta_kubernetes_pod_name]
+                  target_label: k8s_pod_name
+                - source_labels: [__meta_kubernetes_namespace]
+                  target_label: k8s_namespace_name
+                - source_labels: [__meta_kubernetes_pod_label_cnpg_io_poolerName]
+                  target_label: pooler_name
+      # Collect container CPU/memory/network metrics from kubelet
+      kubeletstats:
+        collection_interval: 30s
+        auth_type: serviceAccount
+        endpoint: https://${env:K8S_NODE_NAME}:10250
+        insecure_skip_verify: true
+        metric_groups:
+          - container
+          - pod
+    connectors:
+      signozmeter:
+        metrics_flush_interval: 1h
+        dimensions:
+          - name: service.name
+          - name: deployment.environment
+          - name: host.name
+    exporters:
+      clickhouselogsexporter:
+        dsn: tcp://${env:CLICKHOUSE_USER}:${env:CLICKHOUSE_PASSWORD}@${env:CLICKHOUSE_HOST}:${env:CLICKHOUSE_PORT}/${env:CLICKHOUSE_LOG_DATABASE}
+        timeout: 10s
+        use_new_schema: true
+      clickhousetraces:
+        datasource: tcp://${env:CLICKHOUSE_USER}:${env:CLICKHOUSE_PASSWORD}@${env:CLICKHOUSE_HOST}:${env:CLICKHOUSE_PORT}/${env:CLICKHOUSE_TRACE_DATABASE}
+        low_cardinal_exception_grouping: ${env:LOW_CARDINAL_EXCEPTION_GROUPING}
+        use_new_schema: true
+      metadataexporter:
+        cache:
+          provider: in_memory
+        dsn: tcp://${env:CLICKHOUSE_USER}:${env:CLICKHOUSE_PASSWORD}@${env:CLICKHOUSE_HOST}:${env:CLICKHOUSE_PORT}/signoz_metadata
+        tenant_id: ${env:TENANT_ID}
+        timeout: 10s
+      signozclickhousemeter:
+        dsn: tcp://${env:CLICKHOUSE_USER}:${env:CLICKHOUSE_PASSWORD}@${env:CLICKHOUSE_HOST}:${env:CLICKHOUSE_PORT}/${env:CLICKHOUSE_METER_DATABASE}
+        sending_queue:
+          enabled: false
+        timeout: 45s
+      signozclickhousemetrics:
+        dsn: tcp://${env:CLICKHOUSE_USER}:${env:CLICKHOUSE_PASSWORD}@${env:CLICKHOUSE_HOST}:${env:CLICKHOUSE_PORT}/${env:CLICKHOUSE_DATABASE}
+        timeout: 45s
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+      pprof:
+        endpoint: localhost:1777
+      zpages:
+        endpoint: localhost:55679
+    processors:
+      batch:
+        send_batch_size: 50000
+        timeout: 1s
+      batch/meter:
+        send_batch_max_size: 25000
+        send_batch_size: 20000
+        timeout: 1s
+      signozspanmetrics/delta:
+        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+        dimensions:
+          - default: default
+            name: service.namespace
+          - default: default
+            name: deployment.environment
+          - name: signoz.collector.id
+        dimensions_cache_size: 100000
+        latency_histogram_buckets:
+          - 100us
+          - 1ms
+          - 2ms
+          - 6ms
+          - 10ms
+          - 50ms
+          - 100ms
+          - 250ms
+          - 500ms
+          - 1000ms
+          - 1400ms
+          - 2000ms
+          - 5s
+          - 10s
+          - 20s
+          - 40s
+          - 60s
+        metrics_exporter: signozclickhousemetrics
+    service:
+      extensions:
+        - health_check
+        - zpages
+        - pprof
+      pipelines:
+        logs:
+          exporters:
+            - clickhouselogsexporter
+            - metadataexporter
+            - signozmeter
+          processors:
+            - batch
+          receivers:
+            - otlp
+            - httplogreceiver/heroku
+            - httplogreceiver/json
+        metrics:
+          exporters:
+            - metadataexporter
+            - signozclickhousemetrics
+            - signozmeter
+          processors:
+            - batch
+          receivers:
+            - otlp
+            - prometheus
+            - kubeletstats
+        metrics/meter:
+          exporters:
+            - signozclickhousemeter
+          processors:
+            - batch/meter
+          receivers:
+            - signozmeter
+        traces:
+          exporters:
+            - clickhousetraces
+            - metadataexporter
+            - signozmeter
+          processors:
+            - signozspanmetrics/delta
+            - batch
+          receivers:
+            - otlp
+            - jaeger
+      telemetry:
+        logs:
+          encoding: json
+
+# -- Disable unused sub-charts
+signoz-otel-gateway:
+  enabled: false
+redpanda:
+  enabled: false
+postgresql:
+  enabled: false

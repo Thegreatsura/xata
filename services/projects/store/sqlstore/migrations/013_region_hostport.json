@@ -1,0 +1,15 @@
+{
+  "operations": [
+    {
+      "add_column": {
+        "table": "regions",
+        "column": {
+          "name": "hostport",
+          "type": "text",
+          "default": "''"
+        },
+        "up": ""
+      }
+    }
+  ]
+}

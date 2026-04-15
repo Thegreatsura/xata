@@ -1,0 +1,59 @@
+{
+  "operations": [
+    {
+      "create_table": {
+        "name": "api_keys",
+        "columns": [
+          {
+            "name": "id",
+            "type": "text",
+            "pk": true
+          },
+          {
+            "name": "name",
+            "type": "text",
+            "nullable": false,
+            "comment": "User-provided name for the key"
+          },
+          {
+            "name": "key_hash",
+            "type": "text",
+            "nullable": false,
+            "comment": "Securely hashed"
+          },
+          {
+            "name": "key_preview",
+            "type": "text",
+            "nullable": false,
+            "comment": "First 6 characters of full key"
+          },
+          {
+            "name": "target_type",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "target_id",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "expiry",
+            "type": "timestamp",
+            "comment": "Expiration timestamp"
+          },
+          {
+            "name": "last_used",
+            "type": "timestamp",
+            "comment": "Updated on access by the auth service"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp",
+            "default": "now()"
+          }
+        ]
+      }
+    }
+  ]
+}

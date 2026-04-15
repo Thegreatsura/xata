@@ -1,0 +1,56 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: import-keycloak-realm
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: enabled
+spec:
+  ttlSecondsAfterFinished: {{ .Values.realmImport.ttlSecondsAfterFinished }}
+  template:
+    spec:
+      containers:
+        - name: import
+          image: {{ .Values.realmImport.image }}
+          env:
+            - name: KEYCLOAK_URL
+              value: {{ .Values.realmImport.keycloakUrl | quote }}
+            - name: KEYCLOAK_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.realmImport.keycloakUserSecret.name }}
+                  key: {{ .Values.realmImport.keycloakUserSecret.key }}
+            - name: KEYCLOAK_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.realmImport.keycloakPasswordSecret.name }}
+                  key: {{ .Values.realmImport.keycloakPasswordSecret.key }}
+            - name: IMPORT_FILES_LOCATIONS
+              value: /keycloak-realm/realm.json
+            - name: IMPORT_VARSUBSTITUTION_ENABLED
+              value: "true"
+            {{- with .Values.realmImport.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          # add client secrets to the environment
+          envFrom:
+            - secretRef:
+                name: keycloak-realm-secret
+            - configMapRef:
+                name: keycloak-realm-config
+          volumeMounts:
+            - name: keycloak-realm
+              mountPath: /keycloak-realm
+          resources:
+            {{- toYaml .Values.realmImport.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.realmImport.securityContext | nindent 12 }}
+      volumes:
+        - name: keycloak-realm
+          configMap:
+            name: {{ .Values.realmImport.configMapName | default "keycloak-realm" }}
+      restartPolicy: Never
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

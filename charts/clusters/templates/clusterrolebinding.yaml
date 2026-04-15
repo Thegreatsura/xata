@@ -1,0 +1,90 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: access-cnpg
+subjects:
+  - kind: ServiceAccount
+    name: clusters
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: access-cnpg
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: access-networkpolicies
+subjects:
+  - kind: ServiceAccount
+    name: clusters
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: access-networkpolicies
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: access-services
+subjects:
+  - kind: ServiceAccount
+    name: clusters
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: access-services
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: access-openebs
+subjects:
+  - kind: ServiceAccount
+    name: clusters
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: access-openebs
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cnpg-clusters-scale-to-zero
+subjects:
+  - kind: Group
+    name: system:serviceaccounts:xata-clusters  # All service accounts in xata-clusters namespace
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: cnpg-scale-to-zero-sidecar-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: access-batch-jobs
+subjects:
+  - kind: ServiceAccount
+    name: clusters
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: access-batch-jobs
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: access-branches
+subjects:
+  - kind: ServiceAccount
+    name: clusters
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: access-branches

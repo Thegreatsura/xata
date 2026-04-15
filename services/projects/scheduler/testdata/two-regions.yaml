@@ -1,0 +1,5 @@
+# Set an explicit strategy for two regions
+default: "AlwaysSecondary"
+regions:
+  us-east-1: "AlwaysPrimary"
+  eu-central-1: "Random"

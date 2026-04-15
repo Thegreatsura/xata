@@ -1,0 +1,105 @@
+{
+  "operations": [
+    {
+      "create_table": {
+        "name": "regions",
+        "columns": [
+          {
+            "name": "id",
+            "type": "text",
+            "pk": true
+          },
+          {
+            "name": "public_access",
+            "type": "boolean",
+            "default": "false"
+          },
+          {
+            "name": "organization_id",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp",
+            "default": "now()"
+          }
+        ]
+      }
+    },
+    {
+      "create_index": {
+        "name": "idx_regions_organization_id",
+        "table": "regions",
+        "columns": {
+          "organization_id": {}
+        }
+      }
+    },
+    {
+      "create_table": {
+        "name": "cells",
+        "columns": [
+          {
+            "name": "id",
+            "type": "text",
+            "pk": true
+          },
+          {
+            "name": "region_id",
+            "type": "text",
+            "nullable": false,
+            "references": {
+              "name": "fk_cells_region_id",
+              "table": "regions",
+              "column": "id",
+              "on_delete": "RESTRICT"
+            }
+          },
+          {
+            "name": "grpc_url",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp",
+            "default": "now()"
+          }
+        ]
+      }
+    },
+    {
+      "create_index": {
+        "name": "idx_cells_region_id",
+        "table": "cells",
+        "columns": {
+          "region_id": {}
+        }
+      }
+    },
+    {
+      "drop_column": {
+        "table": "branches",
+        "column": "region"
+      }
+    },
+    {
+      "add_column": {
+        "table": "branches",
+        "up": "NULL",
+        "column": {
+          "name": "cell_id",
+          "type": "text",
+          "nullable": true,
+          "references": {
+            "name": "fk_branches_cell_id",
+            "table": "cells",
+            "column": "id",
+            "on_delete": "RESTRICT"
+          }
+        }
+      }
+    }
+  ]
+}

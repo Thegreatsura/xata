@@ -1,0 +1,6 @@
+apiVersion: v2
+name: clusters
+description: Clusters service for managing CNPG clusters in the dataplane
+type: application
+version: 0.0.0
+appVersion: "latest"

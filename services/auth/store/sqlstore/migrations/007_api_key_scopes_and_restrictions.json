@@ -1,0 +1,62 @@
+{
+  "operations": [
+    {
+      "add_column": {
+        "table": "api_keys",
+        "column": {
+          "name": "scopes",
+          "type": "text[]",
+          "nullable": false,
+          "comment": "Array of granted scopes for this API key"
+        },
+        "up": "ARRAY['*']::text[]"
+      }
+    },
+    {
+      "add_column": {
+        "table": "api_keys",
+        "column": {
+          "name": "projects",
+          "type": "text[]",
+          "nullable": false,
+          "comment": "Projects this API key has access to"
+        },
+        "up": "ARRAY['*']::text[]"
+      }
+    },
+    {
+      "add_column": {
+        "table": "api_keys",
+        "column": {
+          "name": "branches",
+          "type": "text[]",
+          "nullable": false,
+          "comment": "Branches this API key has access to"
+        },
+        "up": "ARRAY['*']::text[]"
+      }
+    },
+    {
+      "add_column": {
+        "table": "api_keys",
+        "column": {
+          "name": "created_by",
+          "type": "text",
+          "nullable": true,
+          "comment": "ID of the user that created this key"
+        }
+      }
+    },
+    {
+      "add_column": {
+        "table": "api_keys",
+        "column": {
+          "name": "created_by_key",
+          "type": "text",
+          "nullable": true,
+          "comment": "ID of the API key that created this key"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: branch-operator-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: branch-operator
+data:
+  XATA_IMAGE_SECRETS: {{ .Values.config.branchOperator.imageSecrets | quote }}
+  XATA_CLUSTERS_TOLERATIONS: {{ .Values.config.branchOperator.clustersTolerations | quote }}

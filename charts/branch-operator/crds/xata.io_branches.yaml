@@ -1,0 +1,456 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  name: branches.xata.io
+spec:
+  group: xata.io
+  names:
+    kind: Branch
+    listKind: BranchList
+    plural: branches
+    shortNames:
+    - br
+    singular: branch
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.cluster.name
+      name: Cluster
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: Ready
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Ready')].message
+      name: Message
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Branch is the Schema for the branches API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: BranchSpec defines the desired state of a Branch
+            properties:
+              backup:
+                description: |-
+                  BackupSpec configures backups for the branch. When set, an
+                  ObjectStore resource is created to manage backup storage and retention.
+                  When nil, no ObjectStore is created.
+                properties:
+                  retention:
+                    default: 2d
+                    description: |-
+                      Retention specifies how long to retain backups
+                      Examples: "60d", "4w", "2m"
+                    pattern: ^\d+[dwm]$
+                    type: string
+                  scheduledBackup:
+                    description: ScheduledBackup configures periodic base backups.
+                    properties:
+                      schedule:
+                        default: 0 0 0 * * 0
+                        description: |-
+                          Schedule in CNPG 6-field cron format.
+                          The format is : "second minute hour day month dayofweek"
+                          Examples: "0 0 0 * * *" (daily at midnight), "0 0 2 * * 0" (weekly on Sunday at 2am)
+                        type: string
+                    type: object
+                  serverName:
+                    description: |-
+                      ServerName overrides the barman serverName plugin parameter.
+                      When empty, serverName defaults to the branch name.
+                    type: string
+                  walArchiving:
+                    default: Enabled
+                    description: WALArchiving specifies whether WAL archiving is enabled
+                    enum:
+                    - Enabled
+                    - Disabled
+                    type: string
+                type: object
+              cluster:
+                description: ClusterSpec defines the CNPG cluster configuration for
+                  the branch
+                properties:
+                  affinity:
+                    description: Affinity defines scheduling constraints for the cluster
+                      pods
+                    properties:
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
+                        description: NodeSelector specifies node labels that pods
+                          must match to be scheduled
+                        type: object
+                    type: object
+                  hibernation:
+                    description: Hibernation specifies whether the cluster should
+                      be hibernated
+                    enum:
+                    - Enabled
+                    - Disabled
+                    type: string
+                  image:
+                    description: Image is the PostgreSQL container image to use
+                    type: string
+                  instances:
+                    default: 1
+                    description: Instances is the number of PostgreSQL instances in
+                      the cluster
+                    format: int32
+                    maximum: 5
+                    minimum: 1
+                    type: integer
+                  name:
+                    description: |-
+                      Name is the name of the CNPG Cluster resource.
+                      If nil, the branch has no cluster associated with it.
+                    type: string
+                  postgres:
+                    description: Postgres defines PostgreSQL-specific configuration
+                    properties:
+                      parameters:
+                        description: Parameters are PostgreSQL configuration parameters
+                        items:
+                          description: PostgresParameter defines a PostgreSQL configuration
+                            parameter
+                          properties:
+                            name:
+                              description: Name is the parameter name
+                              type: string
+                            value:
+                              description: Value is the parameter value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      sharedPreloadLibraries:
+                        description: SharedPreloadLibraries are PostgreSQL shared
+                          preload libraries
+                        items:
+                          type: string
+                        type: array
+                        x-kubernetes-list-type: set
+                    type: object
+                  resources:
+                    description: Resources defines the compute resources for the PostgreSQL
+                      instances
+                    properties:
+                      claims:
+                        description: |-
+                          Claims lists the names of resources, defined in spec.resourceClaims,
+                          that are used by this container.
+
+                          This field depends on the
+                          DynamicResourceAllocation feature gate.
+
+                          This field is immutable. It can only be set for containers.
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: |-
+                                Name must match the name of one entry in pod.spec.resourceClaims of
+                                the Pod where this field is used. It makes that resource available
+                                inside a container.
+                              type: string
+                            request:
+                              description: |-
+                                Request is the name chosen for a request in the referenced claim.
+                                If empty, everything from the claim is made available, otherwise
+                                only the result of this request.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: |-
+                          Limits describes the maximum amount of compute resources allowed.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: |-
+                          Requests describes the minimum amount of compute resources required.
+                          If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                          otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                        type: object
+                    type: object
+                  scaleToZero:
+                    description: ScaleToZero defines scale-to-zero configuration for
+                      the cluster
+                    properties:
+                      enabled:
+                        description: |-
+                          Enabled controls whether scale-to-zero is active.
+                          When false the configuration (e.g. InactivityPeriodMinutes) is preserved
+                          but scale-to-zero is disabled.
+                        type: boolean
+                      inactivityPeriodMinutes:
+                        default: 30
+                        description: InactivityPeriodMinutes is the period of inactivity
+                          before scaling to zero
+                        format: int32
+                        maximum: 1440
+                        minimum: 1
+                        type: integer
+                    required:
+                    - enabled
+                    type: object
+                  smartShutdownTimeout:
+                    description: |-
+                      SmartShutdownTimeout is the time in seconds reserved for the smart
+                      shutdown of Postgres to complete. If not set, the CNPG default (180s)
+                      is used.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  storage:
+                    default:
+                      size: 1Gi
+                    description: Storage defines the persistent volume configuration
+                      for each instance
+                    properties:
+                      mountPropagation:
+                        description: |-
+                          MountPropagation sets the mount propagation mode for the storage volume.
+                          Valid values are "None", "HostToContainer", and "Bidirectional".
+                        enum:
+                        - None
+                        - HostToContainer
+                        - Bidirectional
+                        type: string
+                      size:
+                        default: 1Gi
+                        description: Size is the size of the persistent volume for
+                          each instance
+                        pattern: ^\d+(\.\d+)?(Gi|Ti)$
+                        type: string
+                      storageClass:
+                        description: StorageClass is the Kubernetes storage class
+                          for the cluster PVCs
+                        type: string
+                      volumeSnapshotClass:
+                        description: VolumeSnapshotClass is the Kubernetes volume
+                          snapshot class for snapshots
+                        type: string
+                    type: object
+                required:
+                - image
+                type: object
+              inheritedMetadata:
+                description: |-
+                  InheritedMetadata defines metadata to be inherited by all resources
+                  created by the operator
+                properties:
+                  labels:
+                    additionalProperties:
+                      type: string
+                    description: Labels are additional labels to apply to resources
+                      created by the operator
+                    type: object
+                type: object
+              pooler:
+                description: |-
+                  Pooler configures a PgBouncer connection pooler for the branch.
+                  When nil, no pooler is created.
+                properties:
+                  instances:
+                    default: 1
+                    description: Instances is the number of PgBouncer instances
+                    format: int32
+                    maximum: 5
+                    minimum: 0
+                    type: integer
+                  maxClientConn:
+                    default: "100"
+                    description: MaxClientConn is the maximum number of client connections
+                      to PgBouncer
+                    type: string
+                  mode:
+                    default: session
+                    description: Mode is the PgBouncer pool mode
+                    enum:
+                    - session
+                    - transaction
+                    type: string
+                type: object
+              restore:
+                description: Restore specifies how to restore the branch from a backup
+                  source.
+                properties:
+                  name:
+                    description: Name is the name of the restore source (volume snapshot,
+                      object store, or base backup)
+                    maxLength: 256
+                    type: string
+                    x-kubernetes-validations:
+                    - message: restore.name is immutable
+                      rule: self == oldSelf
+                  serverName:
+                    description: |-
+                      ServerName overrides the barman serverName parameter in the external
+                      cluster plugin configuration. Only applicable when Type is ObjectStore.
+                      When empty, defaults to the restore name.
+                    type: string
+                    x-kubernetes-validations:
+                    - message: restore.serverName is immutable
+                      rule: self == oldSelf
+                  timestamp:
+                    description: |-
+                      Timestamp specifies the point-in-time to restore to.
+                      Only applicable when Type is ObjectStore.
+                    format: date-time
+                    type: string
+                    x-kubernetes-validations:
+                    - message: restore.timestamp is immutable
+                      rule: self == oldSelf
+                  type:
+                    description: Type specifies the type of restore source
+                    enum:
+                    - VolumeSnapshot
+                    - ObjectStore
+                    - BaseBackup
+                    type: string
+                    x-kubernetes-validations:
+                    - message: restore.type is immutable
+                      rule: self == oldSelf
+                required:
+                - name
+                - type
+                type: object
+            required:
+            - cluster
+            type: object
+            x-kubernetes-validations:
+            - message: restore is immutable
+              rule: has(oldSelf.restore) == has(self.restore)
+          status:
+            description: BranchStatus defines the observed state of a Branch
+            properties:
+              conditions:
+                description: Conditions represent the latest available observations
+                  of the Branch's state
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              lastError:
+                description: |-
+                  LastError contains the last error message encountered during
+                  reconciliation, if any.
+                type: string
+              observedGeneration:
+                description: ObservedGeneration reflects the generation of the most
+                  recently observed Branch spec
+                format: int64
+                type: integer
+              primaryXVolName:
+                description: |-
+                  PrimaryXVolName is the name of the XVol backing the primary instance's
+                  PersistentVolume. Retained after cluster removal.
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

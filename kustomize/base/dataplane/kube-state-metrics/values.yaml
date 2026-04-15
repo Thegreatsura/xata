@@ -1,0 +1,88 @@
+replicas: 1
+prometheusScrape: true
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    memory: 256Mi
+extraArgs:
+  - --metric-labels-allowlist=pods=[xata.io/organizationID,xata.io/projectID,cnpg.io/cluster]
+metricAllowlist:
+  - kube_pod_container_resource_requests
+  - kube_pod_labels
+  - kube_pod_status_ready_time
+  - kube_customresource_xata_branch_instances
+  - kube_customresource_clusters_creation_time
+  - kube_customresource_xata_wakeuprequests_info
+  - kube_job_failed
+
+# Scrape annotations to get them into SigNoz
+podAnnotations:
+  prometheus.io/path: /metrics
+  prometheus.io/port: "8080"
+  prometheus.io/scrape: "true"
+
+# Grant permission to read CNPG Cluster and WakeupRequest resources
+rbac:
+  extraRules:
+    - apiGroups: ["postgresql.cnpg.io"]
+      resources: ["clusters"]
+      verbs: ["list", "watch"]
+    - apiGroups: ["xata.io"]
+      resources: ["wakeuprequests"]
+      verbs: ["list", "watch"]
+
+# Define the Custom Resource metrics
+customResourceState:
+  enabled: true
+  config:
+    kind: CustomResourceStateMetrics
+    spec:
+      resources:
+        - groupVersionKind:
+            group: postgresql.cnpg.io
+            kind: Cluster
+            version: v1
+          metrics:
+            - name: xata_branch_instances
+              help: "Number of configured instances for a CNPG clusters (running or hibernated)"
+              labelsFromPath:
+                id: ["metadata", "name"]
+                namespace: ["metadata", "namespace"]
+                organizationID: ["metadata", "labels", "xata.io/organizationID"]
+                projectID: ["metadata", "labels", "xata.io/projectID"]
+                phase: ["status", "phase"]
+                # Captures 'on' if hibernated, so you can filter by it
+                hibernation: ["metadata", "annotations", "cnpg.io/hibernation"]
+                # Captures the kind of owner reference, either `Branch` or `ClusterPool`
+                ownerKind: ["metadata", "ownerReferences", "0", "kind"]
+              each:
+                type: Gauge
+                gauge:
+                  path: ["spec", "instances"]
+            - name: clusters_creation_time
+              help: "CNPG Cluster creation time in Unix seconds"
+              labelsFromPath:
+                name: ["metadata", "name"]
+                namespace: ["metadata", "namespace"]
+              each:
+                type: Gauge
+                gauge:
+                  path: ["metadata", "creationTimestamp"]
+        - groupVersionKind:
+            group: xata.io
+            kind: WakeupRequest
+            version: v1alpha1
+          metrics:
+            - name: xata_wakeuprequests_info
+              help: "Information about active wakeuprequests"
+              each:
+                type: Info
+                info:
+                  labelsFromPath:
+                    name: ["metadata", "name"]
+                    namespace: ["metadata", "namespace"]
+                    branch: ["spec", "branchName"]
+                    succeeded: ["status", "conditions", "0", "status"]
+                    message: ["status", "conditions", "0", "message"]

@@ -1,0 +1,18 @@
+{
+	"operations": [
+		{
+			"drop_column": {
+				"table": "branches",
+				"column": "scale_to_zero_enabled",
+				"down": "false"
+			}
+		},
+		{
+			"drop_column": {
+				"table": "branches",
+				"column": "scale_to_zero_inactivity_minutes",
+				"down": "30"
+			}
+		}
+	]
+}

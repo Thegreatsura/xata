@@ -1,0 +1,30 @@
+{
+    "operations": [
+        {
+            "create_table": {
+                "name": "projects",
+                "columns": [
+                {
+                    "name": "id",
+                    "type": "text",
+                    "pk": true
+                },
+                {
+                    "name": "organization_id",
+                    "type": "text",
+                    "nullable": false
+                },
+                {
+                    "name": "name",
+                    "type": "text"
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp",
+                    "default": "now()"
+                }
+            ]
+            }
+        }
+    ]
+}

@@ -1,0 +1,507 @@
+# Configurable Postgres parameters allow-list
+#
+# This file defines all the parameters that we allow to configure.
+# The file is embedded into the binary at compile time using Go's `embed` directive.
+#
+# Best source of information for this file is the guc_tables.c file in the Postgres
+# source code, although this file doesn't follow it exactly (e.g. some max values are
+# changed, and the labels)
+#
+# For the recommendations, a good source of information is
+# https://github.com/jberkus/annotated.conf
+
+# Connections
+max_connections:
+  section: "Connections"
+  parameter_type: int
+  description: "Determines the maximum number of concurrent connections to the database server."
+  default_value: "100"
+  min_value: "0"
+  max_value: "5000"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-connection.html#GUC-MAX-CONNECTIONS"
+  restart_required: true
+  recommendation: |
+    Set to the maximum number of connections which you expect to need at peak load. Each connection requires a backend process, which allocates a certain amount of memory, so be careful to not run out of memory.
+
+    **Note**: The max number of connections that you can set depends on the instance size. If you need more connections, use a larger instance size.
+
+idle_session_timeout:
+  section: "Connections"
+  parameter_type: duration
+  description: "Automatically terminate idle connections after this period of time."
+  default_value: "0ms"
+  min_value: "0ms"
+  max_value: "20d"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-IDLE-SESSION-TIMEOUT"
+  restart_required: false
+  recommendation: |
+    Terminate any session that has been idle (that is, waiting for a client query), but not within an open transaction, for longer than the specified amount of time. Set to 0ms to disable.
+
+    This is useful for cleaning up abandoned or forgotten connections that would otherwise consume resources indefinitely. Unlike `statement_timeout``, which applies to running queries,
+    `idle_session_timeout` applies when the session is not actively executing a command.
+
+    Rule of thumb is to set it to a value that balances freeing up unused connections with not disrupting legitimate but quiet applications.
+
+idle_in_transaction_session_timeout:
+  section: "Connections"
+  parameter_type: duration
+  description: "Automatically terminate sessions that are idle within an open transaction after this period of time."
+  default_value: "0ms"
+  min_value: "0ms"
+  max_value: "20d"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-IDLE-IN-TRANSACTION-SESSION-TIMEOUT"
+  restart_required: false
+  recommendation:
+    Terminate any session that has been idle (that is, waiting for a client query) within an open transaction for longer than the specified amount of time. Set to 0ms to disable.
+    This option can be used to ensure that idle sessions do not hold locks for an unreasonable amount of time. Even when no significant locks are held, an open transaction prevents vacuuming away recently-dead tuples that may be visible only to this transaction; so remaining idle for a long time can contribute to table bloat.
+
+    Rule of thumb is to keep it short to avoid lingering locks—something like 1–5 minutes is typical in production. Longer values should only be used if you know your workload legitimately requires extended pauses inside transactions (e.g. interactive user transactions).
+
+statement_timeout:
+  section: "Connections"
+  parameter_type: duration
+  description: "Abort any statement that takes more than the specified amount of time."
+  default_value: "0ms"
+  min_value: "0ms"
+  max_value: "20d"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-STATEMENT-TIMEOUT"
+  restart_required: false
+  recommendation:
+    The timeout is measured from the time a command arrives at the server until it is completed by the server. Set to 0ms to disable.
+
+    This helps protect against runaway queries (e.g., missing indexes, accidental full-table scans, or Cartesian joins) that could consume resources and block other work.
+
+    Rule of thumb is to set it to a value larger than you expect your users to wait for. For OLTP or API-driven workloads, something like 30s–60s is common. For analytical or batch workloads, you might set it higher (minutes or even hours), or leave it unset.
+
+
+# Resource consumption
+shared_buffers:
+  section: "Resource consumption"
+  parameter_type: bytes
+  description: "Sets the amount of memory the database server uses for shared memory buffers."
+  default_value: "32MB"
+  min_value: "0B"
+  max_value: "512GB"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-SHARED-BUFFERS"
+  restart_required: true
+  recommendation: |
+    When a query needs to read data, PostgreSQL first checks whether the relevant pages are already present in the shared buffer cache. If they are, the data can be returned very quickly without going to disk. If not, the database must fetch them from storage, which is slower. In practice, shared_buffers acts as PostgreSQL’s primary internal cache and has a significant impact on performance, especially for read-heavy workloads.
+
+    The typical rule of thumb is to allocate about 25% of the total system RAM to shared_buffers. For system with little memory you can allocate more. For systems with a lot of RAM, the benefits over 8GB are unclear.
+
+work_mem:
+  section: "Resource consumption"
+  parameter_type: bytes
+  description: "Specifies the amount of memory to be used by internal sort operations and hash tables before writing to temporary disk files."
+  default_value: "1MB"
+  min_value: "0B"
+  max_value: "1GB"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-WORK-MEM"
+  restart_required: false
+  recommendation: |
+    Importantly, this value applies per operation, per query—so if a query involves multiple sorts, joins, or aggregates, each of those can consume up to `work_mem`. If the allocated memory isn't sufficient, PostgreSQL will spill data to temporary files on disk, which slows down query execution.
+
+    Because of this, work_mem especially important in workloads with many complex queries or large aggregations.
+
+    Typical recommended formula is: ( AvRAM / max_connections ) ROUND DOWN to 2^x
+    Increase if you are doing complex aggregations.
+
+temp_buffers:
+  section: "Resource consumption"
+  parameter_type: bytes
+  description: "Sets the maximum number of temporary buffers used by each database session. These are session-local buffers used only for access to temporary tables."
+  default_value: "8MB"
+  min_value: "0B"
+  max_value: "1GB"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-TEMP-BUFFERS"
+  restart_required: false
+  recommendation: |
+    The typical recommendation is to leave temp_buffers at its default (usually 8MB) unless your workload makes heavy use of temporary tables. In systems where temporary tables are frequently large and performance-critical (for example reporting engines), you can increase it modestly—values like 16MB–64MB are common.
+
+    However, since this is per session, setting it too high can waste memory if many connections create temporary tables simultaneously.
+
+maintenance_work_mem:
+  section: "Resource consumption"
+  parameter_type: bytes
+  description: "Specifies the maximum amount of memory to be used by maintenance operations, such as VACUUM, CREATE INDEX, and ALTER TABLE ADD FOREIGN KEY."
+  default_value: "16MB"
+  min_value: "0B"
+  max_value: "10GB"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-MAINTENANCE-WORK-MEM"
+  restart_required: false
+  recommendation: |
+    The typical recommendation is to set maintenance_work_mem significantly higher than work_mem—often in the range of 64MB to 1GB, depending on available RAM and workload.
+    A rule of thumb formula is ( AvRAM / 8 ) LIMIT 2GB, ROUND 2^x.
+
+    During large one-off operations (like creating a big index), it can make sense to temporarily increase it further at the session level. Still, setting it too high globally can cause memory pressure if many autovacuum workers or concurrent maintenance jobs run at once.
+
+huge_pages:
+  section: "Resource consumption"
+  parameter_type: enum
+  description: "Sets whether PostgreSQL should use huge pages for shared memory buffers. On clusters with enough RAM, the use of huge pages results in smaller page tables and less CPU time spent on memory management, increasing performance."
+  default_value: "try"
+  values: ["on", "off", "try"]
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-HUGE-PAGES"
+  restart_required: true
+  recommendation: |
+    You normally don't need to change this, as Xata already configures it based on the amount of memory the instance has.
+
+track_io_timing:
+  section: "Resource consumption"
+  parameter_type: enum
+  description: "Enables tracking of the time spent on I/O operations."
+  default_value: "on"
+  values: ["on", "off"]
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-statistics.html#GUC-TRACK-IO-TIMING"
+  restart_required: false
+  recommendation: |
+    Enables timing of database I/O calls. This parameter is off by default, as it will repeatedly query the operating system for the current time, which may cause significant overhead on some platforms. You can use the pg_test_timing tool to measure the overhead of timing on your system. I/O timing information is displayed in pg_stat_database, pg_stat_io, in the output of EXPLAIN when the BUFFERS option is used, in the output of VACUUM when the VERBOSE option is used, by autovacuum for auto-vacuums and auto-analyzes, when log_autovacuum_min_duration is set and by pg_stat_statements. Only superusers and users with the appropriate SET privilege can change this setting.
+
+track_wal_io_timing:
+  section: "Resource consumption"
+  parameter_type: enum
+  description: "Enables timing of WAL I/O calls."
+  default_value: "on"
+  values: ["on", "off"]
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-statistics.html#GUC-TRACK-WAL-IO-TIMING"
+  restart_required: false
+  recommendation: |
+    Enables timing of WAL I/O calls. This parameter is off by default, as it will repeatedly query the operating system for the current time, which may cause significant overhead on some platforms. You can use the pg_test_timing tool to measure the overhead of timing on your system. I/O timing information is displayed in pg_stat_wal. Only superusers and users with the appropriate SET privilege can change this setting.
+
+# Planner
+effective_cache_size:
+  section: "Planner"
+  parameter_type: bytes
+  description: "Sets the planner's assumption about the effective size of the disk cache that is available to a single query. This is factored into estimates of the cost of using an index; a higher value makes it more likely index scans will be used, a lower value makes it more likely sequential scans will be used."
+  default_value: "4GB"
+  min_value: "0B"
+  max_value: "1TB"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-query.html#GUC-EFFECTIVE-CACHE-SIZE"
+  restart_required: false
+  recommendation: |
+    The typical recommendation is to set effective_cache_size to about 50–75% of total system RAM, depending on how much memory you expect the OS to keep available for caching database files.
+
+    Unlike `shared_buffers`, increasing this value does not directly consume memory—it only guides the planner. If you set it too low, PostgreSQL may underestimate the benefit of cached data and favor sequential scans unnecessarily; if you set it unrealistically high, the planner may generate plans that assume too much caching, which could lead to poor performance.
+
+random_page_cost:
+  section: "Planner"
+  parameter_type: float
+  description: "Sets the planner's estimate of the cost of a non-sequentially-fetched disk page."
+  default_value: "4.0"
+  min_value: "0"
+  max_value: "100"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-query.html#GUC-RANDOM-PAGE-COST"
+  restart_required: false
+  recommendation: |
+    The Xata storage system has a relatively low cost for random page accesses, so we recommend keeping this one to 1.1.
+
+    Reducing this value relative to seq_page_cost will cause the system to prefer index scans; raising it will make index scans look relatively more expensive. You can raise or lower both values together to change the importance of disk I/O costs relative to CPU costs, which are described by the following parameters.
+
+seq_page_cost:
+  section: "Planner"
+  parameter_type: float
+  description: "Sets the planner's estimate of the cost of a disk page fetch that is part of a series of sequential fetches."
+  default_value: "1.0"
+  min_value: "0"
+  max_value: "100"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-query.html#GUC-SEQ-PAGE-COST"
+  restart_required: false
+  recommendation: |
+    The main reason to modify seq_page_cost is to try to get planner costs to more-or-less indicate execution times in milleseconds. All other costs change relative to this cost automatically.
+
+
+default_statistics_target:
+  section: "Planner"
+  parameter_type: int
+  description: "Sets the default statistics target for table columns without a column-specific target set via ALTER TABLE SET STATISTICS."
+  default_value: "100"
+  min_value: "0"
+  max_value: "1000"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-query.html#GUC-DEFAULT-STATISTICS-TARGET"
+  restart_required: false
+  recommendation: |
+    Most applications can use the default of 100. For very small/simple databases, decrease to 10 or 50. Data warehousing applications generally need to use 500 to 1000. Otherwise, increase statistics targets on a per-column basis.
+
+# Async behavior
+io_method:
+  section: "Async behavior"
+  parameter_type: enum
+  description: "Selects the method for executing asynchronous I/O."
+  values: ["worker", "io_uring", "sync"]
+  default_value: "worker"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-IO-METHOD"
+  postgres_minimum_version: 18
+  restart_required: true
+  recommendation: |
+    We current recommend keeping this one to `worker``, but you can experiment with `io_uring` or `sync` if you
+    want to see differences in performance.
+
+io_workers:
+  section: "Async behavior"
+  parameter_type: int
+  description: "Number of IO worker processes, for io_method=worker"
+  min_value: 1
+  max_value: 32
+  default_value: 3
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-IO-WORKERS"
+  postgres_minimum_version: 18
+  restart_required: true
+  recommendation: |
+    Keep the default for the small instance sizes, increase on the larger instance sizes.
+
+effective_io_concurrency:
+  section: "Async behavior"
+  parameter_type: int
+  description: "Sets the number of concurrent disk I/O operations that PostgreSQL expects can be executed simultaneously."
+  default_value: "16"
+  min_value: "0"
+  max_value: "1000"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-EFFECTIVE-IO-CONCURRENCY"
+  restart_required: false
+  recommendation: |
+    For PostgreSQL up to version 18, this parameter is used only as a hint to the operating system via posix_fadvise. Starting
+    with version 18, PostgreSQL uses this parameter for the Async IO code to know how many requests it can send in parallel.
+
+    The allowed range is 1 to 1000, or 0 to disable issuance of asynchronous I/O requests. The Postgres default
+    is 1 for version smaller than 18, and 16 for versions larger that 18.
+
+maintenance_io_concurrency:
+  section: "Async behavior"
+  parameter_type: int
+  description: "Similar to effective_io_concurrency, but used for maintenance work that is done on behalf of many client sessions."
+  default_value: "16"
+  min_value: "0"
+  max_value: "1000"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-MAINTENANCE-IO-CONCURRENCY"
+  restart_required: false
+  recommendation:
+    Since this is similar to effective_io_concurrency, the same recommendations apply. The Postgres default was 10 before version 18, and 16 since then.
+
+backend_flush_after:
+  section: "Async behavior"
+  parameter_type: bytes
+  description: "Whenever more than this amount of data has been written by a single backend, attempt to force the OS to issue these writes to the underlying storage."
+  default_value: "0B"
+  min_value: "0B"
+  max_value: "2MB"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-BACKEND-FLUSH-AFTER"
+  restart_required: false
+
+max_worker_processes:
+  section: "Async behavior"
+  parameter_type: int
+  description: "Sets the maximum number of background processes that the cluster can support."
+  default_value: "32"
+  min_value: "1"
+  max_value: "1024"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-MAX-WORKER-PROCESSES"
+  restart_required: true
+
+io_combine_limit:
+  section: "Async behavior"
+  parameter_type: bytes
+  description: "Controls the largest I/O size in operations that combine I/O."
+  default_value: "128kB"
+  min_value: "0B"
+  max_value: "1GB"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-IO-COMBINE-LIMIT"
+  restart_required: false
+  postgres_minimum_version: 17
+  recommendation: |
+    Together with `effective_io_concurrency`, this settings controls the number of blocks read-ahead, following the following general formula:
+    `maximum read-ahead = effective_io_concurrency x io_combine_limit`.
+
+max_parallel_workers_per_gather:
+  section: "Async behavior"
+  parameter_type: int
+  description: "Sets the maximum number of workers that can be started by a single Gather or Gather Merge node."
+  default_value: "2"
+  min_value: "1"
+  max_value: "1024"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-MAX-PARALLEL-WORKERS-PER-GATHER"
+  restart_required: false
+
+max_parallel_workers:
+  section: "Async behavior"
+  parameter_type: int
+  description: "Sets the maximum number of workers that the cluster can support for parallel operations."
+  default_value: "32"
+  min_value: "1"
+  max_value: "1024"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-MAX-PARALLEL-WORKERS"
+  restart_required: false
+
+max_parallel_maintenance_workers:
+  section: "Async behavior"
+  parameter_type: int
+  description: "Sets the maximum number of parallel workers that can be started by a single utility command."
+  default_value: "2"
+  min_value: "1"
+  max_value: "1024"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-MAX-PARALLEL-MAINTENANCE-WORKERS"
+  restart_required: false
+
+# WAL
+wal_buffers:
+  section: "WAL"
+  parameter_type: bytes
+  description: "The amount of shared memory used for WAL data that has not yet been written to disk. The unit is 8k. -1 means ~3 percent of shared_buffers"
+  default_value: "-1"
+  min_value: "-1"
+  max_value: "2097144kB"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-wal.html#GUC-WAL-BUFFERS"
+  restart_required: true
+
+max_wal_size:
+  section: "WAL"
+  parameter_type: bytes
+  description: "Maximum size to let the WAL grow during automatic checkpoints. This is a soft limit."
+  default_value: "1GB"
+  min_value: "10MB"
+  max_value: "100GB"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-wal.html#GUC-MAX-WAL-SIZE"
+  restart_required: false
+
+min_wal_size:
+  section: "WAL"
+  parameter_type: bytes
+  description: "As long as WAL disk usage stays below this setting, old WAL files are always recycled for future use at a checkpoint, rather than removed."
+  default_value: "80mb"
+  min_value: "10MB"
+  max_value: "100GB"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-wal.html#GUC-MIN-WAL-SIZE"
+  restart_required: false
+
+checkpoint_completion_target:
+  section: "WAL"
+  parameter_type: float
+  description: "Specifies the target of checkpoint completion, as a fraction of total time between checkpoints."
+  default_value: "0.9"
+  min_value: "0"
+  max_value: "1.0"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-wal.html#GUC-CHECKPOINT-COMPLETION-TARGET"
+  restart_required: false
+
+checkpoint_timeout:
+  section: "WAL"
+  parameter_type: duration
+  description: "Specifies the maximum time between automatic WAL checkpoints. Increasing this parameter can increase the amount of time needed for crash recovery."
+  default_value: "5min"
+  min_value: "30s"
+  max_value: "24h"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-wal.html#GUC-CHECKPOINT-TIMEOUT"
+  restart_required: false
+
+# Extensions
+
+# pg_stat_statements
+pg_stat_statements.max:
+  section: "Extensions"
+  extension: pg_stat_statements
+  parameter_type: int
+  description: "Specifies the maximum number of statements tracked by the module (i.e., the maximum number of rows in the pg_stat_statements view)."
+  default_value: 5000
+  max_value: 1000000
+  min_value: 0
+  docs_link: https://www.postgresql.org/docs/current/pgstatstatements.html#PGSTATSTATEMENTS-CONFIG-PARAMS
+  restart_required: true
+  recommendation: |
+     If more distinct statements than that are observed, information about the least-executed statements is discarded.
+     The larger this number, the more memory this extension consumes.
+     The number of times such information was discarded can be seen in the `pg_stat_statements_info` view.
+
+     Start with 5,000–10,000 for most production systems. If you see churn (important queries missing), scale upward. Don't be afraid to
+     go to 50k+ if memory allows, especially in analytics or multi-tenant scenarios.
+
+pg_stat_statements.track:
+  section: "Extensions"
+  extension: pg_stat_statements
+  parameter_type: enum
+  description: "Controls which statements are counted by the module."
+  values: ["top", "all", "none"]
+  default_value: top
+  docs_link: https://www.postgresql.org/docs/current/pgstatstatements.html#PGSTATSTATEMENTS-CONFIG-PARAMS
+  restart_required: true
+  recommendation: |
+    Specify `top`` to track top-level statements (those issued directly by clients), `all`` to also track nested statements
+    (such as statements invoked within functions), or `none` to disable statement statistics collection. The default value is top.
+
+# auth_delay
+auth_delay.milliseconds:
+  section: "Extensions"
+  extension: auth_delay
+  parameter_type: int
+  description: "Time in milliseconds to delay after a failed authentication attempt."
+  default_value: 0
+  min_value: 0
+  max_value: 3600000
+  restart_required: true
+  docs_link: https://www.postgresql.org/docs/current/auth-delay.html
+  recommendation: |
+    Setting this to 0 (the default) disables the delay. Values between 1000ms and 10000ms are typical for
+    mitigating brute-force attacks without impacting legitimate users.
+
+# auto_explain
+auto_explain.log_min_duration:
+  section: "Extensions"
+  extension: auto_explain
+  parameter_type: duration
+  description: Specifies the minimum statement execution time that will cause the statement's plan to be logged.
+  default_value: 10s
+  min_value: -1
+  max_value: 1h
+  restart_required: true
+  docs_link: https://www.postgresql.org/docs/current/auto-explain.html#AUTO-EXPLAIN-CONFIGURATION-PARAMETERS
+  recommendation: |
+    Setting this to 0 logs all plans. -1 disables logging of plans. For example, if you set it to 250ms then all statements that run 250ms or longer will be logged.
+
+# pg_prewarm
+pg_prewarm.autoprewarm:
+  section: "Extensions"
+  extension: "pg_prewarm"
+  parameter_type: boolean
+  description: Controls whether the server should run the autoprewarm worker.
+  default_value: "on"
+  restart_required: true
+  docs_link: https://www.postgresql.org/docs/current/pgprewarm.html#PGPREWARM-CONFIG-PARAMS
+  recommendation: |
+    The default is set to true, but it only takes affect if the `pg_prewarm` preload library is also enabled. You can do that under your branch advanced configuration.
+
+    Prewarming can be performed manually using the pg_prewarm function, or can be performed automatically by including `pg_prewarm` in shared_preload_libraries.
+    In the latter case, the system will run a background worker which periodically records the contents of shared buffers in a file called `autoprewarm.blocks` and will,
+    using 2 background workers, reload those same blocks after a restart.
+
+# pg_cron
+cron.database_name:
+  section: Extensions
+  extension: "pg_cron"
+  parameter_type: string
+  description: The database name where pg_cron stores its metadata tables.
+  default_value: "xata"
+  restart_required: true
+  docs_link: https://github.com/citusdata/pg_cron?tab=readme-ov-file#setting-up-pg_cron
+  recommendation: |
+    By default, the pg_cron background worker expects its metadata tables to be created in the "xata" database.
+    However, you can configure it via this setting.
+
+cron.use_background_workers:
+  section: Extensions
+  extension: "pg_cron"
+  parameter_type: string
+  description: Use background workers instead of direct client connections when executing jobs.
+  default_value: "on"
+  restart_required: true
+  docs_link: https://github.com/citusdata/pg_cron?tab=readme-ov-file#extension-settings
+  recommendation: |
+    By default, the pg_cron uses client connections to execute jobs. When set to `on`, it will use background workers instead.
+    To use client connections, set the option to `off`, and contact support for further assistance.
+
+# pg_duckdb
+duckdb.postgres_role:
+  section: Extensions
+  extension: "pg_duckdb"
+  parameter_type: string
+  description: The name of the PostgreSQL role that is allowed to use DuckDB privileged features.
+  default_value: "xata"
+  restart_required: true
+  docs_link: https://github.com/duckdb/pg_duckdb

@@ -1,0 +1,15 @@
+{
+  "operations": [
+    {
+      "add_column": {
+        "table": "branches",
+        "column": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "default": "now()",
+          "nullable": false
+        }
+      }
+    }
+  ]
+}

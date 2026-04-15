@@ -1,0 +1,32 @@
+---
+# Stricter rate limits for auth endpoints (login, user operations)
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: auth-endpoints-strict-ratelimit
+  namespace: xata
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: auth
+  rateLimit:
+    type: Local
+    local:
+      rules:
+        # Strict limit for /user endpoints: 500 requests per hour
+        - clientSelectors:
+            - headers:
+                - name: ":path"
+                  value: "^/user.*"
+          limit:
+            requests: 500
+            unit: Hour
+        # Strict limit for /api-keys endpoints: 500 requests per hour
+        - clientSelectors:
+            - headers:
+                - name: ":path"
+                  value: "^/api-keys.*"
+          limit:
+            requests: 500
+            unit: Hour

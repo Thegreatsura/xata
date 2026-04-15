@@ -1,0 +1,44 @@
+apiVersion: xata.io/v1alpha1
+kind: Branch
+metadata:
+  name: example-branch
+  labels:
+    xata.io/organizationID: 1fnjkx
+    xata.io/projectID: prj_omq6dr2rep2drdsi2skj0o8bux
+  # annotations:
+  #   xata.io/reconciliation-paused: "true"
+spec:
+  inheritedMetadata:
+    labels:
+      xata.io/organizationID: 1fnjkx
+      xata.io/projectID: prj_omq6dr2rep2drdsi2skj0o8bux
+  cluster:
+    instances: 1
+    storage:
+      size: "1Gi"
+      storageClass: csi-hostpath-sc
+    image: "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5"
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "500m"
+        memory: "1Gi"
+    postgres:
+      parameters:
+        - name: max_connections
+          value: "100"
+        - name: shared_buffers
+          value: "256MB"
+      sharedPreloadLibraries:
+        - pg_stat_statements
+    scaleToZero:
+      enabled: true
+      inactivityPeriodMinutes: 30
+    hibernation: Disabled
+  backup:
+    retention: 30d
+    walArchiving: Enabled
+    scheduledBackup: 
+      schedule: "0 0 0 * * *"

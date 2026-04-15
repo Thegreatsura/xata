@@ -1,0 +1,4 @@
+package: spec
+output: types.gen.go
+generate:
+  models: true

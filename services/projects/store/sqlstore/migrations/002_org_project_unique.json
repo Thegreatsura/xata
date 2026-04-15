@@ -1,0 +1,15 @@
+{
+    "operations": [
+        {
+            "create_index": {
+                "table": "projects",
+                "name": "unique_org_project",
+                "columns": {
+                    "organization_id": {},
+                    "name": {}
+                },
+                "unique": true
+            }
+        }
+    ]
+}

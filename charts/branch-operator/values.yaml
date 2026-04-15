@@ -1,0 +1,24 @@
+image:
+  repository: ghcr.io/xataio/xata/branch-operator
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+config:
+  branchOperator:
+    imageSecrets: ghcr-secret
+    clustersTolerations: "xata.io/workload=dataplane:NoSchedule"
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 512Mi
+
+tolerations:
+  - key: "xata.io/workload"
+    value: "dataplane"
+    effect: "NoSchedule"

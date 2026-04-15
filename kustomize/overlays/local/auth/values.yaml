@@ -1,0 +1,6 @@
+image:
+  repository: xatatech/auth
+  tag: latest
+
+resourceCleanup:
+  dryRun: false

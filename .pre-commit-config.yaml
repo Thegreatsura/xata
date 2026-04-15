@@ -1,0 +1,94 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-json
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-shebang-scripts-are-executable
+      - id: check-executables-have-shebangs
+      - id: check-merge-conflict
+  - repo: local
+    hooks:
+      - id: generate-go
+        name: generate-go
+        language: system
+        entry: ./dev/scripts/pre-commit-generate-go.sh
+        files: \.go$
+        pass_filenames: true
+      - id: generate-openapi
+        name: generate-openapi
+        language: system
+        entry: make generate-openapi
+        files: ^openapi/.*\.yaml$
+        pass_filenames: false
+      - id: generate-buf
+        name: generate-buf
+        language: system
+        entry: make generate-buf
+        files: \.(proto|buf\.ya?ml)$
+        pass_filenames: false
+      - id: fmt-go
+        name: fmt-go
+        language: system
+        entry: ./dev/scripts/pre-commit-fmt-go.sh
+        files: \.go$
+        pass_filenames: true
+      - id: fmt-openapi
+        name: fmt-openapi
+        language: system
+        entry: make fmt-openapi
+        files: ^openapi/.*\.yaml$
+        pass_filenames: false
+      - id: fmt-buf
+        name: fmt-buf
+        language: system
+        entry: make fmt-buf
+        files: \.(proto|buf\.ya?ml)$
+        pass_filenames: false
+      - id: fmt-opa
+        name: fmt-opa
+        language: system
+        entry: make fmt-opa
+        files: \.rego$
+        pass_filenames: false
+      - id: fmt-json
+        name: fmt-json
+        language: system
+        entry: make fmt-json
+        files: ^kustomize/base/controlplane/auth/keycloak/realm\.json$
+        pass_filenames: false
+      - id: lint-go
+        name: lint-go
+        language: system
+        entry: make lint-go
+        files: \.go$
+        pass_filenames: false
+      - id: lint-openapi
+        name: lint-openapi
+        language: system
+        entry: make lint-openapi
+        files: ^openapi/.*\.yaml$
+        pass_filenames: false
+      - id: lint-buf
+        name: lint-buf
+        language: system
+        entry: make lint-buf
+        files: \.(proto|buf\.ya?ml)$
+        pass_filenames: false
+      - id: lint-kube
+        name: lint-kube
+        language: system
+        entry: make lint-kube
+        files: ^kustomize/.*\.ya?ml$
+        pass_filenames: false
+      - id: lint-opa
+        name: lint-opa
+        language: system
+        entry: make lint-opa
+        files: \.rego$
+        pass_filenames: false

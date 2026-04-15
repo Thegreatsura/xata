@@ -1,0 +1,18 @@
+{
+  "operations": [
+    {
+      "add_column": {
+        "table": "branches",
+        "column": {
+          "name": "depth",
+          "type": "int",
+          "default": "1",
+          "check": {
+            "name": "depth_check",
+            "constraint": "depth > 0"
+          }
+        }
+      }
+    }
+  ]
+}

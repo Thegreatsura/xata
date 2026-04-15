@@ -1,0 +1,13 @@
+{
+	"operations": [
+		{
+			"alter_column": {
+				"table": "projects",
+				"column": "ip_filtering_cidrs",
+				"type": "jsonb",
+				"up": "'[]'::jsonb",
+				"down": "ARRAY[]::text[]"
+			}
+		}
+	]
+}

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-config
+  namespace: xata
+data:
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://signoz-local-otel-collector.signoz.svc.cluster.local:4317"
+  XATA_TRACING: "false"

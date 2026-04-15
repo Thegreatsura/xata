@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scheduler-config
+  namespace: {{ .Release.Namespace }}
+data:
+  scheduler.yaml: |-
+    default: {{ .Values.scheduler.default }}
+    {{- if .Values.scheduler.regions }}
+    regions:
+      {{- range $region, $strategy := .Values.scheduler.regions }}
+      {{ $region }}: {{ $strategy }}
+      {{- end }}
+    {{- end }}

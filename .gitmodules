@@ -1,0 +1,3 @@
+[submodule "saas-services/billing/job/storage/openebs/mayastor-control-plane"]
+	path = saas-services/billing/job/storage/openebs/mayastor-control-plane
+	url = git@github.com:openebs/mayastor-control-plane

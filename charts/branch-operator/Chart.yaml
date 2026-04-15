@@ -1,0 +1,6 @@
+apiVersion: v2
+name: branch-operator
+description: Branch operator for managing branch resources in the dataplane
+type: application
+version: 0.0.0
+appVersion: "latest"

@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package xata.slot.v1;
+
+option go_package = "github.com/xataio/xatastor/services/xatastor-operator/internal/slotpb";
+
+// SlotController manages NVMe-oF slot lifecycle on CSI nodes.
+// Served on a TCP port (e.g., :50061) for direct access by the orchestrator,
+// bypassing kubelet. Used for hot-path operations (wake-up).
+service SlotController {
+  // WakeUp connects NVMe, mounts directly on the slot path, and writes
+  // the ready marker. The mount propagates through the shared mount into
+  // any pod that has a slave bind mount of the slot.
+  rpc WakeUp(WakeUpRequest) returns (WakeUpResponse);
+}
+
+message WakeUpRequest {
+  string slot_id = 1;
+  string xvol_id = 2;
+  string pv_id = 3;
+}
+
+message WakeUpResponse {}

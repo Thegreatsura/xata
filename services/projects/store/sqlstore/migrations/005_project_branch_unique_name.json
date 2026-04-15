@@ -1,0 +1,15 @@
+{
+  "operations": [
+    {
+      "create_index": {
+        "table": "branches",
+        "name": "unique_project_branch_name",
+        "columns": {
+          "project_id": {},
+          "name": {}
+        },
+        "unique": true
+      }
+    }
+  ]
+}

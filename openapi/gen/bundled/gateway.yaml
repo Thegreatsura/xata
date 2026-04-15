@@ -1,0 +1,370 @@
+openapi: 3.0.0
+info:
+  title: Gateway API
+  version: '1.0'
+  contact:
+    name: support@xata.io
+  description: |
+    The Xata Gateway provides multiple connectivity options for PostgreSQL databases:
+
+    - **HTTP SQL** (`POST /sql`) — serverless query endpoint for single and batch SQL execution
+    - **WebSocket** (`GET /v2`) — PostgreSQL wire protocol proxy over WebSocket
+    - **Wire Protocol** — native PostgreSQL connections on port 5432
+tags:
+  - name: Gateway
+    description: PostgreSQL connectivity via HTTP SQL, WebSocket wire protocol proxy, and native wire protocol.
+paths:
+  /sql:
+    servers:
+      - url: https://{branch}.{region}.xata.tech
+        description: xata PROD
+        variables:
+          branch:
+            default: my-branch
+          region:
+            default: us-east-1
+      - url: https://{branch}.{region}.staging.maki.cooking
+        description: xata STAGING
+        variables:
+          branch:
+            default: my-branch
+          region:
+            default: us-east-1
+      - url: https://{branch}.{region}.dev.maki.cooking
+        description: xata DEV
+        variables:
+          branch:
+            default: my-branch
+          region:
+            default: us-east-1
+    post:
+      operationId: query
+      summary: Execute SQL query
+      description: |
+        Execute a single SQL query or a batch of queries against a PostgreSQL branch.
+
+        **Single query:** provide `query` (and optional `params`) at the top level.
+
+        **Batch:** provide `queries` as an array of query objects, or send the request body
+        as a JSON array. Batch queries execute within a single transaction.
+      parameters:
+        - name: Connection-String
+          in: header
+          description: PostgreSQL connection string (`postgres://user:pass@host/db`). The hostname encodes the target branch and endpoint type.
+          required: false
+          schema:
+            type: string
+            format: uri
+        - name: Array-Mode
+          in: header
+          description: When `true`, return rows as arrays instead of objects.
+          required: false
+          schema:
+            type: string
+            enum:
+              - 'true'
+              - 'false'
+        - name: Raw-Text-Output
+          in: header
+          description: When `true`, return all values as strings without type conversion.
+          required: false
+          schema:
+            type: string
+            enum:
+              - 'true'
+              - 'false'
+        - name: Batch-Isolation-Level
+          in: header
+          description: Transaction isolation level for batch queries.
+          required: false
+          schema:
+            type: string
+            enum:
+              - ReadCommitted
+              - ReadUncommitted
+              - RepeatableRead
+              - Serializable
+        - name: Batch-Read-Only
+          in: header
+          description: When `true`, execute the batch transaction in read-only mode.
+          required: false
+          schema:
+            type: string
+            enum:
+              - 'true'
+              - 'false'
+        - name: Batch-Deferrable
+          in: header
+          description: When `true`, execute the batch transaction in deferrable mode.
+          required: false
+          schema:
+            type: string
+            enum:
+              - 'true'
+              - 'false'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SQLRequest'
+      responses:
+        '200':
+          description: Query executed successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/QueryResult'
+                  - $ref: '#/components/schemas/BatchResponse'
+        '400':
+          description: Invalid request or SQL error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid connection string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '507':
+          description: Response too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+        - Gateway
+  /v2:
+    servers:
+      - url: https://{branch}.{region}.xata.tech
+        description: xata PROD
+        variables:
+          branch:
+            default: my-branch
+          region:
+            default: us-east-1
+      - url: https://{branch}.{region}.staging.maki.cooking
+        description: xata STAGING
+        variables:
+          branch:
+            default: my-branch
+          region:
+            default: us-east-1
+      - url: https://{branch}.{region}.dev.maki.cooking
+        description: xata DEV
+        variables:
+          branch:
+            default: my-branch
+          region:
+            default: us-east-1
+    get:
+      operationId: websocket
+      summary: WebSocket wire protocol proxy
+      description: |
+        Upgrade to a WebSocket connection that proxies the PostgreSQL wire protocol.
+        The client sends and receives PostgreSQL protocol messages over binary WebSocket frames.
+
+        Authentication is handled via the PostgreSQL startup message within the wire protocol,
+        using the same connection-string hostname conventions as the HTTP SQL endpoint.
+      responses:
+        '101':
+          description: Switching Protocols — WebSocket connection established
+        '400':
+          description: Bad request — unable to upgrade connection
+      tags:
+        - Gateway
+components:
+  schemas:
+    EndpointType:
+      description: |
+        Endpoint suffix that determines which PostgreSQL instance receives traffic.
+        Encoded as the hostname suffix in the connection string (e.g. `my-branch-ro.example.com`).
+      type: string
+      enum:
+        - rw
+        - ro
+        - r
+    SQLRequest:
+      description: SQL query request. Provide either `query` for a single query or `queries` for a batch.
+      type: object
+      properties:
+        query:
+          description: SQL query to execute (single query mode).
+          type: string
+        params:
+          description: Positional parameters for the query (`$1`, `$2`, ...).
+          type: array
+          items: {}
+        queries:
+          description: Array of queries for batch execution within a single transaction.
+          type: array
+          items:
+            $ref: '#/components/schemas/QueryItem'
+        arrayMode:
+          description: Override array mode for this query (single query mode only).
+          type: boolean
+    QueryItem:
+      description: A single query within a batch request.
+      type: object
+      properties:
+        query:
+          description: SQL query to execute.
+          type: string
+        params:
+          description: Positional parameters for the query.
+          type: array
+          items: {}
+        arrayMode:
+          description: Override array mode for this individual query.
+          type: boolean
+      required:
+        - query
+    QueryResult:
+      description: Result of a single SQL query execution.
+      type: object
+      properties:
+        fields:
+          description: Column metadata for the result set.
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldDefinition'
+        command:
+          description: PostgreSQL command tag (e.g. `SELECT`, `INSERT`, `UPDATE`, `DELETE`).
+          type: string
+        rowCount:
+          description: Number of rows affected by the command.
+          type: integer
+          nullable: true
+        rows:
+          description: Result rows. Each row is an object (column-name keys) or an array (when array mode is enabled).
+          type: array
+          items: {}
+          x-go-type: any
+        rowAsArray:
+          description: Whether rows are returned as arrays (`true`) or objects (`false`).
+          type: boolean
+      required:
+        - fields
+        - command
+        - rowCount
+        - rows
+        - rowAsArray
+    FieldDefinition:
+      description: PostgreSQL column metadata from the row description message.
+      type: object
+      properties:
+        name:
+          description: Column name.
+          type: string
+        tableID:
+          description: OID of the source table (0 if not a table column).
+          type: integer
+          format: int32
+          x-go-type: uint32
+        columnID:
+          description: Attribute number of the column within the table.
+          type: integer
+          format: int32
+          x-go-type: uint16
+        dataTypeID:
+          description: OID of the column data type.
+          type: integer
+          format: int32
+          x-go-type: uint32
+        dataTypeSize:
+          description: Data type size (negative for variable-length types).
+          type: integer
+          format: int32
+          x-go-type: int16
+        dataTypeModifier:
+          description: Type-specific modifier (e.g. precision/scale for numeric types).
+          type: integer
+          format: int32
+        format:
+          description: Data format (`text` or `binary`).
+          type: string
+      required:
+        - name
+        - tableID
+        - columnID
+        - dataTypeID
+        - dataTypeSize
+        - dataTypeModifier
+        - format
+    BatchResponse:
+      description: Response for a batch query execution.
+      type: object
+      properties:
+        results:
+          description: Results for each query in the batch, in order.
+          type: array
+          items:
+            $ref: '#/components/schemas/QueryResult'
+      required:
+        - results
+    ErrorResponse:
+      description: Error response with PostgreSQL error fields.
+      type: object
+      properties:
+        message:
+          description: Human-readable error message.
+          type: string
+        code:
+          description: PostgreSQL error code (SQLSTATE) or application error code.
+          type: string
+        severity:
+          description: PostgreSQL error severity (e.g. `ERROR`, `FATAL`).
+          type: string
+        detail:
+          description: Optional detail message.
+          type: string
+        hint:
+          description: Optional hint for resolving the error.
+          type: string
+        position:
+          description: Character position in the query where the error occurred.
+          type: string
+        internalPosition:
+          description: Position in an internally-generated query.
+          type: string
+        internalQuery:
+          description: Text of the internally-generated query.
+          type: string
+        where:
+          description: Context in which the error occurred.
+          type: string
+        schema:
+          description: Schema name related to the error.
+          type: string
+        table:
+          description: Table name related to the error.
+          type: string
+        column:
+          description: Column name related to the error.
+          type: string
+        dataType:
+          description: Data type name related to the error.
+          type: string
+        constraint:
+          description: Constraint name related to the error.
+          type: string
+        file:
+          description: Source file where the error was reported (server-side).
+          type: string
+        line:
+          description: Source line where the error was reported (server-side).
+          type: string
+        routine:
+          description: Source routine where the error was reported (server-side).
+          type: string
+      required:
+        - message

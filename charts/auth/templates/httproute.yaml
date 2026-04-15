@@ -1,0 +1,44 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    xata.tech/gateway: api
+spec:
+  parentRefs:
+    - name: eg
+  hostnames:
+    - {{ .Values.httpRoute.hostname }}
+  rules:
+    - backendRefs:
+        - group: ""
+          kind: Service
+          name: auth
+          port: {{ .Values.service.httpPort }}
+          weight: 1
+      matches:
+        - path:
+            type: PathPrefix
+            value: /_hello
+        - path:
+            type: PathPrefix
+            value: /openapi.yaml
+        - path:
+            type: PathPrefix
+            value: /openapi.json
+        - path:
+            type: PathPrefix
+            value: /user
+        - path:
+            type: PathPrefix
+            value: /api-keys
+        - path:
+            type: PathPrefix
+            value: /webhooks
+        - path:
+            type: PathPrefix
+            value: /marketplace
+        - path:
+            type: RegularExpression
+            value: "^/organizations(/*)$|^/organizations/([^/]+)(/api-keys|/members.*|/invitations.*)?$"

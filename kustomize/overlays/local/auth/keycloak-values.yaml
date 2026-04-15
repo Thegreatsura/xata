@@ -1,0 +1,36 @@
+image:
+  repository: xatatech/keycloak
+  tag: latest
+
+hostname:
+  hostname: "http://localhost:8080"
+
+db:
+  host: "postgres"
+  database: keycloakdb
+  usernameSecret:
+    name: xata-secrets
+    key: username
+  passwordSecret:
+    name: xata-secrets
+    key: password
+
+unsupported:
+  podTemplate:
+    spec:
+      containers:
+        - name: keycloak
+          imagePullPolicy: IfNotPresent
+
+
+# Increase memory for Keycloak realm import job - was running out of memory sometimes in local development
+realmImport:
+  configMapName: keycloak-realm
+  resources:
+    limits:
+      memory: 500Mi
+    requests:
+      memory: 128Mi
+  env:
+    - name: JAVA_TOOL_OPTIONS
+      value: "-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"

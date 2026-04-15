@@ -1,0 +1,306 @@
+package wakeup_test
+
+import (
+	"context"
+	"net"
+	"os"
+	"testing"
+	"time"
+
+	poolv1alpha1 "xata/proto/clusterpool-operator/api/v1alpha1"
+	"xata/services/branch-operator/api/v1alpha1"
+	"xata/services/branch-operator/pkg/envtestutil"
+	"xata/services/branch-operator/pkg/wakeup"
+
+	apiv1 "github.com/xataio/xata-cnpg/api/v1"
+	"google.golang.org/grpc"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	slotv1 "xata/gen/proto/slots/v1"
+)
+
+const (
+	BranchOperatorCRDsPath = "../../../../charts/branch-operator/crds/"
+	ClusterPoolCRDsPath    = "../../../../saas-charts/clusterpool-operator/crds/"
+	ThirdPartyCRDsPath     = "./testutils/crds/"
+	TestNamespace          = "xata-wakeup-test"
+)
+
+// k8sClient is a live Kubernetes client connected to the test environment.
+// It does not use the controller cache for either reads or writes.
+var (
+	k8sClient  client.Client
+	testScheme *runtime.Scheme
+)
+
+// Make envtestutil functions available in this package for convenience
+var (
+	randomString          = envtestutil.RandomString
+	requireEventuallyTrue = envtestutil.RequireEventuallyTrue
+)
+
+// testSlotController is a minimal SlotController gRPC server that returns
+// success for all WakeUp calls.
+type testSlotController struct {
+	slotv1.UnimplementedSlotControllerServer
+}
+
+func (t *testSlotController) WakeUp(_ context.Context, _ *slotv1.WakeUpRequest) (*slotv1.WakeUpResponse, error) {
+	return &slotv1.WakeUpResponse{}, nil
+}
+
+// TestMain sets up the envtest integration test environment using the
+// `envtestutil` package and runs the tests.
+func TestMain(m *testing.M) {
+	// Crete a test gRPC server for the SlotController service
+	grpcServer := grpc.NewServer()
+	slotv1.RegisterSlotControllerServer(grpcServer, &testSlotController{})
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		panic(err)
+	}
+
+	// Start the SlotController gRPC server in a separate goroutine
+	go grpcServer.Serve(lis)
+	csiNodePort := lis.Addr().(*net.TCPAddr).Port //nolint:forcetypeassert
+
+	env := envtestutil.Setup(
+		envtestutil.Options{
+			CRDDirectoryPaths: []string{
+				BranchOperatorCRDsPath,
+				ClusterPoolCRDsPath,
+				ThirdPartyCRDsPath,
+			},
+			SchemeAdders: []func(*runtime.Scheme) error{
+				corev1.AddToScheme,
+				v1alpha1.AddToScheme,
+				poolv1alpha1.AddToScheme,
+				apiv1.AddToScheme,
+			},
+			Namespaces: []string{TestNamespace},
+			ReconcilerSetup: func(ctx context.Context, mgr ctrl.Manager) error {
+				r := &wakeup.WakeupReconciler{
+					Client:           mgr.GetClient(),
+					Scheme:           mgr.GetScheme(),
+					CSINodeNamespace: TestNamespace,
+					WakeupRequestTTL: 1 * time.Second,
+					CSINodePort:      csiNodePort,
+				}
+				return r.SetupWithManager(ctx, mgr)
+			},
+		})
+	k8sClient = env.Client
+	testScheme = env.Manager.GetScheme()
+
+	// Run the tests
+	code := m.Run()
+
+	grpcServer.GracefulStop()
+	env.Teardown()
+
+	// Exit with the test return code
+	os.Exit(code)
+}
+
+// setupPoolCluster creates a CNPG Cluster owned by the given ClusterPool along
+// with all dependent objects needed for the wakeup reconciler: a PV with a CSI
+// volume handle, a PVC bound to it, a primary pod scheduled to a node, and a
+// CSI node plugin pod on the same node.
+func setupPoolCluster(ctx context.Context, pool *poolv1alpha1.ClusterPool, name, namespace string, readyInstances int) (*apiv1.Cluster, error) {
+	cluster := &apiv1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: apiv1.ClusterSpec{
+			Instances: 1,
+		},
+	}
+
+	// Set the Cluster's controller owner reference to the ClusterPool so that it
+	// is considered part of the pool
+	if err := controllerutil.SetControllerReference(pool, cluster, testScheme); err != nil {
+		return nil, err
+	}
+
+	// Create the Cluster
+	if err := k8sClient.Create(ctx, cluster); err != nil {
+		return nil, err
+	}
+
+	// Create a PV with a CSI volume handle for the Cluster
+	pv := &corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name + "-pv",
+		},
+		Spec: corev1.PersistentVolumeSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.ReadWriteOnce,
+			},
+			Capacity: corev1.ResourceList{
+				corev1.ResourceStorage: resource.MustParse("1Gi"),
+			},
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				CSI: &corev1.CSIPersistentVolumeSource{
+					Driver:       "test.csi.driver",
+					VolumeHandle: "slot/" + name,
+				},
+			},
+		},
+	}
+	if err := k8sClient.Create(ctx, pv); err != nil {
+		return nil, err
+	}
+
+	// Create a PVC bound to the PV
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name + "-1",
+			Namespace: namespace,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.ReadWriteOnce,
+			},
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse("1Gi"),
+				},
+			},
+			VolumeName: name + "-pv",
+		},
+	}
+	if err := k8sClient.Create(ctx, pvc); err != nil {
+		return nil, err
+	}
+
+	// Create the primary pod on a unique test node
+	nodeName := "test-node-" + name
+	primaryPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name + "-1",
+			Namespace: namespace,
+		},
+		Spec: corev1.PodSpec{
+			NodeName:   nodeName,
+			Containers: []corev1.Container{{Name: "postgres", Image: "postgres:17"}},
+		},
+	}
+	if err := k8sClient.Create(ctx, primaryPod); err != nil {
+		return nil, err
+	}
+
+	// Create a CSI node plugin pod on the same node
+	csiNodePod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "xatastor-csi-node-" + name,
+			Namespace: TestNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/component": "csi-node",
+				"app.kubernetes.io/name":      "xatastor-csi",
+			},
+		},
+		Spec: corev1.PodSpec{
+			NodeName:   nodeName,
+			Containers: []corev1.Container{{Name: "csi-node", Image: "xatastor-csi-node:latest"}},
+		},
+	}
+	if err := k8sClient.Create(ctx, csiNodePod); err != nil {
+		return nil, err
+	}
+
+	// Set PodIP on the CSI node pod so the reconciler can dial the test gRPC
+	// server
+	csiNodePod.Status.PodIP = "127.0.0.1"
+	if err := k8sClient.Status().Update(ctx, csiNodePod); err != nil {
+		return nil, err
+	}
+
+	// Set the status phase and current primary PVC via a status subresource update
+	cluster.Status.TargetPrimary = name + "-1"
+	cluster.Status.ReadyInstances = readyInstances
+	cluster.Status.HealthyPVC = []string{name + "-1"}
+	if err := k8sClient.Status().Update(ctx, cluster); err != nil {
+		return nil, err
+	}
+
+	return cluster, nil
+}
+
+// createBranch creates a Branch with the given name, annotations, and the
+// default test spec. It also sets PrimaryXVolName in the Branch status so that
+// the wakeup reconciler's getXVolName precondition is satisfied.
+func createBranch(ctx context.Context, name string, annotations map[string]string) (*v1alpha1.Branch, error) {
+	branch := &v1alpha1.Branch{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Annotations: annotations,
+		},
+		Spec: v1alpha1.BranchSpec{
+			ClusterSpec: v1alpha1.ClusterSpec{
+				Instances: 1,
+				Storage:   v1alpha1.StorageSpec{Size: "1Gi"},
+				Image:     "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.7",
+			},
+		},
+	}
+
+	if err := k8sClient.Create(ctx, branch); err != nil {
+		return nil, err
+	}
+
+	// Set PrimaryXVolName in the Branch status
+	branch.Status.PrimaryXVolName = "xvol-" + name
+	if err := k8sClient.Status().Update(ctx, branch); err != nil {
+		return nil, err
+	}
+
+	return branch, nil
+}
+
+// createWakeupRequest creates a WakeupRequest in the test namespace for the
+// given branch name.
+func createWakeupRequest(ctx context.Context, name, branchName string) (*v1alpha1.WakeupRequest, error) {
+	wr := &v1alpha1.WakeupRequest{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: TestNamespace,
+		},
+		Spec: v1alpha1.WakeupRequestSpec{
+			BranchName: branchName,
+		},
+	}
+
+	if err := k8sClient.Create(ctx, wr); err != nil {
+		return nil, err
+	}
+
+	return wr, nil
+}
+
+// requireWakeupSucceededCondition polls the WakeupRequest until its Succeeded
+// condition matches the expected status and reason.
+func requireWakeupSucceededCondition(t *testing.T, ctx context.Context, wr *v1alpha1.WakeupRequest, status metav1.ConditionStatus, reason string) {
+	t.Helper()
+
+	requireEventuallyTrue(t, func() bool {
+		w := &v1alpha1.WakeupRequest{}
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(wr), w); err != nil {
+			return false
+		}
+
+		cond := meta.FindStatusCondition(w.Status.Conditions, v1alpha1.WakeupSucceededConditionType)
+		if cond == nil {
+			return false
+		}
+
+		return cond.Status == status && cond.Reason == reason
+	})
+}

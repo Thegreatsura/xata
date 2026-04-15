@@ -1,0 +1,16 @@
+{
+  "operations": [
+    {
+      "create_index": {
+        "table": "api_keys",
+        "name": "unique_api_key_name",
+        "columns": {
+          "target_type": {},
+          "target_id": {},
+          "name": {}
+        },
+        "unique": true
+      }
+    }
+  ]
+}

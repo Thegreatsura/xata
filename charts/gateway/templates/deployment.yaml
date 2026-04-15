@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: gateway
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      serviceAccountName: gateway
+      containers:
+        - name: gateway
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          ports:
+            - name: wire-port
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+            {{- if .Values.http.enabled }}
+            - name: http-port
+              containerPort: {{ .Values.service.httpTargetPort }}
+              protocol: TCP
+            {{- end }}
+          volumeMounts:
+            - name: tls-cert
+              mountPath: {{ .Values.secret.mountPath }}
+              readOnly: true
+          env:
+            - name: GOMAXPROCS
+              value: "8"
+            - name: XATA_SQL_GW_LISTEN_ADDRESS
+              value: "0.0.0.0:{{ .Values.service.targetPort }}"
+            - name: XATA_SQL_GW_HEALTH_CHECK_PORT
+              value: "8089"
+            - name: XATA_SQL_GW_DRAINING_TIME
+              value: "3500s"
+            - name: GATEWAY_TARGET_PORT
+              value: "5432"
+            - name: OTEL_SERVICE_NAME
+              value: "gateway"
+            - name: XATA_SQL_GW_SSL_CERT_PATH
+              value: "{{ .Values.secret.mountPath }}/tls.crt"
+            - name: XATA_SQL_GW_SSL_KEY_PATH
+              value: "{{ .Values.secret.mountPath }}/tls.key"
+            - name: XATA_SQL_GW_CNPG_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.config.clustersConfigMap }}
+                  key: {{ .Values.config.clustersNamespaceKey }}
+            - name: CLUSTERS_GRPC_URL
+              value: "clusters:5002"
+            {{- if .Values.http.enabled }}
+            - name: XATA_SQL_GW_HTTP_ENABLED
+              value: "true"
+            - name: XATA_SQL_GW_HTTP_LISTEN_ADDRESS
+              value: "0.0.0.0:{{ .Values.service.httpTargetPort }}"
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: otel-config
+          securityContext:
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: tls-cert
+          secret:
+            secretName: {{ .Values.secret.name }}

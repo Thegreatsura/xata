@@ -1,0 +1,7 @@
+apiVersion: xata.io/v1alpha1
+kind: WakeupRequest
+metadata:
+  name: example-wakeuprequest
+  namespace: xata-clusters
+spec:
+  branchName: example-branch

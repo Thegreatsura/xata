@@ -1,0 +1,38 @@
+# redocly/config.yaml
+
+plugins:
+  - ./xata-plugin.js
+
+# Global rules: apply to all APIs unless overridden per-API
+rules:
+  operation-4xx-response: off
+  xata/has-at-least-one-xata-scope: error
+  xata/verify-reserved-path-parameters: error
+
+decorators:
+  xata/add-public-servers: on
+
+apis:
+  auth:
+    root: ../auth.yaml
+    decorators:
+      xata/add-public-servers: off
+
+  projects:
+    root: ../projects.yaml
+    decorators:
+      xata/add-public-servers: off
+
+  webhook:
+    root: ../webhook.yaml
+    decorators:
+      xata/add-public-servers: off
+    rules:
+      xata/has-at-least-one-xata-scope: off
+
+  gateway:
+    root: ../gateway.yaml
+    decorators:
+      xata/add-public-servers: off
+    rules:
+      xata/has-at-least-one-xata-scope: off
