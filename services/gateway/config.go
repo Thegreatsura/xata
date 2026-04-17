@@ -27,7 +27,7 @@ type Config struct {
 	// HTTPListenAddress is the address and port to listen on for HTTP and WebSocket connections.
 	HTTPListenAddress string `env:"XATA_SQL_GW_HTTP_LISTEN_ADDRESS" env-description:"SQL Gateway: address and port to listen on for HTTP/WebSocket" env-default:":8443"`
 	// EnablePooler allows connecting to PostgreSQL using PgBouncer
-	EnablePooler bool `env:"XATA_ENABLE_POOLER" env-default:"false" env-description:"enable PgBouncer connection pooler for new branches"`
+	EnablePooler bool `env:"XATA_ENABLE_POOLER" env-default:"true" env-description:"enable PgBouncer connection pooler for new branches"`
 }
 
 func (c *Config) Validate() error {
