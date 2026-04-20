@@ -885,6 +885,11 @@ func (s *sqlProjectStore) UpdateBranch(ctx context.Context, organizationID, proj
 		return nil, err
 	}
 
+	// ensure the branch belongs to this project (and is active) before mutating it
+	if _, err := s.describeBranch(ctx, tx, projectID, branchID); err != nil {
+		return nil, err
+	}
+
 	query := ""
 	var args []any
 	// update if any parameters need updating

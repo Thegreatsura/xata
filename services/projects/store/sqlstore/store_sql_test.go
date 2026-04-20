@@ -556,6 +556,12 @@ func TestSQLStore(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
+	// create a branch in a foreign project (different org) used for cross-tenant regression tests
+	foreignBranch, err := sqlStore.CreateBranch(ctx, "otherWS", altProject.ID, "cell", createBranchConfig("foreignBranch", nil, nil), func(b *store.Branch) error {
+		return nil
+	})
+	assert.NoError(t, err)
+
 	branchUpdateTests := []struct {
 		name                string
 		branchName          *string
@@ -625,6 +631,16 @@ func TestSQLStore(t *testing.T) {
 			projectID:      project.ID,
 			wantError:      true,
 			errorMessage:   "branch [fake-branch-id] not found",
+		},
+		{
+			name:              "update branch fails when branch belongs to a different project",
+			branchID:          foreignBranch.ID,
+			branchName:        new("pwned"),
+			branchDescription: new("attacker overwrote this"),
+			organizationID:    "organizationID",
+			projectID:         project.ID,
+			wantError:         true,
+			errorMessage:      fmt.Sprintf("branch [%s] not found", foreignBranch.ID),
 		},
 		{
 			name:           "update branch name fails for already existing branch with that name",
