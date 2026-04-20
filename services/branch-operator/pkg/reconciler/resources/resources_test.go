@@ -503,6 +503,8 @@ func TestPoolerSpec(t *testing.T) {
 		defaultPoolSize  string
 		podLabels        map[string]string
 		imagePullSecrets []string
+		tolerations      []v1.Toleration
+		nodeSelector     map[string]string
 		want             apiv1.PoolerSpec
 	}{
 		"active branch": {
@@ -740,6 +742,83 @@ func TestPoolerSpec(t *testing.T) {
 				},
 			},
 		},
+		"with tolerations and node selector": {
+			clusterName:   "test-branch-6",
+			instances:     1,
+			hibernated:    false,
+			poolMode:      apiv1.PgBouncerPoolModeTransaction,
+			maxClientConn: "100",
+			tolerations: []v1.Toleration{
+				{
+					Key:      "xata.io/workload",
+					Value:    "dataplane",
+					Operator: v1.TolerationOpEqual,
+					Effect:   v1.TaintEffectNoSchedule,
+				},
+			},
+			nodeSelector: map[string]string{
+				"xata.io/nodepool": "dataplane",
+			},
+			want: apiv1.PoolerSpec{
+				Cluster: apiv1.LocalObjectReference{
+					Name: "test-branch-6",
+				},
+				Type:      apiv1.PoolerTypeRW,
+				Instances: new(int32(1)),
+				PgBouncer: &apiv1.PgBouncerSpec{
+					PoolMode: apiv1.PgBouncerPoolModeTransaction,
+					Parameters: map[string]string{
+						"max_client_conn":         "100",
+						"max_prepared_statements": "1000",
+						"query_wait_timeout":      "120",
+						"server_idle_timeout":     "60",
+					},
+				},
+				ServiceTemplate: &apiv1.ServiceTemplateSpec{
+					ObjectMeta: apiv1.Metadata{
+						Annotations: resources.InheritedAnnotations,
+					},
+				},
+				Template: &apiv1.PodTemplateSpec{
+					Spec: v1.PodSpec{
+						EnableServiceLinks: new(false),
+						Tolerations: []v1.Toleration{
+							{
+								Key:      "xata.io/workload",
+								Value:    "dataplane",
+								Operator: v1.TolerationOpEqual,
+								Effect:   v1.TaintEffectNoSchedule,
+							},
+						},
+						NodeSelector: map[string]string{
+							"xata.io/nodepool": "dataplane",
+						},
+						Containers: []v1.Container{
+							{
+								Name: "pgbouncer",
+								Ports: []v1.ContainerPort{
+									{
+										Name:          resources.PoolerMetricsPortName,
+										ContainerPort: resources.PoolerMetricsPort,
+										Protocol:      v1.ProtocolTCP,
+									},
+								},
+								Resources: v1.ResourceRequirements{
+									Requests: v1.ResourceList{
+										v1.ResourceCPU:    resource.MustParse("200m"),
+										v1.ResourceMemory: resource.MustParse("100Mi"),
+									},
+									Limits: v1.ResourceList{
+										v1.ResourceCPU:    resource.MustParse("500m"),
+										v1.ResourceMemory: resource.MustParse("100Mi"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 		"with default_pool_size override": {
 			clusterName:     "test-branch-5",
 			instances:       1,
@@ -801,7 +880,7 @@ func TestPoolerSpec(t *testing.T) {
 
 	for name, tc := range testcases {
 		t.Run(name, func(t *testing.T) {
-			got := resources.PoolerSpec(tc.clusterName, tc.instances, tc.hibernated, tc.poolMode, tc.maxClientConn, tc.defaultPoolSize, tc.podLabels, tc.imagePullSecrets, nil)
+			got := resources.PoolerSpec(tc.clusterName, tc.instances, tc.hibernated, tc.poolMode, tc.maxClientConn, tc.defaultPoolSize, tc.podLabels, tc.imagePullSecrets, tc.tolerations, tc.nodeSelector)
 
 			require.Equal(t, tc.want, got)
 		})

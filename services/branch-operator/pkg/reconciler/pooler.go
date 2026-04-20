@@ -64,6 +64,7 @@ func (r *BranchReconciler) reconcilePooler(
 			branch.Spec.InheritedMetadata.GetLabels(),
 			r.ImagePullSecrets,
 			r.Tolerations,
+			branch.Spec.ClusterSpec.Affinity.GetNodeSelector(),
 		)
 
 		return nil
