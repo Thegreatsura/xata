@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"xata/internal/envtestutil"
 	poolv1alpha1 "xata/proto/clusterpool-operator/api/v1alpha1"
 	"xata/services/branch-operator/api/v1alpha1"
-	"xata/services/branch-operator/pkg/envtestutil"
 	"xata/services/branch-operator/pkg/wakeup"
 
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"

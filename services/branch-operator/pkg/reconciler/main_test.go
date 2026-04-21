@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"xata/internal/envtestutil"
 	"xata/services/branch-operator/api/v1alpha1"
-	"xata/services/branch-operator/pkg/envtestutil"
 	"xata/services/branch-operator/pkg/reconciler"
 
 	barmanPluginApi "github.com/cloudnative-pg/plugin-barman-cloud/api/v1"
