@@ -19,19 +19,20 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ClustersService_CreatePostgresCluster_FullMethodName         = "/clusters.v1.ClustersService/CreatePostgresCluster"
-	ClustersService_DescribePostgresCluster_FullMethodName       = "/clusters.v1.ClustersService/DescribePostgresCluster"
-	ClustersService_GetPostgresClusterCredentials_FullMethodName = "/clusters.v1.ClustersService/GetPostgresClusterCredentials"
-	ClustersService_UpdatePostgresCluster_FullMethodName         = "/clusters.v1.ClustersService/UpdatePostgresCluster"
-	ClustersService_DeletePostgresCluster_FullMethodName         = "/clusters.v1.ClustersService/DeletePostgresCluster"
-	ClustersService_RegisterPostgresCluster_FullMethodName       = "/clusters.v1.ClustersService/RegisterPostgresCluster"
-	ClustersService_DeregisterPostgresCluster_FullMethodName     = "/clusters.v1.ClustersService/DeregisterPostgresCluster"
-	ClustersService_GetCellUtilization_FullMethodName            = "/clusters.v1.ClustersService/GetCellUtilization"
-	ClustersService_GetObjectStore_FullMethodName                = "/clusters.v1.ClustersService/GetObjectStore"
-	ClustersService_SetBranchIPFiltering_FullMethodName          = "/clusters.v1.ClustersService/SetBranchIPFiltering"
-	ClustersService_SetBranchesIPFiltering_FullMethodName        = "/clusters.v1.ClustersService/SetBranchesIPFiltering"
-	ClustersService_GetBranchIPFiltering_FullMethodName          = "/clusters.v1.ClustersService/GetBranchIPFiltering"
-	ClustersService_DeleteBranchIPFiltering_FullMethodName       = "/clusters.v1.ClustersService/DeleteBranchIPFiltering"
+	ClustersService_CreatePostgresCluster_FullMethodName            = "/clusters.v1.ClustersService/CreatePostgresCluster"
+	ClustersService_DescribePostgresCluster_FullMethodName          = "/clusters.v1.ClustersService/DescribePostgresCluster"
+	ClustersService_GetPostgresClusterCredentials_FullMethodName    = "/clusters.v1.ClustersService/GetPostgresClusterCredentials"
+	ClustersService_RotatePostgresClusterCredentials_FullMethodName = "/clusters.v1.ClustersService/RotatePostgresClusterCredentials"
+	ClustersService_UpdatePostgresCluster_FullMethodName            = "/clusters.v1.ClustersService/UpdatePostgresCluster"
+	ClustersService_DeletePostgresCluster_FullMethodName            = "/clusters.v1.ClustersService/DeletePostgresCluster"
+	ClustersService_RegisterPostgresCluster_FullMethodName          = "/clusters.v1.ClustersService/RegisterPostgresCluster"
+	ClustersService_DeregisterPostgresCluster_FullMethodName        = "/clusters.v1.ClustersService/DeregisterPostgresCluster"
+	ClustersService_GetCellUtilization_FullMethodName               = "/clusters.v1.ClustersService/GetCellUtilization"
+	ClustersService_GetObjectStore_FullMethodName                   = "/clusters.v1.ClustersService/GetObjectStore"
+	ClustersService_SetBranchIPFiltering_FullMethodName             = "/clusters.v1.ClustersService/SetBranchIPFiltering"
+	ClustersService_SetBranchesIPFiltering_FullMethodName           = "/clusters.v1.ClustersService/SetBranchesIPFiltering"
+	ClustersService_GetBranchIPFiltering_FullMethodName             = "/clusters.v1.ClustersService/GetBranchIPFiltering"
+	ClustersService_DeleteBranchIPFiltering_FullMethodName          = "/clusters.v1.ClustersService/DeleteBranchIPFiltering"
 )
 
 // ClustersServiceClient is the client API for ClustersService service.
@@ -46,6 +47,8 @@ type ClustersServiceClient interface {
 	DescribePostgresCluster(ctx context.Context, in *DescribePostgresClusterRequest, opts ...grpc.CallOption) (*DescribePostgresClusterResponse, error)
 	// Retrieve the credentials for a postgres cluster
 	GetPostgresClusterCredentials(ctx context.Context, in *GetPostgresClusterCredentialsRequest, opts ...grpc.CallOption) (*GetPostgresClusterCredentialsResponse, error)
+	// Rotate the credentials for a postgres cluster
+	RotatePostgresClusterCredentials(ctx context.Context, in *RotatePostgresClusterCredentialsRequest, opts ...grpc.CallOption) (*RotatePostgresClusterCredentialsResponse, error)
 	// Update a postgres cluster and return the information
 	UpdatePostgresCluster(ctx context.Context, in *UpdatePostgresClusterRequest, opts ...grpc.CallOption) (*UpdatePostgresClusterResponse, error)
 	// Delete a postgres cluster
@@ -100,6 +103,16 @@ func (c *clustersServiceClient) GetPostgresClusterCredentials(ctx context.Contex
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetPostgresClusterCredentialsResponse)
 	err := c.cc.Invoke(ctx, ClustersService_GetPostgresClusterCredentials_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *clustersServiceClient) RotatePostgresClusterCredentials(ctx context.Context, in *RotatePostgresClusterCredentialsRequest, opts ...grpc.CallOption) (*RotatePostgresClusterCredentialsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RotatePostgresClusterCredentialsResponse)
+	err := c.cc.Invoke(ctx, ClustersService_RotatePostgresClusterCredentials_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -218,6 +231,8 @@ type ClustersServiceServer interface {
 	DescribePostgresCluster(context.Context, *DescribePostgresClusterRequest) (*DescribePostgresClusterResponse, error)
 	// Retrieve the credentials for a postgres cluster
 	GetPostgresClusterCredentials(context.Context, *GetPostgresClusterCredentialsRequest) (*GetPostgresClusterCredentialsResponse, error)
+	// Rotate the credentials for a postgres cluster
+	RotatePostgresClusterCredentials(context.Context, *RotatePostgresClusterCredentialsRequest) (*RotatePostgresClusterCredentialsResponse, error)
 	// Update a postgres cluster and return the information
 	UpdatePostgresCluster(context.Context, *UpdatePostgresClusterRequest) (*UpdatePostgresClusterResponse, error)
 	// Delete a postgres cluster
@@ -256,6 +271,9 @@ func (UnimplementedClustersServiceServer) DescribePostgresCluster(context.Contex
 }
 func (UnimplementedClustersServiceServer) GetPostgresClusterCredentials(context.Context, *GetPostgresClusterCredentialsRequest) (*GetPostgresClusterCredentialsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPostgresClusterCredentials not implemented")
+}
+func (UnimplementedClustersServiceServer) RotatePostgresClusterCredentials(context.Context, *RotatePostgresClusterCredentialsRequest) (*RotatePostgresClusterCredentialsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RotatePostgresClusterCredentials not implemented")
 }
 func (UnimplementedClustersServiceServer) UpdatePostgresCluster(context.Context, *UpdatePostgresClusterRequest) (*UpdatePostgresClusterResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdatePostgresCluster not implemented")
@@ -358,6 +376,24 @@ func _ClustersService_GetPostgresClusterCredentials_Handler(srv interface{}, ctx
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ClustersServiceServer).GetPostgresClusterCredentials(ctx, req.(*GetPostgresClusterCredentialsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ClustersService_RotatePostgresClusterCredentials_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RotatePostgresClusterCredentialsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ClustersServiceServer).RotatePostgresClusterCredentials(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ClustersService_RotatePostgresClusterCredentials_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ClustersServiceServer).RotatePostgresClusterCredentials(ctx, req.(*RotatePostgresClusterCredentialsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -560,6 +596,10 @@ var ClustersService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPostgresClusterCredentials",
 			Handler:    _ClustersService_GetPostgresClusterCredentials_Handler,
+		},
+		{
+			MethodName: "RotatePostgresClusterCredentials",
+			Handler:    _ClustersService_RotatePostgresClusterCredentials_Handler,
 		},
 		{
 			MethodName: "UpdatePostgresCluster",

@@ -3286,6 +3286,82 @@ func TestGetBranchCredentials(t *testing.T) {
 	}
 }
 
+func TestRotateBranchCredentials(t *testing.T) {
+	mockStore := mocks.NewProjectsStore(t)
+	mockClusters := protomocks.NewClustersServiceClient(t)
+	mockCells := cellsmock.NewCellsMock(t, mockClusters)
+
+	feat := openfeaturetest.NewClient(nil)
+	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
+	handler := NewAPIHandler(feat, mockStore, mockCells, "testdomain:5432", createNewSigNozClient(t), sched, analyticsmocks.NewClient(t), nil, nil)
+	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
+
+	rotateBranchCredentialsTests := []struct {
+		name          string
+		projectID     string
+		branchID      string
+		jsonBody      any
+		setupMocks    func()
+		wantError     bool
+		expectedError error
+	}{
+		{
+			name:      "rotate credentials succeeds",
+			projectID: "project_id",
+			branchID:  "branchID",
+			jsonBody:  map[string]string{"username": "xata"},
+			setupMocks: func() {
+				branch := store.Branch{ID: "branchID"}
+				mockStore.EXPECT().
+					DescribeBranch(mock.Anything, apitest.TestOrganization, "project_id", "branchID").
+					Return(&branch, nil).Once()
+				mockClusters.EXPECT().
+					RotatePostgresClusterCredentials(mock.Anything, &clustersv1.RotatePostgresClusterCredentialsRequest{Id: "branchID", User: "xata"}).
+					Return(&clustersv1.RotatePostgresClusterCredentialsResponse{}, nil).Once()
+			},
+			wantError: false,
+		},
+		{
+			name:          "rotate credentials with invalid username fails",
+			projectID:     "project_id",
+			branchID:      "branchID",
+			jsonBody:      map[string]string{"username": "postgres"},
+			setupMocks:    func() {},
+			wantError:     true,
+			expectedError: ErrorInvalidParam{BranchName: "branchID", Param: "username", Message: "only the xata user credentials can be rotated"},
+		},
+		{
+			name:      "rotate credentials for non-existing branch fails",
+			projectID: "project_id",
+			branchID:  "branchID",
+			jsonBody:  map[string]string{"username": "xata"},
+			setupMocks: func() {
+				mockStore.EXPECT().
+					DescribeBranch(mock.Anything, apitest.TestOrganization, "project_id", "branchID").
+					Return(nil, store.ErrBranchNotFound{ID: "branchID"}).Once()
+			},
+			wantError:     true,
+			expectedError: ErrorBranchNotFound{BranchID: "branchID"},
+		},
+	}
+
+	for _, tc := range rotateBranchCredentialsTests {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.setupMocks()
+			c, rec := e.POST("/organizations/" + apitest.TestOrganization + "/projects/" + tc.projectID + "/branches/" + tc.branchID + "/credentials/rotate").
+				WithJSONBody(tc.jsonBody).Context()
+			err := handler.RotateBranchCredentials(c, apitest.TestOrganization, tc.projectID, tc.branchID)
+			if tc.wantError {
+				assert.Error(t, err)
+				assert.Equal(t, tc.expectedError, err)
+			} else {
+				assert.NoError(t, err)
+				rec.MustCode(http.StatusNoContent)
+			}
+		})
+	}
+}
+
 func TestUpdateBranch(t *testing.T) {
 	mockStore := mocks.NewProjectsStore(t)
 	mockClusters := protomocks.NewClustersServiceClient(t)

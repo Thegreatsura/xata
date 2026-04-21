@@ -1164,6 +1164,45 @@ func (s *handler) GetBranchCredentials(c echo.Context, organizationID spec.Organ
 	})
 }
 
+// Rotate branch credentials
+// (POST /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/credentials/rotate)
+func (s *handler) RotateBranchCredentials(c echo.Context, organizationID spec.OrganizationID, projectID, branchID string) error {
+	return s.withOrganizationAccess(c, organizationID, OnlyEnabled, func() error {
+		var body spec.RotateBranchCredentialsJSONRequestBody
+		if err := api.ReadBody(c, &body); err != nil {
+			return err
+		}
+
+		if body.Username != "xata" {
+			return ErrorInvalidParam{BranchName: branchID, Param: "username", Message: "only the xata user credentials can be rotated"}
+		}
+
+		branch, err := s.store.DescribeBranch(c.Request().Context(), organizationID, projectID, branchID)
+		if err != nil {
+			if errors.As(err, &store.ErrBranchNotFound{}) {
+				return ErrorBranchNotFound{BranchID: branchID}
+			}
+			return err
+		}
+
+		client, err := s.cells.GetCellConnection(c.Request().Context(), organizationID, branch.CellID)
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		_, err = client.RotatePostgresClusterCredentials(c.Request().Context(), &clustersv1.RotatePostgresClusterCredentialsRequest{
+			Id:   branch.ID,
+			User: body.Username,
+		})
+		if err != nil {
+			return err
+		}
+
+		return c.NoContent(http.StatusNoContent)
+	})
+}
+
 // Update a branch
 // (PATCH /organizations/{organizationID}/projects/{projectID}/branches/{branchID})
 func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationID, projectID, branchID string) error {

@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -335,6 +336,44 @@ func (c *ClustersService) UpdatePostgresCluster(ctx context.Context, req *cluste
 	}
 
 	return &clustersv1.UpdatePostgresClusterResponse{}, nil
+}
+
+// userToSecretSuffix maps Postgres usernames to their K8s secret suffixes.
+var userToSecretSuffix = map[string]string{
+	"xata":     "app",
+	"postgres": "superuser",
+}
+
+// RotatePostgresClusterCredentials deletes the K8s secret for the given user,
+// triggering the branch-operator to recreate it with a new password on the
+// next reconciliation loop.
+func (c *ClustersService) RotatePostgresClusterCredentials(ctx context.Context, req *clustersv1.RotatePostgresClusterCredentialsRequest) (*clustersv1.RotatePostgresClusterCredentialsResponse, error) {
+	suffix, ok := userToSecretSuffix[req.GetUser()]
+	if !ok {
+		return nil, status.Errorf(codes.InvalidArgument, "unknown user %q", req.GetUser())
+	}
+
+	// Verify the branch exists
+	if _, err := c.getBranch(ctx, req.GetId()); err != nil {
+		return nil, k8sErrorToGRPCError(err)
+	}
+
+	// Deleting the secret triggers the branch-operator to recreate it with a
+	// new password. The operator's reconcileSecret uses CreateOrUpdate which
+	// only generates a password when the secret doesn't exist (len(Data) == 0).
+	// Once recreated, CNPG picks up the change via the cnpg.io/reload label
+	// and syncs the new password to PostgreSQL.
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      req.GetId() + "-" + suffix,
+			Namespace: c.config.ClustersNamespace,
+		},
+	}
+	if err := c.kubeClient.Delete(ctx, secret); err != nil {
+		return nil, k8sErrorToGRPCError(err)
+	}
+
+	return &clustersv1.RotatePostgresClusterCredentialsResponse{}, nil
 }
 
 // DeletePostgresCluster deletes a Branch CR

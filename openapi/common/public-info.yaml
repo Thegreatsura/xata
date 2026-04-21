@@ -32,6 +32,7 @@ components:
             'branch:write': Create and modify branches
             'metrics:read': Read metrics data
             'credentials:read': Read credentials
+            'credentials:write': Rotate credentials
             'marketplace:write': Register with cloud marketplaces
 externalDocs:
   url: 'https://xata.io/docs/api'

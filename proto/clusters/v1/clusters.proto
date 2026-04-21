@@ -15,6 +15,9 @@ service ClustersService {
   // Retrieve the credentials for a postgres cluster
   rpc GetPostgresClusterCredentials(GetPostgresClusterCredentialsRequest) returns (GetPostgresClusterCredentialsResponse) {}
 
+  // Rotate the credentials for a postgres cluster
+  rpc RotatePostgresClusterCredentials(RotatePostgresClusterCredentialsRequest) returns (RotatePostgresClusterCredentialsResponse) {}
+
   // Update a postgres cluster and return the information
   rpc UpdatePostgresCluster(UpdatePostgresClusterRequest) returns (UpdatePostgresClusterResponse) {}
 
@@ -123,6 +126,17 @@ message GetPostgresClusterCredentialsResponse {
   string username = 2;
   string password = 3;
 }
+
+// RotatePostgresClusterCredentialsRequest is the request object for RotatePostgresClusterCredentials
+message RotatePostgresClusterCredentialsRequest {
+  // The id of the cluster
+  string id = 1;
+  // User to rotate credentials for (e.g. "xata")
+  string user = 2;
+}
+
+// RotatePostgresClusterCredentialsResponse is the response object for RotatePostgresClusterCredentials
+message RotatePostgresClusterCredentialsResponse {}
 
 message RegisterPostgresClusterRequest {
   string id = 1;

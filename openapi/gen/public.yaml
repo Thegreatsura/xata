@@ -1718,6 +1718,51 @@ paths:
             - credentials:read
       tags:
         - Branches
+  /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/credentials/rotate:
+    post:
+      operationId: rotateBranchCredentials
+      summary: Rotate branch credentials
+      description: Triggers a credential rotation for the branch database user. The new credentials can be retrieved via the credentials endpoint after rotation completes.
+      parameters:
+        - name: organizationID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/OrganizationID'
+        - name: projectID
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: branchID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotateCredentialsRequest'
+      responses:
+        '204':
+          description: Credential rotation initiated successfully
+        '400':
+          $ref: '#/components/responses/GenericError'
+        '401':
+          $ref: '#/components/responses/AuthorizationError'
+        '404':
+          $ref: '#/components/responses/GenericError'
+        5XX:
+          description: Unexpected Error
+        default:
+          description: Unexpected Error
+      security:
+        - xata:
+            - credentials:write
+      tags:
+        - Branches
   /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/metrics:
     post:
       operationId: branchMetrics
@@ -2274,6 +2319,7 @@ components:
             branch:write: Create and modify branches
             metrics:read: Read metrics data
             credentials:read: Read credentials
+            credentials:write: Rotate credentials
             marketplace:write: Register with cloud marketplaces
   parameters:
     InvitationIDParam:
@@ -3278,6 +3324,15 @@ components:
         - username
         - password
       x-internal: true
+    RotateCredentialsRequest:
+      description: Request to rotate credentials for a branch database user
+      type: object
+      properties:
+        username:
+          description: Database username to rotate credentials for
+          type: string
+      required:
+        - username
     ClusterLifecycle:
       description: Information about the current lifecycle state of a database cluster
       type: object

@@ -937,6 +937,88 @@ func TestGetPostgresClusterCredentials(t *testing.T) {
 	}
 }
 
+func TestRotatePostgresClusterCredentials(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		user               string
+		branchExists       bool
+		createSecret       bool
+		expectedStatusCode codes.Code
+		secretName         string
+	}{
+		"success with xata user": {
+			user:         "xata",
+			branchExists: true,
+			createSecret: true,
+			secretName:   "app",
+		},
+		"success with postgres user": {
+			user:         "postgres",
+			branchExists: true,
+			createSecret: true,
+			secretName:   "superuser",
+		},
+		"unknown user": {
+			user:               "unknown",
+			branchExists:       true,
+			expectedStatusCode: codes.InvalidArgument,
+		},
+		"branch not found": {
+			user:               "xata",
+			branchExists:       false,
+			expectedStatusCode: codes.NotFound,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+
+			_, branchToUpdate, _, _, _ := exampleRequestsAndBranches()
+
+			var existingObjs []client.Object
+			if tt.branchExists {
+				existingObjs = append(existingObjs, branchToUpdate)
+			}
+			if tt.createSecret {
+				existingObjs = append(existingObjs, &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      branchToUpdate.Name + "-" + tt.secretName,
+						Namespace: "xata-clusters",
+					},
+					Type: corev1.SecretTypeBasicAuth,
+					Data: map[string][]byte{
+						corev1.BasicAuthUsernameKey: []byte("user"),
+						corev1.BasicAuthPasswordKey: []byte("pass"),
+					},
+				})
+			}
+
+			svc, k8sClient := setupTestClustersService(t, withExistingObjects(existingObjs...))
+
+			req := &clustersv1.RotatePostgresClusterCredentialsRequest{
+				Id:   branchToUpdate.Name,
+				User: tt.user,
+			}
+
+			_, err := svc.RotatePostgresClusterCredentials(ctx, req)
+			st, _ := status.FromError(err)
+			require.Equal(t, tt.expectedStatusCode, st.Code())
+
+			if tt.expectedStatusCode == codes.OK {
+				// Verify the secret was deleted
+				secret := &corev1.Secret{}
+				err := k8sClient.Get(ctx, client.ObjectKey{
+					Name:      branchToUpdate.Name + "-" + tt.secretName,
+					Namespace: "xata-clusters",
+				}, secret)
+				require.True(t, errors.IsNotFound(err))
+			}
+		})
+	}
+}
+
 func TestRegisterPostgresCluster(t *testing.T) {
 	t.Parallel()
 
