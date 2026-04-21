@@ -9,6 +9,7 @@ rules:
       - secrets
     verbs:
       - get
+      - delete
   - apiGroups:
       - ""
     resources:
