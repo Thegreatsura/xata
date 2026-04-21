@@ -218,7 +218,7 @@ func setupIndexers(ctx context.Context, mgr ctrl.Manager) error {
 			if owner == nil {
 				return nil
 			}
-			if owner.APIVersion != poolv1alpha1.GroupVersion.String() || owner.Kind != "ClusterPool" {
+			if owner.APIVersion != poolv1alpha1.GroupVersion.String() || owner.Kind != poolv1alpha1.ClusterPoolKind {
 				return nil
 			}
 			return []string{owner.Name}

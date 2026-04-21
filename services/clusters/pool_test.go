@@ -106,7 +106,7 @@ func TestFindPoolCluster(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: cpv1alpha1.GroupVersion.String(),
-					Kind:       "ClusterPool",
+					Kind:       cpv1alpha1.ClusterPoolKind,
 					UID:        poolUID,
 					Name:       "test-pool",
 					Controller: ptr.To(true),
@@ -177,7 +177,7 @@ func TestFindPoolCluster(t *testing.T) {
 					Name:      "pool-cluster-unhealthy",
 					Namespace: namespace,
 					OwnerReferences: []metav1.OwnerReference{
-						{APIVersion: cpv1alpha1.GroupVersion.String(), Kind: "ClusterPool", UID: poolUID, Name: "test-pool", Controller: ptr.To(true)},
+						{APIVersion: cpv1alpha1.GroupVersion.String(), Kind: cpv1alpha1.ClusterPoolKind, UID: poolUID, Name: "test-pool", Controller: ptr.To(true)},
 					},
 				},
 				Status: apiv1.ClusterStatus{
@@ -288,7 +288,7 @@ func TestFindHealthyClusterInPool(t *testing.T) {
 
 	ownerRef := metav1.OwnerReference{
 		APIVersion: cpv1alpha1.GroupVersion.String(),
-		Kind:       "ClusterPool",
+		Kind:       cpv1alpha1.ClusterPoolKind,
 		UID:        poolUID,
 		Name:       "test-pool",
 		Controller: ptr.To(true),
@@ -409,7 +409,7 @@ func newPoolTestClient(t *testing.T, objs ...client.Object) client.Client {
 			if owner == nil {
 				return nil
 			}
-			if owner.APIVersion != cpv1alpha1.GroupVersion.String() || owner.Kind != "ClusterPool" {
+			if owner.APIVersion != cpv1alpha1.GroupVersion.String() || owner.Kind != cpv1alpha1.ClusterPoolKind {
 				return nil
 			}
 			return []string{owner.Name}

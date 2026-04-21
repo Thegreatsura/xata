@@ -1500,7 +1500,7 @@ func setupTestClustersService(t *testing.T, opts ...testServiceOption) (*Cluster
 			if owner == nil {
 				return nil
 			}
-			if owner.APIVersion != cpv1alpha1.GroupVersion.String() || owner.Kind != "ClusterPool" {
+			if owner.APIVersion != cpv1alpha1.GroupVersion.String() || owner.Kind != cpv1alpha1.ClusterPoolKind {
 				return nil
 			}
 			return []string{owner.Name}
@@ -1925,7 +1925,7 @@ func poolClusterForTest() *apiv1.Cluster {
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: cpv1alpha1.GroupVersion.String(),
-					Kind:       "ClusterPool",
+					Kind:       cpv1alpha1.ClusterPoolKind,
 					UID:        "pool-uid-123",
 					Name:       "test-pool",
 					Controller: ptr.To(true),

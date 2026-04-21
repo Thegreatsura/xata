@@ -5,6 +5,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// ClusterPoolKind is the Kind string for the ClusterPool resource.
+const ClusterPoolKind = "ClusterPool"
+
 // ClusterPoolSpec defines the desired state of a ClusterPool
 type ClusterPoolSpec struct {
 	// Clusters is the target number of clusters to maintain in the pool.

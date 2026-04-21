@@ -143,7 +143,7 @@ func (c *ClustersService) Init(ctx context.Context) error {
 			if owner == nil {
 				return nil
 			}
-			if owner.APIVersion != cpv1alpha1.GroupVersion.String() || owner.Kind != "ClusterPool" {
+			if owner.APIVersion != cpv1alpha1.GroupVersion.String() || owner.Kind != cpv1alpha1.ClusterPoolKind {
 				return nil
 			}
 			return []string{owner.Name}
