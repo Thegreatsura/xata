@@ -1220,6 +1220,14 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 			return ErrorInvalidParam{BranchName: branchID, Param: "configuration", Message: fmt.Sprintf("branch [%s]: cannot set number of replicas to less than 0", branchID)}
 		}
 
+		// CNPG rejects simultaneous image and configuration changes when
+		// primaryUpdateMethod is set to "switchover". Instance type changes are
+		// included because they auto-adjust postgres parameters. Preload libraries
+		// are included because they are passed as postgres configuration parameters.
+		if body.Image != nil && (body.PostgresConfigurationParameters != nil || body.InstanceType != nil || body.PreloadLibraries != nil) {
+			return ErrorInvalidParam{BranchName: branchID, Param: "image", Message: "image cannot be updated together with postgres configuration parameters, instance type, or preload libraries"}
+		}
+
 		if err := validateBackupConfiguration(branchID, body.BackupConfiguration); err != nil {
 			return err
 		}

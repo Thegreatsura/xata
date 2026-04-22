@@ -4593,6 +4593,33 @@ func TestUpdateBranch(t *testing.T) {
 			wantError:     true,
 			expectedError: ErrorInvalidParam{BranchName: "123", Param: "image", Message: "image postgres:99.99 is not valid"},
 		},
+		{
+			name:          "update branch image with postgres config parameters fails",
+			projectID:     "project_id",
+			branchID:      "123",
+			jsonBody:      map[string]any{"image": "postgres:17.7", "postgresConfigurationParameters": map[string]string{"max_connections": "100"}},
+			setupMocks:    func() {},
+			wantError:     true,
+			expectedError: ErrorInvalidParam{BranchName: "123", Param: "image", Message: "image cannot be updated together with postgres configuration parameters, instance type, or preload libraries"},
+		},
+		{
+			name:          "update branch image with instance type fails",
+			projectID:     "project_id",
+			branchID:      "123",
+			jsonBody:      map[string]any{"image": "postgres:17.7", "instanceType": "xata.medium"},
+			setupMocks:    func() {},
+			wantError:     true,
+			expectedError: ErrorInvalidParam{BranchName: "123", Param: "image", Message: "image cannot be updated together with postgres configuration parameters, instance type, or preload libraries"},
+		},
+		{
+			name:          "update branch image with preload libraries fails",
+			projectID:     "project_id",
+			branchID:      "123",
+			jsonBody:      map[string]any{"image": "postgres:17.7", "preloadLibraries": []string{"pg_stat_statements"}},
+			setupMocks:    func() {},
+			wantError:     true,
+			expectedError: ErrorInvalidParam{BranchName: "123", Param: "image", Message: "image cannot be updated together with postgres configuration parameters, instance type, or preload libraries"},
+		},
 	}
 	for _, tt := range updateBranchTests {
 		t.Run(tt.name, func(t *testing.T) {
