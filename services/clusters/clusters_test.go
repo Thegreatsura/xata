@@ -338,7 +338,7 @@ func TestCreatePostgresCluster(t *testing.T) {
 		{
 			name: "use_pool with matching pool - adopts pool cluster",
 			extraObjects: []client.Object{
-				poolForTest("default-storage-class", testImage, "2", "4Gi"),
+				poolForTest("default-storage-class", testImage, "2", "3996Mi"),
 				poolClusterForTest(),
 			},
 			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
@@ -352,7 +352,7 @@ func TestCreatePostgresCluster(t *testing.T) {
 		{
 			name: "use_pool with no matching pool - falls back to normal creation",
 			extraObjects: []client.Object{
-				poolForTest("other-storage-class", testImage, "2", "4Gi"),
+				poolForTest("other-storage-class", testImage, "2", "3996Mi"),
 			},
 			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
 				r.UsePool = new(true)
@@ -361,7 +361,7 @@ func TestCreatePostgresCluster(t *testing.T) {
 		{
 			name: "use_pool false - normal creation unchanged",
 			extraObjects: []client.Object{
-				poolForTest("default-storage-class", testImage, "2", "4Gi"),
+				poolForTest("default-storage-class", testImage, "2", "3996Mi"),
 				poolClusterForTest(),
 			},
 			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
