@@ -678,7 +678,7 @@ func TestCreateBranch(t *testing.T) {
 					"work_mem":        "2259kB",
 				}, nil).Once()
 				mockPostgresConfig.EXPECT().GetDefaultPreloadLibraries(mock.AnythingOfType("string")).Return([]string{"pg_stat_statements", "auto_explain"}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "superuser"}).
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).
 					Return(&clustersv1.GetPostgresClusterCredentialsResponse{Username: "user", Password: "pass"}, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: configuration.Region, GatewayHostPort: "", BackupsEnabled: true}, nil).Twice()
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, &clustersv1.CreatePostgresClusterRequest{Id: branch.ID, Configuration: &clustersv1.ClusterConfiguration{
@@ -726,7 +726,7 @@ func TestCreateBranch(t *testing.T) {
 					"work_mem":        "2259kB",
 				}, nil).Once()
 				mockPostgresConfig.EXPECT().GetDefaultPreloadLibraries(mock.AnythingOfType("string")).Return([]string{"pg_stat_statements", "auto_explain"}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "superuser"}).
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).
 					Return(&clustersv1.GetPostgresClusterCredentialsResponse{Username: "user", Password: "pass"}, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: configuration.Region, GatewayHostPort: "", BackupsEnabled: true}, nil).Twice()
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.Anything).Run(func(ctx context.Context, req *clustersv1.CreatePostgresClusterRequest, opts ...grpc.CallOption) {
@@ -789,7 +789,7 @@ func TestCreateBranch(t *testing.T) {
 					"work_mem":        "2259kB",
 				}, nil).Once()
 				mockPostgresConfig.EXPECT().GetDefaultPreloadLibraries(mock.AnythingOfType("string")).Return([]string{"pg_stat_statements", "auto_explain"}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "superuser"}).
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).
 					Return(&clustersv1.GetPostgresClusterCredentialsResponse{Username: "user", Password: "pass"}, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: configuration.Region, GatewayHostPort: "", BackupsEnabled: true}, nil).Twice()
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.Anything).Run(func(ctx context.Context, req *clustersv1.CreatePostgresClusterRequest, opts ...grpc.CallOption) {
@@ -851,7 +851,7 @@ func TestCreateBranch(t *testing.T) {
 					"work_mem":        "2259kB",
 				}, nil).Once()
 				mockPostgresConfig.EXPECT().GetDefaultPreloadLibraries(mock.AnythingOfType("string")).Return([]string{"pg_stat_statements", "auto_explain"}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "superuser"}).
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).
 					Return(&clustersv1.GetPostgresClusterCredentialsResponse{Username: "user", Password: "pass"}, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: configuration.Region, GatewayHostPort: "", BackupsEnabled: true}, nil).Twice()
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.Anything).Run(func(ctx context.Context, req *clustersv1.CreatePostgresClusterRequest, opts ...grpc.CallOption) {
@@ -906,7 +906,7 @@ func TestCreateBranch(t *testing.T) {
 				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, "project_id", *childBranch.ParentID).Return(&branch, nil).Once()
 				mockStore.EXPECT().GetPrimaryCell(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Cell{ID: "cell_id", RegionID: "region-id-1", Primary: true}, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: configuration.Region, GatewayHostPort: "", BackupsEnabled: true}, nil).Twice()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: childBranch.ID, Username: "superuser"}).
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: childBranch.ID, Username: "app"}).
 					Return(&clustersv1.GetPostgresClusterCredentialsResponse{Username: "user", Password: "pass"}, nil).Once()
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything,
 					&clustersv1.CreatePostgresClusterRequest{
@@ -1230,7 +1230,7 @@ func TestCreateBranch(t *testing.T) {
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: configuration.Region, GatewayHostPort: "", BackupsEnabled: true}, nil).Once()
 				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{
 					Id:       branch.ID,
-					Username: "superuser",
+					Username: "app",
 				}).Return(nil, fmt.Errorf("some credentials error")).Once()
 				mockStore.EXPECT().GetProject(mock.Anything, apitest.TestOrganization, "project_id").Return(&project, nil).Once()
 				storageSize := int32(250)
@@ -1289,7 +1289,7 @@ func TestCreateBranch(t *testing.T) {
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: configuration.Region, GatewayHostPort: "", BackupsEnabled: true}, nil).Twice()
 				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{
 					Id:       "123",
-					Username: "superuser",
+					Username: "app",
 				}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
@@ -1481,7 +1481,7 @@ func TestCreateBranch(t *testing.T) {
 					"cron.database_name":          "xata",
 					"cron.use_background_workers": "on",
 				}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "superuser"}).
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).
 					Return(&clustersv1.GetPostgresClusterCredentialsResponse{Username: "user", Password: "pass"}, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: configuration.Region, GatewayHostPort: "", BackupsEnabled: true}, nil).Twice()
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.Anything).Run(func(ctx context.Context, req *clustersv1.CreatePostgresClusterRequest, opts ...grpc.CallOption) {
@@ -1544,7 +1544,7 @@ func TestCreateBranch(t *testing.T) {
 					"shared_buffers":  "256MB",
 					"work_mem":        "2259kB",
 				}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "superuser"}).
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).
 					Return(&clustersv1.GetPostgresClusterCredentialsResponse{Username: "user", Password: "pass"}, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: configuration.Region, GatewayHostPort: "", BackupsEnabled: true}, nil).Twice()
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.Anything).Run(func(ctx context.Context, req *clustersv1.CreatePostgresClusterRequest, opts ...grpc.CallOption) {
@@ -1607,7 +1607,7 @@ func TestCreateBranch(t *testing.T) {
 					"shared_buffers":  "256MB",
 					"work_mem":        "2259kB",
 				}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "superuser"}).
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).
 					Return(&clustersv1.GetPostgresClusterCredentialsResponse{Username: "user", Password: "pass"}, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: configuration.Region, GatewayHostPort: "", BackupsEnabled: true}, nil).Twice()
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.Anything).Run(func(ctx context.Context, req *clustersv1.CreatePostgresClusterRequest, opts ...grpc.CallOption) {
@@ -1873,7 +1873,7 @@ func TestRestoreFromBackup(t *testing.T) {
 					}
 					return false
 				})).Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: restoredBranch.ID, Username: "superuser"}).
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: restoredBranch.ID, Username: "app"}).
 					Return(&clustersv1.GetPostgresClusterCredentialsResponse{Username: "user", Password: "pass"}, nil).Once()
 				mockStore.EXPECT().GetProject(mock.Anything, apitest.TestOrganization, "project_id").Return(&project, nil).Once()
 			},
@@ -1896,7 +1896,7 @@ func TestRestoreFromBackup(t *testing.T) {
 					}
 					return false
 				})).Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: restoredBranch.ID, Username: "superuser"}).
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: restoredBranch.ID, Username: "app"}).
 					Return(&clustersv1.GetPostgresClusterCredentialsResponse{Username: "user", Password: "pass"}, nil).Once()
 				mockStore.EXPECT().GetProject(mock.Anything, apitest.TestOrganization, "project_id").Return(&project, nil).Once()
 			},
@@ -2093,7 +2093,7 @@ func TestRestoreFromBackup(t *testing.T) {
 					}
 					return false
 				})).Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: restoredBranch.ID, Username: "superuser"}).
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: restoredBranch.ID, Username: "app"}).
 					Return(&clustersv1.GetPostgresClusterCredentialsResponse{Username: "user", Password: "pass"}, nil).Once()
 				mockStore.EXPECT().GetProject(mock.Anything, apitest.TestOrganization, "project_id").Return(&project, nil).Once()
 			},
@@ -2526,7 +2526,7 @@ func TestDescribeBranch(t *testing.T) {
 					},
 				}, nil).Once()
 				mockPostgresConfig.EXPECT().FilterConfigurableParameters(mock.Anything, mock.AnythingOfType("int"), "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5", []string{"pg_stat_statements", "auto_explain", "pg_cron"}).Return(map[string]string{}).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "superuser"}).Return(credentials, nil).Once()
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).Return(credentials, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, branch.Region).Return(region, nil).Once()
 				mockStore.EXPECT().ListInstanceTypes(mock.Anything, apitest.TestOrganization, region.ID).Return(instanceTypes, nil).Once()
 			},
@@ -2588,7 +2588,7 @@ func TestDescribeBranch(t *testing.T) {
 					},
 				}, nil).Once()
 				mockPostgresConfig.EXPECT().FilterConfigurableParameters(mock.Anything, mock.AnythingOfType("int"), "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5", []string{"pg_stat_statements", "auto_explain", "pg_cron"}).Return(map[string]string{}).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "superuser"}).Return(credentials, nil).Once()
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).Return(credentials, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, branch.Region).Return(region, nil).Once()
 				mockStore.EXPECT().ListInstanceTypes(mock.Anything, apitest.TestOrganization, region.ID).Return(instanceTypes, nil).Once()
 			},
@@ -2661,7 +2661,7 @@ func TestDescribeBranch(t *testing.T) {
 				mockPostgresConfig.EXPECT().FilterConfigurableParameters(mock.Anything, mock.AnythingOfType("int"), "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5", []string{"pg_stat_statements", "auto_explain", "pg_cron"}).Return(map[string]string{}).Once()
 
 				mockClusters.EXPECT().
-					GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "superuser"}).
+					GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).
 					Return(credentials, nil).Once()
 
 				mockStore.EXPECT().
@@ -2725,7 +2725,7 @@ func TestDescribeBranch(t *testing.T) {
 					},
 				}, nil).Once()
 				mockPostgresConfig.EXPECT().FilterConfigurableParameters(mock.Anything, mock.AnythingOfType("int"), "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5", []string{"pg_stat_statements", "auto_explain", "pg_cron"}).Return(map[string]string{}).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "superuser"}).Return(credentials, nil).Once()
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).Return(credentials, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, branch.Region).Return(region, nil).Once()
 				mockStore.EXPECT().ListInstanceTypes(mock.Anything, apitest.TestOrganization, region.ID).Return(instanceTypes, nil).Once()
 			},
@@ -2776,7 +2776,7 @@ func TestDescribeBranch(t *testing.T) {
 					Status: &clustersv1.ClusterStatus{Status: "healthy", InstanceCount: 2, InstanceReadyCount: 1, Instances: map[string]*clustersv1.InstanceStatus{"1": {Status: "healthy", Primary: true}, "2": {Status: "non-healthy", Primary: false}}},
 				}, nil).Once()
 				mockPostgresConfig.EXPECT().FilterConfigurableParameters(mock.Anything, mock.AnythingOfType("int"), "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5", []string{"pg_stat_statements", "auto_explain", "pg_cron"}).Return(map[string]string{}).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "superuser"}).Return(nil, errors.New("failed to get credentials")).Once()
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).Return(nil, errors.New("failed to get credentials")).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, branch.Region).Return(region, nil).Once()
 				mockStore.EXPECT().ListInstanceTypes(mock.Anything, apitest.TestOrganization, region.ID).Return([]store.InstanceType{{Name: "xata.micro", VCPUsRequest: 250, VCPUsLimit: 2000, RAM: 1}, {Name: "xata.small", VCPUsRequest: 500, VCPUsLimit: 2000, RAM: 2}}, nil).Once()
 			},
@@ -2826,7 +2826,7 @@ func TestDescribeBranch(t *testing.T) {
 					},
 				}, nil).Once()
 				mockPostgresConfig.EXPECT().FilterConfigurableParameters(mock.Anything, mock.AnythingOfType("int"), "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5", []string{"pg_stat_statements", "auto_explain", "pg_cron"}).Return(map[string]string{}).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "superuser"}).Return(credentials, nil).Once()
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).Return(credentials, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, branch.Region).Return(region, nil).Once()
 				mockStore.EXPECT().ListInstanceTypes(mock.Anything, apitest.TestOrganization, region.ID).Return(instanceTypes, nil).Once()
 			},
@@ -3419,7 +3419,7 @@ func TestUpdateBranch(t *testing.T) {
 				}
 				mockStore.EXPECT().UpdateBranch(mock.Anything, apitest.TestOrganization, "project_id", "123", updateBranchConfig(new("newTest"), new("newDesc")), mock.Anything).Return(&branch, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: ""}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -3443,7 +3443,7 @@ func TestUpdateBranch(t *testing.T) {
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: ""}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -3475,7 +3475,7 @@ func TestUpdateBranch(t *testing.T) {
 					err := provisionFn(&branch)
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -3506,7 +3506,7 @@ func TestUpdateBranch(t *testing.T) {
 					err := provisionFn(&branch)
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -3569,7 +3569,7 @@ func TestUpdateBranch(t *testing.T) {
 					err := provisionFn(&branch)
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -3599,7 +3599,7 @@ func TestUpdateBranch(t *testing.T) {
 					err := provisionFn(&branch)
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -3657,7 +3657,7 @@ func TestUpdateBranch(t *testing.T) {
 					err := provisionFn(&branch)
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -3693,7 +3693,7 @@ func TestUpdateBranch(t *testing.T) {
 					err := provisionFn(&branch)
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -3945,7 +3945,7 @@ func TestUpdateBranch(t *testing.T) {
 					err := provisionFn(&branch)
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -4046,7 +4046,7 @@ func TestUpdateBranch(t *testing.T) {
 					err := provisionFn(&branch)
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -4165,7 +4165,7 @@ func TestUpdateBranch(t *testing.T) {
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: ""}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -4240,7 +4240,7 @@ func TestUpdateBranch(t *testing.T) {
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: ""}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -4306,7 +4306,7 @@ func TestUpdateBranch(t *testing.T) {
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: ""}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -4378,7 +4378,7 @@ func TestUpdateBranch(t *testing.T) {
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: ""}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -4410,7 +4410,7 @@ func TestUpdateBranch(t *testing.T) {
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: ""}, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()
@@ -4452,7 +4452,7 @@ func TestUpdateBranch(t *testing.T) {
 					err := provisionFn(&branch)
 					assert.Nil(t, err)
 				}).Return(&branch, nil).Once()
-				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "superuser"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",
 					Password: "pass",
 				}, nil).Once()

@@ -1107,10 +1107,10 @@ func (s *handler) getConnectionString(c echo.Context, organizationID string, bra
 		hostPort = region.GatewayHostPort
 	}
 
-	username := "superuser"
-	// Do not expose superuser, use app user for Xata User feature flag
-	if s.feat.BoolValue(c.Request().Context(), flags.XataUser) {
-		username = "app"
+	username := "app"
+	// Admin kill-switch: disabling the flag falls back to the superuser DSN.
+	if !s.feat.BoolValue(c.Request().Context(), flags.XataUser) {
+		username = "superuser"
 	}
 
 	creds, err := client.GetPostgresClusterCredentials(c.Request().Context(), &clustersv1.GetPostgresClusterCredentialsRequest{
