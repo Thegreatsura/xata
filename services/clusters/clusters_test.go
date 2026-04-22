@@ -1933,7 +1933,8 @@ func poolClusterForTest() *apiv1.Cluster {
 			},
 		},
 		Status: apiv1.ClusterStatus{
-			Phase: apiv1.PhaseHealthy,
+			Phase:          apiv1.PhaseHealthy,
+			ReadyInstances: 1,
 		},
 	}
 }

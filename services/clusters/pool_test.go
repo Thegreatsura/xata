@@ -114,7 +114,8 @@ func TestFindPoolCluster(t *testing.T) {
 			},
 		},
 		Status: apiv1.ClusterStatus{
-			Phase: apiv1.PhaseHealthy,
+			Phase:          apiv1.PhaseHealthy,
+			ReadyInstances: 1,
 		},
 	}
 
@@ -306,7 +307,10 @@ func TestFindHealthyClusterInPool(t *testing.T) {
 					Name: "healthy-1", Namespace: namespace,
 					OwnerReferences: []metav1.OwnerReference{ownerRef},
 				},
-				Status: apiv1.ClusterStatus{Phase: apiv1.PhaseHealthy},
+				Status: apiv1.ClusterStatus{
+					Phase:          apiv1.PhaseHealthy,
+					ReadyInstances: 1,
+				},
 			}},
 			wantName: "healthy-1",
 		},
@@ -318,7 +322,10 @@ func TestFindHealthyClusterInPool(t *testing.T) {
 					DeletionTimestamp: &now,
 					Finalizers:        []string{"test-finalizer"},
 				},
-				Status: apiv1.ClusterStatus{Phase: apiv1.PhaseHealthy},
+				Status: apiv1.ClusterStatus{
+					Phase:          apiv1.PhaseHealthy,
+					ReadyInstances: 1,
+				},
 			}},
 		},
 		"skips unhealthy cluster": {
@@ -340,14 +347,20 @@ func TestFindHealthyClusterInPool(t *testing.T) {
 						DeletionTimestamp: &now,
 						Finalizers:        []string{"test-finalizer"},
 					},
-					Status: apiv1.ClusterStatus{Phase: apiv1.PhaseHealthy},
+					Status: apiv1.ClusterStatus{
+						Phase:          apiv1.PhaseHealthy,
+						ReadyInstances: 1,
+					},
 				},
 				&apiv1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "healthy-2", Namespace: namespace,
 						OwnerReferences: []metav1.OwnerReference{ownerRef},
 					},
-					Status: apiv1.ClusterStatus{Phase: apiv1.PhaseHealthy},
+					Status: apiv1.ClusterStatus{
+						Phase:          apiv1.PhaseHealthy,
+						ReadyInstances: 1,
+					},
 				},
 			},
 			wantName: "healthy-2",

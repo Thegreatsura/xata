@@ -116,7 +116,7 @@ func findHealthyClusterInPool(ctx context.Context, clusterReader client.Reader, 
 		if cluster.DeletionTimestamp != nil {
 			continue
 		}
-		if cluster.Status.Phase == apiv1.PhaseHealthy {
+		if cluster.Status.ReadyInstances > 0 {
 			return cluster, nil
 		}
 	}
