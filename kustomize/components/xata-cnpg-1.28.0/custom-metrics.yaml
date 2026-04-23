@@ -45,6 +45,21 @@ data:
         - write_time_ms:
             usage: "COUNTER"
             description: "Cumulative write time in milliseconds"
+    collector_wal:
+      # PG 18+ only — the built-in handles PG 14-17.
+      # HAVING avoids emitting on PG 16-17 (no WAL rows in pg_stat_io).
+      query: |
+        SELECT SUM(fsync_time) AS sync_time,
+               (SELECT stats_reset FROM pg_stat_wal) AS stats_reset
+        FROM pg_stat_io
+        WHERE object = 'wal'
+        HAVING SUM(fsync_time) IS NOT NULL;
+      metrics:
+        - sync_time:
+            usage: "GAUGE"
+            description: "Total time in milliseconds spent syncing WAL files to disk"
+        - stats_reset:
+            usage: "LABEL"
     pg_stat_statements_latency:
       query: |
         SELECT
