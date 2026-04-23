@@ -1,7 +1,7 @@
 # PostgreSQL extensions available in each image offering
 # This file is automatically updated by a sync workflow from the postgres-images repo
 
-last_updated: "2026-02-27T14:13:55Z"
+last_updated: "2026-04-22T11:20:17Z"
 updated_by: workflow
 offerings:
   analytics:
@@ -111,17 +111,17 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgprewarm.html"
           preload_required: true
         - name: postgis
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
         - name: postgis_topology
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS topology spatial types and functions"
           docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS tiger geocoder and reverse geocoder"
           docs_url: "https://postgis.net/docs/Extras.html#Tiger_Geocoder"
           preload_required: false
@@ -186,12 +186,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgstattuple.html"
           preload_required: false
         - name: address_standardizer
-          version: "3.6.2"
+          version: "3.6.3"
           description: "Standardizes address data using rules-based parsing"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer"
           preload_required: false
         - name: address_standardizer_data_us
-          version: "3.6.2"
+          version: "3.6.3"
           description: "US address data for address_standardizer"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer_Tables"
           preload_required: false
@@ -341,12 +341,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/xml2.html"
           preload_required: false
         - name: postgis_raster
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS raster extension"
           docs_url: "https://postgis.net/docs/RT_reference.html"
           preload_required: false
         - name: postgis_sfcgal
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS SFCGAL support"
           docs_url: "https://postgis.net/docs/SFCGAL_User_Manual.html"
           preload_required: false
@@ -456,17 +456,17 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgprewarm.html"
           preload_required: true
         - name: postgis
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
         - name: postgis_topology
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS topology spatial types and functions"
           docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS tiger geocoder and reverse geocoder"
           docs_url: "https://postgis.net/docs/Extras.html#Tiger_Geocoder"
           preload_required: false
@@ -516,12 +516,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgstattuple.html"
           preload_required: false
         - name: address_standardizer
-          version: "3.6.2"
+          version: "3.6.3"
           description: "Standardizes address data using rules-based parsing"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer"
           preload_required: false
         - name: address_standardizer_data_us
-          version: "3.6.2"
+          version: "3.6.3"
           description: "US address data for address_standardizer"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer_Tables"
           preload_required: false
@@ -671,12 +671,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/xml2.html"
           preload_required: false
         - name: postgis_raster
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS raster extension"
           docs_url: "https://postgis.net/docs/RT_reference.html"
           preload_required: false
         - name: postgis_sfcgal
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS SFCGAL support"
           docs_url: "https://postgis.net/docs/SFCGAL_User_Manual.html"
           preload_required: false
@@ -822,17 +822,17 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgprewarm.html"
           preload_required: true
         - name: postgis
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
         - name: postgis_topology
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS topology spatial types and functions"
           docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS tiger geocoder and reverse geocoder"
           docs_url: "https://postgis.net/docs/Extras.html#Tiger_Geocoder"
           preload_required: false
@@ -887,12 +887,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgstattuple.html"
           preload_required: false
         - name: address_standardizer
-          version: "3.6.2"
+          version: "3.6.3"
           description: "Standardizes address data using rules-based parsing"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer"
           preload_required: false
         - name: address_standardizer_data_us
-          version: "3.6.2"
+          version: "3.6.3"
           description: "US address data for address_standardizer"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer_Tables"
           preload_required: false
@@ -1037,12 +1037,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/xml2.html"
           preload_required: false
         - name: postgis_raster
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS raster extension"
           docs_url: "https://postgis.net/docs/RT_reference.html"
           preload_required: false
         - name: postgis_sfcgal
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS SFCGAL support"
           docs_url: "https://postgis.net/docs/SFCGAL_User_Manual.html"
           preload_required: false
@@ -1162,17 +1162,17 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgprewarm.html"
           preload_required: true
         - name: postgis
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
         - name: postgis_topology
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS topology spatial types and functions"
           docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS tiger geocoder and reverse geocoder"
           docs_url: "https://postgis.net/docs/Extras.html#Tiger_Geocoder"
           preload_required: false
@@ -1227,12 +1227,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgstattuple.html"
           preload_required: false
         - name: address_standardizer
-          version: "3.6.2"
+          version: "3.6.3"
           description: "Standardizes address data using rules-based parsing"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer"
           preload_required: false
         - name: address_standardizer_data_us
-          version: "3.6.2"
+          version: "3.6.3"
           description: "US address data for address_standardizer"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer_Tables"
           preload_required: false
@@ -1377,12 +1377,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/xml2.html"
           preload_required: false
         - name: postgis_raster
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS raster extension"
           docs_url: "https://postgis.net/docs/RT_reference.html"
           preload_required: false
         - name: postgis_sfcgal
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS SFCGAL support"
           docs_url: "https://postgis.net/docs/SFCGAL_User_Manual.html"
           preload_required: false
@@ -1502,17 +1502,17 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgprewarm.html"
           preload_required: true
         - name: postgis
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
         - name: postgis_topology
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS topology spatial types and functions"
           docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS tiger geocoder and reverse geocoder"
           docs_url: "https://postgis.net/docs/Extras.html#Tiger_Geocoder"
           preload_required: false
@@ -1577,12 +1577,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgstattuple.html"
           preload_required: false
         - name: address_standardizer
-          version: "3.6.2"
+          version: "3.6.3"
           description: "Standardizes address data using rules-based parsing"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer"
           preload_required: false
         - name: address_standardizer_data_us
-          version: "3.6.2"
+          version: "3.6.3"
           description: "US address data for address_standardizer"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer_Tables"
           preload_required: false
@@ -1732,12 +1732,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/xml2.html"
           preload_required: false
         - name: postgis_raster
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS raster extension"
           docs_url: "https://postgis.net/docs/RT_reference.html"
           preload_required: false
         - name: postgis_sfcgal
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS SFCGAL support"
           docs_url: "https://postgis.net/docs/SFCGAL_User_Manual.html"
           preload_required: false
@@ -1852,17 +1852,17 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgprewarm.html"
           preload_required: true
         - name: postgis
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
         - name: postgis_topology
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS topology spatial types and functions"
           docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS tiger geocoder and reverse geocoder"
           docs_url: "https://postgis.net/docs/Extras.html#Tiger_Geocoder"
           preload_required: false
@@ -1927,12 +1927,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgstattuple.html"
           preload_required: false
         - name: address_standardizer
-          version: "3.6.2"
+          version: "3.6.3"
           description: "Standardizes address data using rules-based parsing"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer"
           preload_required: false
         - name: address_standardizer_data_us
-          version: "3.6.2"
+          version: "3.6.3"
           description: "US address data for address_standardizer"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer_Tables"
           preload_required: false
@@ -2082,12 +2082,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/xml2.html"
           preload_required: false
         - name: postgis_raster
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS raster extension"
           docs_url: "https://postgis.net/docs/RT_reference.html"
           preload_required: false
         - name: postgis_sfcgal
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS SFCGAL support"
           docs_url: "https://postgis.net/docs/SFCGAL_User_Manual.html"
           preload_required: false
@@ -2192,17 +2192,17 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgprewarm.html"
           preload_required: true
         - name: postgis
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
         - name: postgis_topology
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS topology spatial types and functions"
           docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS tiger geocoder and reverse geocoder"
           docs_url: "https://postgis.net/docs/Extras.html#Tiger_Geocoder"
           preload_required: false
@@ -2252,12 +2252,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgstattuple.html"
           preload_required: false
         - name: address_standardizer
-          version: "3.6.2"
+          version: "3.6.3"
           description: "Standardizes address data using rules-based parsing"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer"
           preload_required: false
         - name: address_standardizer_data_us
-          version: "3.6.2"
+          version: "3.6.3"
           description: "US address data for address_standardizer"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer_Tables"
           preload_required: false
@@ -2407,12 +2407,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/xml2.html"
           preload_required: false
         - name: postgis_raster
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS raster extension"
           docs_url: "https://postgis.net/docs/RT_reference.html"
           preload_required: false
         - name: postgis_sfcgal
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS SFCGAL support"
           docs_url: "https://postgis.net/docs/SFCGAL_User_Manual.html"
           preload_required: false
@@ -2553,17 +2553,17 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgprewarm.html"
           preload_required: true
         - name: postgis
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
         - name: postgis_topology
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS topology spatial types and functions"
           docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS tiger geocoder and reverse geocoder"
           docs_url: "https://postgis.net/docs/Extras.html#Tiger_Geocoder"
           preload_required: false
@@ -2628,12 +2628,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgstattuple.html"
           preload_required: false
         - name: address_standardizer
-          version: "3.6.2"
+          version: "3.6.3"
           description: "Standardizes address data using rules-based parsing"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer"
           preload_required: false
         - name: address_standardizer_data_us
-          version: "3.6.2"
+          version: "3.6.3"
           description: "US address data for address_standardizer"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer_Tables"
           preload_required: false
@@ -2783,12 +2783,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/xml2.html"
           preload_required: false
         - name: postgis_raster
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS raster extension"
           docs_url: "https://postgis.net/docs/RT_reference.html"
           preload_required: false
         - name: postgis_sfcgal
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS SFCGAL support"
           docs_url: "https://postgis.net/docs/SFCGAL_User_Manual.html"
           preload_required: false
@@ -2903,17 +2903,17 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgprewarm.html"
           preload_required: true
         - name: postgis
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
         - name: postgis_topology
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS topology spatial types and functions"
           docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS tiger geocoder and reverse geocoder"
           docs_url: "https://postgis.net/docs/Extras.html#Tiger_Geocoder"
           preload_required: false
@@ -2978,12 +2978,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgstattuple.html"
           preload_required: false
         - name: address_standardizer
-          version: "3.6.2"
+          version: "3.6.3"
           description: "Standardizes address data using rules-based parsing"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer"
           preload_required: false
         - name: address_standardizer_data_us
-          version: "3.6.2"
+          version: "3.6.3"
           description: "US address data for address_standardizer"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer_Tables"
           preload_required: false
@@ -3133,12 +3133,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/xml2.html"
           preload_required: false
         - name: postgis_raster
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS raster extension"
           docs_url: "https://postgis.net/docs/RT_reference.html"
           preload_required: false
         - name: postgis_sfcgal
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS SFCGAL support"
           docs_url: "https://postgis.net/docs/SFCGAL_User_Manual.html"
           preload_required: false
@@ -3248,17 +3248,17 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgprewarm.html"
           preload_required: true
         - name: postgis
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
         - name: postgis_topology
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS topology spatial types and functions"
           docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS tiger geocoder and reverse geocoder"
           docs_url: "https://postgis.net/docs/Extras.html#Tiger_Geocoder"
           preload_required: false
@@ -3308,12 +3308,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/pgstattuple.html"
           preload_required: false
         - name: address_standardizer
-          version: "3.6.2"
+          version: "3.6.3"
           description: "Standardizes address data using rules-based parsing"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer"
           preload_required: false
         - name: address_standardizer_data_us
-          version: "3.6.2"
+          version: "3.6.3"
           description: "US address data for address_standardizer"
           docs_url: "https://postgis.net/docs/Extras.html#Address_Standardizer_Tables"
           preload_required: false
@@ -3463,12 +3463,12 @@ offerings:
           docs_url: "https://www.postgresql.org/docs/current/xml2.html"
           preload_required: false
         - name: postgis_raster
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS raster extension"
           docs_url: "https://postgis.net/docs/RT_reference.html"
           preload_required: false
         - name: postgis_sfcgal
-          version: "3.6.2"
+          version: "3.6.3"
           description: "PostGIS SFCGAL support"
           docs_url: "https://postgis.net/docs/SFCGAL_User_Manual.html"
           preload_required: false
