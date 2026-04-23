@@ -54,10 +54,7 @@ spec:
             - name: XATA_SQL_GW_SSL_KEY_PATH
               value: "{{ .Values.secret.mountPath }}/tls.key"
             - name: XATA_SQL_GW_CNPG_NAMESPACE
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ .Values.config.clustersConfigMap }}
-                  key: {{ .Values.config.clustersNamespaceKey }}
+              value: {{ .Values.clustersNamespace | quote }}
             - name: CLUSTERS_GRPC_URL
               value: "clusters:5002"
             {{- if .Values.http.enabled }}

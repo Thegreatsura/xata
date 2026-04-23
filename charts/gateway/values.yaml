@@ -18,8 +18,7 @@ service:
 http:
   enabled: true
 
-networkPolicy:
-  namespace: xata-clusters
+clustersNamespace: xata-clusters
 
 resources:
   limits:
@@ -32,10 +31,6 @@ resources:
 secret:
   name: gateway-secret
   mountPath: /pki
-
-config:
-  clustersConfigMap: clusters-config
-  clustersNamespaceKey: XATA_CLUSTERS_NAMESPACE
 
 extraEnv: []
 
