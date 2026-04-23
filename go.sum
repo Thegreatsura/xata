@@ -1217,6 +1217,8 @@ github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQ
 github.com/zclconf/go-cty v1.10.0/go.mod h1:vVKLxnk3puL4qRAv72AO+W99LUD4da90g3uUAzyuvAk=
 github.com/ziflex/lecho/v3 v3.8.0 h1:de/IyTw5jykpb0GKGk7Di5Y6IeeLpr2PdEBvTvsktD0=
 github.com/ziflex/lecho/v3 v3.8.0/go.mod h1:2GzFCQn/W809nLzikFiHkubtU08QRXyE6+VQ9nAhHPE=
+github.com/ziflex/lecho/v3 v3.11.0 h1:om6xm4N5NUJy+JzoUOlu/YL4/mclRAPesrUEFGhbxcQ=
+github.com/ziflex/lecho/v3 v3.11.0/go.mod h1:GvXRFhfBbGQ+cUo15RZkqQrrw4mPMDdsIoH164miBvU=
 gitlab.com/bosi/decorder v0.4.2 h1:qbQaV3zgwnBZ4zPMhGLW4KZe7A7NwxEhJx39R3shffo=
 gitlab.com/bosi/decorder v0.4.2/go.mod h1:muuhHoaJkA9QLcYHq4Mj8FJUwDZ+EirSHRiaTcTf6T8=
 go-simpler.org/assert v0.9.0 h1:PfpmcSvL7yAnWyChSjOz6Sp6m9j5lyK8Ok9pEL31YkQ=
