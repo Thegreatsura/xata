@@ -2,9 +2,10 @@ package metrics
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
+	"strings"
 	"time"
 
 	"k8s.io/utils/ptr"
@@ -13,25 +14,25 @@ import (
 )
 
 var sigNozMetricName = map[string]struct {
-	name, unit, dataType, metricType, temporalAgg, spaceAgg string
-	additionalFilters                                       map[string]string
+	name, unit, metricType, temporalAgg, spaceAgg string
+	additionalFilters                             map[string]string
 }{
 	// Maps Xata API metric names to SigNoz metric names
-	"cpu":                  {name: "container.cpu.utilization", unit: "percentage", dataType: "float64", metricType: "gauge", spaceAgg: "avg"},
-	"memory":               {name: "container.memory.working_set", unit: "bytes", dataType: "float64", metricType: "gauge", spaceAgg: "avg"},
-	"disk":                 {name: "cnpg_pg_database_size_bytes", unit: "bytes", dataType: "float64", metricType: "gauge", spaceAgg: "sum"},
-	"connections_active":   {name: "cnpg_pg_stat_activity_connections_active", unit: "connections", dataType: "float64", metricType: "gauge", spaceAgg: "sum"},
-	"connections_idle":     {name: "cnpg_pg_stat_activity_connections_idle", unit: "connections", dataType: "float64", metricType: "gauge", spaceAgg: "sum"},
-	"network_ingress":      {name: "k8s.pod.network.io", unit: "bytes", dataType: "float64", metricType: "counter", temporalAgg: "increase", additionalFilters: map[string]string{"direction": "receive"}},
-	"network_egress":       {name: "k8s.pod.network.io", unit: "bytes", dataType: "float64", metricType: "counter", temporalAgg: "increase", additionalFilters: map[string]string{"direction": "transmit"}},
-	"iops_read":            {name: "cnpg_pg_stat_io_total_reads", unit: "iops", dataType: "float64", metricType: "counter", temporalAgg: "rate"},
-	"iops_write":           {name: "cnpg_pg_stat_io_total_writes", unit: "iops", dataType: "float64", metricType: "counter", temporalAgg: "rate"},
-	"latency_read":         {name: "cnpg_pg_stat_io_total_read_time_ms", unit: "ms", dataType: "float64", metricType: "counter", temporalAgg: "rate"},
-	"latency_write":        {name: "cnpg_pg_stat_io_total_write_time_ms", unit: "ms", dataType: "float64", metricType: "counter", temporalAgg: "rate"},
-	"throughput_read":      {name: "container_fs_reads_bytes_total", unit: "bytes", dataType: "float64", metricType: "counter", temporalAgg: "rate"},
-	"throughput_write":     {name: "container_fs_writes_bytes_total", unit: "bytes", dataType: "float64", metricType: "counter", temporalAgg: "rate"},
-	"wal_sync_time":        {name: "cnpg_collector_wal_sync_time", unit: "ms", dataType: "float64", metricType: "gauge", spaceAgg: "avg"},
-	"replication_lag_time": {name: "cnpg_pg_replication_lag", unit: "s", dataType: "float64", metricType: "gauge", spaceAgg: "avg"},
+	"cpu":                  {name: "container.cpu.usage", unit: "percentage", metricType: "gauge", spaceAgg: "avg"},
+	"memory":               {name: "container.memory.working_set", unit: "bytes", metricType: "gauge", spaceAgg: "avg"},
+	"disk":                 {name: "cnpg_pg_database_size_bytes", unit: "bytes", metricType: "gauge", spaceAgg: "sum"},
+	"connections_active":   {name: "cnpg_pg_stat_activity_connections_active", unit: "connections", metricType: "gauge", spaceAgg: "sum"},
+	"connections_idle":     {name: "cnpg_pg_stat_activity_connections_idle", unit: "connections", metricType: "gauge", spaceAgg: "sum"},
+	"network_ingress":      {name: "k8s.pod.network.io", unit: "bytes", metricType: "counter", temporalAgg: "increase", additionalFilters: map[string]string{"direction": "receive"}},
+	"network_egress":       {name: "k8s.pod.network.io", unit: "bytes", metricType: "counter", temporalAgg: "increase", additionalFilters: map[string]string{"direction": "transmit"}},
+	"iops_read":            {name: "cnpg_pg_stat_io_total_reads", unit: "iops", metricType: "counter", temporalAgg: "rate"},
+	"iops_write":           {name: "cnpg_pg_stat_io_total_writes", unit: "iops", metricType: "counter", temporalAgg: "rate"},
+	"latency_read":         {name: "cnpg_pg_stat_io_total_read_time_ms", unit: "ms", metricType: "counter", temporalAgg: "rate"},
+	"latency_write":        {name: "cnpg_pg_stat_io_total_write_time_ms", unit: "ms", metricType: "counter", temporalAgg: "rate"},
+	"throughput_read":      {name: "container_fs_reads_bytes_total", unit: "bytes", metricType: "counter", temporalAgg: "rate"},
+	"throughput_write":     {name: "container_fs_writes_bytes_total", unit: "bytes", metricType: "counter", temporalAgg: "rate"},
+	"wal_sync_time":        {name: "cnpg_collector_wal_sync_time", unit: "ms", metricType: "gauge", spaceAgg: "avg"},
+	"replication_lag_time": {name: "cnpg_pg_replication_lag", unit: "s", metricType: "gauge", spaceAgg: "avg"},
 }
 
 type SigNozClient struct {
@@ -44,7 +45,7 @@ func NewSigNozClient(endpoint, apiKey, clustersNamespace string) (*SigNozClient,
 	client, err := signoz.NewClientWithResponses(
 		endpoint,
 		signoz.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-			req.Header.Set("SIGNOZ-API-KEY", apiKey)
+			req.Header.Set("SigNoz-Api-Key", apiKey)
 			return nil
 		}),
 	)
@@ -64,11 +65,14 @@ func (sc *SigNozClient) GetMetric(ctx context.Context, start, end time.Time, met
 	}
 
 	// Build request
-	reqBody, queryToAgg := buildMetricsReq(sc.clustersNamespace, start, end, metric, instances, aggregations)
-
-	response, err := sc.client.QueryRangeV4WithResponse(ctx, &signoz.QueryRangeV4Params{}, reqBody)
+	reqBody, queryToAgg, err := buildMetricsReq(sc.clustersNamespace, start, end, metric, instances, aggregations)
 	if err != nil {
-		return nil, fmt.Errorf("query range v4: %w", err)
+		return nil, err
+	}
+
+	response, err := sc.client.QueryRangeV5WithResponse(ctx, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("query range v5: %w", err)
 	}
 
 	if response.StatusCode() != http.StatusOK {
@@ -83,22 +87,21 @@ func (sc *SigNozClient) GetMetric(ctx context.Context, start, end time.Time, met
 		return nil, fmt.Errorf("unexpected status: %s", response.JSON200.Status)
 	}
 
-	queryResp := response.JSON200.Data
-
 	// Parse response
 	branchMetrics := BranchMetrics{
 		Start:  start,
 		End:    end,
 		Metric: metric,
 		Unit:   sigNozMetricName[metric].unit,
+		Series: []MetricSeries{},
 	}
 
-	if queryResp.Result == nil || len(*queryResp.Result) == 0 {
-		branchMetrics.Series = []MetricSeries{}
+	queryData := response.JSON200.Data.Data
+	if queryData == nil || queryData.Results == nil {
 		return &branchMetrics, nil
 	}
 
-	series, err := parseQueryResults(*queryResp.Result, queryToAgg)
+	series, err := parseQueryResults(*queryData.Results, queryToAgg)
 	if err != nil {
 		return nil, err
 	}
@@ -108,18 +111,19 @@ func (sc *SigNozClient) GetMetric(ctx context.Context, start, end time.Time, met
 }
 
 // parseQueryResults extracts metric series from SigNoz query results
-func parseQueryResults(results []signoz.Result, queryToAgg map[string]string) ([]MetricSeries, error) {
-	// Count total series for efficient allocation
-	totalSeries := 0
-	for _, result := range results {
-		if result.Series != nil {
-			totalSeries += len(*result.Series)
-		}
+func parseQueryResults(results []any, queryToAgg map[string]string) ([]MetricSeries, error) {
+	data, err := json.Marshal(results)
+	if err != nil {
+		return nil, fmt.Errorf("marshal results: %w", err)
 	}
 
-	series := make([]MetricSeries, 0, totalSeries)
+	var parsedResults []signoz.Querybuildertypesv5TimeSeriesData
+	if err := json.Unmarshal(data, &parsedResults); err != nil {
+		return nil, fmt.Errorf("unmarshal time series data: %w", err)
+	}
 
-	for _, result := range results {
+	series := make([]MetricSeries, 0)
+	for _, result := range parsedResults {
 		resultSeries, err := parseResult(result, queryToAgg)
 		if err != nil {
 			return nil, err
@@ -131,72 +135,73 @@ func parseQueryResults(results []signoz.Result, queryToAgg map[string]string) ([
 }
 
 // parseResult extracts metric series from a single query result
-func parseResult(result signoz.Result, queryToAgg map[string]string) ([]MetricSeries, error) {
+func parseResult(result signoz.Querybuildertypesv5TimeSeriesData, queryToAgg map[string]string) ([]MetricSeries, error) {
 	queryName := ptr.Deref(result.QueryName, "")
 	agg, ok := queryToAgg[queryName]
 	if !ok {
 		return nil, fmt.Errorf("unexpected query name: %s", queryName)
 	}
 
-	if result.Series == nil {
+	if result.Aggregations == nil {
 		return nil, nil
 	}
 
-	series := make([]MetricSeries, 0, len(*result.Series))
-	for _, s := range *result.Series {
-		metricSeries, err := parseSeries(s, agg)
-		if err != nil {
-			return nil, err
+	series := make([]MetricSeries, 0)
+	for _, bucket := range *result.Aggregations {
+		if bucket.Series == nil {
+			continue
 		}
-		series = append(series, metricSeries)
+		for _, s := range *bucket.Series {
+			series = append(series, parseSeries(s, agg))
+		}
 	}
 
 	return series, nil
 }
 
 // parseSeries converts a SigNoz series to a MetricSeries
-func parseSeries(series signoz.Series, aggregation string) (MetricSeries, error) {
-	metricSeries := MetricSeries{
+func parseSeries(series signoz.Querybuildertypesv5TimeSeries, aggregation string) MetricSeries {
+	return MetricSeries{
 		Aggregation: aggregation,
 		InstanceID:  extractInstanceID(series.Labels),
+		Values:      parseValues(series.Values),
 	}
-
-	values, err := parseValues(series.Values)
-	if err != nil {
-		return MetricSeries{}, err
-	}
-	metricSeries.Values = values
-
-	return metricSeries, nil
 }
 
 // extractInstanceID retrieves the pod name from series labels
-func extractInstanceID(labels *map[string]string) string {
+func extractInstanceID(labels *[]signoz.Querybuildertypesv5Label) string {
 	if labels == nil {
 		return ""
 	}
-	return (*labels)["k8s.pod.name"]
+	for _, label := range *labels {
+		if label.Key == nil || label.Key.Name != "k8s.pod.name" || label.Value == nil {
+			continue
+		}
+		if name, ok := (*label.Value).(string); ok {
+			return name
+		}
+	}
+	return ""
 }
 
 // parseValues converts SigNoz points to metric values
-func parseValues(points *[]signoz.Point) ([]Values, error) {
+func parseValues(points *[]signoz.Querybuildertypesv5TimeSeriesValue) []Values {
 	if points == nil {
-		return nil, nil
+		return nil
 	}
 
-	values := make([]Values, len(*points))
-	for i, point := range *points {
-		floatVal, err := strconv.ParseFloat(point.Value, 32)
-		if err != nil {
-			return nil, fmt.Errorf("parse value at index %d: %w", i, err)
+	values := make([]Values, 0, len(*points))
+	for _, point := range *points {
+		if point.Timestamp == nil || point.Value == nil {
+			continue
 		}
-		values[i] = Values{
-			Timestamp: time.UnixMilli(point.Timestamp),
-			Value:     float32(floatVal),
-		}
+		values = append(values, Values{
+			Timestamp: time.UnixMilli(*point.Timestamp),
+			Value:     float32(*point.Value),
+		})
 	}
 
-	return values, nil
+	return values
 }
 
 // calculateStep determines the step interval based on the time difference between start and end.
@@ -216,131 +221,102 @@ func calculateStep(start, end time.Time) int {
 	}
 }
 
-func buildMetricsReq(clustersNamespace string, start, end time.Time, metricName string, instances, aggregations []string) (signoz.QueryRangeParams, map[string]string) {
+func buildMetricsReq(clustersNamespace string, start, end time.Time, metricName string, instances, aggregations []string) (signoz.QueryRangeV5JSONRequestBody, map[string]string, error) {
 	step := calculateStep(start, end)
-	queries, queryToAgg := buildQueries(metricName, step, aggregations)
+	filterExpr := buildFilterExpression(clustersNamespace, instances, metricName)
 
-	formatForWeb := false
-	variables := map[string]any{
-		"k8s_pod_name":       instances,
-		"k8s_namespace_name": clustersNamespace,
+	queries, queryToAgg, err := buildQueries(metricName, step, aggregations, filterExpr)
+	if err != nil {
+		return signoz.QueryRangeV5JSONRequestBody{}, nil, err
 	}
-	fillGaps := false
 
-	reqPayload := signoz.QueryRangeParams{
-		Start:        start.UnixMilli(),
-		End:          end.UnixMilli(),
-		Step:         int64(step),
-		FormatForWeb: &formatForWeb,
-		Variables:    &variables,
-		CompositeQuery: signoz.CompositeQuery{
-			QueryType:      signoz.CompositeQueryQueryTypeBuilder,
-			PanelType:      signoz.CompositeQueryPanelTypeGraph,
-			FillGaps:       &fillGaps,
-			BuilderQueries: &queries,
+	return signoz.QueryRangeV5JSONRequestBody{
+		Start: new(int(start.UnixMilli())),
+		End:   new(int(end.UnixMilli())),
+		CompositeQuery: &signoz.Querybuildertypesv5CompositeQuery{
+			Queries: &queries,
 		},
-	}
-
-	return reqPayload, queryToAgg
+		RequestType:   new(signoz.TimeSeries),
+		SchemaVersion: new("v1"),
+	}, queryToAgg, nil
 }
 
-func buildQueries(metricName string, step int, aggregations []string) (map[string]signoz.BuilderQuery, map[string]string) {
-	queries := make(map[string]signoz.BuilderQuery)
-	queryToAgg := make(map[string]string)
+func buildFilterExpression(namespace string, instances []string, metricName string) string {
+	parts := make([]string, 0, 3)
+	quoted := make([]string, len(instances))
+	for i, inst := range instances {
+		quoted[i] = escapeFilterString(inst)
+	}
+	parts = append(parts, "k8s.pod.name IN ["+strings.Join(quoted, ", ")+"]")
+	parts = append(parts, "k8s.namespace.name = "+escapeFilterString(namespace))
+	if info := sigNozMetricName[metricName]; info.additionalFilters != nil {
+		for key, val := range info.additionalFilters {
+			parts = append(parts, key+" = "+escapeFilterString(val))
+		}
+	}
+	return strings.Join(parts, " AND ")
+}
+
+func escapeFilterString(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `"`, `\"`)
+	return `"` + s + `"`
+}
+
+func buildQueries(metricName string, step int, aggregations []string, filterExpr string) ([]signoz.Querybuildertypesv5QueryEnvelope, map[string]string, error) {
+	info := sigNozMetricName[metricName]
+	queries := make([]signoz.Querybuildertypesv5QueryEnvelope, 0, len(aggregations))
+	queryToAgg := make(map[string]string, len(aggregations))
+
+	stepInterval := &signoz.Querybuildertypesv5Step{}
+	if err := stepInterval.FromQuerybuildertypesv5Step1(float32(step)); err != nil {
+		return nil, nil, fmt.Errorf("encode step interval: %w", err)
+	}
 
 	for i, agg := range aggregations {
-		timeAgg, spaceAgg := agg, sigNozMetricName[metricName].spaceAgg
-		if sigNozMetricName[metricName].metricType == "counter" {
-			timeAgg = sigNozMetricName[metricName].temporalAgg
+		var timeAgg, spaceAgg string
+		if info.metricType == "counter" {
+			timeAgg = info.temporalAgg
 			spaceAgg = agg
+		} else {
+			timeAgg = agg
+			spaceAgg = info.spaceAgg
 		}
 
 		// Queries are named A, B, C, etc. in order to be able to interpret the response properly
 		queryName := string(rune(65 + i))
 		queryToAgg[queryName] = agg
 
-		// Build aggregate attribute
-		dataType := signoz.AttributeKeyDataType(sigNozMetricName[metricName].dataType)
-		isColumn := true
-		aggregateAttr := signoz.AttributeKey{
-			Key:      sigNozMetricName[metricName].name,
-			DataType: &dataType,
-			IsColumn: &isColumn,
-		}
-
-		// Build filter items
-		filterItems := []signoz.FilterItem{
-			{
-				Key: signoz.AttributeKey{
-					Key:      "k8s.pod.name",
-					DataType: ptr.To(signoz.AttributeKeyDataTypeString),
-					Type:     new(any("tag")),
-					IsColumn: new(false),
+		spec := signoz.Querybuildertypesv5QueryBuilderQueryGithubComSigNozSignozPkgTypesQuerybuildertypesQuerybuildertypesv5MetricAggregation{
+			Name:   &queryName,
+			Signal: new(signoz.Metrics),
+			Aggregations: &[]signoz.Querybuildertypesv5MetricAggregation{
+				{
+					MetricName:       new(info.name),
+					TimeAggregation:  new(signoz.MetrictypesTimeAggregation(timeAgg)),
+					SpaceAggregation: new(signoz.MetrictypesSpaceAggregation(spaceAgg)),
 				},
-				Op:    signoz.FilterItemOpIn,
-				Value: new(any("{{.k8s_pod_name}}")),
 			},
-			{
-				Key: signoz.AttributeKey{
-					Key:      "k8s.namespace.name",
-					DataType: ptr.To(signoz.AttributeKeyDataTypeString),
-					Type:     new(any("tag")),
-					IsColumn: new(false),
-				},
-				Op:    signoz.FilterItemOpEqual,
-				Value: new(any("{{.k8s_namespace_name}}")),
+			Filter: &signoz.Querybuildertypesv5Filter{
+				Expression: &filterExpr,
 			},
-		}
-
-		// Add additional filters if any
-		if sigNozMetricName[metricName].additionalFilters != nil {
-			for key, value := range sigNozMetricName[metricName].additionalFilters {
-				filterItems = append(filterItems, signoz.FilterItem{
-					Key: signoz.AttributeKey{
-						Key:      key,
-						DataType: ptr.To(signoz.AttributeKeyDataTypeString),
-						Type:     new(any("tag")),
-						IsColumn: new(false),
-					},
-					Op:    signoz.FilterItemOpEqual,
-					Value: new(any(value)),
-				})
-			}
-		}
-
-		filters := signoz.FilterSet{
-			Items: &filterItems,
-		}
-
-		// Build group by
-		groupBy := []signoz.AttributeKey{
-			{
-				Key:      "k8s.pod.name",
-				DataType: ptr.To(signoz.AttributeKeyDataTypeString),
-				Type:     new(any("tag")),
-				IsColumn: new(false),
+			GroupBy: &[]signoz.Querybuildertypesv5GroupByKey{
+				{Name: "k8s.pod.name", FieldContext: new(signoz.Resource)},
 			},
+			StepInterval: stepInterval,
+			Legend:       new("{{k8s.pod.name}}"),
+			Disabled:     new(false),
 		}
 
-		legend := "{{k8s.pod.name}}"
-		disabled := false
-
-		query := signoz.BuilderQuery{
-			QueryName:          queryName,
-			DataSource:         signoz.BuilderQueryDataSourceMetrics,
-			AggregateAttribute: &aggregateAttr,
-			Expression:         queryName,
-			Disabled:           &disabled,
-			TimeAggregation:    new(signoz.BuilderQueryTimeAggregation(timeAgg)),
-			SpaceAggregation:   new(signoz.BuilderQuerySpaceAggregation(spaceAgg)),
-			StepInterval:       int64(step),
-			Filters:            &filters,
-			GroupBy:            &groupBy,
-			Legend:             &legend,
+		envelope := signoz.Querybuildertypesv5QueryEnvelope{}
+		if err := envelope.FromQuerybuildertypesv5QueryEnvelopeBuilderMetric(signoz.Querybuildertypesv5QueryEnvelopeBuilderMetric{
+			Type: new(signoz.BuilderQuery),
+			Spec: &spec,
+		}); err != nil {
+			return nil, nil, fmt.Errorf("encode query envelope: %w", err)
 		}
-
-		queries[queryName] = query
+		queries = append(queries, envelope)
 	}
 
-	return queries, queryToAgg
+	return queries, queryToAgg, nil
 }

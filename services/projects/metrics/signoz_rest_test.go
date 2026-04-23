@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 	"time"
+
+	"k8s.io/utils/ptr"
 
 	"xata/internal/signoz"
 
@@ -22,17 +23,19 @@ const (
 
 func TestGetMetric(t *testing.T) {
 	tests := []struct {
-		name           string
-		metric         string
-		startTime      time.Time
-		endTime        time.Time
-		instances      []string
-		aggregations   []string
-		unit           string
-		mockStatusCode int
-		mockResponse   *signoz.QueryRangeResponse
-		expectError    bool
-		assertRequest  func(t *testing.T, req *signoz.QueryRangeParams)
+		name               string
+		metric             string
+		startTime          time.Time
+		endTime            time.Time
+		instances          []string
+		aggregations       []string
+		unit               string
+		mockStatusCode     int
+		mockResponseStatus string
+		mockResults        []signoz.Querybuildertypesv5TimeSeriesData
+		expectError        bool
+		assertResult       func(t *testing.T, result *BranchMetrics)
+		assertRequest      func(t *testing.T, req *signoz.Querybuildertypesv5QueryRangeRequest)
 	}{
 		{
 			name:           "AVG CPU on single instance",
@@ -43,21 +46,24 @@ func TestGetMetric(t *testing.T) {
 			aggregations:   []string{"avg"},
 			unit:           "percentage",
 			mockStatusCode: 200,
-			mockResponse: &signoz.QueryRangeResponse{
-				ResultType: new("timeseries"),
-				Result: &[]signoz.Result{
-					{
-						QueryName: new("A"),
-						Series: &[]signoz.Series{
-							{
-								Labels: &map[string]string{"k8s.pod.name": "pod-1"},
-								LabelsArray: &[]map[string]string{
-									{"k8s.pod.name": "pod-1"},
-								},
-								Values: &[]signoz.Point{
-									{
-										Timestamp: 1715000000000,
-										Value:     "42.5",
+			mockResults: []signoz.Querybuildertypesv5TimeSeriesData{
+				{
+					QueryName: new("A"),
+					Aggregations: &[]signoz.Querybuildertypesv5AggregationBucket{
+						{
+							Series: &[]signoz.Querybuildertypesv5TimeSeries{
+								{
+									Labels: &[]signoz.Querybuildertypesv5Label{
+										{
+											Key:   &signoz.TelemetrytypesTelemetryFieldKey{Name: "k8s.pod.name"},
+											Value: labelValue("pod-1"),
+										},
+									},
+									Values: &[]signoz.Querybuildertypesv5TimeSeriesValue{
+										{
+											Timestamp: new(int64(1715000000000)),
+											Value:     new(float64(42.5)),
+										},
 									},
 								},
 							},
@@ -66,14 +72,15 @@ func TestGetMetric(t *testing.T) {
 				},
 			},
 			expectError: false,
-			assertRequest: func(t *testing.T, req *signoz.QueryRangeParams) {
-				require.NotNil(t, req.Variables)
-				assert.Equal(t, k8sNamespace, (*req.Variables)["k8s_namespace_name"])
-				// Variables are decoded as interface{} arrays from JSON
-				podNames, ok := (*req.Variables)["k8s_pod_name"].([]any)
-				require.True(t, ok)
-				assert.Equal(t, 1, len(podNames))
-				assert.Equal(t, "pod-1", podNames[0])
+			assertRequest: func(t *testing.T, req *signoz.Querybuildertypesv5QueryRangeRequest) {
+				require.NotNil(t, req.CompositeQuery)
+				require.NotNil(t, req.CompositeQuery.Queries)
+				require.Len(t, *req.CompositeQuery.Queries, 1)
+				spec := unwrapBuilderMetricSpec(t, (*req.CompositeQuery.Queries)[0])
+				require.NotNil(t, spec.Filter)
+				require.NotNil(t, spec.Filter.Expression)
+				assert.Contains(t, *spec.Filter.Expression, `k8s.pod.name IN ["pod-1"]`)
+				assert.Contains(t, *spec.Filter.Expression, `k8s.namespace.name = "xata-clusters"`)
 			},
 		},
 		{
@@ -85,55 +92,68 @@ func TestGetMetric(t *testing.T) {
 			aggregations:   []string{"min", "max"},
 			unit:           "percentage",
 			mockStatusCode: 200,
-			mockResponse: &signoz.QueryRangeResponse{
-				ResultType: new(""),
-				Result: &[]signoz.Result{
-					{
-						QueryName: new("B"),
-						Series: &[]signoz.Series{
-							{
-								Labels: &map[string]string{"k8s.pod.name": "pod-1"},
-								LabelsArray: &[]map[string]string{
-									{"k8s.pod.name": "pod-1"},
+			mockResults: []signoz.Querybuildertypesv5TimeSeriesData{
+				{
+					QueryName: new("B"),
+					Aggregations: &[]signoz.Querybuildertypesv5AggregationBucket{
+						{
+							Series: &[]signoz.Querybuildertypesv5TimeSeries{
+								{
+									Labels: &[]signoz.Querybuildertypesv5Label{
+										{
+											Key:   &signoz.TelemetrytypesTelemetryFieldKey{Name: "k8s.pod.name"},
+											Value: labelValue("pod-1"),
+										},
+									},
+									Values: &[]signoz.Querybuildertypesv5TimeSeriesValue{
+										{Timestamp: new(int64(1746776340000)), Value: new(float64(0.004387936))},
+										{Timestamp: new(int64(1746776400000)), Value: new(float64(0.004595945))},
+									},
 								},
-								Values: &[]signoz.Point{
-									{Timestamp: 1746776340000, Value: "0.004387936"},
-									{Timestamp: 1746776400000, Value: "0.004595945"},
-								},
-							},
-							{
-								Labels: &map[string]string{"k8s.pod.name": "pod-2"},
-								LabelsArray: &[]map[string]string{
-									{"k8s.pod.name": "pod-2"},
-								},
-								Values: &[]signoz.Point{
-									{Timestamp: 1746776340000, Value: "0.0029397"},
-									{Timestamp: 1746776400000, Value: "0.002136112"},
+								{
+									Labels: &[]signoz.Querybuildertypesv5Label{
+										{
+											Key:   &signoz.TelemetrytypesTelemetryFieldKey{Name: "k8s.pod.name"},
+											Value: labelValue("pod-2"),
+										},
+									},
+									Values: &[]signoz.Querybuildertypesv5TimeSeriesValue{
+										{Timestamp: new(int64(1746776340000)), Value: new(float64(0.0029397))},
+										{Timestamp: new(int64(1746776400000)), Value: new(float64(0.002136112))},
+									},
 								},
 							},
 						},
 					},
-					{
-						QueryName: new("A"),
-						Series: &[]signoz.Series{
-							{
-								Labels: &map[string]string{"k8s.pod.name": "pod-1"},
-								LabelsArray: &[]map[string]string{
-									{"k8s.pod.name": "pod-1"},
+				},
+				{
+					QueryName: new("A"),
+					Aggregations: &[]signoz.Querybuildertypesv5AggregationBucket{
+						{
+							Series: &[]signoz.Querybuildertypesv5TimeSeries{
+								{
+									Labels: &[]signoz.Querybuildertypesv5Label{
+										{
+											Key:   &signoz.TelemetrytypesTelemetryFieldKey{Name: "k8s.pod.name"},
+											Value: labelValue("pod-1"),
+										},
+									},
+									Values: &[]signoz.Querybuildertypesv5TimeSeriesValue{
+										{Timestamp: new(int64(1746776340000)), Value: new(float64(0.004387936))},
+										{Timestamp: new(int64(1746776400000)), Value: new(float64(0.004595945))},
+									},
 								},
-								Values: &[]signoz.Point{
-									{Timestamp: 1746776340000, Value: "0.004387936"},
-									{Timestamp: 1746776400000, Value: "0.004595945"},
-								},
-							},
-							{
-								Labels: &map[string]string{"k8s.pod.name": "pod-2"},
-								LabelsArray: &[]map[string]string{
-									{"k8s.pod.name": "pod-2"},
-								},
-								Values: &[]signoz.Point{
-									{Timestamp: 1746776340000, Value: "0.0029397"},
-									{Timestamp: 1746776400000, Value: "0.002136112"},
+								{
+									Labels: &[]signoz.Querybuildertypesv5Label{
+										{
+											Key:   &signoz.TelemetrytypesTelemetryFieldKey{Name: "k8s.pod.name"},
+											Value: labelValue("pod-2"),
+										},
+									},
+									Values: &[]signoz.Querybuildertypesv5TimeSeriesValue{
+										{Timestamp: new(int64(1746776340000)), Value: new(float64(0.0029397))},
+										{Timestamp: new(int64(1746776400000)), Value: new(float64(0.002136112))},
+									},
 								},
 							},
 						},
@@ -141,15 +161,15 @@ func TestGetMetric(t *testing.T) {
 				},
 			},
 			expectError: false,
-			assertRequest: func(t *testing.T, req *signoz.QueryRangeParams) {
-				require.NotNil(t, req.Variables)
-				assert.Equal(t, k8sNamespace, (*req.Variables)["k8s_namespace_name"])
-				// Variables are decoded as interface{} arrays from JSON
-				podNames, ok := (*req.Variables)["k8s_pod_name"].([]any)
-				require.True(t, ok)
-				assert.Equal(t, 2, len(podNames))
-				assert.Equal(t, "pod-1", podNames[0])
-				assert.Equal(t, "pod-2", podNames[1])
+			assertRequest: func(t *testing.T, req *signoz.Querybuildertypesv5QueryRangeRequest) {
+				require.NotNil(t, req.CompositeQuery)
+				require.NotNil(t, req.CompositeQuery.Queries)
+				require.Len(t, *req.CompositeQuery.Queries, 2)
+				spec := unwrapBuilderMetricSpec(t, (*req.CompositeQuery.Queries)[0])
+				require.NotNil(t, spec.Filter)
+				require.NotNil(t, spec.Filter.Expression)
+				assert.Contains(t, *spec.Filter.Expression, `k8s.pod.name IN ["pod-1", "pod-2"]`)
+				assert.Contains(t, *spec.Filter.Expression, `k8s.namespace.name = "xata-clusters"`)
 			},
 		},
 		{
@@ -169,43 +189,173 @@ func TestGetMetric(t *testing.T) {
 			aggregations:   []string{"avg"},
 			unit:           "percentage",
 			mockStatusCode: 200,
-			mockResponse: &signoz.QueryRangeResponse{
-				ResultType: new(""),
-				Result:     &[]signoz.Result{},
+			mockResults:    []signoz.Querybuildertypesv5TimeSeriesData{},
+		},
+		{
+			name:           "non-200 status code returns error",
+			metric:         "cpu",
+			startTime:      time.UnixMilli(1715000000000),
+			endTime:        time.UnixMilli(1715010000000),
+			instances:      []string{"pod-1"},
+			aggregations:   []string{"avg"},
+			mockStatusCode: 500,
+			expectError:    true,
+		},
+		{
+			name:               "non-success status returns error",
+			metric:             "cpu",
+			startTime:          time.UnixMilli(1715000000000),
+			endTime:            time.UnixMilli(1715010000000),
+			instances:          []string{"pod-1"},
+			aggregations:       []string{"avg"},
+			mockStatusCode:     200,
+			mockResponseStatus: "error",
+			mockResults:        []signoz.Querybuildertypesv5TimeSeriesData{},
+			expectError:        true,
+		},
+		{
+			name:           "counter metric uses temporalAgg for time and user agg for space",
+			metric:         "network_ingress",
+			startTime:      time.UnixMilli(1715000000000),
+			endTime:        time.UnixMilli(1715010000000),
+			instances:      []string{"pod-1"},
+			aggregations:   []string{"avg"},
+			unit:           "bytes",
+			mockStatusCode: 200,
+			mockResults: []signoz.Querybuildertypesv5TimeSeriesData{
+				{
+					QueryName: new("A"),
+					Aggregations: &[]signoz.Querybuildertypesv5AggregationBucket{
+						{
+							Series: &[]signoz.Querybuildertypesv5TimeSeries{
+								{
+									Labels: &[]signoz.Querybuildertypesv5Label{
+										{
+											Key:   &signoz.TelemetrytypesTelemetryFieldKey{Name: "k8s.pod.name"},
+											Value: labelValue("pod-1"),
+										},
+									},
+									Values: &[]signoz.Querybuildertypesv5TimeSeriesValue{
+										{Timestamp: new(int64(1715000000000)), Value: new(float64(1024))},
+									},
+								},
+							},
+						},
+					},
+				},
 			},
-			expectError: false,
+			assertRequest: func(t *testing.T, req *signoz.Querybuildertypesv5QueryRangeRequest) {
+				require.NotNil(t, req.CompositeQuery)
+				require.NotNil(t, req.CompositeQuery.Queries)
+				require.Len(t, *req.CompositeQuery.Queries, 1)
+				spec := unwrapBuilderMetricSpec(t, (*req.CompositeQuery.Queries)[0])
+				require.NotNil(t, spec.Aggregations)
+				aggs := *spec.Aggregations
+				require.Len(t, aggs, 1)
+				assert.Equal(t, signoz.MetrictypesTimeAggregation("increase"), *aggs[0].TimeAggregation)
+				assert.Equal(t, signoz.MetrictypesSpaceAggregation("avg"), *aggs[0].SpaceAggregation)
+				require.NotNil(t, spec.Filter)
+				require.NotNil(t, spec.Filter.Expression)
+				assert.Contains(t, *spec.Filter.Expression, `direction = "receive"`)
+			},
+		},
+		{
+			name:           "empty instances still includes pod name filter",
+			metric:         "cpu",
+			startTime:      time.UnixMilli(1715000000000),
+			endTime:        time.UnixMilli(1715010000000),
+			instances:      nil,
+			aggregations:   []string{"avg"},
+			unit:           "percentage",
+			mockStatusCode: 200,
+			mockResults:    []signoz.Querybuildertypesv5TimeSeriesData{},
+			assertRequest: func(t *testing.T, req *signoz.Querybuildertypesv5QueryRangeRequest) {
+				spec := unwrapBuilderMetricSpec(t, (*req.CompositeQuery.Queries)[0])
+				require.NotNil(t, spec.Filter)
+				require.NotNil(t, spec.Filter.Expression)
+				assert.Contains(t, *spec.Filter.Expression, "k8s.pod.name IN []")
+			},
+		},
+		{
+			name:           "nil timestamp and value points are skipped",
+			metric:         "cpu",
+			startTime:      time.UnixMilli(1715000000000),
+			endTime:        time.UnixMilli(1715010000000),
+			instances:      []string{"pod-1"},
+			aggregations:   []string{"avg"},
+			unit:           "percentage",
+			mockStatusCode: 200,
+			mockResults: []signoz.Querybuildertypesv5TimeSeriesData{
+				{
+					QueryName: new("A"),
+					Aggregations: &[]signoz.Querybuildertypesv5AggregationBucket{
+						{
+							Series: &[]signoz.Querybuildertypesv5TimeSeries{
+								{
+									Labels: &[]signoz.Querybuildertypesv5Label{
+										{
+											Key:   &signoz.TelemetrytypesTelemetryFieldKey{Name: "k8s.pod.name"},
+											Value: labelValue("pod-1"),
+										},
+									},
+									Values: &[]signoz.Querybuildertypesv5TimeSeriesValue{
+										{Timestamp: new(int64(1715000000000)), Value: new(float64(1.0))},
+										{Timestamp: nil, Value: new(float64(2.0))},
+										{Timestamp: new(int64(1715000060000)), Value: nil},
+										{Timestamp: new(int64(1715000120000)), Value: new(float64(3.0))},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			assertResult: func(t *testing.T, result *BranchMetrics) {
+				require.Len(t, result.Series, 1)
+				assert.Equal(t, "pod-1", result.Series[0].InstanceID)
+				require.Len(t, result.Series[0].Values, 2)
+				assert.Equal(t, int64(1715000000000), result.Series[0].Values[0].Timestamp.UnixMilli())
+				assert.InDelta(t, float32(1.0), result.Series[0].Values[0].Value, 0.00001)
+				assert.Equal(t, int64(1715000120000), result.Series[0].Values[1].Timestamp.UnixMilli())
+				assert.InDelta(t, float32(3.0), result.Series[0].Values[1].Value, 0.00001)
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var capturedReq *signoz.QueryRangeParams
+			var capturedReq *signoz.Querybuildertypesv5QueryRangeRequest
 
-			// Create a test server
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// Verify path
-				assert.Equal(t, "/api/v4/query_range", r.URL.Path)
+				assert.Equal(t, "/api/v5/query_range", r.URL.Path)
+				assert.Equal(t, apiKey, r.Header.Get("SigNoz-Api-Key"))
 
-				// Verify API key header
-				assert.Equal(t, apiKey, r.Header.Get("SIGNOZ-API-KEY"))
-
-				// Capture and decode request
-				if tt.mockResponse != nil {
-					var req signoz.QueryRangeParams
-					err := json.NewDecoder(r.Body).Decode(&req)
-					require.NoError(t, err)
+				if tt.mockResults != nil {
+					var req signoz.Querybuildertypesv5QueryRangeRequest
+					require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 					capturedReq = &req
 				}
 
-				// Return mock response
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(tt.mockStatusCode)
-				if tt.mockResponse != nil {
-					wrapper := map[string]any{
-						"status": "success",
-						"data":   tt.mockResponse,
+				if tt.mockResults != nil {
+					results := make([]any, len(tt.mockResults))
+					for i, r := range tt.mockResults {
+						results[i] = r
 					}
-					err := json.NewEncoder(w).Encode(wrapper)
-					require.NoError(t, err)
+					status := tt.mockResponseStatus
+					if status == "" {
+						status = "success"
+					}
+					wrapper := map[string]any{
+						"status": status,
+						"data": map[string]any{
+							"type": "time_series",
+							"data": map[string]any{
+								"results": results,
+							},
+						},
+					}
+					require.NoError(t, json.NewEncoder(w).Encode(wrapper))
 				}
 			}))
 			defer server.Close()
@@ -226,29 +376,24 @@ func TestGetMetric(t *testing.T) {
 			assert.Equal(t, tt.endTime, result.End)
 			assert.Equal(t, tt.unit, result.Unit)
 			assert.NotNil(t, result.Series)
-			if len(result.Series) > 0 {
-				assert.Equal(t, len(tt.aggregations)*len(tt.instances), len(result.Series))
-			}
 
-			// Verify response data
-			if tt.mockResponse != nil && tt.mockResponse.Result != nil {
-				idx := 0
-				for _, res := range *tt.mockResponse.Result {
-					if res.Series != nil {
-						for _, ser := range *res.Series {
-							if ser.Labels != nil {
-								assert.Equal(t, (*ser.Labels)["k8s.pod.name"], result.Series[idx].InstanceID)
-							}
-							if ser.Values != nil {
-								for k, point := range *ser.Values {
-									parsed, err := strconv.ParseFloat(point.Value, 32)
-									assert.NoError(t, err)
-									assert.InDelta(t, float32(parsed), result.Series[idx].Values[k].Value, 0.00001)
-									assert.Equal(t, point.Timestamp, result.Series[idx].Values[k].Timestamp.UnixMilli())
-								}
-							}
-							idx++
-						}
+			if tt.assertResult != nil {
+				tt.assertResult(t, result)
+			} else {
+				if len(result.Series) > 0 {
+					assert.Equal(t, len(tt.aggregations)*len(tt.instances), len(result.Series))
+				}
+
+				assertSeriesMatchResults(t, result.Series, tt.mockResults)
+
+				// Verify all returned series have valid aggregation values
+				if len(result.Series) > 0 {
+					aggSet := make(map[string]bool, len(tt.aggregations))
+					for _, a := range tt.aggregations {
+						aggSet[a] = true
+					}
+					for _, s := range result.Series {
+						assert.True(t, aggSet[s.Aggregation], "unexpected aggregation: %s", s.Aggregation)
 					}
 				}
 			}
@@ -258,4 +403,53 @@ func TestGetMetric(t *testing.T) {
 			}
 		})
 	}
+}
+
+func labelValue(s string) *interface{} {
+	var v interface{} = s
+	return &v
+}
+
+func unwrapBuilderMetricSpec(t *testing.T, env signoz.Querybuildertypesv5QueryEnvelope) signoz.Querybuildertypesv5QueryBuilderQueryGithubComSigNozSignozPkgTypesQuerybuildertypesQuerybuildertypesv5MetricAggregation {
+	t.Helper()
+	builder, err := env.AsQuerybuildertypesv5QueryEnvelopeBuilderMetric()
+	require.NoError(t, err)
+	require.NotNil(t, builder.Spec)
+	return *builder.Spec
+}
+
+func assertSeriesMatchResults(t *testing.T, got []MetricSeries, want []signoz.Querybuildertypesv5TimeSeriesData) {
+	t.Helper()
+	idx := 0
+	for _, res := range want {
+		if res.Aggregations == nil {
+			continue
+		}
+		for _, bucket := range *res.Aggregations {
+			if bucket.Series == nil {
+				continue
+			}
+			for _, ts := range *bucket.Series {
+				require.Less(t, idx, len(got))
+				if ts.Labels != nil {
+					for _, label := range *ts.Labels {
+						if label.Key != nil && label.Key.Name == "k8s.pod.name" && label.Value != nil {
+							if s, ok := (*label.Value).(string); ok {
+								assert.Equal(t, s, got[idx].InstanceID)
+							}
+						}
+					}
+				}
+				if ts.Values != nil {
+					require.Equal(t, len(*ts.Values), len(got[idx].Values))
+					for k, v := range *ts.Values {
+						assert.InDelta(t, float32(ptr.Deref(v.Value, 0)), got[idx].Values[k].Value, 0.00001)
+						assert.Equal(t, ptr.Deref(v.Timestamp, 0), got[idx].Values[k].Timestamp.UnixMilli())
+					}
+				}
+				idx++
+			}
+		}
+	}
+	require.Equal(t, idx, len(got))
 }
