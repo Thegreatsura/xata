@@ -17,6 +17,10 @@ spec:
         app: clusters
     spec:
       serviceAccountName: clusters
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: clusters
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

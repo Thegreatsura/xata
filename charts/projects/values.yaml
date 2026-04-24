@@ -93,7 +93,18 @@ tolerations:
 
 nodeSelector: {}
 
-affinity: {}
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - projects
+          topologyKey: kubernetes.io/hostname
 
 podAnnotations:
   reloader.stakater.com/auto: "true"

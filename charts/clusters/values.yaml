@@ -23,6 +23,19 @@ resources:
     cpu: 100m
     memory: 200Mi
 
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - clusters
+          topologyKey: kubernetes.io/hostname
+
 tolerations:
   - key: "xata.io/workload"
     value: "dataplane"

@@ -17,6 +17,10 @@ spec:
         app: branch-operator
     spec:
       serviceAccountName: branch-operator
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: branch-operator
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

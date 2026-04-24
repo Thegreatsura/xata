@@ -17,6 +17,10 @@ spec:
         app: gateway
     spec:
       serviceAccountName: gateway
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: gateway
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
