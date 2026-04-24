@@ -77,7 +77,7 @@ fmt-keycloak-turnstile: ## Format Keycloak Turnstile plugin (Kotlin)
 	@cd dev/docker/keycloak/keycloak-turnstile && $(MAKE) fmt
 
 .PHONY: generate
-generate: generate-openapi generate-buf generate-go ## Generate code
+generate: generate-openapi generate-buf generate-go generate-agents ## Generate code
 	@echo "All generate tasks completed at $$(date)"
 
 .PHONY: generate-openapi
@@ -92,6 +92,10 @@ generate-buf:
 generate-go: ## Generate Go code (use FILES="path1 path2" for specific files/dirs)
 	@GEN_ARGS=$$(if [ -z "$(FILES)" ]; then echo "./..."; else echo "$(FILES)"; fi); \
 	GODEBUG=gotypesalias=0 $(GO) generate $$GEN_ARGS
+
+.PHONY: generate-agents
+generate-agents: ## Generate agent files
+	cp AGENTS.md CLAUDE.md
 
 .PHONY: test
 test: ## Run unit and integration tests
