@@ -20,15 +20,17 @@ var testTracer = noop.NewTracerProvider().Tracer("test")
 
 // mockResolver is a test helper that captures resolver calls and allows configurable behavior
 type mockResolver struct {
-	ServerName string
-	Address    string
-	Branch     string
-	Error      error
-	CallCount  int
+	ServerName       string
+	FallbackEndpoint string
+	Address          string
+	Branch           string
+	Error            error
+	CallCount        int
 }
 
-func (m *mockResolver) Resolve(ctx context.Context, serverName string) (*session.Branch, error) {
+func (m *mockResolver) Resolve(ctx context.Context, serverName, fallbackEndpoint string) (*session.Branch, error) {
 	m.ServerName = serverName
+	m.FallbackEndpoint = fallbackEndpoint
 	m.CallCount++
 	if m.Error != nil {
 		return nil, m.Error
@@ -145,14 +147,14 @@ func TestProxy_CreateBackendSession_Success(t *testing.T) {
 
 	// Test the CreateBackendSession method
 	ctx := context.Background()
-	session, err := proxy.CreateBackendSession(ctx, "branch1.example.com", clientConn, startupMessage)
+	backendSession, err := proxy.CreateBackendSession(ctx, "branch1.example.com", clientConn, startupMessage)
 
 	// Verify successful session creation
 	require.NoError(t, err)
-	require.NotNil(t, session)
+	require.NotNil(t, backendSession)
 
-	// Verify resolver was called with correct server name
 	require.Equal(t, "branch1.example.com", resolver.ServerName)
+	require.Equal(t, session.EndpointRW, resolver.FallbackEndpoint)
 	require.Equal(t, 1, resolver.CallCount)
 
 	// Wait for server side to complete and validate results
@@ -178,15 +180,15 @@ func TestProxy_CreateBackendSession_ResolverError(t *testing.T) {
 
 	// Test the CreateBackendSession method with invalid server name
 	ctx := context.Background()
-	session, err := proxy.CreateBackendSession(ctx, "invalid.example.com", clientConn, createStartupMessage())
+	backendSession, err := proxy.CreateBackendSession(ctx, "invalid.example.com", clientConn, createStartupMessage())
 
 	// Verify that resolver error is propagated
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid server name")
-	require.Nil(t, session)
+	require.Nil(t, backendSession)
 
-	// Verify resolver was called with correct server name but dialer was not
 	require.Equal(t, "invalid.example.com", resolver.ServerName)
+	require.Equal(t, session.EndpointRW, resolver.FallbackEndpoint)
 	require.False(t, dialerCalled, "dialer should not be called when resolver fails")
 
 	require.Nil(t, md.Call)
@@ -203,12 +205,12 @@ func TestProxy_CreateBackendSession_NetworkDialError(t *testing.T) {
 
 	// Test the CreateBackendSession method
 	ctx := context.Background()
-	session, err := proxy.CreateBackendSession(ctx, "test.example.com", clientConn, createStartupMessage())
+	backendSession, err := proxy.CreateBackendSession(ctx, "test.example.com", clientConn, createStartupMessage())
 
 	// Verify that network error is propagated
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "connection refused")
-	require.Nil(t, session)
+	require.Nil(t, backendSession)
 
 	// Verify both resolver and dialer were called with correct parameters
 	require.Equal(t, "test.example.com", resolver.ServerName)
@@ -235,12 +237,12 @@ func TestProxy_CreateBackendSession_SendMessageError(t *testing.T) {
 
 	// Test the CreateBackendSession method
 	ctx := context.Background()
-	session, err := proxy.CreateBackendSession(ctx, "test.example.com", clientConn, createStartupMessage())
+	backendSession, err := proxy.CreateBackendSession(ctx, "test.example.com", clientConn, createStartupMessage())
 
 	// Verify that send message error is propagated with appropriate wrapping
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "send startup message")
-	require.Nil(t, session)
+	require.Nil(t, backendSession)
 
 	// Verify that the connection was properly closed (connection cleanup)
 	// We can test this by trying to write to the closed connection

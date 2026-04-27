@@ -86,7 +86,7 @@ func (p *Proxy) initProxyConn(
 	inboundConn net.Conn,
 	msg pgproto3.FrontendMessage,
 ) (net.Conn, string, error) {
-	branch, err := p.resolver.Resolve(ctx, serverName)
+	branch, err := p.resolver.Resolve(ctx, serverName, EndpointRW)
 	if err != nil {
 		return nil, "", err
 	}

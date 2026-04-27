@@ -57,6 +57,7 @@ func testInitiatorConnect(t *testing.T, connector func(addr string) (*pgx.Conn, 
 	tg := unison.TaskGroupWithCancel(ctx)
 
 	var gotServerName string
+	var gotFallback string
 	dialer := session.NewClusterDialer(
 		session.ClusterDialerConfiguration{
 			ReactivateTimeout:   50 * time.Second,
@@ -64,8 +65,9 @@ func testInitiatorConnect(t *testing.T, connector func(addr string) (*pgx.Conn, 
 		},
 	)
 
-	resolver := session.ResolverFunc(func(ctx context.Context, serverName string) (*session.Branch, error) {
+	resolver := session.ResolverFunc(func(ctx context.Context, serverName, fallbackEndpoint string) (*session.Branch, error) {
 		gotServerName = serverName
+		gotFallback = fallbackEndpoint
 		return &session.Branch{
 			ID:      "testdb",
 			Address: serverListener.Addr().String(),
@@ -117,6 +119,7 @@ func testInitiatorConnect(t *testing.T, connector func(addr string) (*pgx.Conn, 
 
 	require.NoError(t, err, "Unexpected error in server tasks")
 	require.Equal(t, testServerName, gotServerName, "server name mismatch")
+	require.Equal(t, session.EndpointRW, gotFallback, "proxy should pass rw fallback")
 }
 
 func TestInitiator_Cancellation_TLSViaPGProtocol(t *testing.T) {
@@ -145,7 +148,7 @@ func testInitiatorCancellation(t *testing.T,
 		},
 	)
 
-	resolver := session.ResolverFunc(func(ctx context.Context, serverName string) (*session.Branch, error) {
+	resolver := session.ResolverFunc(func(ctx context.Context, serverName, _ string) (*session.Branch, error) {
 		return &session.Branch{
 			ID:      "testdb",
 			Address: serverListener.Addr().String(),
@@ -293,7 +296,7 @@ func TestInitiator_Err_InvalidServerName(t *testing.T) {
 		},
 	)
 
-	resolver := session.ResolverFunc(func(ctx context.Context, serverName string) (*session.Branch, error) {
+	resolver := session.ResolverFunc(func(ctx context.Context, serverName, _ string) (*session.Branch, error) {
 		return nil, fmt.Errorf("invalid server name")
 	})
 

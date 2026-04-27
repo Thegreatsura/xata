@@ -11,8 +11,18 @@ import (
 
 var errMalformedHostname = errors.New("malformed hostname")
 
+const (
+	EndpointRW     = "rw"
+	EndpointRO     = "ro"
+	EndpointR      = "r"
+	EndpointPooler = "pooler"
+)
+
 type BranchResolver interface {
-	Resolve(ctx context.Context, serverName string) (*Branch, error)
+	// Resolve maps a client-facing hostname to a concrete Branch. The
+	// hostname may carry an explicit endpoint suffix, when it does not,
+	// fallbackEndpoint is used.
+	Resolve(ctx context.Context, serverName, fallbackEndpoint string) (*Branch, error)
 }
 
 type Branch struct {
@@ -31,16 +41,19 @@ func NewCNPGBranchResolver(cnpgNamespace string, port int, poolerEnabled bool) *
 		cnpgNamespace: cnpgNamespace,
 		port:          port,
 		knownEndpoints: map[string]bool{
-			"rw":     true,
-			"ro":     true,
-			"r":      true,
-			"pooler": poolerEnabled,
+			EndpointRW:     true,
+			EndpointRO:     true,
+			EndpointR:      true,
+			EndpointPooler: poolerEnabled,
 		},
 	}
 }
 
-func (r *CNPGBranchResolver) Resolve(ctx context.Context, serverName string) (*Branch, error) {
-	branchName, endpointType, err := extractBranch(serverName, r.knownEndpoints)
+func (r *CNPGBranchResolver) Resolve(ctx context.Context, serverName, fallbackEndpoint string) (*Branch, error) {
+	if !r.knownEndpoints[fallbackEndpoint] {
+		fallbackEndpoint = EndpointRW
+	}
+	branchName, endpointType, err := extractBranch(serverName, r.knownEndpoints, fallbackEndpoint)
 	if err != nil {
 		return nil, fmt.Errorf("read branch name: hostname [%s]: %w", serverName, err)
 	}
@@ -51,13 +64,13 @@ func (r *CNPGBranchResolver) Resolve(ctx context.Context, serverName string) (*B
 	}, nil
 }
 
-func extractBranch(fullHostname string, knownEndpoints map[string]bool) (string, string, error) {
+func extractBranch(fullHostname string, knownEndpoints map[string]bool, fallbackEndpoint string) (string, string, error) {
 	hostnamePart, _, found := strings.Cut(fullHostname, ".")
 	if !found || hostnamePart == "" {
 		return "", "", errMalformedHostname
 	}
 
-	branchName, endpointType := parseEndpoint(hostnamePart, knownEndpoints)
+	branchName, endpointType := parseEndpoint(hostnamePart, knownEndpoints, fallbackEndpoint)
 
 	if err := xvalidator.IsValidIdentifier(branchName); err != nil {
 		return "", "", fmt.Errorf("invalid branch name: %w", err)
@@ -69,8 +82,8 @@ func extractBranch(fullHostname string, knownEndpoints map[string]bool) (string,
 // parseEndpoint splits a hostname part into a branch name and endpoint type
 // by checking whether the segment after the last hyphen is a known endpoint.
 // If no known endpoint suffix is found, the full hostname is the branch name
-// and the endpoint defaults to "rw".
-func parseEndpoint(hostnamePart string, knownEndpoints map[string]bool) (string, string) {
+// and the endpoint is fallbackEndpoint.
+func parseEndpoint(hostnamePart string, knownEndpoints map[string]bool, fallbackEndpoint string) (string, string) {
 	lastHyphen := strings.LastIndex(hostnamePart, "-")
 	if lastHyphen > 0 {
 		suffix := hostnamePart[lastHyphen+1:]
@@ -78,11 +91,11 @@ func parseEndpoint(hostnamePart string, knownEndpoints map[string]bool) (string,
 			return hostnamePart[:lastHyphen], suffix
 		}
 	}
-	return hostnamePart, "rw"
+	return hostnamePart, fallbackEndpoint
 }
 
-type ResolverFunc func(ctx context.Context, serverName string) (branch *Branch, err error)
+type ResolverFunc func(ctx context.Context, serverName, fallbackEndpoint string) (*Branch, error)
 
-func (f ResolverFunc) Resolve(ctx context.Context, serverName string) (*Branch, error) {
-	return f(ctx, serverName)
+func (f ResolverFunc) Resolve(ctx context.Context, serverName, fallbackEndpoint string) (*Branch, error) {
+	return f(ctx, serverName, fallbackEndpoint)
 }

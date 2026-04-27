@@ -78,7 +78,7 @@ func (h *handler) Websocket(c echo.Context) error {
 
 	span.SetAttributes(metrics.AttrHost.String(serverName))
 
-	branch, err := h.resolver.Resolve(ctx, serverName)
+	branch, err := h.resolver.Resolve(ctx, serverName, session.EndpointPooler)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("host", serverName).Msg("resolve branch")
 		span.RecordError(err)

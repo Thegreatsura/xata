@@ -58,7 +58,7 @@ func (h *handler) Query(c echo.Context, params spec.QueryParams) error {
 		))
 	defer span.End()
 
-	branch, err := h.resolver.Resolve(ctx, connInfo.Host)
+	branch, err := h.resolver.Resolve(ctx, connInfo.Host, session.EndpointPooler)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("host", connInfo.Host).Msg("resolve branch")
 		span.RecordError(err)

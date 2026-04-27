@@ -263,7 +263,7 @@ func setupWSServer(t *testing.T, pgAddr string, opts ...func(*handler)) string {
 	gwMetrics, err := metrics.New(noop.NewMeterProvider().Meter(""))
 	require.NoError(t, err)
 
-	resolver := session.ResolverFunc(func(_ context.Context, _ string) (*session.Branch, error) {
+	resolver := session.ResolverFunc(func(_ context.Context, _, _ string) (*session.Branch, error) {
 		return &session.Branch{ID: "test-branch", Address: pgAddr}, nil
 	})
 

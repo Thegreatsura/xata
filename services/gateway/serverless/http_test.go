@@ -891,7 +891,7 @@ func TestQuery_IPFilter(t *testing.T) {
 	gwMetrics, err := metrics.New(noop.NewMeterProvider().Meter(""))
 	require.NoError(t, err)
 
-	resolver := session.ResolverFunc(func(_ context.Context, _ string) (*session.Branch, error) {
+	resolver := session.ResolverFunc(func(_ context.Context, _, _ string) (*session.Branch, error) {
 		return &session.Branch{ID: "test-branch", Address: "127.0.0.1:5432"}, nil
 	})
 

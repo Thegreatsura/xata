@@ -77,7 +77,7 @@ func (g *GatewayService) Init(ctx context.Context) error {
 	g.certificate = cert
 
 	if g.cliConfig.DevPostgresURL != "" {
-		g.resolver = session.ResolverFunc(func(ctx context.Context, serverName string) (*session.Branch, error) {
+		g.resolver = session.ResolverFunc(func(ctx context.Context, serverName, fallbackEndpoint string) (*session.Branch, error) {
 			return &session.Branch{
 				ID:      "dev",
 				Address: g.cliConfig.DevPostgresURL,
