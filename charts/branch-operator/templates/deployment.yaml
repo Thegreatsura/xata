@@ -17,6 +17,7 @@ spec:
         app: branch-operator
     spec:
       serviceAccountName: branch-operator
+      enableServiceLinks: false
       {{- with .Values.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
