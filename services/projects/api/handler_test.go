@@ -4744,16 +4744,16 @@ func TestDeleteBranch(t *testing.T) {
 			deletePostgresClusterCall: mockClusters.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: "123"}).Return(nil, fmt.Errorf("some cluster error")),
 		},
 		{
-			name:          "delete branch fails for not found cluster error",
-			projectID:     "project_id",
-			branchID:      "123",
-			wantError:     true,
-			expectedError: ErrorBranchNotFound{BranchID: "123"}.Error(),
+			name:      "delete branch succeeds when cluster not found in kubernetes",
+			projectID: "project_id",
+			branchID:  "123",
+			wantError: false,
 			deleteBranchCall: mockStore.EXPECT().DeleteBranch(mock.Anything, apitest.TestOrganization, "project_id", "123", mock.Anything).Run(func(ctx context.Context, organizationID string, projectID string, branchName string, deprovisionFn func(*store.Branch) error) {
 				err := deprovisionFn(&branch)
-				assert.Error(t, err)
-			}).Return(clusters.ClusterNotFoundError("123")),
+				assert.Nil(t, err)
+			}).Return(nil),
 			deletePostgresClusterCall: mockClusters.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: "123"}).Return(nil, clusters.ClusterNotFoundError("123")),
+			getPrimaryCellCall:        mockStore.EXPECT().GetPrimaryCell(mock.Anything, apitest.TestOrganization, "test-region").Return(&store.Cell{ID: "primary_cell", RegionID: "test-region", Primary: true}, nil),
 		},
 		{
 			name:      "delete branch from secondary cell works",

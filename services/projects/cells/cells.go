@@ -10,6 +10,8 @@ import (
 	"xata/services/projects/store"
 
 	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 //go:generate go run github.com/vektra/mockery/v3 --output cellsmock --outpkg cellsmock --with-expecter --name Cells
@@ -74,7 +76,11 @@ func DeprovisionBranch(ctx context.Context, organizationID string, s store.Proje
 		Id: b.ID,
 	})
 	if err != nil {
-		return err
+		st, _ := status.FromError(err)
+		if st.Code() != codes.NotFound {
+			return err
+		}
+		log.Ctx(ctx).Warn().Msgf("branch [%s] not found in Kubernetes, proceeding with deletion", b.ID)
 	}
 
 	primaryCell, err := s.GetPrimaryCell(ctx, organizationID, b.Region)
