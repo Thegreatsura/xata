@@ -370,7 +370,7 @@ func TestWakeupReconciler(t *testing.T) {
 		require.NoError(t, err)
 
 		// Expect BranchHasNoXVol because PrimaryXVolName is empty
-		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionFalse, v1alpha1.BranchHasNoXVolReason)
+		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionUnknown, v1alpha1.BranchHasNoXVolReason)
 	})
 
 	t.Run("sets SlotIDNotAvailable when cluster has no TargetPrimary", func(t *testing.T) {

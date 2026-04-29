@@ -11,9 +11,10 @@ const (
 	WakeupSucceededReason = "WakeupSucceeded"
 
 	// Reason strings for the `Succeeded` False condition (terminal errors)
-	BranchHasNoXVolReason    = "BranchHasNoXVol"
 	SlotIDNotAvailableReason = "SlotIDNotAvailable"
 	CSINodePodNotFoundReason = "CSINodePodNotFound"
+	PoolNotFoundReason       = "WakeupPoolNotFound"
+	NoPoolAnnotationReason   = "WakeupPoolAnnotationMissing"
 
 	// Reason strings for the `Succeeded` Unknown condition (retryable errors
 	// and in-progress states)
@@ -21,8 +22,7 @@ const (
 	WakeupInProgressReason             = "InProgress"
 	WakeupAwaitingReconciliationReason = "AwaitingReconciliation"
 	BranchNotFoundReason               = "BranchNotFound"
-	NoPoolAnnotationReason             = "WakeupPoolAnnotationMissing"
-	PoolNotFoundReason                 = "WakeupPoolNotFound"
+	BranchHasNoXVolReason              = "BranchHasNoXVol"
 	PoolExhaustedReason                = "WakeupPoolExhausted"
 	XVolNotReadyReason                 = "XVolNotReady"
 )
