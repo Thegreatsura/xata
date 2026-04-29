@@ -31,6 +31,11 @@ on:
         required: false
         default: ""
         type: string
+      force_build:
+        description: "Skip manifest cache check and always build"
+        required: false
+        default: false
+        type: boolean
       paths:
         description: "Newline-separated list of paths for content hash"
         required: true
@@ -91,6 +96,7 @@ jobs:
           SERVICE_NAME: ${{ inputs.service_name }}
           TAG_AS_LATEST: ${{ inputs.latest }}
           EXTRA_BUILD_ARGS: ${{ inputs.extra_build_args }}
+          FORCE_BUILD: ${{ inputs.force_build }}
         run: |
           reference=$(make build-image \
             IMAGE="$IMAGE" \
@@ -99,6 +105,7 @@ jobs:
             BUILD_PATH="$BUILD_PATH" \
             SERVICE_NAME="$SERVICE_NAME" \
             TAG_AS_LATEST="$TAG_AS_LATEST" \
-            EXTRA_BUILD_ARGS="$EXTRA_BUILD_ARGS")
+            EXTRA_BUILD_ARGS="$EXTRA_BUILD_ARGS" \
+            FORCE_BUILD="$FORCE_BUILD")
           echo "image=${reference%:*}" >> "$GITHUB_OUTPUT"
           echo "tag=${reference#*:}" >> "$GITHUB_OUTPUT"

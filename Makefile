@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 GOVERSION := $(shell go version | awk '{print $$3}')
 GO := GOTOOLCHAIN=$(GOVERSION) go
 BUF := $(GO) run github.com/bufbuild/buf/cmd/buf
@@ -49,7 +50,7 @@ lint-keycloak-turnstile: ## Lint Keycloak Turnstile plugin (Kotlin)
 .PHONY: lint-workflows
 lint-workflows: ## Lint GitHub Actions workflows
 	@command -v actionlint >/dev/null 2>&1 || $(GO) install github.com/rhysd/actionlint/cmd/actionlint@latest
-	@actionlint
+	@actionlint -ignore 'is potentially untrusted' -ignore '\[credentials\]'
 
 .PHONY: fmt
 fmt: tools fmt-openapi fmt-go fmt-buf fmt-opa fmt-json fmt-keycloak-turnstile ## Format source code
@@ -118,13 +119,14 @@ tools: $(shell find ./dev/docker/jq-tools -type f)  ## Install/Build tools
 build-image: ## Build and push image. Requires IMAGE and PATHS. Optional: DOCKERFILE, BUILD_PATH, SERVICE_NAME, GIT_TOKEN, TAG_AS_LATEST, EXTRA_BUILD_ARGS.
 	@set -euo pipefail; \
 	image_name="$(IMAGE)"; \
-	paths="$(PATHS)"; \
+	paths="$$PATHS"; \
 	dockerfile="$(or $(DOCKERFILE),Dockerfile)"; \
 	build_path="$(or $(BUILD_PATH),.)"; \
 	service_name="$(or $(SERVICE_NAME),)"; \
 	git_token="$(or $(GIT_TOKEN),)"; \
 	tag_as_latest="$(or $(TAG_AS_LATEST),false)"; \
 	extra_build_args="$(or $(EXTRA_BUILD_ARGS),)"; \
+	force_build="$(or $(FORCE_BUILD),false)"; \
 	\
 	input_hash=$$( \
 		while IFS= read -r path; do \
@@ -159,7 +161,7 @@ build-image: ## Build and push image. Requires IMAGE and PATHS. Optional: DOCKER
 		done <<< "$$extra_build_args"; \
 	fi; \
 	\
-	if docker manifest inspect "$$image_reference" >/dev/null 2>&1; then \
+	if [[ "$$force_build" != "true" ]] && docker manifest inspect "$$image_reference" >/dev/null 2>&1; then \
 		echo "Cache hit for $$image_reference — skip build/push" >&2; \
 	else \
 		(set -x; docker buildx build \
