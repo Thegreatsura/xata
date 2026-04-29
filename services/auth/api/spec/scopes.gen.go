@@ -104,6 +104,8 @@ func GetScopes(method, path string) []string {
 			return []string{"credentials:write"}
 		case "/organizations/:organizationID/projects/:projectID/branches/:branchID/githubapp/repository":
 			return []string{"project:write"}
+		case "/organizations/:organizationID/projects/:projectID/branches/:branchID/logs":
+			return []string{"logs:read"}
 		case "/organizations/:organizationID/projects/:projectID/branches/:branchID/metrics":
 			return []string{"metrics:read"}
 		case "/organizations/:organizationID/projects/:projectID/branches/:branchID/restore":
@@ -133,6 +135,7 @@ func GetAllScopes() []string {
 		"invite:write",
 		"keys:read",
 		"keys:write",
+		"logs:read",
 		"marketplace:write",
 		"metrics:read",
 		"org:read",

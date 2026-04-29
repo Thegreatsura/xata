@@ -1617,6 +1617,18 @@ func (s *handler) BranchMetrics(c echo.Context, organizationID spec.Organization
 	})
 }
 
+// BranchLogs retrieves the branch logs
+// (POST /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/logs)
+func (s *handler) BranchLogs(c echo.Context, organizationID spec.OrganizationID, projectID string, branchID string) error {
+	return s.withOrganizationAccess(c, organizationID, All, func() error {
+		if !s.feat.BoolValue(c.Request().Context(), flags.BranchLogs) {
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
+
+		return echo.NewHTTPError(http.StatusNotImplemented, "branch logs are not implemented")
+	})
+}
+
 // Restore from backup
 // (POST /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/restore)
 func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.OrganizationID, projectID, branchID string) error {

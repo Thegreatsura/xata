@@ -31,6 +31,7 @@ components:
             'branch:read': Read branch information
             'branch:write': Create and modify branches
             'metrics:read': Read metrics data
+            'logs:read': Read logs data
             'credentials:read': Read credentials
             'credentials:write': Rotate credentials
             'marketplace:write': Register with cloud marketplaces

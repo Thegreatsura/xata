@@ -40,5 +40,9 @@ var (
 		Name:           "useClusterPool",
 		DefaultEnabled: false,
 	}
+	BranchLogs = openfeature.FeatureFlag{
+		Name:           "branchLogs",
+		DefaultEnabled: false,
+	}
 	// WARNING: Feature Flags should have positive names. Avoid disabled suffix in future
 )
