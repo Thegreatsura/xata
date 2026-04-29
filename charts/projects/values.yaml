@@ -28,6 +28,7 @@ httpRoute:
     - "^/organizations/([^/]+)/images"
     - "^/organizations/([^/]+)/extensions"
     - "^/organizations/([^/]+)/githubapp(.*)"
+    - "^/webhooks/github"
 
 postgres:
   host: postgres
