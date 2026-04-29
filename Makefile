@@ -139,7 +139,7 @@ build-image: ## Build and push image. Requires IMAGE and PATHS. Optional: DOCKER
 	image_tag="$$input_hash"; \
 	image_reference="$${image_name}:$${image_tag}"; \
 	\
-	SAAS_SERVICES="auth billing projects clusterpool-operator"; \
+	SAAS_SERVICES="auth billing projects clusterpool-operator product-analytics"; \
 	service_path=""; \
 	if [[ " $$SAAS_SERVICES " == *" $$service_name "* ]]; then \
 		service_path="saas-services/$$service_name"; \
