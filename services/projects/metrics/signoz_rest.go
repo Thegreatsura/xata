@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"k8s.io/utils/ptr"
 
 	"xata/internal/signoz"
+	"xata/internal/signoz/filter"
 )
 
 var sigNozMetricName = map[string]struct {
@@ -50,7 +50,7 @@ func NewSigNozClient(endpoint, apiKey, clustersNamespace string) (*SigNozClient,
 		}),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create signoz client: %w", err)
+		return nil, fmt.Errorf("create signoz client: %w", err)
 	}
 
 	return &SigNozClient{
@@ -210,11 +210,11 @@ func buildMetricsFilterExpression(namespace string, instances []string, metricNa
 	parts := buildPodFilters(namespace, instances)
 	if info := sigNozMetricName[metricName]; info.additionalFilters != nil {
 		for key, val := range info.additionalFilters {
-			parts = append(parts, key+" = "+escapeFilterString(val))
+			parts = append(parts, filter.Eq(key, val))
 		}
 	}
 
-	return strings.Join(parts, " AND ")
+	return filter.And(parts...).Render()
 }
 
 func buildMetricQueries(metricName string, step int, aggregations []string, filterExpr string) ([]signoz.Querybuildertypesv5QueryEnvelope, map[string]string, error) {
@@ -284,15 +284,12 @@ func buildRequestBody(start, end time.Time, queries []signoz.Querybuildertypesv5
 }
 
 // buildPodFilters returns the standard k8s pod and namespace filter expressions.
-func buildPodFilters(namespace string, instances []string) []string {
-	quoted := make([]string, len(instances))
-	for i, inst := range instances {
-		quoted[i] = escapeFilterString(inst)
-	}
-
-	return []string{
-		"k8s.pod.name IN [" + strings.Join(quoted, ", ") + "]",
-		"k8s.namespace.name = " + escapeFilterString(namespace),
+// The pod filter is always emitted (even with an empty list) so callers default
+// to "match no pods" rather than "match every pod in the namespace".
+func buildPodFilters(namespace string, instances []string) []filter.Expr {
+	return []filter.Expr{
+		filter.MustIn("k8s.pod.name", instances),
+		filter.Eq("k8s.namespace.name", namespace),
 	}
 }
 
@@ -335,10 +332,4 @@ func buildStepInterval(step int) (*signoz.Querybuildertypesv5Step, error) {
 	}
 
 	return stepInterval, nil
-}
-
-func escapeFilterString(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `"`, `\"`)
-	return `"` + s + `"`
 }
