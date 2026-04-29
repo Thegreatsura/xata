@@ -34,11 +34,8 @@ spec:
             type: PathPrefix
             value: /api-keys
         - path:
-            type: PathPrefix
-            value: /webhooks/orb
-        - path:
-            type: PathPrefix
-            value: /webhooks/stripe
+            type: RegularExpression
+            value: "^/webhooks/(orb|stripe)(/.*)?$"
         - path:
             type: PathPrefix
             value: /marketplace
