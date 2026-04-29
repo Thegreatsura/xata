@@ -114,21 +114,72 @@ test-e2e:
 tools: $(shell find ./dev/docker/jq-tools -type f)  ## Install/Build tools
 	cd ./dev/docker/jq-tools && $(MAKE)
 
-find-tags: # Finds first tag thats not latest for the given image
-	@set -e; \
-	FULL_IMAGE="${IMAGE}"; \
-	IMAGE_WITHOUT_TAG="$${FULL_IMAGE%:*}"; \
-	TARGET_DIGEST=$$(regctl manifest digest "$$FULL_IMAGE"); \
-	TAGS_SORTED=$$(regctl tag ls "$$IMAGE_WITHOUT_TAG" | sort -t- -k1,1nr); \
-	echo "$$TAGS_SORTED" | while read -r tag; do \
-		if [ "$$tag" != "latest" ]; then \
-			CURRENT_DIGEST=$$(regctl manifest digest "$${IMAGE_WITHOUT_TAG}:$${tag}"); \
-			if [ "$$CURRENT_DIGEST" = "$$TARGET_DIGEST" ]; then \
-				echo "$$tag"; \
-				exit 0; \
-			fi; \
-		fi; \
-	done
+.PHONY: build-image
+build-image: ## Build and push image. Requires IMAGE and PATHS. Optional: DOCKERFILE, BUILD_PATH, SERVICE_NAME, GIT_TOKEN, TAG_AS_LATEST, EXTRA_BUILD_ARGS.
+	@set -euo pipefail; \
+	image_name="$(IMAGE)"; \
+	paths="$(PATHS)"; \
+	dockerfile="$(or $(DOCKERFILE),Dockerfile)"; \
+	build_path="$(or $(BUILD_PATH),.)"; \
+	service_name="$(or $(SERVICE_NAME),)"; \
+	git_token="$(or $(GIT_TOKEN),)"; \
+	tag_as_latest="$(or $(TAG_AS_LATEST),false)"; \
+	extra_build_args="$(or $(EXTRA_BUILD_ARGS),)"; \
+	\
+	input_hash=$$( \
+		while IFS= read -r path; do \
+			[[ -z "$$path" ]] && continue; \
+			git rev-parse "HEAD:$$path"; \
+		done <<< "$$paths" \
+		| sha256sum | cut -c1-12 \
+	); \
+	\
+	image_tag="$$input_hash"; \
+	image_reference="$${image_name}:$${image_tag}"; \
+	\
+	SAAS_SERVICES="auth billing projects clusterpool-operator"; \
+	service_path=""; \
+	if [[ " $$SAAS_SERVICES " == *" $$service_name "* ]]; then \
+		service_path="saas-services/$$service_name"; \
+	fi; \
+	\
+	extra_args=(); \
+	if [[ -n "$$git_token" ]]; then \
+		extra_args+=("--build-arg" "GIT_TOKEN=$$git_token"); \
+	fi; \
+	if [[ -n "$$service_name" ]]; then \
+		extra_args+=("--build-arg" "SERVICE_NAME=$$service_name"); \
+	fi; \
+	if [[ -n "$$service_path" ]]; then \
+		extra_args+=("--build-arg" "SERVICE_PATH=$$service_path"); \
+	fi; \
+	if [[ -n "$$extra_build_args" ]]; then \
+		while IFS= read -r arg; do \
+			[[ -n "$$arg" ]] && extra_args+=("--build-arg" "$$arg"); \
+		done <<< "$$extra_build_args"; \
+	fi; \
+	\
+	if docker manifest inspect "$$image_reference" >/dev/null 2>&1; then \
+		echo "Cache hit for $$image_reference — skip build/push" >&2; \
+	else \
+		(set -x; docker buildx build \
+			-f "$$dockerfile" \
+			"$${extra_args[@]}" \
+			--platform linux/amd64,linux/arm64 \
+			--cache-from "type=registry,ref=$$image_name:buildcache" \
+			--cache-to "type=registry,ref=$$image_name:buildcache,mode=max" \
+			--progress=plain \
+			--push \
+			-t "$$image_reference" \
+			"$$build_path" \
+		); \
+	fi; \
+	\
+	if [[ "$$tag_as_latest" == "true" ]]; then \
+		(set -x; docker buildx imagetools create --tag "$$image_name:latest" "$$image_reference"); \
+	fi; \
+	\
+	echo "$$image_name:$$image_tag"
 
 .PHONY: get-pr-info
 get-pr-info: ## Get PR info for a commit (requires COMMIT=<sha> REPO=<owner/repo>)

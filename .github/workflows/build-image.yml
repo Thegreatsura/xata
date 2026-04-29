@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       git_ref:
-        description: "Git ref to build (branch, commit sha or tag)"
+        description: "Git ref to build"
         required: true
         type: string
       latest:
@@ -22,14 +22,18 @@ on:
         default: "."
         type: string
       dockerfile:
-        description: "Path to Dockerfile (relative to repo root)"
+        description: "Path to Dockerfile"
         required: false
         default: "Dockerfile"
         type: string
       extra_build_args:
-        description: "Extra build args (newline-separated KEY=VALUE pairs)"
+        description: "Extra build args"
         required: false
         default: ""
+        type: string
+      paths:
+        description: "Newline-separated list of paths for content hash"
+        required: true
         type: string
     outputs:
       image:
@@ -80,41 +84,21 @@ jobs:
       - name: Build and push image
         id: build-image
         env:
-          SERVICE_NAME: ${{ inputs.service_name }}
+          IMAGE: ${{ env.REGISTRY }}/${{ inputs.service_name }}
+          PATHS: ${{ inputs.paths }}
           DOCKERFILE: ${{ inputs.dockerfile }}
           BUILD_PATH: ${{ inputs.path }}
+          SERVICE_NAME: ${{ inputs.service_name }}
           TAG_AS_LATEST: ${{ inputs.latest }}
           EXTRA_BUILD_ARGS: ${{ inputs.extra_build_args }}
-          GIT_COMMIT: ${{ steps.checkout.outputs.commit }}
         run: |
-          commit="$GIT_COMMIT"
-          image_tag=$(date +%s)-${commit::7}
-          image_name="${REGISTRY}/${SERVICE_NAME}"
-          image_reference="${image_name}:${image_tag}"
-
-          extra_args=""
-          if [[ -n "$EXTRA_BUILD_ARGS" ]]; then
-            while IFS= read -r arg; do
-              [[ -n "$arg" ]] && extra_args+=" --build-arg $arg"
-            done <<< "$EXTRA_BUILD_ARGS"
-          fi
-
-          (set -x; docker buildx build \
-            -f "$DOCKERFILE" \
-            --build-arg "SERVICE_NAME=${SERVICE_NAME}" \
-            $extra_args \
-            --platform linux/amd64,linux/arm64 \
-            --cache-from "type=registry,ref=${image_name}:buildcache" \
-            --cache-to "type=registry,ref=${image_name}:buildcache,mode=max" \
-            --progress=plain \
-            --push \
-            -t "$image_reference" \
-            "$BUILD_PATH"
-          )
-
-          if [[ "$TAG_AS_LATEST" == "true" ]]; then
-            (set -x; docker buildx imagetools create --tag "$image_name:latest" "$image_reference")
-          fi
-
-          echo "image=$image_name" >> "$GITHUB_OUTPUT"
-          echo "tag=$image_tag" >> "$GITHUB_OUTPUT"
+          reference=$(make build-image \
+            IMAGE="$IMAGE" \
+            PATHS="$PATHS" \
+            DOCKERFILE="$DOCKERFILE" \
+            BUILD_PATH="$BUILD_PATH" \
+            SERVICE_NAME="$SERVICE_NAME" \
+            TAG_AS_LATEST="$TAG_AS_LATEST" \
+            EXTRA_BUILD_ARGS="$EXTRA_BUILD_ARGS")
+          echo "image=${reference%:*}" >> "$GITHUB_OUTPUT"
+          echo "tag=${reference#*:}" >> "$GITHUB_OUTPUT"

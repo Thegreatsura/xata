@@ -43,30 +43,36 @@ jobs:
               - 'services/auth/**'
               - 'internal/**'
               - 'go.mod'
+              - 'go.sum'
               - 'Dockerfile'
             projects:
               - 'services/projects/**'
               - 'internal/**'
               - 'go.mod'
+              - 'go.sum'
               - 'Dockerfile'
             clusters:
               - 'services/clusters/**'
               - 'internal/**'
               - 'go.mod'
+              - 'go.sum'
               - 'Dockerfile'
             gateway:
               - 'services/gateway/**'
               - 'internal/**'
               - 'go.mod'
+              - 'go.sum'
               - 'Dockerfile'
             branch-operator:
               - 'services/branch-operator/**'
               - 'internal/**'
               - 'go.mod'
+              - 'go.sum'
               - 'Dockerfile'
             scale-to-zero-sidecar:
               - 'services/scale-to-zero-sidecar/**'
               - 'go.mod'
+              - 'go.sum'
             keycloak:
               - 'dev/docker/keycloak/**'
 
@@ -78,6 +84,13 @@ jobs:
       service_name: "auth"
       git_ref: ${{ github.sha }}
       latest: true
+      paths: |
+        openapi/gen/public.yaml
+        services/auth
+        internal
+        go.mod
+        go.sum
+        Dockerfile
     secrets: inherit
 
   projects:
@@ -88,6 +101,12 @@ jobs:
       service_name: "projects"
       git_ref: ${{ github.sha }}
       latest: true
+      paths: |
+        services/projects
+        internal
+        go.mod
+        go.sum
+        Dockerfile
     secrets: inherit
 
   clusters:
@@ -98,6 +117,12 @@ jobs:
       service_name: "clusters"
       git_ref: ${{ github.sha }}
       latest: true
+      paths: |
+        services/clusters
+        internal
+        go.mod
+        go.sum
+        Dockerfile
     secrets: inherit
 
   gateway:
@@ -108,6 +133,12 @@ jobs:
       service_name: "gateway"
       git_ref: ${{ github.sha }}
       latest: true
+      paths: |
+        services/gateway
+        internal
+        go.mod
+        go.sum
+        Dockerfile
     secrets: inherit
 
   branch-operator:
@@ -118,6 +149,12 @@ jobs:
       service_name: "branch-operator"
       git_ref: ${{ github.sha }}
       latest: true
+      paths: |
+        services/branch-operator
+        internal
+        go.mod
+        go.sum
+        Dockerfile
     secrets: inherit
 
   scale-to-zero-sidecar:
@@ -129,6 +166,10 @@ jobs:
       dockerfile: "services/scale-to-zero-sidecar/Dockerfile"
       git_ref: ${{ github.sha }}
       latest: true
+      paths: |
+        services/scale-to-zero-sidecar
+        go.mod
+        go.sum
     secrets: inherit
 
   keycloak:
@@ -142,6 +183,8 @@ jobs:
       git_ref: ${{ github.sha }}
       latest: true
       extra_build_args: "NO_THEME=true"
+      paths: |
+        dev/docker/keycloak
     secrets: inherit
 
   build-charts:
