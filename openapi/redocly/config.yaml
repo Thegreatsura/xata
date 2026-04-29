@@ -30,6 +30,13 @@ apis:
     rules:
       xata/has-at-least-one-xata-scope: off
 
+  projects-webhooks:
+    root: ../projects-webhooks.yaml
+    decorators:
+      xata/add-public-servers: off
+    rules:
+      xata/has-at-least-one-xata-scope: off
+
   gateway:
     root: ../gateway.yaml
     decorators:

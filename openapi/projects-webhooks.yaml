@@ -1,0 +1,33 @@
+openapi: 3.0.0
+info:
+  title: Projects API
+  version: '1.0'
+  contact:
+    name: support@xata.io
+paths:
+  /webhooks/github:
+    post:
+      operationId: githubWebhook
+      summary: GitHub App webhook
+      description: |
+        Endpoint used by GitHub to deliver App webhook events.
+        This endpoint is authenticated via GitHub's HMAC-SHA256 signature header,
+        not via the normal API authentication.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              description: GitHub webhook event payload
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Webhook received and processed successfully
+        '400':
+          description: Invalid signature or malformed request
+        '500':
+          description: Internal error while handling the webhook
+      tags:
+        - Projects Webhooks
+      x-excluded: true

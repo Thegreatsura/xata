@@ -149,6 +149,87 @@ func TestSQLStoreGithubInstallations(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("delete github installation", func(t *testing.T) {
+		createRegionAndCell(t, sqlStore, "gh-del-inst-region", "gh-del-inst-cell")
+
+		createProjectAndBranch := func(t *testing.T, org, projectName, branchName string) (projectID, branchID string) {
+			t.Helper()
+			project, err := sqlStore.CreateProject(ctx, org, createProjectConfig(projectName, nil))
+			require.NoError(t, err)
+			branch, err := sqlStore.CreateBranch(ctx, org, project.ID, "gh-del-inst-cell", createBranchConfig(branchName, nil, nil), noopProvisionFunc)
+			require.NoError(t, err)
+			return project.ID, branch.ID
+		}
+
+		t.Run("deletes installation and leaves repo mappings intact", func(t *testing.T) {
+			org := "gh-del-inst-org"
+			_, err := sqlStore.CreateGithubInstallation(ctx, org, 60001)
+			require.NoError(t, err)
+
+			projectID, branchID := createProjectAndBranch(t, org, "gh-del-inst-project", "main")
+			_, err = sqlStore.CreateGithubRepoMapping(ctx, org, projectID, 60001, branchID)
+			require.NoError(t, err)
+
+			err = sqlStore.DeleteGithubInstallation(ctx, 60001)
+			require.NoError(t, err)
+
+			installs, err := sqlStore.ListGithubInstallations(ctx, org)
+			require.NoError(t, err)
+			require.Len(t, installs, 0)
+
+			got, err := sqlStore.GetGithubRepoMappingByRepoID(ctx, 60001)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Equal(t, int64(60001), got.GithubRepositoryID)
+		})
+
+		t.Run("deletes installation with no repo mappings", func(t *testing.T) {
+			org := "gh-del-inst-nomapping-org"
+			_, err := sqlStore.CreateGithubInstallation(ctx, org, 60002)
+			require.NoError(t, err)
+
+			err = sqlStore.DeleteGithubInstallation(ctx, 60002)
+			require.NoError(t, err)
+
+			installs, err := sqlStore.ListGithubInstallations(ctx, org)
+			require.NoError(t, err)
+			require.Len(t, installs, 0)
+		})
+
+		t.Run("nonexistent installation succeeds silently", func(t *testing.T) {
+			err := sqlStore.DeleteGithubInstallation(ctx, 99999)
+			require.NoError(t, err)
+		})
+
+		t.Run("leaves unrelated installation untouched", func(t *testing.T) {
+			orgA := "gh-del-inst-orgA"
+			_, err := sqlStore.CreateGithubInstallation(ctx, orgA, 60003)
+			require.NoError(t, err)
+			projectA, branchA := createProjectAndBranch(t, orgA, "gh-del-inst-projA", "main")
+			_, err = sqlStore.CreateGithubRepoMapping(ctx, orgA, projectA, 70001, branchA)
+			require.NoError(t, err)
+
+			orgB := "gh-del-inst-orgB"
+			_, err = sqlStore.CreateGithubInstallation(ctx, orgB, 60004)
+			require.NoError(t, err)
+			projectB, branchB := createProjectAndBranch(t, orgB, "gh-del-inst-projB", "main")
+			_, err = sqlStore.CreateGithubRepoMapping(ctx, orgB, projectB, 70002, branchB)
+			require.NoError(t, err)
+
+			err = sqlStore.DeleteGithubInstallation(ctx, 60003)
+			require.NoError(t, err)
+
+			installs, err := sqlStore.ListGithubInstallations(ctx, orgB)
+			require.NoError(t, err)
+			require.Len(t, installs, 1)
+
+			got, err := sqlStore.GetGithubRepoMappingByRepoID(ctx, 70002)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Equal(t, int64(70002), got.GithubRepositoryID)
+		})
+	})
 }
 
 func TestSQLStoreGithubRepoMappings(t *testing.T) {
@@ -434,6 +515,67 @@ func TestSQLStoreGithubRepoMappings(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.repoID, got.GithubRepositoryID)
 				require.Equal(t, tt.branchID, got.RootBranchID)
+			})
+		}
+	})
+
+	t.Run("get github repo mapping by repo id", func(t *testing.T) {
+		org := "gh-repo-byid-org"
+		projectID, branchID := createProjectAndBranch(t, org, "gh-project-byid", "main")
+		createMapping(t, org, projectID, 5042, branchID)
+
+		otherOrg := "gh-repo-byid-other-org"
+		otherProjectID, otherBranchID := createProjectAndBranch(t, otherOrg, "gh-project-byid-other", "main")
+		createMapping(t, otherOrg, otherProjectID, 5043, otherBranchID)
+
+		deletedOrg := "gh-repo-byid-deleted-org"
+		deletedProjectID, deletedBranchID := createProjectAndBranch(t, deletedOrg, "gh-project-byid-deleted", "main")
+		createMapping(t, deletedOrg, deletedProjectID, 5044, deletedBranchID)
+		err := sqlStore.DeleteBranch(ctx, deletedOrg, deletedProjectID, deletedBranchID, func(*store.Branch) error { return nil })
+		require.NoError(t, err)
+		err = sqlStore.DeleteProject(ctx, deletedOrg, deletedProjectID)
+		require.NoError(t, err)
+
+		tests := map[string]struct {
+			repoID       int64
+			wantNotFound bool
+			wantRepoID   int64
+			wantOrg      string
+		}{
+			"returns mapping for known repo id": {
+				repoID:     5042,
+				wantRepoID: 5042,
+				wantOrg:    org,
+			},
+			"returns not found for unknown repo id": {
+				repoID:       99999,
+				wantNotFound: true,
+			},
+			"returns not found when project is soft-deleted": {
+				repoID:       5044,
+				wantNotFound: true,
+			},
+			"returns correct mapping among multiple": {
+				repoID:     5043,
+				wantRepoID: 5043,
+				wantOrg:    otherOrg,
+			},
+		}
+
+		for name, tt := range tests {
+			t.Run(name, func(t *testing.T) {
+				got, err := sqlStore.GetGithubRepoMappingByRepoID(ctx, tt.repoID)
+				if tt.wantNotFound {
+					var target store.ErrGithubRepoMappingNotFound
+					require.ErrorAs(t, err, &target)
+					require.Equal(t, tt.repoID, target.RepoID)
+					require.Nil(t, got)
+					return
+				}
+				require.NoError(t, err)
+				require.NotNil(t, got)
+				require.Equal(t, tt.wantRepoID, got.GithubRepositoryID)
+				require.Equal(t, tt.wantOrg, got.OrganizationID)
 			})
 		}
 	})

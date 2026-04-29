@@ -35,7 +35,10 @@ spec:
             value: /api-keys
         - path:
             type: PathPrefix
-            value: /webhooks
+            value: /webhooks/orb
+        - path:
+            type: PathPrefix
+            value: /webhooks/stripe
         - path:
             type: RegularExpression
             value: "^/organizations(/*)$|^/organizations/([^/]+)(/api-keys|/members.*|/invitations.*)?$"

@@ -49,6 +49,10 @@
       "x-displayName": "Gateway"
     },
     {
+      "name": "Projects Webhooks",
+      "x-displayName": "Projects Webhooks"
+    },
+    {
       "name": "Projects",
       "description": "Operations for creating, retrieving, updating, and deleting projects within an organization",
       "x-displayName": "Projects"
@@ -1375,6 +1379,40 @@
         "tags": [
           "Gateway"
         ]
+      }
+    },
+    "/webhooks/github": {
+      "post": {
+        "operationId": "githubWebhook",
+        "summary": "GitHub App webhook",
+        "description": "Endpoint used by GitHub to deliver App webhook events.\nThis endpoint is authenticated via GitHub's HMAC-SHA256 signature header,\nnot via the normal API authentication.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "description": "GitHub webhook event payload",
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook received and processed successfully"
+          },
+          "400": {
+            "description": "Invalid signature or malformed request"
+          },
+          "500": {
+            "description": "Internal error while handling the webhook"
+          }
+        },
+        "tags": [
+          "Projects Webhooks"
+        ],
+        "x-excluded": true
       }
     },
     "/organizations/{organizationID}/regions": {
@@ -5794,6 +5832,7 @@
     {
       "name": "Projects API",
       "tags": [
+        "Projects Webhooks",
         "Projects",
         "Branches",
         "GitHub App",

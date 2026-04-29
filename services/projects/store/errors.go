@@ -259,9 +259,13 @@ func (e ErrGithubRepositoryAlreadyMapped) StatusCode() int {
 type ErrGithubRepoMappingNotFound struct {
 	Organization string
 	Project      string
+	RepoID       int64
 }
 
 func (e ErrGithubRepoMappingNotFound) Error() string {
+	if e.RepoID != 0 {
+		return fmt.Sprintf("github repo mapping not found for repository [%d]", e.RepoID)
+	}
 	return fmt.Sprintf("github repo mapping not found for project [%s] in organization [%s]", e.Project, e.Organization)
 }
 

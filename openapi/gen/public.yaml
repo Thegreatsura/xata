@@ -28,6 +28,8 @@ tags:
   - name: Gateway
     description: PostgreSQL connectivity via HTTP SQL, WebSocket wire protocol proxy, and native wire protocol.
     x-displayName: Gateway
+  - name: Projects Webhooks
+    x-displayName: Projects Webhooks
   - name: Projects
     description: Operations for creating, retrieving, updating, and deleting projects within an organization
     x-displayName: Projects
@@ -851,6 +853,32 @@ paths:
           description: Bad request — unable to upgrade connection
       tags:
         - Gateway
+  /webhooks/github:
+    post:
+      operationId: githubWebhook
+      summary: GitHub App webhook
+      description: |
+        Endpoint used by GitHub to deliver App webhook events.
+        This endpoint is authenticated via GitHub's HMAC-SHA256 signature header,
+        not via the normal API authentication.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              description: GitHub webhook event payload
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Webhook received and processed successfully
+        '400':
+          description: Invalid signature or malformed request
+        '500':
+          description: Internal error while handling the webhook
+      tags:
+        - Projects Webhooks
+      x-excluded: true
   /organizations/{organizationID}/regions:
     summary: Region Operations
     description: Endpoints for retrieving available regions for deploying projects within an organization.
@@ -3907,6 +3935,7 @@ x-tagGroups:
       - Gateway
   - name: Projects API
     tags:
+      - Projects Webhooks
       - Projects
       - Branches
       - GitHub App

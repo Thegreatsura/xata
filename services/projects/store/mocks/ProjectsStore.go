@@ -669,6 +669,44 @@ func (_c *ProjectsStore_DeleteCell_Call) Return(_a0 error) *ProjectsStore_Delete
 	return _c
 }
 
+// DeleteGithubInstallation provides a mock function with given fields: ctx, installationID
+func (_m *ProjectsStore) DeleteGithubInstallation(ctx context.Context, installationID int64) error {
+	ret := _m.Called(ctx, installationID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = rf(ctx, installationID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// ProjectsStore_DeleteGithubInstallation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteGithubInstallation'
+type ProjectsStore_DeleteGithubInstallation_Call struct {
+	*mock.Call
+}
+
+// DeleteGithubInstallation is a helper method to define mock.On call
+//   - ctx context.Context
+//   - installationID int64
+func (_e *ProjectsStore_Expecter) DeleteGithubInstallation(ctx interface{}, installationID interface{}) *ProjectsStore_DeleteGithubInstallation_Call {
+	return &ProjectsStore_DeleteGithubInstallation_Call{Call: _e.mock.On("DeleteGithubInstallation", ctx, installationID)}
+}
+
+func (_c *ProjectsStore_DeleteGithubInstallation_Call) Run(run func(ctx context.Context, installationID int64)) *ProjectsStore_DeleteGithubInstallation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *ProjectsStore_DeleteGithubInstallation_Call) Return(_a0 error) *ProjectsStore_DeleteGithubInstallation_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
 // DeleteGithubRepoMapping provides a mock function with given fields: ctx, organization, project
 func (_m *ProjectsStore) DeleteGithubRepoMapping(ctx context.Context, organization string, project string) error {
 	ret := _m.Called(ctx, organization, project)
@@ -834,6 +872,55 @@ func (_c *ProjectsStore_DescribeBranch_Call) Return(_a0 *store.Branch, _a1 error
 	return _c
 }
 
+// GetBranchByName provides a mock function with given fields: ctx, organizationID, projectID, name
+func (_m *ProjectsStore) GetBranchByName(ctx context.Context, organizationID string, projectID string, name string) (*store.Branch, error) {
+	ret := _m.Called(ctx, organizationID, projectID, name)
+
+	var r0 *store.Branch
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *store.Branch); ok {
+		r0 = rf(ctx, organizationID, projectID, name)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*store.Branch)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, organizationID, projectID, name)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProjectsStore_GetBranchByName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBranchByName'
+type ProjectsStore_GetBranchByName_Call struct {
+	*mock.Call
+}
+
+// GetBranchByName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - organizationID string
+//   - projectID string
+//   - name string
+func (_e *ProjectsStore_Expecter) GetBranchByName(ctx interface{}, organizationID interface{}, projectID interface{}, name interface{}) *ProjectsStore_GetBranchByName_Call {
+	return &ProjectsStore_GetBranchByName_Call{Call: _e.mock.On("GetBranchByName", ctx, organizationID, projectID, name)}
+}
+
+func (_c *ProjectsStore_GetBranchByName_Call) Run(run func(ctx context.Context, organizationID string, projectID string, name string)) *ProjectsStore_GetBranchByName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *ProjectsStore_GetBranchByName_Call) Return(_a0 *store.Branch, _a1 error) *ProjectsStore_GetBranchByName_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // GetCell provides a mock function with given fields: ctx, organizationID, cellID
 func (_m *ProjectsStore) GetCell(ctx context.Context, organizationID string, cellID string) (*store.Cell, error) {
 	ret := _m.Called(ctx, organizationID, cellID)
@@ -926,6 +1013,53 @@ func (_c *ProjectsStore_GetGithubRepoMappingByProject_Call) Run(run func(ctx con
 }
 
 func (_c *ProjectsStore_GetGithubRepoMappingByProject_Call) Return(_a0 *store.GithubRepoMapping, _a1 error) *ProjectsStore_GetGithubRepoMappingByProject_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// GetGithubRepoMappingByRepoID provides a mock function with given fields: ctx, repoID
+func (_m *ProjectsStore) GetGithubRepoMappingByRepoID(ctx context.Context, repoID int64) (*store.GithubRepoMappingWithOrg, error) {
+	ret := _m.Called(ctx, repoID)
+
+	var r0 *store.GithubRepoMappingWithOrg
+	if rf, ok := ret.Get(0).(func(context.Context, int64) *store.GithubRepoMappingWithOrg); ok {
+		r0 = rf(ctx, repoID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*store.GithubRepoMappingWithOrg)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, repoID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProjectsStore_GetGithubRepoMappingByRepoID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGithubRepoMappingByRepoID'
+type ProjectsStore_GetGithubRepoMappingByRepoID_Call struct {
+	*mock.Call
+}
+
+// GetGithubRepoMappingByRepoID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - repoID int64
+func (_e *ProjectsStore_Expecter) GetGithubRepoMappingByRepoID(ctx interface{}, repoID interface{}) *ProjectsStore_GetGithubRepoMappingByRepoID_Call {
+	return &ProjectsStore_GetGithubRepoMappingByRepoID_Call{Call: _e.mock.On("GetGithubRepoMappingByRepoID", ctx, repoID)}
+}
+
+func (_c *ProjectsStore_GetGithubRepoMappingByRepoID_Call) Run(run func(ctx context.Context, repoID int64)) *ProjectsStore_GetGithubRepoMappingByRepoID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *ProjectsStore_GetGithubRepoMappingByRepoID_Call) Return(_a0 *store.GithubRepoMappingWithOrg, _a1 error) *ProjectsStore_GetGithubRepoMappingByRepoID_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }

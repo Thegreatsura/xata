@@ -546,6 +546,53 @@ func TestSQLStore(t *testing.T) {
 		})
 	}
 
+	branchGetByNameTests := []struct {
+		name           string
+		branchName     string
+		organizationID string
+		projectID      string
+		wantError      bool
+		errorMessage   string
+	}{
+		{
+			name:           "get branch by name works for correct branch and project",
+			branchName:     branch.Name,
+			organizationID: "organizationID",
+			projectID:      project.ID,
+			wantError:      false,
+		},
+		{
+			name:           "get branch by name fails for wrong project or organization",
+			branchName:     branch.Name,
+			organizationID: "organizationID",
+			projectID:      altProject.ID,
+			wantError:      true,
+			errorMessage:   fmt.Sprintf("project [%s] not found", altProject.ID),
+		},
+		{
+			name:           "get branch by name fails for non-existing branch",
+			branchName:     "fake-branch-name",
+			organizationID: "organizationID",
+			projectID:      project.ID,
+			wantError:      true,
+			errorMessage:   "branch [fake-branch-name] not found",
+		},
+	}
+
+	for _, tt := range branchGetByNameTests {
+		t.Run(tt.name, func(t *testing.T) {
+			storedBranch, err := sqlStore.GetBranchByName(ctx, tt.organizationID, tt.projectID, tt.branchName)
+			if !tt.wantError {
+				assert.NoError(t, err)
+				assert.Equal(t, branch, storedBranch)
+			} else {
+				assert.Error(t, err)
+				assert.Nil(t, storedBranch)
+				assert.Equal(t, tt.errorMessage, err.Error())
+			}
+		})
+	}
+
 	// create a branch to update and one for name clash
 	branch, err = sqlStore.CreateBranch(ctx, "organizationID", project.ID, "cell", createBranchConfig("updateBranch", nil, nil), func(b *store.Branch) error {
 		return nil
@@ -1159,6 +1206,27 @@ func TestSoftDeleteBehavior(t *testing.T) {
 		_, err = sqlStore.DescribeBranch(ctx, orgID, project.ID, branch.ID)
 		require.Error(t, err)
 		require.Equal(t, store.ErrBranchNotFound{ID: branch.ID}, err)
+	})
+
+	t.Run("terminated branch not returned by GetBranchByName", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+		sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+		createRegionAndCell(t, sqlStore, "region", "cell")
+		orgID := "softDeleteOrg"
+
+		project, err := sqlStore.CreateProject(ctx, orgID, createProjectConfig("getBranchByNameProject", nil))
+		require.NoError(t, err)
+
+		branch, err := sqlStore.CreateBranch(ctx, orgID, project.ID, "cell", createBranchConfig("terminatedBranch", nil, nil), noopProvisionFunc)
+		require.NoError(t, err)
+
+		err = sqlStore.DeleteBranch(ctx, orgID, project.ID, branch.ID, func(*store.Branch) error { return nil })
+		require.NoError(t, err)
+
+		_, err = sqlStore.GetBranchByName(ctx, orgID, project.ID, branch.Name)
+		require.Error(t, err)
+		require.Equal(t, store.ErrBranchNotFound{ID: branch.Name}, err)
 	})
 
 	t.Run("terminated branch not returned by ListBranches", func(t *testing.T) {

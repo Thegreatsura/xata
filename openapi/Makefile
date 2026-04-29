@@ -28,7 +28,7 @@ tools: $(shell find ../dev/docker/openapi-tools -type f)  ## Install/Build tools
 .PHONY: lint lint-spec lint-fmt
 lint: lint-spec   ## Lint openapi spec
 lint-spec: tools
-	$(REDOCLY_CLI) lint auth projects webhook gateway
+	$(REDOCLY_CLI) lint auth projects webhook projects-webhooks gateway
 
 .PHONY: fmt
 fmt: tools ## Format specs

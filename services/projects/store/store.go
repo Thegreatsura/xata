@@ -200,6 +200,11 @@ type GithubRepoMapping struct {
 	UpdatedAt          time.Time `json:"updatedAt"`
 }
 
+type GithubRepoMappingWithOrg struct {
+	GithubRepoMapping
+	OrganizationID string `json:"organizationId"`
+}
+
 //go:generate go run github.com/vektra/mockery/v3 --with-expecter --name ProjectsStore
 
 // ProjectsStore stores information about projects
@@ -278,6 +283,10 @@ type ProjectsStore interface {
 	// DescribeBranch returns the branch information stored in the sql layer
 	DescribeBranch(ctx context.Context, organizationID, projectID, branchID string) (*Branch, error)
 
+	// GetBranchByName returns the active branch with the given name in the project.
+	// Returns ErrBranchNotFound if no active branch with that name exists.
+	GetBranchByName(ctx context.Context, organizationID, projectID, name string) (*Branch, error)
+
 	// UpdateBranch can only update the branch name or description in the sql store.
 	// It can update cluster parameters in the cnpg connector via the updateFn
 	UpdateBranch(ctx context.Context, organizationID, projectID, branchID string, config *UpdateBranchConfiguration, updateFn func(b *Branch) error) (*Branch, error)
@@ -316,9 +325,13 @@ type ProjectsStore interface {
 
 	GetGithubRepoMappingByProject(ctx context.Context, organization, project string) (*GithubRepoMapping, error)
 
+	GetGithubRepoMappingByRepoID(ctx context.Context, repoID int64) (*GithubRepoMappingWithOrg, error)
+
 	UpdateGithubRepoMapping(ctx context.Context, organization, project string, repoID int64, rootBranchID string) (*GithubRepoMapping, error)
 
 	DeleteGithubRepoMapping(ctx context.Context, organization, project string) error
+
+	DeleteGithubInstallation(ctx context.Context, installationID int64) error
 }
 
 // CanAddChild returns the child depth in the branch tree if another child branch can be added

@@ -873,6 +873,57 @@ func (s *sqlProjectStore) describeBranch(ctx context.Context, tx *sql.Tx, projec
 	return &branch, nil
 }
 
+func (s *sqlProjectStore) GetBranchByName(ctx context.Context, organizationID, projectID, name string) (*store.Branch, error) {
+	tx, err := s.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	if _, err := s.getProject(ctx, tx, organizationID, projectID); err != nil {
+		return nil, err
+	}
+
+	row := tx.QueryRowContext(ctx,
+		`SELECT
+			b.id,
+			b.name,
+			b.created_at,
+			b.updated_at,
+			b.parent_id,
+			b.description,
+			b.cell_id,
+			b.depth,
+			r.id,
+			r.public_access,
+			r.backups_enabled
+			FROM branches b
+			INNER JOIN cells c ON b.cell_id = c.id
+			INNER JOIN regions r ON c.region_id = r.id WHERE b.project_id = $1 AND b.name = $2 AND b.status = $3`, projectID, name, StatusActive)
+
+	var branch store.Branch
+	if err := row.Scan(
+		&branch.ID,
+		&branch.Name,
+		&branch.CreatedAt,
+		&branch.UpdatedAt,
+		&branch.ParentID,
+		&branch.Description,
+		&branch.CellID,
+		&branch.Depth,
+		&branch.Region,
+		&branch.PublicAccess,
+		&branch.BackupsEnabled,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, store.ErrBranchNotFound{ID: name}
+		}
+		return nil, err
+	}
+
+	return &branch, nil
+}
+
 func (s *sqlProjectStore) UpdateBranch(ctx context.Context, organizationID, projectID, branchID string, config *store.UpdateBranchConfiguration, updateFn func(b *store.Branch) error) (*store.Branch, error) {
 	tx, err := s.sql.BeginTx(ctx, nil)
 	if err != nil {
@@ -1399,6 +1450,37 @@ func (s *sqlProjectStore) DeleteGithubRepoMapping(ctx context.Context, organizat
 			return store.ErrProjectNotFound{ID: project}
 		}
 		return store.ErrGithubRepoMappingNotFound{Organization: organization, Project: project}
+	}
+	return nil
+}
+
+func (s *sqlProjectStore) GetGithubRepoMappingByRepoID(ctx context.Context, repoID int64) (*store.GithubRepoMappingWithOrg, error) {
+	var mapping store.GithubRepoMappingWithOrg
+	err := s.sql.QueryRowContext(ctx,
+		`SELECT m.id, m.github_repository_id, m.project_id, m.root_branch_id, m.created_at, m.updated_at, p.organization_id
+		 FROM github_repositories m
+		 JOIN projects p ON p.id = m.project_id
+		 WHERE m.github_repository_id = $1 AND p.status = $2`,
+		repoID, StatusActive).Scan(
+		&mapping.ID, &mapping.GithubRepositoryID,
+		&mapping.Project, &mapping.RootBranchID,
+		&mapping.CreatedAt, &mapping.UpdatedAt,
+		&mapping.OrganizationID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, store.ErrGithubRepoMappingNotFound{RepoID: repoID}
+		}
+		return nil, err
+	}
+	return &mapping, nil
+}
+
+func (s *sqlProjectStore) DeleteGithubInstallation(ctx context.Context, installationID int64) error {
+	_, err := s.sql.ExecContext(ctx,
+		`DELETE FROM github_installations WHERE installation_id = $1`,
+		installationID)
+	if err != nil {
+		return fmt.Errorf("delete installation %d: %w", installationID, err)
 	}
 	return nil
 }

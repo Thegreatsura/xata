@@ -172,11 +172,13 @@ func (s *ProjectsService) RegisterHTTPHandlers(o *o11y.O, router *echo.Group) er
 		return fmt.Errorf("failed to create metrics client: %w", err)
 	}
 
+	cellsClient := cells.New(s.store)
+
 	spec.RegisterHandlers(group,
 		api.NewAPIHandler(
 			s.feat,
 			s.store,
-			cells.New(s.store),
+			cellsClient,
 			s.config.GatewayHostPort,
 			metricsClient,
 			s.scheduler,
@@ -186,6 +188,12 @@ func (s *ProjectsService) RegisterHTTPHandlers(o *o11y.O, router *echo.Group) er
 	)
 
 	return nil
+}
+
+// Store returns the underlying ProjectsStore so that SaaS wrappers can register
+// additional handlers without re-initializing the store.
+func (s *ProjectsService) Store() store.ProjectsStore {
+	return s.store
 }
 
 // RegisterGRPCHandlers implements service.GRPCService.
