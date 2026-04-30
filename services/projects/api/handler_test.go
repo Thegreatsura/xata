@@ -3020,6 +3020,22 @@ func TestBranchMetrics(t *testing.T) {
 		Aggregations: []spec.BranchMetricsRequestAggregations{"avg"},
 	}
 
+	emptyInstancesRequest := spec.BranchMetricsRequest{
+		Start:        time.Date(2025, 5, 20, 0, 0, 0, 0, time.UTC),
+		End:          time.Date(2025, 5, 20, 1, 0, 0, 0, time.UTC),
+		Metric:       "cpu",
+		Instances:    []string{},
+		Aggregations: []spec.BranchMetricsRequestAggregations{"avg"},
+	}
+
+	branchIDPrefixCollisionRequest := spec.BranchMetricsRequest{
+		Start:        time.Date(2025, 5, 20, 0, 0, 0, 0, time.UTC),
+		End:          time.Date(2025, 5, 20, 1, 0, 0, 0, time.UTC),
+		Metric:       "cpu",
+		Instances:    []string{branchID + "extra-1"},
+		Aggregations: []spec.BranchMetricsRequestAggregations{"avg"},
+	}
+
 	metricRequest2i2a := spec.BranchMetricsRequest{
 		Start:        time.Date(2025, 5, 20, 0, 0, 0, 0, time.UTC),
 		End:          time.Date(2025, 5, 20, 1, 0, 0, 0, time.UTC),
@@ -3163,6 +3179,22 @@ func TestBranchMetrics(t *testing.T) {
 			req:            wrongInstanceRequest,
 			setupMocks:     func() {},
 			expectedError:  ErrorInvalidParam{BranchName: branchID, Param: "instances", Message: "invalid instance [unknown-1]"},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "empty instances request fails",
+			branchID:       branchID,
+			req:            emptyInstancesRequest,
+			setupMocks:     func() {},
+			expectedError:  ErrorInvalidParam{BranchName: branchID, Param: "instances", Message: "at least one instance is required"},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "branch ID prefix collision is rejected",
+			branchID:       branchID,
+			req:            branchIDPrefixCollisionRequest,
+			setupMocks:     func() {},
+			expectedError:  ErrorInvalidParam{BranchName: branchID, Param: "instances", Message: fmt.Sprintf("invalid instance [%sextra-1]", branchID)},
 			expectedStatus: http.StatusBadRequest,
 		},
 	}

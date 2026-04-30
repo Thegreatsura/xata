@@ -1599,8 +1599,11 @@ func (s *handler) BranchMetrics(c echo.Context, organizationID spec.Organization
 			return err
 		}
 
-		err = validateMetricsRequest(branchID, req)
-		if err != nil {
+		if err = validateTimeRange(branchID, req.Start, req.End); err != nil {
+			return err
+		}
+
+		if err = validateInstances(branchID, req.Instances); err != nil {
 			return err
 		}
 
@@ -1766,17 +1769,25 @@ func stringArrayValue[T ~string](v []T) []string {
 	return strs
 }
 
-func validateMetricsRequest(branchID string, req spec.BranchMetricsRequest) error {
-	if req.End.Before(req.Start) {
+func validateTimeRange(branchID string, start, end time.Time) error {
+	if end.Before(start) {
 		return ErrorInvalidParam{BranchName: branchID, Param: "start", Message: "start time must come before end time"}
 	}
 
-	if req.End.Sub(req.Start) > maxDateRange {
+	if end.Sub(start) > maxDateRange {
 		return ErrorInvalidParam{BranchName: branchID, Param: "end", Message: "maximum date range is " + maxDateRange.String()}
 	}
 
-	for _, instance := range req.Instances {
-		if !strings.HasPrefix(instance, branchID) {
+	return nil
+}
+
+func validateInstances(branchID string, instances []string) error {
+	if len(instances) == 0 {
+		return ErrorInvalidParam{BranchName: branchID, Param: "instances", Message: "at least one instance is required"}
+	}
+
+	for _, instance := range instances {
+		if !strings.HasPrefix(instance, branchID+"-") {
 			return ErrorInvalidParam{BranchName: branchID, Param: "instances", Message: fmt.Sprintf("invalid instance [%s]", instance)}
 		}
 	}
