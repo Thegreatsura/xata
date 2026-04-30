@@ -211,6 +211,68 @@ func (_c *ProjectsServiceClient_DeleteProjectsInOrg_Call) Return(_a0 *projectsv1
 	return _c
 }
 
+// HasActiveProjects provides a mock function with given fields: ctx, in, opts
+func (_m *ProjectsServiceClient) HasActiveProjects(ctx context.Context, in *projectsv1.HasActiveProjectsRequest, opts ...grpc.CallOption) (*projectsv1.HasActiveProjectsResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 *projectsv1.HasActiveProjectsResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *projectsv1.HasActiveProjectsRequest, ...grpc.CallOption) *projectsv1.HasActiveProjectsResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*projectsv1.HasActiveProjectsResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *projectsv1.HasActiveProjectsRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProjectsServiceClient_HasActiveProjects_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HasActiveProjects'
+type ProjectsServiceClient_HasActiveProjects_Call struct {
+	*mock.Call
+}
+
+// HasActiveProjects is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *projectsv1.HasActiveProjectsRequest
+//   - opts ...grpc.CallOption
+func (_e *ProjectsServiceClient_Expecter) HasActiveProjects(ctx interface{}, in interface{}, opts ...interface{}) *ProjectsServiceClient_HasActiveProjects_Call {
+	return &ProjectsServiceClient_HasActiveProjects_Call{Call: _e.mock.On("HasActiveProjects",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *ProjectsServiceClient_HasActiveProjects_Call) Run(run func(ctx context.Context, in *projectsv1.HasActiveProjectsRequest, opts ...grpc.CallOption)) *ProjectsServiceClient_HasActiveProjects_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*projectsv1.HasActiveProjectsRequest), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *ProjectsServiceClient_HasActiveProjects_Call) Return(_a0 *projectsv1.HasActiveProjectsResponse, _a1 error) *ProjectsServiceClient_HasActiveProjects_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // ListCells provides a mock function with given fields: ctx, in, opts
 func (_m *ProjectsServiceClient) ListCells(ctx context.Context, in *projectsv1.ListCellsRequest, opts ...grpc.CallOption) (*projectsv1.ListCellsResponse, error) {
 	_va := make([]interface{}, len(opts))

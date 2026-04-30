@@ -340,6 +340,55 @@ func TestDeleteProjectsInOrg(t *testing.T) {
 	}
 }
 
+func TestHasActiveProjects(t *testing.T) {
+	ctx := context.Background()
+	orgID := apitest.TestOrganization
+
+	tests := map[string]struct {
+		setupMock func(*mocks.ProjectsStore)
+		want      bool
+		wantErr   bool
+	}{
+		"has active projects": {
+			setupMock: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListProjects(mock.Anything, orgID).Return([]store.Project{{ID: "proj-1"}}, nil)
+			},
+			want: true,
+		},
+		"no active projects": {
+			setupMock: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListProjects(mock.Anything, orgID).Return(nil, nil)
+			},
+			want: false,
+		},
+		"list projects error": {
+			setupMock: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListProjects(mock.Anything, orgID).Return(nil, errTest)
+			},
+			wantErr: true,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			mockStore := mocks.NewProjectsStore(t)
+			tt.setupMock(mockStore)
+
+			service := NewProjectsService(mockStore, nil)
+			got, err := service.HasActiveProjects(ctx, &projectsv1.HasActiveProjectsRequest{
+				OrganizationId: orgID,
+			})
+
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got.HasActiveProjects)
+		})
+	}
+}
+
 var errTest = fmt.Errorf("test error")
 
 func TestUpdateOrganization(t *testing.T) {

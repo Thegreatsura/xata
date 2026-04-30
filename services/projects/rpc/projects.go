@@ -103,6 +103,15 @@ func (p *ProjectsService) ValidateHierarchy(ctx context.Context, req *projectsv1
 	return &projectsv1.ValidateHierarchyResponse{}, nil
 }
 
+// HasActiveProjects implements projectsv1.ProjectsServiceServer.
+func (p *ProjectsService) HasActiveProjects(ctx context.Context, req *projectsv1.HasActiveProjectsRequest) (*projectsv1.HasActiveProjectsResponse, error) {
+	projects, err := p.store.ListProjects(ctx, req.GetOrganizationId())
+	if err != nil {
+		return nil, fmt.Errorf("list projects: %w", err)
+	}
+	return &projectsv1.HasActiveProjectsResponse{HasActiveProjects: len(projects) > 0}, nil
+}
+
 // UpdateOrganizationStatus implements projectsv1.ProjectsServiceServer.
 func (p *ProjectsService) UpdateOrganizationStatus(ctx context.Context, req *projectsv1.UpdateOrganizationStatusRequest) (*projectsv1.UpdateOrganizationStatusResponse, error) {
 	projects, err := p.store.ListProjects(ctx, req.OrganizationId)

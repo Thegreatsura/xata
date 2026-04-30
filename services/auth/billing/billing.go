@@ -105,6 +105,8 @@ type Client interface {
 	VoidInvoice(ctx context.Context, invoiceID string) error
 	// CountPendingInvoices returns the number of issued (unpaid) invoices that have had at least one payment attempt for the given external customer ID.
 	CountPendingInvoices(ctx context.Context, externalCustomerID string) (int, error)
+	// HasOutstandingInvoices returns true if the customer has any issued invoices or draft invoices with a non-zero total.
+	HasOutstandingInvoices(ctx context.Context, externalCustomerID string) (bool, error)
 }
 
 type NoopBilling struct{}
@@ -143,4 +145,8 @@ func (n *NoopBilling) VoidInvoice(_ context.Context, _ string) error {
 
 func (n *NoopBilling) CountPendingInvoices(_ context.Context, _ string) (int, error) {
 	return 0, nil
+}
+
+func (n *NoopBilling) HasOutstandingInvoices(_ context.Context, _ string) (bool, error) {
+	return false, nil
 }

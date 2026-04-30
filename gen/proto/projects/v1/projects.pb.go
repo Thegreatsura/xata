@@ -736,6 +736,96 @@ func (x *UpdateOrganizationStatusResponse) GetOrganizationId() string {
 	return ""
 }
 
+// HasActiveProjectsRequest is the request object for HasActiveProjects
+type HasActiveProjectsRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	OrganizationId string                 `protobuf:"bytes,1,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *HasActiveProjectsRequest) Reset() {
+	*x = HasActiveProjectsRequest{}
+	mi := &file_projects_v1_projects_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HasActiveProjectsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HasActiveProjectsRequest) ProtoMessage() {}
+
+func (x *HasActiveProjectsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_projects_v1_projects_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HasActiveProjectsRequest.ProtoReflect.Descriptor instead.
+func (*HasActiveProjectsRequest) Descriptor() ([]byte, []int) {
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *HasActiveProjectsRequest) GetOrganizationId() string {
+	if x != nil {
+		return x.OrganizationId
+	}
+	return ""
+}
+
+// HasActiveProjectsResponse is the response object for HasActiveProjects
+type HasActiveProjectsResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	HasActiveProjects bool                   `protobuf:"varint,1,opt,name=has_active_projects,json=hasActiveProjects,proto3" json:"has_active_projects,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *HasActiveProjectsResponse) Reset() {
+	*x = HasActiveProjectsResponse{}
+	mi := &file_projects_v1_projects_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HasActiveProjectsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HasActiveProjectsResponse) ProtoMessage() {}
+
+func (x *HasActiveProjectsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_projects_v1_projects_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HasActiveProjectsResponse.ProtoReflect.Descriptor instead.
+func (*HasActiveProjectsResponse) Descriptor() ([]byte, []int) {
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *HasActiveProjectsResponse) GetHasActiveProjects() bool {
+	if x != nil {
+		return x.HasActiveProjects
+	}
+	return false
+}
+
 // DeleteProjectsInOrgRequest is the request object for DeleteProjectsInOrg
 type DeleteProjectsInOrgRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
@@ -746,7 +836,7 @@ type DeleteProjectsInOrgRequest struct {
 
 func (x *DeleteProjectsInOrgRequest) Reset() {
 	*x = DeleteProjectsInOrgRequest{}
-	mi := &file_projects_v1_projects_proto_msgTypes[14]
+	mi := &file_projects_v1_projects_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -758,7 +848,7 @@ func (x *DeleteProjectsInOrgRequest) String() string {
 func (*DeleteProjectsInOrgRequest) ProtoMessage() {}
 
 func (x *DeleteProjectsInOrgRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_projects_v1_projects_proto_msgTypes[14]
+	mi := &file_projects_v1_projects_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -771,7 +861,7 @@ func (x *DeleteProjectsInOrgRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteProjectsInOrgRequest.ProtoReflect.Descriptor instead.
 func (*DeleteProjectsInOrgRequest) Descriptor() ([]byte, []int) {
-	return file_projects_v1_projects_proto_rawDescGZIP(), []int{14}
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DeleteProjectsInOrgRequest) GetOrganizationId() string {
@@ -794,7 +884,7 @@ type DeleteProjectsInOrgResponse struct {
 
 func (x *DeleteProjectsInOrgResponse) Reset() {
 	*x = DeleteProjectsInOrgResponse{}
-	mi := &file_projects_v1_projects_proto_msgTypes[15]
+	mi := &file_projects_v1_projects_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -806,7 +896,7 @@ func (x *DeleteProjectsInOrgResponse) String() string {
 func (*DeleteProjectsInOrgResponse) ProtoMessage() {}
 
 func (x *DeleteProjectsInOrgResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_projects_v1_projects_proto_msgTypes[15]
+	mi := &file_projects_v1_projects_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -819,7 +909,7 @@ func (x *DeleteProjectsInOrgResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteProjectsInOrgResponse.ProtoReflect.Descriptor instead.
 func (*DeleteProjectsInOrgResponse) Descriptor() ([]byte, []int) {
-	return file_projects_v1_projects_proto_rawDescGZIP(), []int{15}
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DeleteProjectsInOrgResponse) GetOrganizationId() string {
@@ -899,14 +989,18 @@ const file_projects_v1_projects_proto_rawDesc = "" +
 	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\x12\x1a\n" +
 	"\bdisabled\x18\x02 \x01(\bR\bdisabled\"K\n" +
 	" UpdateOrganizationStatusResponse\x12'\n" +
-	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\"E\n" +
+	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\"C\n" +
+	"\x18HasActiveProjectsRequest\x12'\n" +
+	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\"K\n" +
+	"\x19HasActiveProjectsResponse\x12.\n" +
+	"\x13has_active_projects\x18\x01 \x01(\bR\x11hasActiveProjects\"E\n" +
 	"\x1aDeleteProjectsInOrgRequest\x12'\n" +
 	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\"\xb4\x01\n" +
 	"\x1bDeleteProjectsInOrgResponse\x12'\n" +
 	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\x12)\n" +
 	"\x10projects_deleted\x18\x02 \x01(\x05R\x0fprojectsDeleted\x12)\n" +
 	"\x10branches_deleted\x18\x03 \x01(\x05R\x0fbranchesDeleted\x12\x16\n" +
-	"\x06errors\x18\x04 \x03(\tR\x06errors2\xa8\x05\n" +
+	"\x06errors\x18\x04 \x03(\tR\x06errors2\x8e\x06\n" +
 	"\x0fProjectsService\x12R\n" +
 	"\vListRegions\x12\x1f.projects.v1.ListRegionsRequest\x1a .projects.v1.ListRegionsResponse\"\x00\x12U\n" +
 	"\fCreateRegion\x12 .projects.v1.CreateRegionRequest\x1a!.projects.v1.CreateRegionResponse\"\x00\x12L\n" +
@@ -915,7 +1009,8 @@ const file_projects_v1_projects_proto_rawDesc = "" +
 	"CreateCell\x12\x1e.projects.v1.CreateCellRequest\x1a\x1f.projects.v1.CreateCellResponse\"\x00\x12d\n" +
 	"\x11ValidateHierarchy\x12%.projects.v1.ValidateHierarchyRequest\x1a&.projects.v1.ValidateHierarchyResponse\"\x00\x12y\n" +
 	"\x18UpdateOrganizationStatus\x12,.projects.v1.UpdateOrganizationStatusRequest\x1a-.projects.v1.UpdateOrganizationStatusResponse\"\x00\x12j\n" +
-	"\x13DeleteProjectsInOrg\x12'.projects.v1.DeleteProjectsInOrgRequest\x1a(.projects.v1.DeleteProjectsInOrgResponse\"\x00B\x9c\x01\n" +
+	"\x13DeleteProjectsInOrg\x12'.projects.v1.DeleteProjectsInOrgRequest\x1a(.projects.v1.DeleteProjectsInOrgResponse\"\x00\x12d\n" +
+	"\x11HasActiveProjects\x12%.projects.v1.HasActiveProjectsRequest\x1a&.projects.v1.HasActiveProjectsResponse\"\x00B\x9c\x01\n" +
 	"\x0fcom.projects.v1B\rProjectsProtoP\x01Z-github.com/xataio/maki/projects/v1;projectsv1\xa2\x02\x03PXX\xaa\x02\vProjects.V1\xca\x02\vProjects\\V1\xe2\x02\x17Projects\\V1\\GPBMetadata\xea\x02\fProjects::V1b\x06proto3"
 
 var (
@@ -930,7 +1025,7 @@ func file_projects_v1_projects_proto_rawDescGZIP() []byte {
 	return file_projects_v1_projects_proto_rawDescData
 }
 
-var file_projects_v1_projects_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_projects_v1_projects_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_projects_v1_projects_proto_goTypes = []any{
 	(*ListRegionsRequest)(nil),               // 0: projects.v1.ListRegionsRequest
 	(*ListRegionsResponse)(nil),              // 1: projects.v1.ListRegionsResponse
@@ -946,8 +1041,10 @@ var file_projects_v1_projects_proto_goTypes = []any{
 	(*ValidateHierarchyResponse)(nil),        // 11: projects.v1.ValidateHierarchyResponse
 	(*UpdateOrganizationStatusRequest)(nil),  // 12: projects.v1.UpdateOrganizationStatusRequest
 	(*UpdateOrganizationStatusResponse)(nil), // 13: projects.v1.UpdateOrganizationStatusResponse
-	(*DeleteProjectsInOrgRequest)(nil),       // 14: projects.v1.DeleteProjectsInOrgRequest
-	(*DeleteProjectsInOrgResponse)(nil),      // 15: projects.v1.DeleteProjectsInOrgResponse
+	(*HasActiveProjectsRequest)(nil),         // 14: projects.v1.HasActiveProjectsRequest
+	(*HasActiveProjectsResponse)(nil),        // 15: projects.v1.HasActiveProjectsResponse
+	(*DeleteProjectsInOrgRequest)(nil),       // 16: projects.v1.DeleteProjectsInOrgRequest
+	(*DeleteProjectsInOrgResponse)(nil),      // 17: projects.v1.DeleteProjectsInOrgResponse
 }
 var file_projects_v1_projects_proto_depIdxs = []int32{
 	2,  // 0: projects.v1.ListRegionsResponse.regions:type_name -> projects.v1.Region
@@ -958,16 +1055,18 @@ var file_projects_v1_projects_proto_depIdxs = []int32{
 	9,  // 5: projects.v1.ProjectsService.CreateCell:input_type -> projects.v1.CreateCellRequest
 	10, // 6: projects.v1.ProjectsService.ValidateHierarchy:input_type -> projects.v1.ValidateHierarchyRequest
 	12, // 7: projects.v1.ProjectsService.UpdateOrganizationStatus:input_type -> projects.v1.UpdateOrganizationStatusRequest
-	14, // 8: projects.v1.ProjectsService.DeleteProjectsInOrg:input_type -> projects.v1.DeleteProjectsInOrgRequest
-	1,  // 9: projects.v1.ProjectsService.ListRegions:output_type -> projects.v1.ListRegionsResponse
-	4,  // 10: projects.v1.ProjectsService.CreateRegion:output_type -> projects.v1.CreateRegionResponse
-	6,  // 11: projects.v1.ProjectsService.ListCells:output_type -> projects.v1.ListCellsResponse
-	7,  // 12: projects.v1.ProjectsService.CreateCell:output_type -> projects.v1.CreateCellResponse
-	11, // 13: projects.v1.ProjectsService.ValidateHierarchy:output_type -> projects.v1.ValidateHierarchyResponse
-	13, // 14: projects.v1.ProjectsService.UpdateOrganizationStatus:output_type -> projects.v1.UpdateOrganizationStatusResponse
-	15, // 15: projects.v1.ProjectsService.DeleteProjectsInOrg:output_type -> projects.v1.DeleteProjectsInOrgResponse
-	9,  // [9:16] is the sub-list for method output_type
-	2,  // [2:9] is the sub-list for method input_type
+	16, // 8: projects.v1.ProjectsService.DeleteProjectsInOrg:input_type -> projects.v1.DeleteProjectsInOrgRequest
+	14, // 9: projects.v1.ProjectsService.HasActiveProjects:input_type -> projects.v1.HasActiveProjectsRequest
+	1,  // 10: projects.v1.ProjectsService.ListRegions:output_type -> projects.v1.ListRegionsResponse
+	4,  // 11: projects.v1.ProjectsService.CreateRegion:output_type -> projects.v1.CreateRegionResponse
+	6,  // 12: projects.v1.ProjectsService.ListCells:output_type -> projects.v1.ListCellsResponse
+	7,  // 13: projects.v1.ProjectsService.CreateCell:output_type -> projects.v1.CreateCellResponse
+	11, // 14: projects.v1.ProjectsService.ValidateHierarchy:output_type -> projects.v1.ValidateHierarchyResponse
+	13, // 15: projects.v1.ProjectsService.UpdateOrganizationStatus:output_type -> projects.v1.UpdateOrganizationStatusResponse
+	17, // 16: projects.v1.ProjectsService.DeleteProjectsInOrg:output_type -> projects.v1.DeleteProjectsInOrgResponse
+	15, // 17: projects.v1.ProjectsService.HasActiveProjects:output_type -> projects.v1.HasActiveProjectsResponse
+	10, // [10:18] is the sub-list for method output_type
+	2,  // [2:10] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name
@@ -986,7 +1085,7 @@ func file_projects_v1_projects_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_projects_v1_projects_proto_rawDesc), len(file_projects_v1_projects_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

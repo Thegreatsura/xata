@@ -334,6 +334,51 @@ func (_c *Client_FetchStripeCustomer_Call) Return(_a0 *billing.StripeCustomer, _
 	return _c
 }
 
+// HasOutstandingInvoices provides a mock function with given fields: ctx, externalCustomerID
+func (_m *Client) HasOutstandingInvoices(ctx context.Context, externalCustomerID string) (bool, error) {
+	ret := _m.Called(ctx, externalCustomerID)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context, string) bool); ok {
+		r0 = rf(ctx, externalCustomerID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, externalCustomerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Client_HasOutstandingInvoices_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HasOutstandingInvoices'
+type Client_HasOutstandingInvoices_Call struct {
+	*mock.Call
+}
+
+// HasOutstandingInvoices is a helper method to define mock.On call
+//   - ctx context.Context
+//   - externalCustomerID string
+func (_e *Client_Expecter) HasOutstandingInvoices(ctx interface{}, externalCustomerID interface{}) *Client_HasOutstandingInvoices_Call {
+	return &Client_HasOutstandingInvoices_Call{Call: _e.mock.On("HasOutstandingInvoices", ctx, externalCustomerID)}
+}
+
+func (_c *Client_HasOutstandingInvoices_Call) Run(run func(ctx context.Context, externalCustomerID string)) *Client_HasOutstandingInvoices_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *Client_HasOutstandingInvoices_Call) Return(_a0 bool, _a1 error) *Client_HasOutstandingInvoices_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // HasValidDefaultPaymentMethod provides a mock function with given fields: ctx, stripeCustomerID
 func (_m *Client) HasValidDefaultPaymentMethod(ctx context.Context, stripeCustomerID string) (bool, error) {
 	ret := _m.Called(ctx, stripeCustomerID)

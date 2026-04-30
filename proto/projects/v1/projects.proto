@@ -24,6 +24,9 @@ service ProjectsService {
 
   // DeleteProjectsInOrg soft-deletes all projects and branches for an organization
   rpc DeleteProjectsInOrg(DeleteProjectsInOrgRequest) returns (DeleteProjectsInOrgResponse) {}
+
+  // HasActiveProjects returns true if the organization has at least one active project
+  rpc HasActiveProjects(HasActiveProjectsRequest) returns (HasActiveProjectsResponse) {}
 }
 
 // ListRegionsRequest is the request object for ListRegions
@@ -102,6 +105,16 @@ message UpdateOrganizationStatusRequest {
 // UpdateOrganizationResponse is the response object for UpdateOrganizationStatus
 message UpdateOrganizationStatusResponse {
   string organization_id = 1;
+}
+
+// HasActiveProjectsRequest is the request object for HasActiveProjects
+message HasActiveProjectsRequest {
+  string organization_id = 1;
+}
+
+// HasActiveProjectsResponse is the response object for HasActiveProjects
+message HasActiveProjectsResponse {
+  bool has_active_projects = 1;
 }
 
 // DeleteProjectsInOrgRequest is the request object for DeleteProjectsInOrg

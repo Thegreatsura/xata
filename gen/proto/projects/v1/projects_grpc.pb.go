@@ -26,6 +26,7 @@ const (
 	ProjectsService_ValidateHierarchy_FullMethodName        = "/projects.v1.ProjectsService/ValidateHierarchy"
 	ProjectsService_UpdateOrganizationStatus_FullMethodName = "/projects.v1.ProjectsService/UpdateOrganizationStatus"
 	ProjectsService_DeleteProjectsInOrg_FullMethodName      = "/projects.v1.ProjectsService/DeleteProjectsInOrg"
+	ProjectsService_HasActiveProjects_FullMethodName        = "/projects.v1.ProjectsService/HasActiveProjects"
 )
 
 // ProjectsServiceClient is the client API for ProjectsService service.
@@ -48,6 +49,8 @@ type ProjectsServiceClient interface {
 	UpdateOrganizationStatus(ctx context.Context, in *UpdateOrganizationStatusRequest, opts ...grpc.CallOption) (*UpdateOrganizationStatusResponse, error)
 	// DeleteProjectsInOrg soft-deletes all projects and branches for an organization
 	DeleteProjectsInOrg(ctx context.Context, in *DeleteProjectsInOrgRequest, opts ...grpc.CallOption) (*DeleteProjectsInOrgResponse, error)
+	// HasActiveProjects returns true if the organization has at least one active project
+	HasActiveProjects(ctx context.Context, in *HasActiveProjectsRequest, opts ...grpc.CallOption) (*HasActiveProjectsResponse, error)
 }
 
 type projectsServiceClient struct {
@@ -128,6 +131,16 @@ func (c *projectsServiceClient) DeleteProjectsInOrg(ctx context.Context, in *Del
 	return out, nil
 }
 
+func (c *projectsServiceClient) HasActiveProjects(ctx context.Context, in *HasActiveProjectsRequest, opts ...grpc.CallOption) (*HasActiveProjectsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HasActiveProjectsResponse)
+	err := c.cc.Invoke(ctx, ProjectsService_HasActiveProjects_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ProjectsServiceServer is the server API for ProjectsService service.
 // All implementations must embed UnimplementedProjectsServiceServer
 // for forward compatibility.
@@ -148,6 +161,8 @@ type ProjectsServiceServer interface {
 	UpdateOrganizationStatus(context.Context, *UpdateOrganizationStatusRequest) (*UpdateOrganizationStatusResponse, error)
 	// DeleteProjectsInOrg soft-deletes all projects and branches for an organization
 	DeleteProjectsInOrg(context.Context, *DeleteProjectsInOrgRequest) (*DeleteProjectsInOrgResponse, error)
+	// HasActiveProjects returns true if the organization has at least one active project
+	HasActiveProjects(context.Context, *HasActiveProjectsRequest) (*HasActiveProjectsResponse, error)
 	mustEmbedUnimplementedProjectsServiceServer()
 }
 
@@ -178,6 +193,9 @@ func (UnimplementedProjectsServiceServer) UpdateOrganizationStatus(context.Conte
 }
 func (UnimplementedProjectsServiceServer) DeleteProjectsInOrg(context.Context, *DeleteProjectsInOrgRequest) (*DeleteProjectsInOrgResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteProjectsInOrg not implemented")
+}
+func (UnimplementedProjectsServiceServer) HasActiveProjects(context.Context, *HasActiveProjectsRequest) (*HasActiveProjectsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method HasActiveProjects not implemented")
 }
 func (UnimplementedProjectsServiceServer) mustEmbedUnimplementedProjectsServiceServer() {}
 func (UnimplementedProjectsServiceServer) testEmbeddedByValue()                         {}
@@ -326,6 +344,24 @@ func _ProjectsService_DeleteProjectsInOrg_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProjectsService_HasActiveProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HasActiveProjectsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProjectsServiceServer).HasActiveProjects(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProjectsService_HasActiveProjects_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProjectsServiceServer).HasActiveProjects(ctx, req.(*HasActiveProjectsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ProjectsService_ServiceDesc is the grpc.ServiceDesc for ProjectsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -360,6 +396,10 @@ var ProjectsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteProjectsInOrg",
 			Handler:    _ProjectsService_DeleteProjectsInOrg_Handler,
+		},
+		{
+			MethodName: "HasActiveProjects",
+			Handler:    _ProjectsService_HasActiveProjects_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

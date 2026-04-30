@@ -517,6 +517,32 @@ paths:
             - invite:write
       tags:
         - Organizations
+  /organizations/{organizationID}/deletion-request:
+    post:
+      operationId: requestOrganizationDeletion
+      summary: Request organization deletion
+      description: |
+        Flags the organization for deletion. The request is rejected if the organization still has active projects or outstanding invoices. Once accepted the organization is immediately inaccessible.
+      parameters:
+        - $ref: '#/components/parameters/OrganizationIDParam'
+      responses:
+        '202':
+          description: Deletion request accepted
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '409':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - org:delete
+      tags:
+        - Organizations
   /marketplace/register:
     post:
       operationId: registerMarketplace

@@ -166,6 +166,11 @@ func (s *publicHandler) DeleteOrganization(ctx echo.Context, organizationID spec
 	return echo.NewHTTPError(http.StatusForbidden, "organization deletion not allowed")
 }
 
+// (POST /organizations/{organization_id}/deletion-request)
+func (s *publicHandler) RequestOrganizationDeletion(ctx echo.Context, organizationID spec.OrganizationIDParam) error {
+	return echo.NewHTTPError(http.StatusForbidden, "organization deletion not allowed")
+}
+
 // Get an existing organization
 // (GET /organizations/{organization_id})
 func (s *publicHandler) GetOrganization(ctx echo.Context, organizationID spec.OrganizationIDParam) error {
