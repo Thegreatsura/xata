@@ -14,13 +14,23 @@ import (
 	"xata/services/branch-operator/api/v1alpha1"
 )
 
-// updateXVolStatus resolves the XVol backing the branch's primary instance and
-// records its name in the Branch status. On any failure the PrimaryXVolName
-// field is left untouched and the XVolInfoAvailable condition is set to False
-// with a reason indicating why. Transient errors (failed API server calls) are
-// returned to the caller so the reconciler requeues, while expected states (no
-// cluster, CRD missing, PV unbound) return nil after setting the condition.
+// updateXVolStatus resolves the XVol associated with the Branch and reports
+// its availability via the XVolInfoAvailable condition. PrimaryXVolName is
+// immutable once set: on the first successful resolution it is recorded and
+// subsequent reconciles verify that the recorded XVol still exists rather than
+// re-deriving the name.
+//
+// For parent branches, the initial resolution walks Cluster → PVC → PV → XVol
+// (XVols are named after the PV they back). Child branches (XVolClone
+// restore) have PrimaryXVolName set by reconcileXVolClone before any cluster
+// exists, so they always take the fast path here.
 func (r *BranchReconciler) updateXVolStatus(ctx context.Context, branch *v1alpha1.Branch) error {
+	// PrimaryXVolName is immutable once set, so just verify the recorded XVol
+	// still exists.
+	if branch.Status.PrimaryXVolName != "" {
+		return r.recordXVolStatus(ctx, branch, branch.Status.PrimaryXVolName)
+	}
+
 	// The XVol info is unavailable if the Branch has no associated Cluster
 	if !branch.HasClusterName() {
 		return r.setXVolInfoConditionToFalse(ctx, branch, v1alpha1.BranchHasNoClusterReason)
@@ -58,22 +68,31 @@ func (r *BranchReconciler) updateXVolStatus(ctx context.Context, branch *v1alpha
 		return r.setXVolInfoConditionToFalse(ctx, branch, v1alpha1.PVNotBoundReason)
 	}
 
-	// Look up the XVol named after the PV
+	// Record the XVol name and verify its existence
+	return r.recordXVolStatus(ctx, branch, pvName)
+}
+
+// recordXVolStatus looks up an XVol by name and sets the XVolInfoAvailable
+// condition based on the result. On success the name is recorded in
+// PrimaryXVolName.
+func (r *BranchReconciler) recordXVolStatus(ctx context.Context, branch *v1alpha1.Branch, name string) error {
 	xvol := &unstructured.Unstructured{}
 	xvol.SetGroupVersionKind(xvolGVK)
-	err = r.Get(ctx, client.ObjectKey{Name: pvName}, xvol)
+
+	// Try to get the named XVol. If it doesn't exist or the API is not found,
+	// set the condition to False with an appropriate reason
+	err := r.Get(ctx, client.ObjectKey{Name: name}, xvol)
+	if meta.IsNoMatchError(err) {
+		return r.setXVolInfoConditionToFalse(ctx, branch, v1alpha1.XVolCRDNotInstalledReason)
+	}
+	if apierrors.IsNotFound(err) {
+		return r.setXVolInfoConditionToFalse(ctx, branch, v1alpha1.XVolNotFoundReason)
+	}
 	if err != nil {
-		if meta.IsNoMatchError(err) {
-			return r.setXVolInfoConditionToFalse(ctx, branch, v1alpha1.XVolCRDNotInstalledReason)
-		}
-		if apierrors.IsNotFound(err) {
-			return r.setXVolInfoConditionToFalse(ctx, branch, v1alpha1.XVolNotFoundReason)
-		}
-		return fmt.Errorf("get xvol %q: %w", pvName, err)
+		return err
 	}
 
-	// Record the XVol name in the Branch status and update the status condition
-	// to True
-	branch.Status.PrimaryXVolName = xvol.GetName()
+	// The XVol exists, record the name and set the condition to True
+	branch.Status.PrimaryXVolName = name
 	return r.setXVolInfoConditionToTrue(ctx, branch, v1alpha1.XVolInfoCollectedReason)
 }

@@ -113,6 +113,12 @@ func retryOnConflict[T client.Object](ctx context.Context, obj T, mutateFn func(
 	return envtestutil.RetryOnConflict(ctx, k8sClient, obj, mutateFn)
 }
 
+// retryStatusOnConflict tries to update the status of the given object using
+// the provided mutate function, retrying on conflict errors.
+func retryStatusOnConflict[T client.Object](ctx context.Context, obj T, mutateFn func(obj T)) error {
+	return envtestutil.RetryStatusOnConflict(ctx, k8sClient, obj, mutateFn)
+}
+
 // BranchBuilder is a builder for v1alpha1.Branch structs for use in tests
 type BranchBuilder struct {
 	branch v1alpha1.Branch

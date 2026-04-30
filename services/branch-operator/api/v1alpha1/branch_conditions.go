@@ -12,6 +12,8 @@ const (
 	ResourcesReadyReason = "ResourcesReady"
 
 	// Reason strings for the `Ready` False condition
+	ParentBranchNotFoundReason     = "ParentBranchNotFound"
+	ParentBranchHasNoXVolReason    = "ParentBranchHasNoXVol"
 	ParentClusterNotFoundReason    = "ParentClusterNotFound"
 	ParentBranchHasNoClusterReason = "ParentBranchHasNoCluster"
 	ParentClusterUnhealthyReason   = "ParentClusterUnhealthy"
@@ -39,6 +41,8 @@ const (
 var BranchConditionMessages = map[string]string{
 	// Messages for the BranchReady condition
 	ResourcesReadyReason:           "All resources created",
+	ParentBranchNotFoundReason:     "The parent branch was not found",
+	ParentBranchHasNoXVolReason:    "The parent branch has no XVol",
 	ParentClusterNotFoundReason:    "The parent cluster for the branch was not found",
 	ParentBranchHasNoClusterReason: "The parent branch has no cluster",
 	ParentClusterUnhealthyReason:   "The parent cluster for the branch is not healthy",

@@ -75,6 +75,10 @@ const (
 	RestoreTypeBaseBackup RestoreType = "BaseBackup"
 )
 
+func (r *RestoreSpec) IsXVolCloneType() bool {
+	return r != nil && r.Type == RestoreTypeXVolClone
+}
+
 func (r *RestoreSpec) IsVolumeSnapshotType() bool {
 	return r != nil && r.Type == RestoreTypeVolumeSnapshot
 }

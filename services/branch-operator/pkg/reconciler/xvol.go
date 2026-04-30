@@ -21,13 +21,16 @@ var xvolGVK = schema.GroupVersionKind{
 	Kind:    "Xvol",
 }
 
-// reconcileXVols ensures that XVols backing the Branch's owned Cluster have
-// their reclaim policy set to Retain when the Branch does not specify a
-// Cluster name.
+// reconcileXVolOwnership ensures that XVols backing the Branch's owned Cluster
+// have their reclaim policy set to Retain and their owner reference set to the
+// Branch when the Branch does not specify a Cluster name. Child Branches
+// created using an an XVolClone restore type will already have their XVol's
+// reclaim policy and owner reference set on creation, so this reconciliation
+// step takes action only for parent Branches.
 //
-// This ensures that the XVols will be retained after a subsequent
+// This step ensures that the XVols will be retained after a subsequent
 // reconciliation step (reconcileOwnedClusters) deletes the Cluster.
-func (r *BranchReconciler) reconcileXVols(
+func (r *BranchReconciler) reconcileXVolOwnership(
 	ctx context.Context,
 	branch *v1alpha1.Branch,
 ) (controllerutil.OperationResult, error) {
@@ -35,6 +38,13 @@ func (r *BranchReconciler) reconcileXVols(
 	// will not be deleted later during reconciliation, so there is no need to
 	// protect the XVols.
 	if branch.HasClusterName() {
+		return controllerutil.OperationResultNone, nil
+	}
+
+	// If the Branch uses an XVolClone-based restore, there is nothing to do -
+	// the cloned XVol will already have its reclaim policy set to Retain and
+	// owner reference set to the Branch
+	if branch.Spec.Restore.IsXVolCloneType() {
 		return controllerutil.OperationResultNone, nil
 	}
 

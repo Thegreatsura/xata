@@ -114,6 +114,13 @@ func (r *BranchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	// Reconcile the XVol clone for the branch
+	_, err = r.reconcileXVolClone(ctx, branch)
+	if err != nil {
+		log.Error(err, "reconciling cloned XVol")
+		return ctrl.Result{}, err
+	}
+
 	// Reconcile the superuser Secret for the branch
 	_, err = r.reconcileSuperuserSecret(ctx, branch)
 	if err != nil {
@@ -135,8 +142,8 @@ func (r *BranchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	// Reconcile any XVols for the branch
-	_, err = r.reconcileXVols(ctx, branch)
+	// Reconcile XVols owner references for the branch
+	_, err = r.reconcileXVolOwnership(ctx, branch)
 	if err != nil {
 		log.Error(err, "reconciling XVols")
 		return ctrl.Result{}, err

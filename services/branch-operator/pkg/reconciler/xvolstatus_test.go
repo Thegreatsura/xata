@@ -134,19 +134,14 @@ func TestXVolStatus(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			// Assert XVolInfoAvailable becomes False with BranchHasNoCluster reason,
-			// but PrimaryXVolName is retained
+			// PrimaryXVolName is retained after the cluster name is removed
 			requireEventuallyTrue(t, func() bool {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(br), br)
 				if err != nil {
 					return false
 				}
-				c := meta.FindStatusCondition(br.Status.Conditions, v1alpha1.XVolInfoAvailableConditionType)
-				if c == nil {
-					return false
-				}
-				return c.Status == metav1.ConditionFalse &&
-					c.Reason == v1alpha1.BranchHasNoClusterReason &&
+				return br.Spec.ClusterSpec.Name == nil &&
+					meta.IsStatusConditionTrue(br.Status.Conditions, v1alpha1.XVolInfoAvailableConditionType) &&
 					br.Status.PrimaryXVolName == xvolName
 			})
 		})

@@ -32,6 +32,22 @@ func RetryOnConflict[T client.Object](ctx context.Context, cl client.Client, obj
 	})
 }
 
+// RetryStatusOnConflict tries to update the status of the given object using
+// the provided mutate function, retrying on conflict errors.
+func RetryStatusOnConflict[T client.Object](ctx context.Context, cl client.Client, obj T, mutateFn func(obj T)) error {
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		err := cl.Get(ctx, client.ObjectKey{
+			Name:      obj.GetName(),
+			Namespace: obj.GetNamespace(),
+		}, obj)
+		if err != nil {
+			return err
+		}
+		mutateFn(obj)
+		return cl.Status().Update(ctx, obj)
+	})
+}
+
 // RequireEventuallyTrue polls fn until it returns true, failing the test after
 // DefaultEventuallyTimeout.
 func RequireEventuallyTrue(t *testing.T, fn func() bool, msgAndArgs ...any) {
