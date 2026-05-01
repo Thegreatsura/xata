@@ -17,6 +17,8 @@ func MandatoryPostgresParameters(image string) map[string]string {
 		"lc_numeric":  "C.utf8",
 		"lc_time":     "C.utf8",
 
+		"pg_stat_statements.track_utility": "off",
+
 		"xatautils.privileged_role": "xata",
 
 		"xatautils.privileged_extensions": privilegedExtensions(image),
