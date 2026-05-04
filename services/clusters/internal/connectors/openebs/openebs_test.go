@@ -55,7 +55,7 @@ func TestNewConnector(t *testing.T) {
 
 			fakeClient := fake.NewClientBuilder().Build()
 
-			connector, err := openebs.NewConnectorWithClients(fakeClient, fakeDiscovery)
+			connector, err := openebs.NewConnectorWithClients(fakeClient, fakeDiscovery, "openebs")
 			require.NoError(t, err)
 			require.IsType(t, tt.expectedType, connector)
 		})
@@ -165,7 +165,7 @@ func TestAvailableSpaceBytes(t *testing.T) {
 				WithObjects(poolObjects...).
 				Build()
 
-			connector := &openebs.DefaultConnector{KubernetesClient: fakeClient}
+			connector := &openebs.DefaultConnector{KubernetesClient: fakeClient, Namespace: "openebs"}
 
 			bytes, err := connector.AvailableSpaceBytes(ctx)
 			require.NoError(t, err)

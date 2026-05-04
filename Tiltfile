@@ -82,6 +82,11 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: xatastor
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openebs
 """))
 
     # Use OSS kustomize overlay

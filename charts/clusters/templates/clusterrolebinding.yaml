@@ -1,54 +1,85 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: access-cnpg
+  name: access-branches
 subjects:
   - kind: ServiceAccount
     name: clusters
     namespace: {{ .Release.Namespace }}
 roleRef:
-  kind: ClusterRole
-  name: access-cnpg
   apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: access-branches
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
-  name: access-networkpolicies
+  name: access-cnpg
+  namespace: {{ .Values.config.clusters.clustersNamespace }}
 subjects:
   - kind: ServiceAccount
     name: clusters
     namespace: {{ .Release.Namespace }}
 roleRef:
-  kind: ClusterRole
-  name: access-networkpolicies
   apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: access-cnpg
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
-  name: access-services
+  name: access-ipfiltering
+  namespace: {{ .Release.Namespace }}
 subjects:
   - kind: ServiceAccount
     name: clusters
     namespace: {{ .Release.Namespace }}
 roleRef:
-  kind: ClusterRole
-  name: access-services
   apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: access-ipfiltering
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
+metadata:
+  name: access-services-xata
+  namespace: {{ .Release.Namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: clusters
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: access-services-xata
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: access-services-clusters
+  namespace: {{ .Values.config.clusters.clustersNamespace }}
+subjects:
+  - kind: ServiceAccount
+    name: clusters
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: access-services-clusters
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
 metadata:
   name: access-openebs
+  namespace: {{ .Values.config.clusters.diskpoolNamespace }}
 subjects:
   - kind: ServiceAccount
     name: clusters
     namespace: {{ .Release.Namespace }}
 roleRef:
-  kind: ClusterRole
-  name: access-openebs
   apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: access-openebs
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -56,35 +87,9 @@ metadata:
   name: cnpg-clusters-scale-to-zero
 subjects:
   - kind: Group
-    name: system:serviceaccounts:xata-clusters  # All service accounts in xata-clusters namespace
+    name: system:serviceaccounts:{{ .Values.config.clusters.clustersNamespace }}
     apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: ClusterRole
   name: cnpg-scale-to-zero-sidecar-role
   apiGroup: rbac.authorization.k8s.io
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: access-batch-jobs
-subjects:
-  - kind: ServiceAccount
-    name: clusters
-    namespace: {{ .Release.Namespace }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: access-batch-jobs
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: access-branches
-subjects:
-  - kind: ServiceAccount
-    name: clusters
-    namespace: {{ .Release.Namespace }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: access-branches

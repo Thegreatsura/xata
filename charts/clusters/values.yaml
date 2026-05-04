@@ -11,6 +11,7 @@ service:
 config:
   clusters:
     clustersNamespace: xata-clusters
+    diskpoolNamespace: openebs
     storageClass: ""
     nodeSelector: ""
     volumeSnapshotClass: ""

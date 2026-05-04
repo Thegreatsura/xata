@@ -94,7 +94,7 @@ func (c *ClustersService) Init(ctx context.Context) error {
 	c.cnpgConnector = cnpgConnector
 
 	// Initialize OpenEBS connector
-	openebsConnector, err := openebs.NewConnector(c.config.KubeConfig)
+	openebsConnector, err := openebs.NewConnector(c.config.KubeConfig, c.config.DiskPoolNamespace)
 	if err != nil {
 		return fmt.Errorf("cannot init openebs client: %w", err)
 	}

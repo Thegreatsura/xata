@@ -7,6 +7,7 @@ metadata:
     app: clusters
 data:
   XATA_CLUSTERS_NAMESPACE: {{ .Values.config.clusters.clustersNamespace | quote }}
+  XATA_DISKPOOL_NAMESPACE: {{ .Values.config.clusters.diskpoolNamespace | quote }}
   XATA_CLUSTERS_STORAGE_CLASS: {{ .Values.config.clusters.storageClass | quote }}
   {{- if .Values.config.clusters.nodeSelector }}
   XATA_CLUSTERS_NODE_SELECTOR: {{ .Values.config.clusters.nodeSelector | quote }}

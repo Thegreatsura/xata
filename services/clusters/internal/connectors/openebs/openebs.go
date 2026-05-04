@@ -22,17 +22,19 @@ type Connector interface {
 
 type DefaultConnector struct {
 	KubernetesClient client.Client
+	Namespace        string
 }
 
 type PoolStatus string
 
 const (
+	defaultNamespace            = "openebs"
 	PoolStatusOnline PoolStatus = "Online"
 )
 
 // NewConnector creates a new OpenEBS connector used to work with OpenEBS
 // resources
-func NewConnector(kubeConfig string) (Connector, error) {
+func NewConnector(kubeConfig, namespace string) (Connector, error) {
 	dcp := &kubernetes.DefaultConfigProvider{
 		KubeConfigPath: kubeConfig,
 		MasterURL:      "",
@@ -54,16 +56,19 @@ func NewConnector(kubeConfig string) (Connector, error) {
 		return nil, fmt.Errorf("create clientset %w", err)
 	}
 
-	return NewConnectorWithClients(client, dc)
+	return NewConnectorWithClients(client, dc, namespace)
 }
 
 // AvailableSpaceBytes returns the total available space across all online
 // DiskPool resources
 func (dc *DefaultConnector) AvailableSpaceBytes(ctx context.Context) (*uint64, error) {
 	list := &openebsv1beta3.DiskPoolList{}
+	namespace := dc.Namespace
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
 
-	// List DiskPools
-	err := dc.KubernetesClient.List(ctx, list, &client.ListOptions{Namespace: "openebs"})
+	err := dc.KubernetesClient.List(ctx, list, &client.ListOptions{Namespace: namespace})
 	if err != nil {
 		return nil, fmt.Errorf("list diskpools: %w", err)
 	}
@@ -81,7 +86,11 @@ func (dc *DefaultConnector) AvailableSpaceBytes(ctx context.Context) (*uint64, e
 
 // NewConnectorWithClients creates a new OpenEBS connector using the provided
 // Kubernetes client and discovery client.
-func NewConnectorWithClients(client client.Client, dc discovery.DiscoveryInterface) (Connector, error) {
+func NewConnectorWithClients(client client.Client, dc discovery.DiscoveryInterface, namespace string) (Connector, error) {
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
+
 	diskPoolGVR := schema.GroupVersionResource{
 		Group:    "openebs.io",
 		Version:  "v1beta3",
@@ -108,5 +117,5 @@ func NewConnectorWithClients(client client.Client, dc discovery.DiscoveryInterfa
 		return nil, fmt.Errorf("add to scheme openebs: %w", err)
 	}
 
-	return &DefaultConnector{KubernetesClient: client}, nil
+	return &DefaultConnector{KubernetesClient: client, Namespace: namespace}, nil
 }

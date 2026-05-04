@@ -1,144 +1,6 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: access-cnpg
-rules:
-  - apiGroups:
-      - ""
-    resources:
-      - secrets
-    verbs:
-      - get
-      - delete
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-    resourceNames:
-      - ipfiltering
-    verbs:
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-    verbs:
-      - create
-  - apiGroups:
-      - postgresql.cnpg.io
-    resources:
-      - backups
-      - scheduledbackups
-      - clusters
-      - databases
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - barmancloud.cnpg.io
-    resources:
-      - objectstores
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - snapshot.storage.k8s.io
-    resources:
-      - volumesnapshots
-      - volumesnapshotcontents
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  - apiGroups:
-      - snapshot.storage.k8s.io
-    resources:
-      - volumesnapshotclasses
-    verbs:
-      - get
-      - list
-      - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: access-services
-rules:
-  - apiGroups:
-      - ""
-    resources:
-      - services
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: access-openebs
-rules:
-  - apiGroups:
-      - "openebs.io"
-    resources:
-      - diskpools
-    verbs:
-      - get
-      - list
-      - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: access-networkpolicies
-rules:
-  - apiGroups:
-      - networking.k8s.io
-    resources:
-      - networkpolicies
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: access-batch-jobs
-rules:
-  - apiGroups: ["batch"]
-    resources: ["jobs"]
-    verbs: ["create","get","list","watch","update","patch","delete"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
   name: access-branches
 rules:
   - apiGroups:
@@ -147,18 +9,43 @@ rules:
       - branches
     verbs:
       - create
+      - delete
+      - get
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: access-cnpg
+  namespace: {{ .Values.config.clusters.clustersNamespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - delete
+      - get
+  - apiGroups:
+      - barmancloud.cnpg.io
+    resources:
+      - objectstores
+    verbs:
+      - get
+  - apiGroups:
+      - postgresql.cnpg.io
+    resources:
+      - clusters
+    verbs:
       - get
       - list
-      - watch
-      - update
       - patch
-      - delete
+      - watch
   - apiGroups:
       - xata.io
     resources:
       - clusterpools
     verbs:
-      - get
       - list
   - apiGroups:
       - xata.io
@@ -168,3 +55,68 @@ rules:
       - create
       - delete
       - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: access-ipfiltering
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    resourceNames:
+      - ipfiltering
+    verbs:
+      - get
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: access-services-xata
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - create
+      - delete
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: access-services-clusters
+  namespace: {{ .Values.config.clusters.clustersNamespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - create
+      - delete
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: access-openebs
+  namespace: {{ .Values.config.clusters.diskpoolNamespace }}
+rules:
+  - apiGroups:
+      - openebs.io
+    resources:
+      - diskpools
+    verbs:
+      - list
