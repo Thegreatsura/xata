@@ -32,6 +32,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/utils/ptr"
 
 	clustersv1 "xata/gen/proto/clusters/v1"
 
@@ -1628,7 +1629,40 @@ func (s *handler) BranchLogs(c echo.Context, organizationID spec.OrganizationID,
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
 
-		return echo.NewHTTPError(http.StatusNotImplemented, "branch logs are not implemented")
+		var req spec.BranchLogsRequest
+		if err := c.Bind(&req); err != nil {
+			return err
+		}
+
+		if err := validateTimeRange(branchID, req.Start, req.End); err != nil {
+			return err
+		}
+		if err := validateLogsLimit(branchID, req.Limit); err != nil {
+			return err
+		}
+
+		exprs, err := compileLogsFilters(branchID, ptr.Deref(req.Filters, nil))
+		if err != nil {
+			return err
+		}
+
+		if _, err := s.store.DescribeBranch(c.Request().Context(), organizationID, projectID, branchID); err != nil {
+			return err
+		}
+
+		logs, err := s.metricsClient.GetLogs(
+			c.Request().Context(),
+			req.Start,
+			req.End,
+			exprs,
+			ptr.Deref(req.Limit, DefaultLogLimit),
+			ptr.Deref(req.Cursor, ""),
+		)
+		if err != nil {
+			return fmt.Errorf("getting logs for branch [%s]: %w", branchID, err)
+		}
+
+		return c.JSON(http.StatusOK, logs)
 	})
 }
 

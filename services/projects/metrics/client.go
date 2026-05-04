@@ -3,6 +3,8 @@ package metrics
 import (
 	"context"
 	"time"
+
+	"xata/internal/signoz/filter"
 )
 
 //go:generate go run github.com/vektra/mockery/v3 --output metricsmock --outpkg metricsmock --with-expecter --name Client
@@ -10,6 +12,8 @@ import (
 type Client interface {
 	// GetMetric returns the time serie(s) for the given metric and timeframe.
 	GetMetric(ctx context.Context, start, end time.Time, metric string, instances, aggregations []string) (*BranchMetrics, error)
+	// GetLogs returns the log entries for the given timeframe and filter expressions.
+	GetLogs(ctx context.Context, start, end time.Time, filters []filter.Expr, limit int, cursor string) (*BranchLogs, error)
 }
 
 type BranchMetrics struct {
@@ -36,4 +40,19 @@ type MetricSeries struct {
 	// InstanceID ID of the instance
 	InstanceID string   `json:"instanceID"`
 	Values     []Values `json:"values"`
+}
+
+type BranchLogs struct {
+	Start      time.Time  `json:"start"`
+	End        time.Time  `json:"end"`
+	Logs       []LogEntry `json:"logs"`
+	NextCursor *string    `json:"nextCursor"`
+}
+
+type LogEntry struct {
+	Timestamp  time.Time `json:"timestamp"`
+	InstanceID string    `json:"instanceID"`
+	Level      *string   `json:"level,omitempty"`
+	Message    string    `json:"message"`
+	Process    *string   `json:"process,omitempty"`
 }

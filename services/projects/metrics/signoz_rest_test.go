@@ -453,3 +453,185 @@ func assertSeriesMatchResults(t *testing.T, got []MetricSeries, want []signoz.Qu
 	}
 	require.Equal(t, idx, len(got))
 }
+
+func TestParseLogRow(t *testing.T) {
+	tests := map[string]struct {
+		row     signoz.Querybuildertypesv5RawRow
+		wantOK  bool
+		wantLog LogEntry
+	}{
+		"complete row": {
+			row: signoz.Querybuildertypesv5RawRow{
+				Timestamp: new(time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC)),
+				Data: &map[string]any{
+					"body":             "hello",
+					"resources_string": map[string]any{"k8s.pod.name": "branch-1"},
+					"severity_text":    "INFO",
+				},
+			},
+			wantOK: true,
+			wantLog: LogEntry{
+				Timestamp:  time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC),
+				InstanceID: "branch-1",
+				Message:    "hello",
+				Level:      new("info"),
+			},
+		},
+		"postgres severity LOG normalizes to info": {
+			row: signoz.Querybuildertypesv5RawRow{
+				Timestamp: new(time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC)),
+				Data: &map[string]any{
+					"body":          "checkpoint complete",
+					"severity_text": "LOG",
+				},
+			},
+			wantOK: true,
+			wantLog: LogEntry{
+				Timestamp: time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC),
+				Message:   "checkpoint complete",
+				Level:     new("info"),
+			},
+		},
+		"postgres severity FATAL normalizes to error": {
+			row: signoz.Querybuildertypesv5RawRow{
+				Timestamp: new(time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC)),
+				Data: &map[string]any{
+					"body":          "boom",
+					"severity_text": "FATAL",
+				},
+			},
+			wantOK: true,
+			wantLog: LogEntry{
+				Timestamp: time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC),
+				Message:   "boom",
+				Level:     new("error"),
+			},
+		},
+		"unknown severity leaves level nil": {
+			row: signoz.Querybuildertypesv5RawRow{
+				Timestamp: new(time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC)),
+				Data: &map[string]any{
+					"body":          "hello",
+					"severity_text": "UNRECOGNIZED",
+				},
+			},
+			wantOK: true,
+			wantLog: LogEntry{
+				Timestamp: time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC),
+				Message:   "hello",
+			},
+		},
+		"missing timestamp drops the row": {
+			row: signoz.Querybuildertypesv5RawRow{
+				Data: &map[string]any{"body": "hello", "k8s.pod.name": "branch-1"},
+			},
+			wantOK: false,
+		},
+		"missing data drops the row": {
+			row: signoz.Querybuildertypesv5RawRow{
+				Timestamp: new(time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC)),
+			},
+			wantOK: false,
+		},
+		"empty body drops the row": {
+			row: signoz.Querybuildertypesv5RawRow{
+				Timestamp: new(time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC)),
+				Data:      &map[string]any{"body": "", "k8s.pod.name": "branch-1"},
+			},
+			wantOK: false,
+		},
+		"missing pod name keeps the row with empty instance": {
+			row: signoz.Querybuildertypesv5RawRow{
+				Timestamp: new(time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC)),
+				Data:      &map[string]any{"body": "hello"},
+			},
+			wantOK: true,
+			wantLog: LogEntry{
+				Timestamp:  time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC),
+				InstanceID: "",
+				Message:    "hello",
+			},
+		},
+		"CNPG postgres CSV envelope unwraps record.message": {
+			row: signoz.Querybuildertypesv5RawRow{
+				Timestamp: new(time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC)),
+				Data: &map[string]any{
+					"body":          `{"level":"info","logger":"postgres","msg":"record","record":{"error_severity":"ERROR","message":"division by zero"}}`,
+					"severity_text": "ERROR",
+				},
+			},
+			wantOK: true,
+			wantLog: LogEntry{
+				Timestamp: time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC),
+				Message:   "division by zero",
+				Level:     new("error"),
+			},
+		},
+		"CNPG instance-manager flat JSON unwraps msg": {
+			row: signoz.Querybuildertypesv5RawRow{
+				Timestamp: new(time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC)),
+				Data: &map[string]any{
+					"body":          `{"level":"info","logger":"postgres","msg":"PostgreSQL is ready to accept connections"}`,
+					"severity_text": "INFO",
+				},
+			},
+			wantOK: true,
+			wantLog: LogEntry{
+				Timestamp: time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC),
+				Message:   "PostgreSQL is ready to accept connections",
+				Level:     new("info"),
+			},
+		},
+		"non-JSON body passes through unchanged": {
+			row: signoz.Querybuildertypesv5RawRow{
+				Timestamp: new(time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC)),
+				Data:      &map[string]any{"body": "plain text log"},
+			},
+			wantOK: true,
+			wantLog: LogEntry{
+				Timestamp: time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC),
+				Message:   "plain text log",
+			},
+		},
+		"JSON body without record.message or msg falls back to original": {
+			row: signoz.Querybuildertypesv5RawRow{
+				Timestamp: new(time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC)),
+				Data:      &map[string]any{"body": `{"level":"info","other":"value"}`},
+			},
+			wantOK: true,
+			wantLog: LogEntry{
+				Timestamp: time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC),
+				Message:   `{"level":"info","other":"value"}`,
+			},
+		},
+		"missing severity leaves level nil": {
+			row: signoz.Querybuildertypesv5RawRow{
+				Timestamp: new(time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC)),
+				Data: &map[string]any{
+					"body":             "hello",
+					"resources_string": map[string]any{"k8s.pod.name": "branch-1"},
+				},
+			},
+			wantOK: true,
+			wantLog: LogEntry{
+				Timestamp:  time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC),
+				InstanceID: "branch-1",
+				Message:    "hello",
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			got, ok := parseLogRow(tt.row)
+			require.Equal(t, tt.wantOK, ok)
+			if !tt.wantOK {
+				return
+			}
+			require.Equal(t, tt.wantLog.Timestamp, got.Timestamp)
+			require.Equal(t, tt.wantLog.InstanceID, got.InstanceID)
+			require.Equal(t, tt.wantLog.Message, got.Message)
+			require.Equal(t, ptr.Deref(tt.wantLog.Level, ""), ptr.Deref(got.Level, ""))
+		})
+	}
+}

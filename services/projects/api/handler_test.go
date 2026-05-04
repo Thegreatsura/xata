@@ -23,6 +23,7 @@ import (
 	"xata/internal/openfeature"
 	"xata/internal/postgrescfg"
 	"xata/internal/postgresversions"
+	"xata/internal/signoz/filter"
 	"xata/services/clusters"
 	"xata/services/projects/api/spec"
 	"xata/services/projects/cells"
@@ -3215,6 +3216,431 @@ func TestBranchMetrics(t *testing.T) {
 
 				if tc.assertResponse != nil {
 					var got spec.BranchMetrics
+					rec.ReadBody(&got)
+					tc.assertResponse(t, got)
+				}
+			}
+		})
+	}
+}
+
+func TestBranchLogs(t *testing.T) {
+	mockStore := mocks.NewProjectsStore(t)
+	mockClusters := protomocks.NewClustersServiceClient(t)
+	mockCells := cellsmock.NewCellsMock(t, mockClusters)
+	mockMetrics := metricsmock.NewClient(t)
+	feat := openfeaturetest.NewClient(map[openfeature.FeatureFlag]bool{flags.BranchLogs: true})
+	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
+
+	apiHandler := NewAPIHandler(feat, mockStore, mockCells, "testdomain:5432", mockMetrics, sched, analyticsmocks.NewClient(t), nil, nil)
+	e := apitest.New(t).WithClaims(apitest.TestClaims)
+
+	branchID := "branchID"
+	unknownBranch := "branchUnknown"
+	logEntries := []metrics.LogEntry{
+		{
+			Timestamp:  time.Date(2025, 5, 20, 0, 0, 0, 0, time.UTC),
+			InstanceID: branchID + "-1",
+			Level:      new("error"),
+			Message:    "Database connection failed",
+			Process:    new("client backend"),
+		},
+		{
+			Timestamp:  time.Date(2025, 5, 20, 0, 1, 0, 0, time.UTC),
+			InstanceID: branchID + "-1",
+			Level:      new("warning"),
+			Message:    "Slow query detected",
+		},
+	}
+
+	start := time.Date(2025, 5, 20, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2025, 5, 20, 1, 0, 0, 0, time.UTC)
+
+	instanceFilter := func(values ...string) spec.LogFilter {
+		v := append([]string(nil), values...)
+		return spec.LogFilter{Field: spec.Instance, Op: spec.In, Values: &v}
+	}
+	levelFilter := func(values ...string) spec.LogFilter {
+		v := append([]string(nil), values...)
+		return spec.LogFilter{Field: spec.Level, Op: spec.In, Values: &v}
+	}
+	bodyFilter := func(op spec.LogFilterOp, value string) spec.LogFilter {
+		return spec.LogFilter{Field: spec.Body, Op: op, Value: &value}
+	}
+
+	containsFragments := func(fragments ...string) any {
+		return mock.MatchedBy(func(exprs []filter.Expr) bool {
+			rendered := filter.And(exprs...).Render()
+			for _, f := range fragments {
+				if !strings.Contains(rendered, f) {
+					return false
+				}
+			}
+			return true
+		})
+	}
+
+	basicReq := spec.BranchLogsRequest{
+		Start:   start,
+		End:     end,
+		Filters: &[]spec.LogFilter{instanceFilter(branchID + "-1"), levelFilter("error")},
+		Limit:   new(100),
+	}
+
+	branchLogsTests := map[string]struct {
+		branchID       string
+		req            spec.BranchLogsRequest
+		setupMocks     func()
+		expectedError  error
+		expectedStatus int
+		assertResponse func(t *testing.T, got metrics.BranchLogs)
+	}{
+		"basic logs request succeeds": {
+			branchID: branchID,
+			req:      basicReq,
+			setupMocks: func() {
+				mockMetrics.EXPECT().GetLogs(
+					mock.Anything,
+					start,
+					end,
+					containsFragments(
+						`k8s.pod.name IN ["branchID-1"]`,
+						`severity_text IN ["ERROR", "FATAL", "PANIC", "CRITICAL"]`,
+					),
+					100,
+					"",
+				).Return(&metrics.BranchLogs{
+					Start: start,
+					End:   end,
+					Logs:  []metrics.LogEntry{logEntries[0]},
+				}, nil).Once()
+				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, "project_id", branchID).Return(&store.Branch{ID: branchID}, nil).Once()
+			},
+			assertResponse: func(t *testing.T, got metrics.BranchLogs) {
+				require.Equal(t, start, got.Start)
+				require.Equal(t, end, got.End)
+				require.Len(t, got.Logs, 1)
+				require.Equal(t, logEntries[0].Timestamp.Unix(), got.Logs[0].Timestamp.Unix())
+				require.Equal(t, logEntries[0].InstanceID, got.Logs[0].InstanceID)
+				require.Equal(t, logEntries[0].Level, got.Logs[0].Level)
+				require.Equal(t, logEntries[0].Message, got.Logs[0].Message)
+				require.Equal(t, logEntries[0].Process, got.Logs[0].Process)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		"cursor request with body icontains filter succeeds": {
+			branchID: branchID,
+			req: spec.BranchLogsRequest{
+				Start: start,
+				End:   end,
+				Filters: &[]spec.LogFilter{
+					instanceFilter(branchID+"-1", branchID+"-2"),
+					bodyFilter(spec.Icontains, "slow"),
+				},
+				Limit:  new(50),
+				Cursor: new("opaque-cursor"),
+			},
+			setupMocks: func() {
+				mockMetrics.EXPECT().GetLogs(
+					mock.Anything,
+					start,
+					end,
+					containsFragments(
+						`k8s.pod.name IN ["branchID-1", "branchID-2"]`,
+						`body ILIKE "%slow%"`,
+					),
+					50,
+					"opaque-cursor",
+				).Return(&metrics.BranchLogs{
+					Start:      start,
+					End:        end,
+					Logs:       logEntries,
+					NextCursor: new("next-cursor"),
+				}, nil).Once()
+				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, "project_id", branchID).Return(&store.Branch{ID: branchID}, nil).Once()
+			},
+			assertResponse: func(t *testing.T, got metrics.BranchLogs) {
+				require.Equal(t, start, got.Start)
+				require.Equal(t, end, got.End)
+				require.Len(t, got.Logs, 2)
+				require.Equal(t, new("next-cursor"), got.NextCursor)
+				require.NotNil(t, got.Logs[0].Process)
+				require.Equal(t, "client backend", *got.Logs[0].Process)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		"default values use only the instance filter": {
+			branchID: branchID,
+			req: spec.BranchLogsRequest{
+				Start:   start,
+				End:     end,
+				Filters: &[]spec.LogFilter{instanceFilter(branchID + "-1")},
+			},
+			setupMocks: func() {
+				mockMetrics.EXPECT().GetLogs(
+					mock.Anything,
+					start,
+					end,
+					mock.MatchedBy(func(exprs []filter.Expr) bool {
+						r := filter.And(exprs...).Render()
+						return strings.Contains(r, `k8s.pod.name IN ["branchID-1"]`) &&
+							!strings.Contains(r, "severity_text") &&
+							!strings.Contains(r, "backend_type")
+					}),
+					100,
+					"",
+				).Return(&metrics.BranchLogs{
+					Start: start,
+					End:   end,
+					Logs:  logEntries,
+				}, nil).Once()
+				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, "project_id", branchID).Return(&store.Branch{ID: branchID}, nil).Once()
+			},
+			assertResponse: func(t *testing.T, got metrics.BranchLogs) {
+				require.Len(t, got.Logs, 2)
+				require.Nil(t, got.NextCursor)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		"empty logs response": {
+			branchID: branchID,
+			req:      basicReq,
+			setupMocks: func() {
+				mockMetrics.EXPECT().GetLogs(
+					mock.Anything,
+					start,
+					end,
+					mock.Anything,
+					100,
+					"",
+				).Return(&metrics.BranchLogs{
+					Start: start,
+					End:   end,
+					Logs:  []metrics.LogEntry{},
+				}, nil).Once()
+				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, "project_id", branchID).Return(&store.Branch{ID: branchID}, nil).Once()
+			},
+			assertResponse: func(t *testing.T, got metrics.BranchLogs) {
+				require.Equal(t, start, got.Start)
+				require.Equal(t, end, got.End)
+				require.Len(t, got.Logs, 0)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		"branch not found": {
+			branchID: unknownBranch,
+			req: spec.BranchLogsRequest{
+				Start:   start,
+				End:     end,
+				Filters: &[]spec.LogFilter{instanceFilter(unknownBranch + "-1"), levelFilter("error")},
+				Limit:   new(100),
+			},
+			setupMocks: func() {
+				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, "project_id", unknownBranch).Return(nil, &store.ErrBranchNotFound{ID: unknownBranch}).Once()
+			},
+			expectedError:  store.ErrBranchNotFound{ID: unknownBranch},
+			expectedStatus: http.StatusBadRequest,
+		},
+		"metrics client error": {
+			branchID: branchID,
+			req:      basicReq,
+			setupMocks: func() {
+				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, "project_id", branchID).Return(&store.Branch{ID: branchID}, nil).Once()
+				mockMetrics.EXPECT().GetLogs(
+					mock.Anything,
+					start,
+					end,
+					mock.Anything,
+					100,
+					"",
+				).Return(nil, errors.New("metrics service unavailable")).Once()
+			},
+			expectedError:  errors.New("getting logs for branch [branchID]: metrics service unavailable"),
+			expectedStatus: http.StatusInternalServerError,
+		},
+		"validation error: end before start": {
+			branchID: branchID,
+			req: spec.BranchLogsRequest{
+				Start:   end,
+				End:     start,
+				Filters: &[]spec.LogFilter{instanceFilter(branchID + "-1")},
+			},
+			setupMocks:     func() {},
+			expectedError:  ErrorInvalidParam{BranchName: branchID, Param: "start", Message: "start time must come before end time"},
+			expectedStatus: http.StatusBadRequest,
+		},
+		"validation error: date range too large": {
+			branchID: branchID,
+			req: spec.BranchLogsRequest{
+				Start:   time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+				End:     time.Date(2025, 12, 31, 23, 59, 59, 0, time.UTC),
+				Filters: &[]spec.LogFilter{instanceFilter(branchID + "-1")},
+			},
+			setupMocks:     func() {},
+			expectedError:  ErrorInvalidParam{BranchName: branchID, Param: "end", Message: "maximum date range is 4320h0m0s"},
+			expectedStatus: http.StatusBadRequest,
+		},
+		"no user filters still scopes to branch pods": {
+			branchID: branchID,
+			req: spec.BranchLogsRequest{
+				Start: start,
+				End:   end,
+			},
+			setupMocks: func() {
+				mockMetrics.EXPECT().GetLogs(
+					mock.Anything,
+					start,
+					end,
+					containsFragments(`k8s.pod.name REGEXP "^branchID-"`),
+					100,
+					"",
+				).Return(&metrics.BranchLogs{
+					Start: start,
+					End:   end,
+					Logs:  []metrics.LogEntry{},
+				}, nil).Once()
+				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, "project_id", branchID).Return(&store.Branch{ID: branchID}, nil).Once()
+			},
+			assertResponse: func(t *testing.T, got metrics.BranchLogs) {
+				require.Len(t, got.Logs, 0)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		"non-instance filters still scope to branch pods": {
+			branchID: branchID,
+			req: spec.BranchLogsRequest{
+				Start:   start,
+				End:     end,
+				Filters: &[]spec.LogFilter{levelFilter("error")},
+			},
+			setupMocks: func() {
+				mockMetrics.EXPECT().GetLogs(
+					mock.Anything,
+					start,
+					end,
+					containsFragments(
+						`k8s.pod.name REGEXP "^branchID-"`,
+						`severity_text IN ["ERROR", "FATAL", "PANIC", "CRITICAL"]`,
+					),
+					100,
+					"",
+				).Return(&metrics.BranchLogs{
+					Start: start,
+					End:   end,
+					Logs:  []metrics.LogEntry{},
+				}, nil).Once()
+				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, "project_id", branchID).Return(&store.Branch{ID: branchID}, nil).Once()
+			},
+			assertResponse: func(t *testing.T, got metrics.BranchLogs) {
+				require.Len(t, got.Logs, 0)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		"validation error: instance value missing branchID prefix": {
+			branchID: branchID,
+			req: spec.BranchLogsRequest{
+				Start:   start,
+				End:     end,
+				Filters: &[]spec.LogFilter{instanceFilter("wrongBranch-1")},
+			},
+			setupMocks:     func() {},
+			expectedError:  ErrorInvalidParam{BranchName: branchID, Param: "filters[0].values", Message: "invalid instance [wrongBranch-1]"},
+			expectedStatus: http.StatusBadRequest,
+		},
+		"validation error: invalid level value": {
+			branchID: branchID,
+			req: spec.BranchLogsRequest{
+				Start:   start,
+				End:     end,
+				Filters: &[]spec.LogFilter{instanceFilter(branchID + "-1"), levelFilter("trace")},
+			},
+			setupMocks:     func() {},
+			expectedError:  ErrorInvalidParam{BranchName: branchID, Param: "filters[1].values", Message: "invalid log level [trace]"},
+			expectedStatus: http.StatusBadRequest,
+		},
+		"validation error: invalid regex": {
+			branchID: branchID,
+			req: spec.BranchLogsRequest{
+				Start: start,
+				End:   end,
+				Filters: &[]spec.LogFilter{
+					instanceFilter(branchID + "-1"),
+					bodyFilter(spec.Regex, "(unclosed"),
+				},
+			},
+			setupMocks:     func() {},
+			expectedError:  ErrorInvalidParam{BranchName: branchID, Param: "filters[1].value", Message: "invalid regex: error parsing regexp: missing closing ): `(unclosed`"},
+			expectedStatus: http.StatusBadRequest,
+		},
+		"validation error: oversize value": {
+			branchID: branchID,
+			req: spec.BranchLogsRequest{
+				Start: start,
+				End:   end,
+				Filters: &[]spec.LogFilter{
+					instanceFilter(branchID + "-1"),
+					bodyFilter(spec.Contains, strings.Repeat("a", 1025)),
+				},
+			},
+			setupMocks:     func() {},
+			expectedError:  ErrorInvalidParam{BranchName: branchID, Param: "filters[1].value", Message: "value must be at most 1024 characters"},
+			expectedStatus: http.StatusBadRequest,
+		},
+		"validation error: too many filters": {
+			branchID: branchID,
+			req: func() spec.BranchLogsRequest {
+				filters := []spec.LogFilter{instanceFilter(branchID + "-1")}
+				for i := 0; i < 16; i++ {
+					filters = append(filters, bodyFilter(spec.Contains, "x"))
+				}
+				return spec.BranchLogsRequest{Start: start, End: end, Filters: &filters}
+			}(),
+			setupMocks:     func() {},
+			expectedError:  ErrorInvalidParam{BranchName: branchID, Param: "filters", Message: "at most 16 filters are allowed"},
+			expectedStatus: http.StatusBadRequest,
+		},
+		"validation error: limit too high": {
+			branchID: branchID,
+			req: spec.BranchLogsRequest{
+				Start:   start,
+				End:     end,
+				Filters: &[]spec.LogFilter{instanceFilter(branchID + "-1")},
+				Limit:   new(MaxLogLimit + 1),
+			},
+			setupMocks:     func() {},
+			expectedError:  ErrorInvalidParam{BranchName: branchID, Param: "limit", Message: fmt.Sprintf("limit must be between 1 and %d", MaxLogLimit)},
+			expectedStatus: http.StatusBadRequest,
+		},
+		"validation error: limit zero": {
+			branchID: branchID,
+			req: spec.BranchLogsRequest{
+				Start:   start,
+				End:     end,
+				Filters: &[]spec.LogFilter{instanceFilter(branchID + "-1")},
+				Limit:   new(0),
+			},
+			setupMocks:     func() {},
+			expectedError:  ErrorInvalidParam{BranchName: branchID, Param: "limit", Message: fmt.Sprintf("limit must be between 1 and %d", MaxLogLimit)},
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for name, tc := range branchLogsTests {
+		t.Run(name, func(t *testing.T) {
+			tc.setupMocks()
+
+			c, rec := e.POST("/").WithJSONBody(tc.req).Context()
+			err := apiHandler.BranchLogs(c, apitest.TestOrganization, "project_id", tc.branchID)
+
+			if tc.expectedError != nil {
+				require.Error(t, err)
+				require.Equal(t, tc.expectedError.Error(), err.Error())
+			} else {
+				require.NoError(t, err)
+				rec.MustCode(tc.expectedStatus)
+
+				if tc.assertResponse != nil {
+					var got metrics.BranchLogs
 					rec.ReadBody(&got)
 					tc.assertResponse(t, got)
 				}

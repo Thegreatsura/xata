@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"k8s.io/utils/ptr"
@@ -270,6 +271,207 @@ func buildMetricQueries(metricName string, step int, aggregations []string, filt
 	}
 
 	return queries, queryToAgg, nil
+}
+
+func (sc *SigNozClient) GetLogs(ctx context.Context, start, end time.Time, filters []filter.Expr, limit int, cursor string) (*BranchLogs, error) {
+	reqBody, err := buildLogsReq(sc.clustersNamespace, start, end, filters, limit, cursor)
+	if err != nil {
+		return nil, fmt.Errorf("build logs request: %w", err)
+	}
+
+	results, err := sc.queryRange(ctx, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("query range: %w", err)
+	}
+
+	logs, nextCursor, err := parseLogsResults(results)
+	if err != nil {
+		return nil, fmt.Errorf("parse logs results: %w", err)
+	}
+
+	return &BranchLogs{
+		Start:      start,
+		End:        end,
+		Logs:       logs,
+		NextCursor: nextCursor,
+	}, nil
+}
+
+func parseLogsResults(results []any) ([]LogEntry, *string, error) {
+	logs := []LogEntry{}
+	if len(results) == 0 {
+		return logs, nil, nil
+	}
+
+	parsed, err := decodeResults[signoz.Querybuildertypesv5RawData](results)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decode log results: %w", err)
+	}
+
+	var nextCursor *string
+	if parsed[0].NextCursor != nil && *parsed[0].NextCursor != "" {
+		nextCursor = parsed[0].NextCursor
+	}
+
+	for _, result := range parsed {
+		for _, row := range ptr.Deref(result.Rows, nil) {
+			if entry, ok := parseLogRow(row); ok {
+				logs = append(logs, entry)
+			}
+		}
+	}
+
+	return logs, nextCursor, nil
+}
+
+var schemaLevelToSeverities = map[string][]string{
+	"debug":   {"DEBUG", "DEBUG1", "DEBUG2", "DEBUG3", "DEBUG4", "DEBUG5"},
+	"info":    {"INFO", "LOG", "NOTICE"},
+	"warning": {"WARN", "WARNING"},
+	"error":   {"ERROR", "FATAL", "PANIC", "CRITICAL"},
+}
+
+var severityToLevel = invertSeverityMap(schemaLevelToSeverities)
+
+func invertSeverityMap(m map[string][]string) map[string]string {
+	out := make(map[string]string, len(m)*4)
+	for level, severities := range m {
+		for _, s := range severities {
+			out[s] = level
+		}
+	}
+
+	return out
+}
+
+// Unknown levels are skipped because validation happens at the API edge.
+func ExpandLevels(levels []string) []string {
+	if len(levels) == 0 {
+		return nil
+	}
+
+	out := make([]string, 0, len(levels)*2)
+	for _, lvl := range levels {
+		out = append(out, schemaLevelToSeverities[lvl]...)
+	}
+
+	return out
+}
+
+// CNPG wraps postgres CSV records as `{...,"record":{"message":"..."}}` and its own
+// lifecycle logs as `{...,"msg":"..."}`. Falls back to the original on miss.
+func unwrapCNPGBody(body string) string {
+	if !strings.HasPrefix(body, "{") || !strings.HasSuffix(body, "}") {
+		return body
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(body), &parsed); err != nil {
+		return body
+	}
+
+	if record, ok := parsed["record"].(map[string]any); ok {
+		if msg, ok := record["message"].(string); ok && msg != "" {
+			return msg
+		}
+	}
+	if msg, ok := parsed["msg"].(string); ok && msg != "" {
+		return msg
+	}
+
+	return body
+}
+
+// Returns false when the row lacks the minimum data required to render a log entry (timestamp + non-empty body).
+func parseLogRow(row signoz.Querybuildertypesv5RawRow) (LogEntry, bool) {
+	if row.Timestamp == nil || row.Data == nil {
+		return LogEntry{}, false
+	}
+
+	data := *row.Data
+	message, _ := data["body"].(string)
+	if message == "" {
+		return LogEntry{}, false
+	}
+	message = unwrapCNPGBody(message)
+
+	resources, _ := data["resources_string"].(map[string]any)
+	instanceID, _ := resources["k8s.pod.name"].(string)
+
+	entry := LogEntry{
+		Timestamp:  *row.Timestamp,
+		InstanceID: instanceID,
+		Message:    message,
+	}
+	if severity, _ := data["severity_text"].(string); severity != "" {
+		if level, ok := severityToLevel[severity]; ok {
+			entry.Level = &level
+		}
+	}
+	attrs, _ := data["attributes_string"].(map[string]any)
+	if process, ok := attrs["backend_type"].(string); ok && process != "" {
+		entry.Process = &process
+	}
+	return entry, true
+}
+
+func buildLogsReq(clustersNamespace string, start, end time.Time, userFilters []filter.Expr, limit int, cursor string) (signoz.QueryRangeV5JSONRequestBody, error) {
+	step := calculateStep(start, end)
+	filterExpr := buildLogsFilterExpression(clustersNamespace, userFilters)
+
+	envelope, err := buildLogQuery(step, filterExpr, limit, cursor)
+	if err != nil {
+		return signoz.QueryRangeV5JSONRequestBody{}, err
+	}
+
+	return buildRequestBody(start, end, []signoz.Querybuildertypesv5QueryEnvelope{envelope}, signoz.Raw), nil
+}
+
+func buildLogsFilterExpression(namespace string, userFilters []filter.Expr) string {
+	exprs := []filter.Expr{
+		filter.Eq("k8s.namespace.name", namespace),
+		filter.Eq("k8s.container.name", "postgres"),
+		filter.Eq("logger", "postgres"),
+	}
+	exprs = append(exprs, userFilters...)
+
+	return filter.And(exprs...).Render()
+}
+
+func buildLogQuery(step int, filterExpr string, limit int, cursor string) (signoz.Querybuildertypesv5QueryEnvelope, error) {
+	stepInterval, err := buildStepInterval(step)
+	if err != nil {
+		return signoz.Querybuildertypesv5QueryEnvelope{}, err
+	}
+
+	queryName := "A"
+	spec := signoz.Querybuildertypesv5QueryBuilderQueryGithubComSigNozSignozPkgTypesQuerybuildertypesQuerybuildertypesv5LogAggregation{
+		Name:   &queryName,
+		Signal: new(signoz.Logs),
+		Filter: &signoz.Querybuildertypesv5Filter{Expression: &filterExpr},
+		Order: &[]signoz.Querybuildertypesv5OrderBy{
+			{
+				Key:       &signoz.Querybuildertypesv5OrderByKey{Name: "timestamp"},
+				Direction: new(signoz.Desc),
+			},
+		},
+		StepInterval: stepInterval,
+		Limit:        new(limit),
+		Disabled:     new(false),
+	}
+	if cursor != "" {
+		spec.Cursor = &cursor
+	}
+
+	envelope := signoz.Querybuildertypesv5QueryEnvelope{}
+	if err := envelope.FromQuerybuildertypesv5QueryEnvelopeBuilderLog(signoz.Querybuildertypesv5QueryEnvelopeBuilderLog{
+		Type: new(signoz.BuilderQuery),
+		Spec: &spec,
+	}); err != nil {
+		return signoz.Querybuildertypesv5QueryEnvelope{}, fmt.Errorf("encode query envelope: %w", err)
+	}
+
+	return envelope, nil
 }
 
 // buildRequestBody wraps query envelopes into a v5 request body of the given request type.

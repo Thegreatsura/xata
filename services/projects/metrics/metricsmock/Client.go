@@ -4,6 +4,7 @@ package metricsmock
 
 import (
 	context "context"
+	filter "xata/internal/signoz/filter"
 	metrics "xata/services/projects/metrics"
 
 	mock "github.com/stretchr/testify/mock"
@@ -22,6 +23,57 @@ type Client_Expecter struct {
 
 func (_m *Client) EXPECT() *Client_Expecter {
 	return &Client_Expecter{mock: &_m.Mock}
+}
+
+// GetLogs provides a mock function with given fields: ctx, start, end, filters, limit, cursor
+func (_m *Client) GetLogs(ctx context.Context, start time.Time, end time.Time, filters []filter.Expr, limit int, cursor string) (*metrics.BranchLogs, error) {
+	ret := _m.Called(ctx, start, end, filters, limit, cursor)
+
+	var r0 *metrics.BranchLogs
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time, []filter.Expr, int, string) *metrics.BranchLogs); ok {
+		r0 = rf(ctx, start, end, filters, limit, cursor)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*metrics.BranchLogs)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time, []filter.Expr, int, string) error); ok {
+		r1 = rf(ctx, start, end, filters, limit, cursor)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Client_GetLogs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLogs'
+type Client_GetLogs_Call struct {
+	*mock.Call
+}
+
+// GetLogs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - start time.Time
+//   - end time.Time
+//   - filters []filter.Expr
+//   - limit int
+//   - cursor string
+func (_e *Client_Expecter) GetLogs(ctx interface{}, start interface{}, end interface{}, filters interface{}, limit interface{}, cursor interface{}) *Client_GetLogs_Call {
+	return &Client_GetLogs_Call{Call: _e.mock.On("GetLogs", ctx, start, end, filters, limit, cursor)}
+}
+
+func (_c *Client_GetLogs_Call) Run(run func(ctx context.Context, start time.Time, end time.Time, filters []filter.Expr, limit int, cursor string)) *Client_GetLogs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(time.Time), args[2].(time.Time), args[3].([]filter.Expr), args[4].(int), args[5].(string))
+	})
+	return _c
+}
+
+func (_c *Client_GetLogs_Call) Return(_a0 *metrics.BranchLogs, _a1 error) *Client_GetLogs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
 }
 
 // GetMetric provides a mock function with given fields: ctx, start, end, metric, instances, aggregations
