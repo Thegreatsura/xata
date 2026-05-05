@@ -180,6 +180,7 @@ type StorageSpec struct {
 	// Size is the size of the persistent volume for each instance
 	// +kubebuilder:validation:Pattern=`^\d+(\.\d+)?(Gi|Ti)$`
 	// +kubebuilder:default:="1Gi"
+	// +kubebuilder:validation:XValidation:rule="quantity(self).compareTo(quantity(oldSelf)) >= 0",message="storage size cannot be decreased"
 	// +optional
 	Size string `json:"size,omitempty"`
 

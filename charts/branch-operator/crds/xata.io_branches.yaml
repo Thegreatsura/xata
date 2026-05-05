@@ -270,6 +270,9 @@ spec:
                           each instance
                         pattern: ^\d+(\.\d+)?(Gi|Ti)$
                         type: string
+                        x-kubernetes-validations:
+                        - message: storage size cannot be decreased
+                          rule: quantity(self).compareTo(quantity(oldSelf)) >= 0
                       storageClass:
                         description: StorageClass is the Kubernetes storage class
                           for the cluster PVCs

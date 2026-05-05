@@ -258,3 +258,31 @@ func TestRestoreImmutability(t *testing.T) {
 		})
 	})
 }
+
+func TestStorageValidation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("storage size can not be decreased", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		branch := NewBranchBuilder().Build()
+
+		withBranch(ctx, t, branch, func(t *testing.T, br *v1alpha1.Branch) {
+			// Increase the storage size to a valid value
+			err := retryOnConflict(ctx, br, func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.Size = "100Gi"
+			})
+			require.NoError(t, err)
+
+			// Attempt to decrease the storage size
+			err = retryOnConflict(ctx, br, func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.Size = "10Gi"
+			})
+
+			// Expect the update to be rejected with a validation error
+			require.Error(t, err)
+			require.True(t, apierrors.IsInvalid(err))
+		})
+	})
+}

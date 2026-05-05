@@ -310,11 +310,7 @@ func (c *ClustersService) UpdatePostgresCluster(ctx context.Context, req *cluste
 	}
 
 	if req.GetUpdateConfiguration().StorageSize != nil {
-		currentSize := quantityGi(resource.MustParse(branch.Spec.ClusterSpec.Storage.Size))
 		requestedSize := req.GetUpdateConfiguration().GetStorageSize()
-		if requestedSize < currentSize {
-			return nil, status.Errorf(codes.InvalidArgument, "storage size cannot be decreased (current: %dGi, requested: %dGi)", currentSize, requestedSize)
-		}
 		if requestedSize > MaxStorageSizeGi {
 			return nil, status.Errorf(codes.InvalidArgument, "storage size cannot exceed %dGi (requested: %dGi)", MaxStorageSizeGi, requestedSize)
 		}
