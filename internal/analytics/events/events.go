@@ -1,9 +1,6 @@
 package events
 
-import (
-	"sort"
-	"time"
-)
+import "time"
 
 type Event struct {
 	Name       string
@@ -171,42 +168,6 @@ func NewBranchRestoredFromBackupEvent(organizationID, projectID, sourceBranchID,
 	}
 }
 
-// BranchCreationSummaryMetrics is used for synthetic PostHog summary events,
-// not events generated directly by user interactions.
-type BranchCreationSummaryMetrics struct {
-	TotalBranchesAllTime      int
-	AiBranchesAllTime         int
-	NonConsoleBranchesAllTime int
-	CliBranchesAllTime        int
-	CiBranchesAllTime         int
-	TotalBranches7day         int
-	AiBranches7day            int
-	NonConsoleBranches7day    int
-	CliBranches7day           int
-	CiBranches7day            int
-}
-
-// This is a summary event that we generate from data warehouse data
-func NewBranchCreationSummaryEvent(organizationID string, metrics BranchCreationSummaryMetrics) Event {
-	return Event{
-		Name:  "summary: branch creation",
-		OrgID: organizationID,
-		Properties: map[string]any{
-			"organization":              organizationID,
-			"totalBranchesAllTime":      metrics.TotalBranchesAllTime,
-			"aiBranchesAllTime":         metrics.AiBranchesAllTime,
-			"nonConsoleBranchesAllTime": metrics.NonConsoleBranchesAllTime,
-			"cliBranchesAllTime":        metrics.CliBranchesAllTime,
-			"ciBranchesAllTime":         metrics.CiBranchesAllTime,
-			"totalBranches7day":         metrics.TotalBranches7day,
-			"aiBranches7day":            metrics.AiBranches7day,
-			"nonConsoleBranches7day":    metrics.NonConsoleBranches7day,
-			"cliBranches7day":           metrics.CliBranches7day,
-			"ciBranches7day":            metrics.CiBranches7day,
-		},
-	}
-}
-
 // CostSummaryMetric is used for synthetic PostHog summary events,
 // not events generated directly by user interactions.
 type CostSummaryMetric struct {
@@ -216,30 +177,54 @@ type CostSummaryMetric struct {
 	Cost7day    float64
 }
 
+type ActivationSummaryMetrics struct {
+	TotalBranchesAllTime       int
+	AiBranchesAllTime          int
+	NonConsoleBranchesAllTime  int
+	CliBranchesAllTime         int
+	CiBranchesAllTime          int
+	TotalBranches7day          int
+	AiBranches7day             int
+	NonConsoleBranches7day     int
+	CliBranches7day            int
+	CiBranches7day             int
+	CostMetrics                map[string]CostSummaryMetric
+	PaidInvoiceCount           int
+	HasPaymentMethodAddedEvent bool
+}
+
 // This is a summary event that we generate from data warehouse data
-func NewCostSummaryEvent(organizationID string, metrics map[string]CostSummaryMetric) Event {
+func NewActivationSummaryEvent(organizationID string, metrics ActivationSummaryMetrics) Event {
 	properties := map[string]any{
-		"organization": organizationID,
+		"organization":               organizationID,
+		"totalBranchesAllTime":       metrics.TotalBranchesAllTime,
+		"aiBranchesAllTime":          metrics.AiBranchesAllTime,
+		"nonConsoleBranchesAllTime":  metrics.NonConsoleBranchesAllTime,
+		"cliBranchesAllTime":         metrics.CliBranchesAllTime,
+		"ciBranchesAllTime":          metrics.CiBranchesAllTime,
+		"totalBranches7day":          metrics.TotalBranches7day,
+		"aiBranches7day":             metrics.AiBranches7day,
+		"nonConsoleBranches7day":     metrics.NonConsoleBranches7day,
+		"cliBranches7day":            metrics.CliBranches7day,
+		"ciBranches7day":             metrics.CiBranches7day,
+		"paidInvoiceCount":           metrics.PaidInvoiceCount,
+		"hasPaymentMethodAddedEvent": metrics.HasPaymentMethodAddedEvent,
 	}
-
-	// This event creates properties for multiple orb "billable metrics" so that as we extend billing system to
-	// add more billable metrics they will automatically be added to this event
-	metricNames := make([]string, 0, len(metrics))
-	for metricName := range metrics {
-		metricNames = append(metricNames, metricName)
-	}
-	sort.Strings(metricNames)
-
-	for _, metricName := range metricNames {
-		properties[metricName+"AllTime"] = metrics[metricName].AllTime
-		properties[metricName+"7day"] = metrics[metricName].SevenDay
-		properties[metricName+"CostAllTime"] = metrics[metricName].CostAllTime
-		properties[metricName+"Cost7day"] = metrics[metricName].Cost7day
-	}
-
+	addCostSummaryProperties(properties, metrics.CostMetrics)
 	return Event{
-		Name:       "summary: cost",
+		Name:       "summary: activation",
 		OrgID:      organizationID,
 		Properties: properties,
+	}
+}
+
+func addCostSummaryProperties(properties map[string]any, metrics map[string]CostSummaryMetric) {
+	// This event creates properties for multiple orb "billable metrics" so that as we extend billing system to
+	// add more billable metrics they will automatically be added to this event
+	for metricName, metric := range metrics {
+		properties[metricName+"AllTime"] = metric.AllTime
+		properties[metricName+"7day"] = metric.SevenDay
+		properties[metricName+"CostAllTime"] = metric.CostAllTime
+		properties[metricName+"Cost7day"] = metric.Cost7day
 	}
 }
