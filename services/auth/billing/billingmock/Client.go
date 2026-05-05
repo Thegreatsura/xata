@@ -154,6 +154,44 @@ func (_c *Client_CustomerExists_Call) Return(_a0 bool, _a1 error) *Client_Custom
 	return _c
 }
 
+// DeletePaymentMethod provides a mock function with given fields: ctx, externalCustomerID
+func (_m *Client) DeletePaymentMethod(ctx context.Context, externalCustomerID string) error {
+	ret := _m.Called(ctx, externalCustomerID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, externalCustomerID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Client_DeletePaymentMethod_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeletePaymentMethod'
+type Client_DeletePaymentMethod_Call struct {
+	*mock.Call
+}
+
+// DeletePaymentMethod is a helper method to define mock.On call
+//   - ctx context.Context
+//   - externalCustomerID string
+func (_e *Client_Expecter) DeletePaymentMethod(ctx interface{}, externalCustomerID interface{}) *Client_DeletePaymentMethod_Call {
+	return &Client_DeletePaymentMethod_Call{Call: _e.mock.On("DeletePaymentMethod", ctx, externalCustomerID)}
+}
+
+func (_c *Client_DeletePaymentMethod_Call) Run(run func(ctx context.Context, externalCustomerID string)) *Client_DeletePaymentMethod_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *Client_DeletePaymentMethod_Call) Return(_a0 error) *Client_DeletePaymentMethod_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
 // EnsureDefaultPaymentMethod provides a mock function with given fields: ctx, stripeCustomerID, paymentMethodID
 func (_m *Client) EnsureDefaultPaymentMethod(ctx context.Context, stripeCustomerID string, paymentMethodID string) error {
 	ret := _m.Called(ctx, stripeCustomerID, paymentMethodID)
@@ -331,6 +369,44 @@ func (_c *Client_FetchStripeCustomer_Call) Run(run func(ctx context.Context, str
 
 func (_c *Client_FetchStripeCustomer_Call) Return(_a0 *billing.StripeCustomer, _a1 error) *Client_FetchStripeCustomer_Call {
 	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// FinalizeSubscription provides a mock function with given fields: ctx, externalCustomerID
+func (_m *Client) FinalizeSubscription(ctx context.Context, externalCustomerID string) error {
+	ret := _m.Called(ctx, externalCustomerID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, externalCustomerID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Client_FinalizeSubscription_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FinalizeSubscription'
+type Client_FinalizeSubscription_Call struct {
+	*mock.Call
+}
+
+// FinalizeSubscription is a helper method to define mock.On call
+//   - ctx context.Context
+//   - externalCustomerID string
+func (_e *Client_Expecter) FinalizeSubscription(ctx interface{}, externalCustomerID interface{}) *Client_FinalizeSubscription_Call {
+	return &Client_FinalizeSubscription_Call{Call: _e.mock.On("FinalizeSubscription", ctx, externalCustomerID)}
+}
+
+func (_c *Client_FinalizeSubscription_Call) Run(run func(ctx context.Context, externalCustomerID string)) *Client_FinalizeSubscription_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *Client_FinalizeSubscription_Call) Return(_a0 error) *Client_FinalizeSubscription_Call {
+	_c.Call.Return(_a0)
 	return _c
 }
 

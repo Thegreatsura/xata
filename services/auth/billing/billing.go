@@ -107,6 +107,10 @@ type Client interface {
 	CountPendingInvoices(ctx context.Context, externalCustomerID string) (int, error)
 	// HasOutstandingInvoices returns true if the customer has any issued invoices or draft invoices with a non-zero total.
 	HasOutstandingInvoices(ctx context.Context, externalCustomerID string) (bool, error)
+	// FinalizeSubscription cancels any active Orb subscriptions for the customer immediately.
+	FinalizeSubscription(ctx context.Context, externalCustomerID string) error
+	// DeletePaymentMethod detaches the customer's default Stripe payment method, if any.
+	DeletePaymentMethod(ctx context.Context, externalCustomerID string) error
 }
 
 type NoopBilling struct{}
@@ -149,4 +153,12 @@ func (n *NoopBilling) CountPendingInvoices(_ context.Context, _ string) (int, er
 
 func (n *NoopBilling) HasOutstandingInvoices(_ context.Context, _ string) (bool, error) {
 	return false, nil
+}
+
+func (n *NoopBilling) FinalizeSubscription(_ context.Context, _ string) error {
+	return nil
+}
+
+func (n *NoopBilling) DeletePaymentMethod(_ context.Context, _ string) error {
+	return nil
 }
