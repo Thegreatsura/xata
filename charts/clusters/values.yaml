@@ -11,10 +11,12 @@ service:
 config:
   clusters:
     clustersNamespace: xata-clusters
-    diskpoolNamespace: openebs
     storageClass: ""
     nodeSelector: ""
     volumeSnapshotClass: ""
+    openebs:
+      enabled: true
+      namespace: openebs
 
 resources:
   limits:

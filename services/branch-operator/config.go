@@ -17,6 +17,7 @@ type Config struct {
 	Tolerations         []corev1.Toleration
 	EnforceZone         bool          `env:"XATA_ENFORCE_ZONE" env-default:"false" env-description:"enable zone-based pod anti-affinity for multi-instance clusters"`
 	ImagePullSecrets    []string      `env:"XATA_IMAGE_SECRETS" env-default:"ghcr-secret" env-description:"image pull secrets for private PostgreSQL images"`
+	XatastorEnabled     bool          `env:"XATA_XATASTOR_ENABLED" env-default:"true" env-description:"enable xatastor CSI integration for wakeup requests"`
 	CSINodeNamespace    string        `env:"XATA_CSI_NODE_NAMESPACE" env-default:"xatastor" env-description:"namespace where CSI node plugin pods run"`
 	CSINodePort         int           `env:"XATA_CSI_NODE_PORT" env-default:"50061" env-description:"port for the SlotController service on CSI node plugin pods"`
 	WakeupRequestTTL    time.Duration `env:"XATA_WAKEUP_REQUEST_TTL" env-default:"60s" env-description:"time to keep completed WakeupRequests before deletion"`

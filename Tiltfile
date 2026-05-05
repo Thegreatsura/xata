@@ -77,18 +77,6 @@ def create_resources():
         'metastore_reader_password': 'changeme',
     }))
 
-    k8s_yaml(blob("""
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: xatastor
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: openebs
-"""))
-
     # Use OSS kustomize overlay
     k8s_yaml(kustomize('kustomize/overlays/local', flags=KUSTOMIZE_FLAGS))
     secret_settings(disable_scrub=True)
@@ -222,10 +210,10 @@ metadata:
 load('ext://secret', 'secret_create_generic', 'secret_from_dict')
 load('ext://helm_resource', 'helm_resource', 'helm_repo')
 
-create_resources()
-
 config.define_string_list("to-run", args=True)
 cfg = config.parse()
+
+create_resources()
 
 groups_by_label = {
     'cnpg': [

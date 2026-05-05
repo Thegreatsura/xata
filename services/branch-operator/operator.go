@@ -90,6 +90,11 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 		return err
 	}
 
+	podNamespaces := []string{s.config.ClustersNamespace}
+	if s.config.XatastorEnabled {
+		podNamespaces = append(podNamespaces, s.config.CSINodeNamespace)
+	}
+
 	cacheByObject := map[ctrlclient.Object]cache.ByObject{
 		&corev1.Secret{}: {
 			Namespaces: cacheNamespaces(s.config.ClustersNamespace),
@@ -99,7 +104,7 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 			Namespaces: cacheNamespaces(s.config.ClustersNamespace),
 		},
 		&corev1.Pod{}: {
-			Namespaces: cacheNamespaces(s.config.ClustersNamespace, s.config.CSINodeNamespace),
+			Namespaces: cacheNamespaces(podNamespaces...),
 		},
 		&corev1.Service{}: {
 			Namespaces: cacheNamespaces(s.config.ClustersNamespace, reconciler.XataNamespace),
@@ -161,17 +166,18 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 		return err
 	}
 
-	// Create and setup the wakeup reconciler
-	wakeupReconciler := &wakeup.WakeupReconciler{
-		Client:                  mgr.GetClient(),
-		Scheme:                  mgr.GetScheme(),
-		CSINodeNamespace:        s.config.CSINodeNamespace,
-		CSINodePort:             s.config.CSINodePort,
-		WakeupRequestTTL:        s.config.WakeupRequestTTL,
-		MaxConcurrentReconciles: s.config.WakeupMaxConcurrent,
-	}
-	if err := wakeupReconciler.SetupWithManager(ctx, mgr); err != nil {
-		return err
+	if s.config.XatastorEnabled {
+		wakeupReconciler := &wakeup.WakeupReconciler{
+			Client:                  mgr.GetClient(),
+			Scheme:                  mgr.GetScheme(),
+			CSINodeNamespace:        s.config.CSINodeNamespace,
+			CSINodePort:             s.config.CSINodePort,
+			WakeupRequestTTL:        s.config.WakeupRequestTTL,
+			MaxConcurrentReconciles: s.config.WakeupMaxConcurrent,
+		}
+		if err := wakeupReconciler.SetupWithManager(ctx, mgr); err != nil {
+			return err
+		}
 	}
 
 	s.manager = mgr

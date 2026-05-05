@@ -9,6 +9,8 @@ config:
   branchOperator:
     imageSecrets: ghcr-secret
     clustersTolerations: "xata.io/workload=dataplane:NoSchedule"
+    xatastor:
+      enabled: true
 
 resources:
   limits:

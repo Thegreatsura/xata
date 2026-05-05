@@ -5,3 +5,5 @@ image:
 config:
   branchOperator:
     clustersTolerations: "xata.io/workload=dataplane:NoSchedule"
+    xatastor:
+      enabled: false

@@ -31,7 +31,6 @@ const (
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch,namespace=xata-clusters
 // +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch,namespace=xata-clusters
-// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch,namespace=xatastor
 
 // WakeupReconciler reconciles a WakeupRequest object
 type WakeupReconciler struct {

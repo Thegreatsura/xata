@@ -8,3 +8,4 @@ metadata:
 data:
   XATA_IMAGE_SECRETS: {{ .Values.config.branchOperator.imageSecrets | quote }}
   XATA_CLUSTERS_TOLERATIONS: {{ .Values.config.branchOperator.clustersTolerations | quote }}
+  XATA_XATASTOR_ENABLED: {{ .Values.config.branchOperator.xatastor.enabled | quote }}
