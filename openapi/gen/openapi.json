@@ -949,7 +949,7 @@
         "security": [
           {
             "xata": [
-              "org:delete"
+              "org:write"
             ]
           }
         ],

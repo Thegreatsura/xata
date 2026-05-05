@@ -540,7 +540,7 @@ paths:
           description: Unexpected Error
       security:
         - xata:
-            - org:delete
+            - org:write
       tags:
         - Organizations
   /marketplace/register:

@@ -56,7 +56,21 @@ func main() {
 	}
 
 	entries, scopeSet := collectScopes(spec)
+	validateScopeSuffixes(scopeSet)
 	generateCode(entries, scopeSet)
+}
+
+func validateScopeSuffixes(scopeSet map[string]struct{}) {
+	var invalid []string
+	for s := range scopeSet {
+		if !strings.HasSuffix(s, ":read") && !strings.HasSuffix(s, ":write") {
+			invalid = append(invalid, s)
+		}
+	}
+	if len(invalid) > 0 {
+		sort.Strings(invalid)
+		log.Fatalf("invalid scope suffix (only :read and :write are allowed): %s", strings.Join(invalid, ", "))
+	}
 }
 
 func collectScopes(spec OpenAPISpec) ([]scopeEntry, map[string]struct{}) {

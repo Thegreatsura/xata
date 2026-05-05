@@ -91,7 +91,7 @@ func GetScopes(method, path string) []string {
 		case "/organizations/:organizationID/api-keys":
 			return []string{"keys:write"}
 		case "/organizations/:organizationID/deletion-request":
-			return []string{"org:delete"}
+			return []string{"org:write"}
 		case "/organizations/:organizationID/githubapp/installations":
 			return []string{"org:write"}
 		case "/organizations/:organizationID/invitations":
@@ -140,7 +140,6 @@ func GetAllScopes() []string {
 		"logs:read",
 		"marketplace:write",
 		"metrics:read",
-		"org:delete",
 		"org:read",
 		"org:write",
 		"project:read",
