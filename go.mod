@@ -37,7 +37,6 @@ require (
 	github.com/mattn/go-isatty v0.0.22
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/open-feature/go-sdk v1.16.0
-	github.com/openebs/openebs-e2e/common v0.0.0-20250916115827-31b8edfdb1e6
 	github.com/orbcorp/orb-go v1.13.0
 	github.com/philip-bui/grpc-zerolog v1.0.1
 	github.com/pires/go-proxyproto v0.8.1
@@ -55,7 +54,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.40.0
 	github.com/xataio/pgroll v0.14.1
-	github.com/xataio/xata-cnpg v1.28.1-0.20260610133336-5aabd96c3a91
+	github.com/xataio/xata-cnpg v1.28.1-0.20260612130714-f6428e7adb6e
 	github.com/ziflex/lecho/v3 v3.11.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.67.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0
@@ -90,15 +89,11 @@ require (
 	codeberg.org/polyfloyd/go-errorlint v1.9.0 // indirect
 	cuelabs.dev/go/oci/ociregistry v0.0.0-20250722084951-074d06050084 // indirect
 	cuelang.org/go v0.15.4 // indirect
-	cyphar.com/go-pathrs v0.2.1 // indirect
 	dev.gaijin.team/go/exhaustruct/v4 v4.0.0 // indirect
 	dev.gaijin.team/go/golib v0.6.0 // indirect
-	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6 // indirect
-	github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20230306123547-8075edf89bb0 // indirect
 	github.com/AdminBenni/iota-mixing v1.0.0 // indirect
 	github.com/AlwxSin/noinlineerr v1.0.5 // indirect
 	github.com/Masterminds/squirrel v1.5.4 // indirect
-	github.com/Microsoft/hcsshim v0.11.7 // indirect
 	github.com/MirrexOne/unqueryvet v1.5.4 // indirect
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/alecthomas/chroma/v2 v2.23.1 // indirect
@@ -129,16 +124,9 @@ require (
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/cloudnative-pg/cnpg-i v0.3.0 // indirect
 	github.com/cockroachdb/apd/v3 v3.2.1 // indirect
-	github.com/containerd/cgroups v1.1.0 // indirect
-	github.com/containerd/containerd/api v1.8.0 // indirect
-	github.com/containerd/continuity v0.4.4 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
-	github.com/containerd/fifo v1.1.0 // indirect
-	github.com/containerd/ttrpc v1.2.7 // indirect
-	github.com/containerd/typeurl/v2 v2.2.3 // indirect
 	github.com/dave/dst v0.27.3 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
-	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
 	github.com/emicklei/proto v1.14.2 // indirect
 	github.com/go-gorp/gorp/v3 v3.1.0 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
@@ -159,7 +147,6 @@ require (
 	github.com/goccy/go-yaml v1.19.1 // indirect
 	github.com/godoc-lint/godoc-lint v0.11.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golangci/asciicheck v0.5.0 // indirect
 	github.com/golangci/golangci-lint/v2 v2.11.1 // indirect
 	github.com/golangci/golines v0.15.0 // indirect
@@ -186,12 +173,7 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/manuelarte/embeddedstructfieldcheck v0.4.0 // indirect
 	github.com/manuelarte/funcorder v0.5.0 // indirect
-	github.com/moby/locker v1.0.1 // indirect
-	github.com/moby/sys/mountinfo v0.7.2 // indirect
-	github.com/moby/sys/signal v0.7.0 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
-	github.com/opencontainers/runtime-spec v1.1.0 // indirect
-	github.com/opencontainers/selinux v1.13.1 // indirect
 	github.com/petermattis/goid v0.0.0-20250904145737-900bdf8bb490 // indirect
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20251016062345-16587c79cd91 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9 // indirect
@@ -209,8 +191,6 @@ require (
 	github.com/yashtewari/glob-intersection v0.2.0 // indirect
 	go.augendre.info/arangolint v0.4.0 // indirect
 	go.augendre.info/fatcontext v0.9.0 // indirect
-	go.opencensus.io v0.24.0 // indirect
-	google.golang.org/genproto v0.0.0-20231211222908-989df2bf70f3 // indirect
 	k8s.io/apiserver v0.35.0 // indirect
 	k8s.io/code-generator v0.35.0 // indirect
 	k8s.io/gengo/v2 v2.0.0-20250922181213-ec3ebc5fd46b // indirect
