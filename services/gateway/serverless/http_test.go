@@ -934,6 +934,7 @@ func TestQuery_IPFilter(t *testing.T) {
 		session.WithDialer(func(context.Context, string, string) (net.Conn, error) {
 			return nil, errors.New("stub dialer: no backend")
 		}),
+		session.WithClustersService(alwaysSyncedClustersService(t)),
 	)
 
 	connStr := "postgres://user:pass@host/db"
@@ -1002,6 +1003,7 @@ func TestConnect(t *testing.T) {
 				dialed = append(dialed, address)
 				return nil, errors.New("stub: no backend")
 			}),
+			session.WithClustersService(alwaysSyncedClustersService(t)),
 		)
 		h := &handler{dialer: dialer}
 

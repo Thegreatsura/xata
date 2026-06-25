@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	"google.golang.org/grpc"
@@ -30,6 +31,9 @@ var ErrBranchHibernated = errors.New("branch is hibernated")
 var ErrBranchNotFound = errors.New("branch not found")
 
 type clustersServiceClientFn func(ctx context.Context, branchID string) (clustersServiceClient, error)
+
+// ClustersServiceClientFactory builds a clusters service client for a branch.
+type ClustersServiceClientFactory func(ctx context.Context, branchID string) (clustersv1.ClustersServiceClient, error)
 
 // ClusterDialer is responsible for dialing into a Postgres cluster, handling
 // reactivation when the cluster is hibernated.
@@ -57,6 +61,7 @@ type ClusterDialerConfiguration struct {
 type clustersService interface {
 	DescribePostgresCluster(ctx context.Context, request *clustersv1.DescribePostgresClusterRequest, opts ...grpc.CallOption) (*clustersv1.DescribePostgresClusterResponse, error)
 	UpdatePostgresCluster(ctx context.Context, request *clustersv1.UpdatePostgresClusterRequest, opts ...grpc.CallOption) (*clustersv1.UpdatePostgresClusterResponse, error)
+	GetBranchPasswordSyncStatus(ctx context.Context, request *clustersv1.GetBranchPasswordSyncStatusRequest, opts ...grpc.CallOption) (*clustersv1.GetBranchPasswordSyncStatusResponse, error)
 }
 
 type clustersServiceClient interface {
@@ -130,9 +135,25 @@ func WithDialer(dialer dialerFn) ClusterDialerOption {
 	}
 }
 
-func WithClustersService(factory clustersServiceClientFn) ClusterDialerOption {
+// noopCloseClustersClient adapts a clustersv1.ClustersServiceClient to the
+// dialer's internal client interface, which also requires Close.
+type noopCloseClustersClient struct {
+	clustersv1.ClustersServiceClient
+}
+
+func (noopCloseClustersClient) Close() error { return nil }
+
+// WithClustersService injects a factory for the clusters service client. The
+// returned client's Close is a no-op.
+func WithClustersService(factory ClustersServiceClientFactory) ClusterDialerOption {
 	return func(d *ClusterDialer) {
-		d.clustersServiceClient = factory
+		d.clustersServiceClient = func(ctx context.Context, branchID string) (clustersServiceClient, error) {
+			client, err := factory(ctx, branchID)
+			if err != nil {
+				return nil, err
+			}
+			return noopCloseClustersClient{client}, nil
+		}
 	}
 }
 
@@ -140,6 +161,22 @@ func WithClustersService(factory clustersServiceClientFn) ClusterDialerOption {
 // is hibernated and the configuration allows it.
 func (d *ClusterDialer) Dial(ctx context.Context, network string, branch *Branch) (net.Conn, error) {
 	dialLogger := log.Ctx(ctx).With().Str("cluster", branch.ID).Str("address", branch.Address).Logger()
+
+	// Construct a clusters service client for the target branch. This is used to
+	// connect to the clusters service in the cell where the branch resides, and
+	// is reused for the password preflight and any reactivation lookup below.
+	svc, err := d.clustersServiceClient(ctx, branch.ID)
+	if err != nil {
+		dialLogger.Error().Err(err).Msg("failed to create clusters service client")
+		return nil, err
+	}
+	defer svc.Close()
+
+	// Preflight the dial to see if the target branch's credentials are in sync
+	// with the latest branch credentials
+	d.waitForPasswordSync(ctx, svc, branch.ID, dialLogger)
+
+	// Attempt to dial the target branch
 	conn, dialErr := d.dialer(ctx, network, branch.Address)
 	if !shouldAttemptReactivation(dialErr) {
 		return conn, dialErr
@@ -149,13 +186,6 @@ func (d *ClusterDialer) Dial(ctx context.Context, network string, branch *Branch
 	// decide between: reactivating (hibernated + scale-to-zero), holding the
 	// connection until the target is reachable (cluster is or will be
 	// healthy), or surfacing the error (genuinely unavailable).
-	svc, err := d.clustersServiceClient(ctx, branch.ID)
-	if err != nil {
-		dialLogger.Error().Err(err).Msg("failed to create clusters service client")
-		return nil, dialErr
-	}
-	defer svc.Close()
-
 	cluster, err := svc.DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
 		Id: branch.ID,
 	})
@@ -202,6 +232,48 @@ func (d *ClusterDialer) Dial(ctx context.Context, network string, branch *Branch
 	default:
 		dialLogger.Warn().Stringer("status_type", cluster.Status.StatusType).Msg("dial failed but cluster is not hibernated or reactivating")
 		return nil, dialErr
+	}
+}
+
+// waitForPasswordSync polls the branch password status until it reports
+// synced, the reactivate timeout elapses, or the context is cancelled.
+func (d *ClusterDialer) waitForPasswordSync(ctx context.Context, svc clustersService, branchID string, logger zerolog.Logger) {
+	check := func() bool {
+		res, err := svc.GetBranchPasswordSyncStatus(ctx, &clustersv1.GetBranchPasswordSyncStatusRequest{
+			BranchId: branchID,
+			Username: "xata",
+		})
+		if err != nil {
+			logger.Error().Err(err).Msg("getting branch password status")
+			return false
+		}
+		return res.Synced
+	}
+
+	if check() {
+		return
+	}
+	logger.Debug().Msg("branch password is not synced, waiting before dialing")
+
+	timeout := time.NewTimer(d.reactivateTimeout)
+	defer timeout.Stop()
+	ticker := time.NewTicker(d.statusCheckInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timeout.C:
+			logger.Warn().Msg("timed out waiting for branch password to sync, proceeding with dial")
+			return
+		case <-ticker.C:
+			if check() {
+				logger.Debug().Msg("branch password is now synced, proceeding with dial")
+				return
+			}
+			logger.Debug().Msg("branch password is not synced, trying again after interval")
+		}
 	}
 }
 
