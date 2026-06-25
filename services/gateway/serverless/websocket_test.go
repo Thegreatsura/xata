@@ -10,31 +10,16 @@ import (
 	"testing"
 	"time"
 
-	clustersv1 "xata/gen/proto/clusters/v1"
-	"xata/gen/protomocks"
 	"xata/services/gateway/metrics"
 	"xata/services/gateway/session"
 
 	"github.com/coder/websocket"
 	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/labstack/echo/v4"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/metric/noop"
 	tracenoop "go.opentelemetry.io/otel/trace/noop"
 )
-
-// alwaysSyncedClustersService returns a clusters service factory whose password sync
-// status is always "synced", so the dialer's preflight is an immediate no-op.
-func alwaysSyncedClustersService(t *testing.T) session.ClustersServiceClientFactory {
-	t.Helper()
-	m := protomocks.NewClustersServiceClient(t)
-	m.EXPECT().GetBranchPasswordSyncStatus(mock.Anything, mock.Anything).
-		Return(&clustersv1.GetBranchPasswordSyncStatusResponse{Synced: true}, nil).Maybe()
-	return func(context.Context, string) (clustersv1.ClustersServiceClient, error) {
-		return m, nil
-	}
-}
 
 func TestSSLRequestCodeDetection(t *testing.T) {
 	tests := map[string]struct {
@@ -286,7 +271,7 @@ func setupWSServer(t *testing.T, pgAddr string, opts ...func(*handler)) string {
 	dialer := session.NewClusterDialer(session.ClusterDialerConfiguration{
 		ReactivateTimeout:   time.Second,
 		StatusCheckInterval: 100 * time.Millisecond,
-	}, session.WithClustersService(alwaysSyncedClustersService(t)))
+	})
 
 	h := &handler{resolver: resolver, dialer: dialer, tracer: tracer, metrics: gwMetrics}
 	for _, opt := range opts {

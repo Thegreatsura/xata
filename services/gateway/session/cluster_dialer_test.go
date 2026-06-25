@@ -30,12 +30,8 @@ func TestClusterDialer_Dial(t *testing.T) {
 
 	tests := map[string]struct {
 		dialer          *mockDialer
-		clustersService ClustersServiceClientFactory
+		clustersService clustersServiceClientFn
 		setupMocks      func(*protomocks.ClustersServiceClient)
-
-		// ownPasswordSync opts out of the default "synced" preflight mock, for
-		// cases whose setupMocks drives GetBranchPasswordSyncStatus themselves.
-		ownPasswordSync bool
 
 		wantDialCalls    uint // exact expected dial count; ignored if wantMinDialCalls is set
 		wantMinDialCalls uint // for timeout-driven tests where the exact count depends on tick timing
@@ -305,19 +301,24 @@ func TestClusterDialer_Dial(t *testing.T) {
 			wantDialCalls: 2,
 			wantErr:       nil,
 		},
-		"error - unable to construct clusters service client, returns client error without dialing": {
-			clustersService: func(context.Context, string) (clustersv1.ClustersServiceClient, error) {
-				return nil, errTest
-			},
+		"error - unable to connect to clusters service, returns dial error": {
+			clustersService: clustersServiceClientFn(func(ctx context.Context, branchID string) (clustersServiceClient, error) {
+				return nil, errors.New("some error")
+			}),
 			dialer: &mockDialer{
 				dialFn: func(ctx context.Context, i uint, network, address string) (net.Conn, error) {
-					return nil, errors.New("unexpected dial call")
+					switch i {
+					case 1:
+						return nil, syscall.ECONNREFUSED
+					default:
+						return nil, errors.New("unexpected dial call")
+					}
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {},
 
-			wantDialCalls: 0,
-			wantErr:       errTest,
+			wantDialCalls: 1,
+			wantErr:       syscall.ECONNREFUSED,
 		},
 		"ok - connection refused with scale to zero disabled, cluster healthy, waits then connects": {
 			dialer: &mockDialer{
@@ -641,42 +642,6 @@ func TestClusterDialer_Dial(t *testing.T) {
 			wantDialCalls: 1,
 			wantErr:       syscall.ECONNREFUSED,
 		},
-		"ok - password not synced then synced, waits then dials": {
-			dialer: &mockDialer{
-				dialFn: func(_ context.Context, _ uint, network, address string) (net.Conn, error) {
-					return &net.TCPConn{}, nil
-				},
-			},
-			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				req := &clustersv1.GetBranchPasswordSyncStatusRequest{BranchId: "test-branch", Username: "xata"}
-				mockClusters.EXPECT().GetBranchPasswordSyncStatus(ctx, req).
-					Return(&clustersv1.GetBranchPasswordSyncStatusResponse{Synced: false}, nil).Once()
-				mockClusters.EXPECT().GetBranchPasswordSyncStatus(ctx, req).
-					Return(&clustersv1.GetBranchPasswordSyncStatusResponse{Synced: true}, nil).Once()
-			},
-			ownPasswordSync: true,
-
-			wantDialCalls: 1,
-			wantErr:       nil,
-		},
-		"ok - password status RPC error treated as not synced, dials once synced": {
-			dialer: &mockDialer{
-				dialFn: func(_ context.Context, _ uint, network, address string) (net.Conn, error) {
-					return &net.TCPConn{}, nil
-				},
-			},
-			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				req := &clustersv1.GetBranchPasswordSyncStatusRequest{BranchId: "test-branch", Username: "xata"}
-				mockClusters.EXPECT().GetBranchPasswordSyncStatus(ctx, req).
-					Return(nil, errTest).Once()
-				mockClusters.EXPECT().GetBranchPasswordSyncStatus(ctx, req).
-					Return(&clustersv1.GetBranchPasswordSyncStatusResponse{Synced: true}, nil).Once()
-			},
-			ownPasswordSync: true,
-
-			wantDialCalls: 1,
-			wantErr:       nil,
-		},
 		// Real grpc client so upstream changes to "produced zero addresses" break the match in Dial.
 		"error - real grpc client resolves to zero addresses returns branch-not-found": {
 			dialer: &mockDialer{
@@ -696,23 +661,12 @@ func TestClusterDialer_Dial(t *testing.T) {
 			t.Parallel()
 
 			mockClusters := protomocks.NewClustersServiceClient(t)
-
-			// Dial preflights the password sync status before every dial. Default
-			// to "synced" so the preflight is a no-op; cases exercising the wait
-			// path set ownPasswordSync and drive the RPC in setupMocks.
-			if !tc.ownPasswordSync {
-				mockClusters.EXPECT().GetBranchPasswordSyncStatus(ctx, &clustersv1.GetBranchPasswordSyncStatusRequest{
-					BranchId: "test-branch",
-					Username: "xata",
-				}).Return(&clustersv1.GetBranchPasswordSyncStatusResponse{Synced: true}, nil).Maybe()
-			}
-
 			tc.setupMocks(mockClusters)
 
 			if tc.clustersService == nil {
-				tc.clustersService = func(context.Context, string) (clustersv1.ClustersServiceClient, error) {
-					return mockClusters, nil
-				}
+				tc.clustersService = clustersServiceClientFn(func(ctx context.Context, branchID string) (clustersServiceClient, error) {
+					return &mockClustersServiceClient{mockClusters}, nil
+				})
 			}
 
 			d := NewClusterDialer(ClusterDialerConfiguration{
@@ -750,11 +704,19 @@ func (m *mockDialer) DialCalls() uint {
 	return m.dialCalls
 }
 
-func zeroAddressClustersService() ClustersServiceClientFactory {
+type mockClustersServiceClient struct {
+	*protomocks.ClustersServiceClient
+}
+
+func (m *mockClustersServiceClient) Close() error {
+	return nil
+}
+
+func zeroAddressClustersService() clustersServiceClientFn {
 	mr := manual.NewBuilderWithScheme("test-zero-addr")
 	resolver.Register(mr)
 	mr.InitialState(resolver.State{})
-	return func(ctx context.Context, branchID string) (clustersv1.ClustersServiceClient, error) {
+	return func(ctx context.Context, branchID string) (clustersServiceClient, error) {
 		conn, err := grpc.NewClient(mr.Scheme()+":///"+branchID,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithDefaultServiceConfig(`{}`),
@@ -762,6 +724,13 @@ func zeroAddressClustersService() ClustersServiceClientFactory {
 		if err != nil {
 			return nil, err
 		}
-		return clustersv1.NewClustersServiceClient(conn), nil
+		return &realClustersClient{ClustersServiceClient: clustersv1.NewClustersServiceClient(conn), conn: conn}, nil
 	}
 }
+
+type realClustersClient struct {
+	clustersv1.ClustersServiceClient
+	conn *grpc.ClientConn
+}
+
+func (c *realClustersClient) Close() error { return c.conn.Close() }

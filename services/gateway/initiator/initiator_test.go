@@ -22,11 +22,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/stretchr/testify/mock"
 	"go.opentelemetry.io/otel/trace/noop"
 
-	clustersv1 "xata/gen/proto/clusters/v1"
-	"xata/gen/protomocks"
 	"xata/services/gateway/session"
 
 	"github.com/elastic/go-concert/ctxtool"
@@ -66,7 +63,6 @@ func testInitiatorConnect(t *testing.T, connector func(addr string) (*pgx.Conn, 
 			ReactivateTimeout:   50 * time.Second,
 			StatusCheckInterval: 2 * time.Second,
 		},
-		session.WithClustersService(alwaysSyncedClustersService(t)),
 	)
 
 	resolver := session.ResolverFunc(func(ctx context.Context, serverName, fallbackEndpoint string) (*session.Branch, error) {
@@ -150,7 +146,6 @@ func testInitiatorCancellation(t *testing.T,
 			ReactivateTimeout:   50 * time.Second,
 			StatusCheckInterval: 2 * time.Second,
 		},
-		session.WithClustersService(alwaysSyncedClustersService(t)),
 	)
 
 	resolver := session.ResolverFunc(func(ctx context.Context, serverName, _ string) (*session.Branch, error) {
@@ -299,7 +294,6 @@ func TestInitiator_Err_InvalidServerName(t *testing.T) {
 			ReactivateTimeout:   50 * time.Second,
 			StatusCheckInterval: 2 * time.Second,
 		},
-		session.WithClustersService(alwaysSyncedClustersService(t)),
 	)
 
 	resolver := session.ResolverFunc(func(ctx context.Context, serverName, _ string) (*session.Branch, error) {
@@ -636,18 +630,6 @@ func must[T any](v T, err error) T {
 		panic(err)
 	}
 	return v
-}
-
-// alwaysSyncedClustersService returns a clusters service factory whose password sync
-// status is always "synced", so the dialer's preflight is an immediate no-op.
-func alwaysSyncedClustersService(t *testing.T) session.ClustersServiceClientFactory {
-	t.Helper()
-	m := protomocks.NewClustersServiceClient(t)
-	m.EXPECT().GetBranchPasswordSyncStatus(mock.Anything, mock.Anything).
-		Return(&clustersv1.GetBranchPasswordSyncStatusResponse{Synced: true}, nil).Maybe()
-	return func(context.Context, string) (clustersv1.ClustersServiceClient, error) {
-		return m, nil
-	}
 }
 
 type testWriter struct {
