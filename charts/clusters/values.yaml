@@ -17,6 +17,7 @@ config:
     storageClass: ""
     nodeSelector: ""
     volumeSnapshotClass: ""
+    cloudProvider: aws
     xatastor: { enabled: false }
   observability:
     victoriaMetricsURL: "http://victoria-metrics.xata-observability.svc.cluster.local:8428"

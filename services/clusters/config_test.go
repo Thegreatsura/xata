@@ -15,7 +15,23 @@ func TestValidate(t *testing.T) {
 			cfg: Config{
 				ClustersStorageClass:        "xatastor",
 				ClustersVolumeSnapshotClass: "xatastor",
+				CloudProvider:               CloudProviderAWS,
 			},
+		},
+		"valid gcp config": {
+			cfg: Config{
+				ClustersStorageClass:        "xatastor",
+				ClustersVolumeSnapshotClass: "xatastor",
+				CloudProvider:               CloudProviderGCP,
+			},
+		},
+		"invalid cloud provider": {
+			cfg: Config{
+				ClustersStorageClass:        "xatastor",
+				ClustersVolumeSnapshotClass: "xatastor",
+				CloudProvider:               "azure",
+			},
+			wantErr: "cloud provider must be",
 		},
 		"missing storage class": {
 			cfg: Config{

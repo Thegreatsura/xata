@@ -91,7 +91,11 @@ spec:
                           Uses pgbackrest size format (e.g. "2GiB", "256MiB").
                         type: string
                       bucket:
-                        description: Bucket is the S3 bucket for backups and WAL archives.
+                        description: |-
+                          Bucket is the S3 bucket for backups and WAL archives.
+
+                          Deprecated: use s3.bucket. Honored as a fallback when neither s3 nor gcs
+                          is set.
                         type: string
                       compressLevel:
                         description: CompressLevel sets the compression level (0-9).
@@ -114,14 +118,37 @@ spec:
                           S3-compatible storage (e.g. Cloudflare R2, or MinIO for local
                           dev). When set, static credentials from the operator-configured
                           credentials Secret are used instead of an IAM role.
+
+                          Deprecated: use s3.endpoint.
                         type: string
+                      gcs:
+                        description: GCS configures a Google Cloud Storage backend
+                          (Workload Identity auth).
+                        properties:
+                          bucket:
+                            description: Bucket is the GCS bucket for backups and
+                              WAL archives.
+                            type: string
+                          serviceAccountEmail:
+                            description: |-
+                              ServiceAccountEmail is the GCP service account the cluster's pods
+                              impersonate via Workload Identity to access the bucket.
+                            type: string
+                        required:
+                        - bucket
+                        - serviceAccountEmail
+                        type: object
                       inheritFromIAMRole:
-                        default: true
-                        description: InheritFromIAMRole uses the pod's IAM role for
-                          S3 authentication.
+                        description: |-
+                          InheritFromIAMRole uses the pod's IAM role for S3 authentication.
+
+                          Deprecated: use s3.inheritFromIAMRole.
                         type: boolean
                       region:
-                        description: Region is the S3 region.
+                        description: |-
+                          Region is the S3 region.
+
+                          Deprecated: use s3.region.
                         type: string
                       repoPath:
                         description: RepoPath overrides the storage path prefix. Defaults
@@ -133,16 +160,50 @@ spec:
                           full backups.
                         minimum: 1
                         type: integer
+                      s3:
+                        description: S3 configures an S3-compatible storage backend.
+                        properties:
+                          bucket:
+                            description: Bucket is the S3 bucket for backups and WAL
+                              archives.
+                            type: string
+                          endpoint:
+                            description: |-
+                              Endpoint overrides S3 endpoint discovery. Required for non-AWS
+                              S3-compatible storage (e.g. Cloudflare R2, or MinIO for local dev). When
+                              set, static credentials from the operator-configured credentials Secret
+                              are used instead of an IAM role.
+                            type: string
+                          inheritFromIAMRole:
+                            default: true
+                            description: InheritFromIAMRole uses the pod's IAM role
+                              for S3 authentication.
+                            type: boolean
+                          region:
+                            description: Region is the S3 region.
+                            type: string
+                        required:
+                        - bucket
+                        - region
+                        type: object
                       stanzaName:
                         description: |-
                           StanzaName overrides the pgbackrest stanza this branch archives to.
                           When empty it defaults to the branch name.
                         pattern: ^[A-Za-z0-9._-]+$
                         type: string
-                    required:
-                    - bucket
-                    - region
                     type: object
+                    x-kubernetes-validations:
+                    - message: s3 and gcs are mutually exclusive
+                      rule: '!(has(self.s3) && has(self.gcs))'
+                    - message: gcs cannot be combined with the deprecated top-level
+                        S3 fields
+                      rule: '!(has(self.gcs) && (has(self.bucket) || has(self.region)
+                        || has(self.endpoint)))'
+                    - message: 'a pgbackrest backend is required: set s3, gcs, or
+                        the deprecated top-level bucket and region'
+                      rule: has(self.s3) || has(self.gcs) || (has(self.bucket) &&
+                        has(self.region))
                   retention:
                     default: 2d
                     description: |-

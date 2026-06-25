@@ -412,9 +412,11 @@ func TestCreatePostgresCluster(t *testing.T) {
 				b.Spec.ClusterSpec.Name = new("pool-cluster-1")
 				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
-					Bucket:              "test-pgbackrest-bucket",
-					Region:              "us-east-1",
-					InheritFromIAMRole:  true,
+					S3: &v1alpha1.PgBackRestS3Spec{
+						Bucket:             "test-pgbackrest-bucket",
+						Region:             "us-east-1",
+						InheritFromIAMRole: true,
+					},
 					RetentionFullDays:   7,
 					CompressType:        DefaultPgBackRestCompressType,
 					ArchiveAsync:        DefaultPgBackRestArchiveAsync,
@@ -548,9 +550,11 @@ func TestCreatePostgresCluster(t *testing.T) {
 			expectedBranchFn: func(b *v1alpha1.Branch) {
 				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
-					Bucket:              "test-pgbackrest-bucket",
-					Region:              "us-east-1",
-					InheritFromIAMRole:  true,
+					S3: &v1alpha1.PgBackRestS3Spec{
+						Bucket:             "test-pgbackrest-bucket",
+						Region:             "us-east-1",
+						InheritFromIAMRole: true,
+					},
 					RetentionFullDays:   7,
 					CompressType:        DefaultPgBackRestCompressType,
 					ArchiveAsync:        DefaultPgBackRestArchiveAsync,
@@ -570,10 +574,36 @@ func TestCreatePostgresCluster(t *testing.T) {
 				b.Spec.BackupSpec.Retention = "14d"
 				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
-					Bucket:              "test-pgbackrest-bucket",
-					Region:              "us-east-1",
-					InheritFromIAMRole:  true,
+					S3: &v1alpha1.PgBackRestS3Spec{
+						Bucket:             "test-pgbackrest-bucket",
+						Region:             "us-east-1",
+						InheritFromIAMRole: true,
+					},
 					RetentionFullDays:   14,
+					CompressType:        DefaultPgBackRestCompressType,
+					ArchiveAsync:        DefaultPgBackRestArchiveAsync,
+					ArchivePushQueueMax: DefaultPgBackRestPushQueueMax,
+					ArchiveGetQueueMax:  DefaultPgBackRestGetQueueMax,
+				}
+			},
+		},
+		{
+			name: "main branch - pgbackrest gcs backend",
+			serviceOpts: []testServiceOption{
+				withCloudProvider(CloudProviderGCP),
+				withPgBackRestGCSServiceAccount("backups@project.iam.gserviceaccount.com"),
+			},
+			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
+				r.BackupConfiguration.BackupMethod = string(v1alpha1.BackupMethodPgBackRest)
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
+				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
+					GCS: &v1alpha1.PgBackRestGCSSpec{
+						Bucket:              "test-pgbackrest-bucket",
+						ServiceAccountEmail: "backups@project.iam.gserviceaccount.com",
+					},
+					RetentionFullDays:   7,
 					CompressType:        DefaultPgBackRestCompressType,
 					ArchiveAsync:        DefaultPgBackRestArchiveAsync,
 					ArchivePushQueueMax: DefaultPgBackRestPushQueueMax,
@@ -584,6 +614,14 @@ func TestCreatePostgresCluster(t *testing.T) {
 		{
 			name:        "error - pgbackrest without cell config",
 			serviceOpts: []testServiceOption{withPgBackRestBucket("")},
+			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
+				r.BackupConfiguration.BackupMethod = "pgbackrest"
+			},
+			expectedStatusCode: codes.FailedPrecondition,
+		},
+		{
+			name:        "error - pgbackrest gcs without service account",
+			serviceOpts: []testServiceOption{withCloudProvider(CloudProviderGCP)},
 			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
 				r.BackupConfiguration.BackupMethod = "pgbackrest"
 			},
@@ -1913,12 +1951,14 @@ func TestDeleteBranchIPFiltering(t *testing.T) {
 }
 
 type testServiceConfig struct {
-	existingObjects  []client.Object
-	nodeSelector     map[string]string
-	cnpgConnector    *cnpgmocks.Connector
-	xatastorEnabled  bool
-	pgBackRestBucket string
-	interceptorFuncs interceptor.Funcs
+	existingObjects      []client.Object
+	nodeSelector         map[string]string
+	cnpgConnector        *cnpgmocks.Connector
+	xatastorEnabled      bool
+	pgBackRestBucket     string
+	cloudProvider        string
+	pgBackRestGCSService string
+	interceptorFuncs     interceptor.Funcs
 }
 
 type testServiceOption func(*testServiceConfig)
@@ -1953,6 +1993,18 @@ func withPgBackRestBucket(bucket string) testServiceOption {
 	}
 }
 
+func withCloudProvider(provider string) testServiceOption {
+	return func(c *testServiceConfig) {
+		c.cloudProvider = provider
+	}
+}
+
+func withPgBackRestGCSServiceAccount(serviceAccount string) testServiceOption {
+	return func(c *testServiceConfig) {
+		c.pgBackRestGCSService = serviceAccount
+	}
+}
+
 func withInterceptorFuncs(funcs interceptor.Funcs) testServiceOption {
 	return func(c *testServiceConfig) {
 		c.interceptorFuncs = funcs
@@ -1962,6 +2014,7 @@ func withInterceptorFuncs(funcs interceptor.Funcs) testServiceOption {
 func setupTestClustersService(t *testing.T, opts ...testServiceOption) (*ClustersService, client.Client) {
 	cfg := &testServiceConfig{
 		pgBackRestBucket: "test-pgbackrest-bucket",
+		cloudProvider:    CloudProviderAWS,
 	}
 	for _, opt := range opts {
 		opt(cfg)
@@ -2002,8 +2055,10 @@ func setupTestClustersService(t *testing.T, opts ...testServiceOption) (*Cluster
 			ClustersVolumeSnapshotClass: "default-snapshot-class",
 			ClustersNodeSelector:        cfg.nodeSelector,
 			XatastorEnabled:             cfg.xatastorEnabled,
+			CloudProvider:               cfg.cloudProvider,
 			PgBackRestBucket:            cfg.pgBackRestBucket,
 			PgBackRestRegion:            "us-east-1",
+			PgBackRestGCSServiceAccount: cfg.pgBackRestGCSService,
 		},
 		kubeClient:     fakeClient,
 		clusterReader:  fakeClient,

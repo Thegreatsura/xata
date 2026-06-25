@@ -286,3 +286,89 @@ func TestStorageValidation(t *testing.T) {
 		})
 	})
 }
+
+func TestPgBackRestBackendValidation(t *testing.T) {
+	t.Parallel()
+
+	const serviceAccount = "backups@project.iam.gserviceaccount.com"
+
+	t.Run("s3 sub-struct only is accepted", func(t *testing.T) {
+		t.Parallel()
+		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
+			S3: &v1alpha1.PgBackRestS3Spec{Bucket: "test-bucket", Region: "us-east-1"},
+		}, true)
+	})
+
+	t.Run("gcs sub-struct only is accepted", func(t *testing.T) {
+		t.Parallel()
+		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
+			GCS: &v1alpha1.PgBackRestGCSSpec{Bucket: "test-bucket", ServiceAccountEmail: serviceAccount},
+		}, true)
+	})
+
+	t.Run("legacy bucket and region is accepted", func(t *testing.T) {
+		t.Parallel()
+		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
+			Bucket: "test-bucket",
+			Region: "us-east-1",
+		}, true)
+	})
+
+	t.Run("s3 sub-struct alongside legacy is accepted", func(t *testing.T) {
+		t.Parallel()
+		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
+			S3:     &v1alpha1.PgBackRestS3Spec{Bucket: "test-bucket", Region: "us-east-1"},
+			Bucket: "test-bucket",
+			Region: "us-east-1",
+		}, true)
+	})
+
+	t.Run("s3 and gcs together is rejected", func(t *testing.T) {
+		t.Parallel()
+		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
+			S3:  &v1alpha1.PgBackRestS3Spec{Bucket: "test-bucket", Region: "us-east-1"},
+			GCS: &v1alpha1.PgBackRestGCSSpec{Bucket: "test-bucket", ServiceAccountEmail: serviceAccount},
+		}, false)
+	})
+
+	t.Run("gcs together with legacy is rejected", func(t *testing.T) {
+		t.Parallel()
+		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
+			GCS:    &v1alpha1.PgBackRestGCSSpec{Bucket: "test-bucket", ServiceAccountEmail: serviceAccount},
+			Bucket: "test-bucket",
+			Region: "us-east-1",
+		}, false)
+	})
+
+	t.Run("no backend is rejected", func(t *testing.T) {
+		t.Parallel()
+		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{}, false)
+	})
+
+	t.Run("legacy bucket without region is rejected", func(t *testing.T) {
+		t.Parallel()
+		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{Bucket: "test-bucket"}, false)
+	})
+}
+
+// requirePgBackRestValid creates a pgbackrest branch with the given spec and
+// asserts whether the API server admits it (the CEL one-of validation).
+func requirePgBackRestValid(t *testing.T, pgb *v1alpha1.PgBackRestSpec, wantValid bool) {
+	t.Helper()
+	ctx := context.Background()
+
+	branch := NewBranchBuilder().Build()
+	branch.Spec.BackupSpec = &v1alpha1.BackupSpec{
+		Method:     v1alpha1.BackupMethodPgBackRest,
+		PgBackRest: pgb,
+	}
+
+	err := k8sClient.Create(ctx, &branch)
+	if wantValid {
+		require.NoError(t, err)
+		require.NoError(t, k8sClient.Delete(ctx, &branch))
+		return
+	}
+	require.Error(t, err)
+	require.True(t, apierrors.IsInvalid(err))
+}

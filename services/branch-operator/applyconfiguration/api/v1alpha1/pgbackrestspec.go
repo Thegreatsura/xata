@@ -7,6 +7,11 @@ package v1alpha1
 //
 // PgBackRestSpec defines pgbackrest-specific backup configuration.
 //
+// Exactly one storage backend must be specified via either the s3 or gcs
+// sub-struct. The deprecated top-level S3 fields (bucket/region/endpoint/
+// inheritFromIAMRole) remain honored as a fallback when neither sub-struct is
+// set. Backend precedence in the operator is gcs > s3 > legacy top-level.
+//
 // The following pgbackrest options are set internally with fixed defaults
 // and not exposed to users:
 // - retention fullType: always "time" (days)
@@ -19,16 +24,29 @@ package v1alpha1
 // - priority: 19 (lowest CPU priority, avoids impacting postgres)
 // - processMax: computed from instance CPU resources
 type PgBackRestSpecApplyConfiguration struct {
+	// S3 configures an S3-compatible storage backend.
+	S3 *PgBackRestS3SpecApplyConfiguration `json:"s3,omitempty"`
+	// GCS configures a Google Cloud Storage backend (Workload Identity auth).
+	GCS *PgBackRestGCSSpecApplyConfiguration `json:"gcs,omitempty"`
 	// Bucket is the S3 bucket for backups and WAL archives.
+	//
+	// Deprecated: use s3.bucket. Honored as a fallback when neither s3 nor gcs
+	// is set.
 	Bucket *string `json:"bucket,omitempty"`
 	// Region is the S3 region.
+	//
+	// Deprecated: use s3.region.
 	Region *string `json:"region,omitempty"`
 	// Endpoint overrides S3 endpoint discovery. Required for non-AWS
 	// S3-compatible storage (e.g. Cloudflare R2, or MinIO for local
 	// dev). When set, static credentials from the operator-configured
 	// credentials Secret are used instead of an IAM role.
+	//
+	// Deprecated: use s3.endpoint.
 	Endpoint *string `json:"endpoint,omitempty"`
 	// InheritFromIAMRole uses the pod's IAM role for S3 authentication.
+	//
+	// Deprecated: use s3.inheritFromIAMRole.
 	InheritFromIAMRole *bool `json:"inheritFromIAMRole,omitempty"`
 	// RetentionFullDays is the number of days to retain full backups.
 	RetentionFullDays *int `json:"retentionFullDays,omitempty"`
@@ -55,6 +73,22 @@ type PgBackRestSpecApplyConfiguration struct {
 // apply.
 func PgBackRestSpec() *PgBackRestSpecApplyConfiguration {
 	return &PgBackRestSpecApplyConfiguration{}
+}
+
+// WithS3 sets the S3 field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the S3 field is set to the value of the last call.
+func (b *PgBackRestSpecApplyConfiguration) WithS3(value *PgBackRestS3SpecApplyConfiguration) *PgBackRestSpecApplyConfiguration {
+	b.S3 = value
+	return b
+}
+
+// WithGCS sets the GCS field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the GCS field is set to the value of the last call.
+func (b *PgBackRestSpecApplyConfiguration) WithGCS(value *PgBackRestGCSSpecApplyConfiguration) *PgBackRestSpecApplyConfiguration {
+	b.GCS = value
+	return b
 }
 
 // WithBucket sets the Bucket field in the declarative configuration to the given value

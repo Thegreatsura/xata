@@ -21,6 +21,7 @@ data:
   VICTORIALOGS_URL: {{ .Values.config.observability.victoriaLogsURL | quote }}
   {{- end }}
   XATA_XATASTOR_ENABLED: {{ .Values.config.clusters.xatastor.enabled | default false | quote }}
+  XATA_CLOUD_PROVIDER: {{ .Values.config.clusters.cloudProvider | quote }}
   {{- if .Values.config.clusters.pgbackrest }}
   {{- if .Values.config.clusters.pgbackrest.bucket }}
   XATA_PGBACKREST_BUCKET: {{ .Values.config.clusters.pgbackrest.bucket | quote }}
@@ -30,5 +31,8 @@ data:
   {{- end }}
   {{- if .Values.config.clusters.pgbackrest.endpoint }}
   XATA_PGBACKREST_ENDPOINT: {{ .Values.config.clusters.pgbackrest.endpoint | quote }}
+  {{- end }}
+  {{- if .Values.config.clusters.pgbackrest.gcsServiceAccount }}
+  XATA_PGBACKREST_GCS_SERVICE_ACCOUNT: {{ .Values.config.clusters.pgbackrest.gcsServiceAccount | quote }}
   {{- end }}
   {{- end }}

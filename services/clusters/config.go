@@ -4,6 +4,11 @@ import (
 	"fmt"
 )
 
+const (
+	CloudProviderAWS = "aws"
+	CloudProviderGCP = "gcp"
+)
+
 type Config struct {
 	KubeConfig                  string            `env:"KUBECONFIG" env-default:"" env-description:"path to the kube config file"`
 	ClustersNamespace           string            `env:"XATA_CLUSTERS_NAMESPACE" env-default:"xata-clusters" env-description:"namespace for creating the clusters"`
@@ -14,9 +19,11 @@ type Config struct {
 	ClustersVolumeSnapshotClass string            `env:"XATA_CLUSTERS_VOLUME_SNAPSHOT_CLASS" env-description:"volumesnapshotclass to use for clusters"`
 	EnablePooler                bool              `env:"XATA_ENABLE_POOLER" env-default:"true" env-description:"enable PgBouncer connection pooler for new branches"`
 	XatastorEnabled             bool              `env:"XATA_XATASTOR_ENABLED" env-default:"false" env-description:"whether the xatastor StorageClass is deployed in this cell"`
-	PgBackRestBucket            string            `env:"XATA_PGBACKREST_BUCKET" env-default:"" env-description:"S3 bucket for pgbackrest backups"`
-	PgBackRestRegion            string            `env:"XATA_BACKUPS_REGION" env-default:"" env-description:"S3 region for pgbackrest backups"`
+	CloudProvider               string            `env:"XATA_CLOUD_PROVIDER" env-default:"aws" env-description:"cloud provider for this cell, selects the pgbackrest backend: aws or gcp"`
+	PgBackRestBucket            string            `env:"XATA_PGBACKREST_BUCKET" env-default:"" env-description:"bucket for pgbackrest backups (S3 or GCS)"`
+	PgBackRestRegion            string            `env:"XATA_BACKUPS_REGION" env-default:"" env-description:"S3 region for pgbackrest backups (aws only)"`
 	PgBackRestEndpoint          string            `env:"XATA_PGBACKREST_ENDPOINT" env-default:"" env-description:"S3 endpoint for pgbackrest backups; set for a non-AWS S3-compatible store such as MinIO (local dev) or Cloudflare R2"`
+	PgBackRestGCSServiceAccount string            `env:"XATA_PGBACKREST_GCS_SERVICE_ACCOUNT" env-default:"" env-description:"GCP service account email for pgbackrest GCS backups via Workload Identity (gcp only)"`
 
 	// VictoriaMetricsURL points at the cell-local VictoriaMetrics single-node
 	// instance used to back GetBranchMetrics. Empty means no metrics backend
@@ -33,6 +40,9 @@ func (cfg *Config) Validate() error {
 	}
 	if cfg.ClustersVolumeSnapshotClass == "" {
 		return fmt.Errorf("volume snapshot class is required but not set")
+	}
+	if cfg.CloudProvider != CloudProviderAWS && cfg.CloudProvider != CloudProviderGCP {
+		return fmt.Errorf("cloud provider must be %q or %q, got: %q", CloudProviderAWS, CloudProviderGCP, cfg.CloudProvider)
 	}
 	return nil
 }

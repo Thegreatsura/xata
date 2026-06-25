@@ -17,6 +17,13 @@ import (
 const (
 	// Fixed pgbackrest defaults not exposed to users
 	pgbackrestPriority = 19
+
+	// pgBackRestGCSKeyTypeAuto selects GKE Workload Identity for the GCS repo.
+	pgBackRestGCSKeyTypeAuto = "auto"
+
+	// gkeServiceAccountAnnotation maps the cluster's pod ServiceAccount to a GCP
+	// service account via Workload Identity.
+	gkeServiceAccountAnnotation = "iam.gke.io/gcp-service-account"
 )
 
 // InheritedAnnotations are defined on the Cluster; CNPG will propagate them to
@@ -238,7 +245,8 @@ func ClusterSpec(
 		WithPrimaryUpdateStrategy(apiv1.PrimaryUpdateStrategy("unsupervised")).
 		WithPrimaryUpdateMethod(apiv1.PrimaryUpdateMethod("switchover")).
 		WithExternalClusters(externalClusters...).
-		WithSmartShutdownTimeout(smartShutdownTimeout(cfg.SmartShutdownTimeout))
+		WithSmartShutdownTimeout(smartShutdownTimeout(cfg.SmartShutdownTimeout)).
+		WithServiceAccountTemplate(serviceAccountTemplate(cfg))
 
 	return spec
 }
@@ -290,14 +298,15 @@ func ObjectStoreBootstrapRecovery(branchName string, restoreSpec *v1alpha1.Resto
 }
 
 // ExternalClusters creates the ExternalClusters apply configuration for
-// point-in-time recovery from object storage using barman-cloud plugin.
-// Returns nil if the restore spec is not for ObjectStore type.
+// point-in-time recovery from object storage. For pgbackrest it points at the
+// source branch's repository (S3 or GCS); for barman it uses the barman-cloud
+// plugin. Returns nil if the restore spec is not for ObjectStore type.
 func ExternalClusters(cfg ClusterConfig) []*apiv1ac.ExternalClusterApplyConfiguration {
 	if !cfg.RestoreSpec.IsObjectStoreType() {
 		return nil
 	}
 
-	// pgbackrest: external cluster points to the source branch's repo in S3
+	// pgbackrest: external cluster points to the source branch's repo (S3 or GCS)
 	if cfg.IsPgBackRest() {
 		pgb := cfg.PgBackRest
 
@@ -312,7 +321,7 @@ func ExternalClusters(cfg ClusterConfig) []*apiv1ac.ExternalClusterApplyConfigur
 			apiv1ac.ExternalCluster().
 				WithName(cfg.RestoreSpec.Name).
 				WithPgBackRest(apiv1ac.PgBackRestExternalCluster().
-					WithRepository(apiv1ac.PgBackRestRepository().WithS3(pgbackrestS3(pgb, cfg.BackupCredentials))).
+					WithRepository(pgbackrestRepository(pgb, cfg.BackupCredentials)).
 					WithOptions(options)),
 		}
 	}
@@ -465,24 +474,47 @@ func backupConfiguration(branchName string, cfg ClusterConfig) *apiv1ac.BackupCo
 	return backup.
 		WithPgBackRest(apiv1ac.PgBackRestConfiguration().
 			WithStanzaName(stanza).
-			WithRepository(apiv1ac.PgBackRestRepository().WithS3(pgbackrestS3(pgb, cfg.BackupCredentials))).
+			WithRepository(pgbackrestRepository(pgb, cfg.BackupCredentials)).
 			WithOptions(options)).
 		WithTarget(apiv1.BackupTargetStandby)
 }
 
-// pgbackrestS3 builds the S3 apply configuration from a PgBackRestSpec.
-// When Endpoint is set, the store is a non-AWS S3-compatible endpoint
-// (Cloudflare R2, or MinIO for local dev) with no IAM role to inherit, so it
-// switches to static credentials from the configured Secret. Mirrors the
-// barman ObjectStoreSpec.
-func pgbackrestS3(pgb *v1alpha1.PgBackRestSpec, creds BackupCredentials) *apiv1ac.PgBackRestS3ApplyConfiguration {
-	s3 := apiv1ac.PgBackRestS3().
-		WithBucket(pgb.Bucket).
-		WithRegion(pgb.Region).
-		WithInheritFromIAMRole(pgb.InheritFromIAMRole)
+// pgbackrestRepository selects the pgbackrest storage backend. Precedence is
+// gcs > s3 > the deprecated top-level S3 fields.
+func pgbackrestRepository(pgb *v1alpha1.PgBackRestSpec, creds BackupCredentials) *apiv1ac.PgBackRestRepositoryApplyConfiguration {
+	repo := apiv1ac.PgBackRestRepository()
+	switch {
+	case pgb.GCS != nil:
+		return repo.WithGCS(pgbackrestGCS(pgb.GCS))
+	case pgb.S3 != nil:
+		return repo.WithS3(pgbackrestS3(pgb.S3, creds))
+	default:
+		return repo.WithS3(pgbackrestS3(legacyS3Spec(pgb), creds))
+	}
+}
 
-	if pgb.Endpoint != "" {
-		s3 = s3.WithEndpoint(pgb.Endpoint).
+// legacyS3Spec adapts the deprecated top-level S3 fields to a PgBackRestS3Spec.
+func legacyS3Spec(pgb *v1alpha1.PgBackRestSpec) *v1alpha1.PgBackRestS3Spec {
+	return &v1alpha1.PgBackRestS3Spec{
+		Bucket:             pgb.Bucket,
+		Region:             pgb.Region,
+		Endpoint:           pgb.Endpoint,
+		InheritFromIAMRole: pgb.InheritFromIAMRole,
+	}
+}
+
+// pgbackrestS3 builds the S3 apply configuration. When Endpoint is set, the
+// store is a non-AWS S3-compatible endpoint (Cloudflare R2, or MinIO for local
+// dev) with no IAM role to inherit, so it switches to static credentials from
+// the configured Secret.
+func pgbackrestS3(s3 *v1alpha1.PgBackRestS3Spec, creds BackupCredentials) *apiv1ac.PgBackRestS3ApplyConfiguration {
+	ac := apiv1ac.PgBackRestS3().
+		WithBucket(s3.Bucket).
+		WithRegion(s3.Region).
+		WithInheritFromIAMRole(s3.InheritFromIAMRole)
+
+	if s3.Endpoint != "" {
+		ac = ac.WithEndpoint(s3.Endpoint).
 			WithInheritFromIAMRole(false).
 			WithAccessKeyID(machineryapi.SecretKeySelector{
 				LocalObjectReference: machineryapi.LocalObjectReference{Name: creds.SecretName},
@@ -494,7 +526,29 @@ func pgbackrestS3(pgb *v1alpha1.PgBackRestSpec, creds BackupCredentials) *apiv1a
 			})
 	}
 
-	return s3
+	return ac
+}
+
+// pgbackrestGCS builds the GCS apply configuration. Auth is Workload Identity
+// only (keyType=auto); the GCP service account is bound via the cluster's
+// serviceAccountTemplate, not the repository.
+func pgbackrestGCS(gcs *v1alpha1.PgBackRestGCSSpec) *apiv1ac.PgBackRestGCSApplyConfiguration {
+	return apiv1ac.PgBackRestGCS().
+		WithBucket(gcs.Bucket).
+		WithKeyType(pgBackRestGCSKeyTypeAuto)
+}
+
+// serviceAccountTemplate stamps the GKE Workload Identity annotation on the
+// cluster's pod ServiceAccount for the GCS backend. Returns nil otherwise.
+func serviceAccountTemplate(cfg ClusterConfig) *apiv1ac.ServiceAccountTemplateApplyConfiguration {
+	if !cfg.IsPgBackRest() || cfg.PgBackRest.GCS == nil {
+		return nil
+	}
+	return apiv1ac.ServiceAccountTemplate().
+		WithMetadata(apiv1ac.Metadata().
+			WithAnnotations(map[string]string{
+				gkeServiceAccountAnnotation: cfg.PgBackRest.GCS.ServiceAccountEmail,
+			}))
 }
 
 // LabelsFromInheritedMetadata extracts labels from InheritedMetadata, handling nil

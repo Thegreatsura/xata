@@ -420,6 +420,11 @@ type BackupSpec struct {
 
 // PgBackRestSpec defines pgbackrest-specific backup configuration.
 //
+// Exactly one storage backend must be specified via either the s3 or gcs
+// sub-struct. The deprecated top-level S3 fields (bucket/region/endpoint/
+// inheritFromIAMRole) remain honored as a fallback when neither sub-struct is
+// set. Backend precedence in the operator is gcs > s3 > legacy top-level.
+//
 // The following pgbackrest options are set internally with fixed defaults
 // and not exposed to users:
 //   - retention fullType: always "time" (days)
@@ -431,25 +436,45 @@ type BackupSpec struct {
 //   - backupStandby: controlled via backup.target on the Cluster
 //   - priority: 19 (lowest CPU priority, avoids impacting postgres)
 //   - processMax: computed from instance CPU resources
+//
+// +kubebuilder:validation:XValidation:rule="!(has(self.s3) && has(self.gcs))",message="s3 and gcs are mutually exclusive"
+// +kubebuilder:validation:XValidation:rule="!(has(self.gcs) && (has(self.bucket) || has(self.region) || has(self.endpoint)))",message="gcs cannot be combined with the deprecated top-level S3 fields"
+// +kubebuilder:validation:XValidation:rule="has(self.s3) || has(self.gcs) || (has(self.bucket) && has(self.region))",message="a pgbackrest backend is required: set s3, gcs, or the deprecated top-level bucket and region"
 type PgBackRestSpec struct {
+	// S3 configures an S3-compatible storage backend.
+	// +optional
+	S3 *PgBackRestS3Spec `json:"s3,omitempty"`
+
+	// GCS configures a Google Cloud Storage backend (Workload Identity auth).
+	// +optional
+	GCS *PgBackRestGCSSpec `json:"gcs,omitempty"`
+
 	// Bucket is the S3 bucket for backups and WAL archives.
-	// +kubebuilder:validation:Required
-	Bucket string `json:"bucket"`
+	//
+	// Deprecated: use s3.bucket. Honored as a fallback when neither s3 nor gcs
+	// is set.
+	// +optional
+	Bucket string `json:"bucket,omitempty"`
 
 	// Region is the S3 region.
-	// +kubebuilder:validation:Required
-	Region string `json:"region"`
+	//
+	// Deprecated: use s3.region.
+	// +optional
+	Region string `json:"region,omitempty"`
 
 	// Endpoint overrides S3 endpoint discovery. Required for non-AWS
 	// S3-compatible storage (e.g. Cloudflare R2, or MinIO for local
 	// dev). When set, static credentials from the operator-configured
 	// credentials Secret are used instead of an IAM role.
+	//
+	// Deprecated: use s3.endpoint.
 	// +optional
 	Endpoint string `json:"endpoint,omitempty"`
 
 	// InheritFromIAMRole uses the pod's IAM role for S3 authentication.
+	//
+	// Deprecated: use s3.inheritFromIAMRole.
 	// +optional
-	// +kubebuilder:default:=true
 	InheritFromIAMRole bool `json:"inheritFromIAMRole,omitempty"`
 
 	// RetentionFullDays is the number of days to retain full backups.
@@ -496,6 +521,47 @@ type PgBackRestSpec struct {
 	// +optional
 	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9._-]+$`
 	StanzaName string `json:"stanzaName,omitempty"`
+}
+
+// PgBackRestS3Spec configures an S3-compatible pgbackrest backend. Mirrors the
+// cnpg PgBackRestS3 fields maki uses; credentials come from the pod IAM role or,
+// when Endpoint is set, the operator-configured credentials Secret.
+type PgBackRestS3Spec struct {
+	// Bucket is the S3 bucket for backups and WAL archives.
+	// +kubebuilder:validation:Required
+	Bucket string `json:"bucket"`
+
+	// Region is the S3 region.
+	// +kubebuilder:validation:Required
+	Region string `json:"region"`
+
+	// Endpoint overrides S3 endpoint discovery. Required for non-AWS
+	// S3-compatible storage (e.g. Cloudflare R2, or MinIO for local dev). When
+	// set, static credentials from the operator-configured credentials Secret
+	// are used instead of an IAM role.
+	// +optional
+	Endpoint string `json:"endpoint,omitempty"`
+
+	// InheritFromIAMRole uses the pod's IAM role for S3 authentication.
+	// +optional
+	// +kubebuilder:default:=true
+	InheritFromIAMRole bool `json:"inheritFromIAMRole,omitempty"`
+}
+
+// PgBackRestGCSSpec configures a Google Cloud Storage pgbackrest backend.
+// Authentication is Workload Identity only: the operator renders the cnpg GCS
+// repository with keyType=auto and stamps ServiceAccountEmail as the
+// iam.gke.io/gcp-service-account annotation on the cluster's
+// serviceAccountTemplate.
+type PgBackRestGCSSpec struct {
+	// Bucket is the GCS bucket for backups and WAL archives.
+	// +kubebuilder:validation:Required
+	Bucket string `json:"bucket"`
+
+	// ServiceAccountEmail is the GCP service account the cluster's pods
+	// impersonate via Workload Identity to access the bucket.
+	// +kubebuilder:validation:Required
+	ServiceAccountEmail string `json:"serviceAccountEmail"`
 }
 
 // ScheduledBackupSpec configures periodic base backups

@@ -654,6 +654,174 @@ func TestClusterSpec(t *testing.T) {
 				),
 		},
 		{
+			name: "pgbackrest backup with s3 sub-struct",
+			cfgModifier: func(cfg *resources.ClusterConfig) {
+				cfg.BackupSpec = &v1alpha1.BackupSpec{
+					Method: v1alpha1.BackupMethodPgBackRest,
+					PgBackRest: &v1alpha1.PgBackRestSpec{
+						S3: &v1alpha1.PgBackRestS3Spec{
+							Bucket:             "test-bucket",
+							Region:             "us-east-1",
+							InheritFromIAMRole: true,
+						},
+						RetentionFullDays:   7,
+						CompressType:        "lz4",
+						ArchiveAsync:        true,
+						ArchivePushQueueMax: "2GiB",
+						ArchiveGetQueueMax:  "2GiB",
+					},
+				}
+			},
+			expected: baseExpectedSpec().
+				WithPlugins(scaleToZeroPlugin()).
+				WithBackup(apiv1ac.BackupConfiguration().
+					WithVolumeSnapshot(apiv1ac.VolumeSnapshotConfiguration().
+						WithClassName("snapshot-class").
+						WithOnline(true).
+						WithOnlineConfiguration(apiv1ac.OnlineConfiguration().
+							WithImmediateCheckpoint(true))).
+					WithPgBackRest(apiv1ac.PgBackRestConfiguration().
+						WithStanzaName(testBranchName).
+						WithRepository(apiv1ac.PgBackRestRepository().
+							WithS3(apiv1ac.PgBackRestS3().
+								WithBucket("test-bucket").
+								WithRegion("us-east-1").
+								WithInheritFromIAMRole(true))).
+						WithOptions(apiv1ac.PgBackRestOptions().
+							WithCompressType("lz4").
+							WithArchiveAsync(true).
+							WithArchivePushQueueMax("2GiB").
+							WithArchiveGetQueueMax("2GiB").
+							WithBundle(true).
+							WithBlockIncremental(true).
+							WithStartFast(true).
+							WithDelta(true).
+							WithPriority(19).
+							WithRetention(apiv1ac.PgBackRestRetention().
+								WithFull(7).
+								WithFullType("time")))).
+					WithTarget(apiv1.BackupTargetStandby)),
+		},
+		{
+			name: "pgbackrest backup with gcs backend",
+			cfgModifier: func(cfg *resources.ClusterConfig) {
+				cfg.BackupSpec = &v1alpha1.BackupSpec{
+					Method: v1alpha1.BackupMethodPgBackRest,
+					PgBackRest: &v1alpha1.PgBackRestSpec{
+						GCS: &v1alpha1.PgBackRestGCSSpec{
+							Bucket:              "test-bucket",
+							ServiceAccountEmail: "backups@project.iam.gserviceaccount.com",
+						},
+						RetentionFullDays:   7,
+						CompressType:        "lz4",
+						ArchiveAsync:        true,
+						ArchivePushQueueMax: "2GiB",
+						ArchiveGetQueueMax:  "2GiB",
+					},
+				}
+			},
+			expected: baseExpectedSpec().
+				WithPlugins(scaleToZeroPlugin()).
+				WithServiceAccountTemplate(apiv1ac.ServiceAccountTemplate().
+					WithMetadata(apiv1ac.Metadata().
+						WithAnnotations(map[string]string{
+							"iam.gke.io/gcp-service-account": "backups@project.iam.gserviceaccount.com",
+						}))).
+				WithBackup(apiv1ac.BackupConfiguration().
+					WithVolumeSnapshot(apiv1ac.VolumeSnapshotConfiguration().
+						WithClassName("snapshot-class").
+						WithOnline(true).
+						WithOnlineConfiguration(apiv1ac.OnlineConfiguration().
+							WithImmediateCheckpoint(true))).
+					WithPgBackRest(apiv1ac.PgBackRestConfiguration().
+						WithStanzaName(testBranchName).
+						WithRepository(apiv1ac.PgBackRestRepository().
+							WithGCS(apiv1ac.PgBackRestGCS().
+								WithBucket("test-bucket").
+								WithKeyType("auto"))).
+						WithOptions(apiv1ac.PgBackRestOptions().
+							WithCompressType("lz4").
+							WithArchiveAsync(true).
+							WithArchivePushQueueMax("2GiB").
+							WithArchiveGetQueueMax("2GiB").
+							WithBundle(true).
+							WithBlockIncremental(true).
+							WithStartFast(true).
+							WithDelta(true).
+							WithPriority(19).
+							WithRetention(apiv1ac.PgBackRestRetention().
+								WithFull(7).
+								WithFullType("time")))).
+					WithTarget(apiv1.BackupTargetStandby)),
+		},
+		{
+			name: "pgbackrest restore from gcs backend",
+			cfgModifier: func(cfg *resources.ClusterConfig) {
+				cfg.BackupSpec = &v1alpha1.BackupSpec{
+					Method: v1alpha1.BackupMethodPgBackRest,
+					PgBackRest: &v1alpha1.PgBackRestSpec{
+						GCS: &v1alpha1.PgBackRestGCSSpec{
+							Bucket:              "test-bucket",
+							ServiceAccountEmail: "backups@project.iam.gserviceaccount.com",
+						},
+					},
+				}
+				cfg.RestoreSpec = &v1alpha1.RestoreSpec{
+					Type: v1alpha1.RestoreTypeObjectStore,
+					Name: "source-cluster",
+				}
+			},
+			expected: baseExpectedSpec().
+				WithPlugins(scaleToZeroPlugin()).
+				WithServiceAccountTemplate(apiv1ac.ServiceAccountTemplate().
+					WithMetadata(apiv1ac.Metadata().
+						WithAnnotations(map[string]string{
+							"iam.gke.io/gcp-service-account": "backups@project.iam.gserviceaccount.com",
+						}))).
+				WithBackup(apiv1ac.BackupConfiguration().
+					WithVolumeSnapshot(apiv1ac.VolumeSnapshotConfiguration().
+						WithClassName("snapshot-class").
+						WithOnline(true).
+						WithOnlineConfiguration(apiv1ac.OnlineConfiguration().
+							WithImmediateCheckpoint(true))).
+					WithPgBackRest(apiv1ac.PgBackRestConfiguration().
+						WithStanzaName(testBranchName).
+						WithRepository(apiv1ac.PgBackRestRepository().
+							WithGCS(apiv1ac.PgBackRestGCS().
+								WithBucket("test-bucket").
+								WithKeyType("auto"))).
+						WithOptions(apiv1ac.PgBackRestOptions().
+							WithCompressType("").
+							WithArchiveAsync(false).
+							WithArchivePushQueueMax("").
+							WithArchiveGetQueueMax("").
+							WithBundle(true).
+							WithBlockIncremental(true).
+							WithStartFast(true).
+							WithDelta(true).
+							WithPriority(19).
+							WithRetention(apiv1ac.PgBackRestRetention().
+								WithFull(0).
+								WithFullType("time")))).
+					WithTarget(apiv1.BackupTargetStandby)).
+				WithBootstrap(apiv1ac.BootstrapConfiguration().
+					WithRecovery(resources.ObjectStoreBootstrapRecovery(testBranchName, &v1alpha1.RestoreSpec{
+						Type: v1alpha1.RestoreTypeObjectStore,
+						Name: "source-cluster",
+					}))).
+				WithExternalClusters(
+					apiv1ac.ExternalCluster().
+						WithName("source-cluster").
+						WithPgBackRest(apiv1ac.PgBackRestExternalCluster().
+							WithRepository(apiv1ac.PgBackRestRepository().
+								WithGCS(apiv1ac.PgBackRestGCS().
+									WithBucket("test-bucket").
+									WithKeyType("auto"))).
+							WithOptions(apiv1ac.PgBackRestOptions().
+								WithRepoPath("source-cluster"))),
+				),
+		},
+		{
 			name: "smart shutdown timeout - custom value set",
 			cfgModifier: func(cfg *resources.ClusterConfig) {
 				cfg.SmartShutdownTimeout = ptr.To[int32](300)

@@ -288,16 +288,32 @@ func (b *BranchBuilder) WithDefaultVolumeSnapshotClass(vsc string) *BranchBuilde
 	return b
 }
 
-// WithPgBackRestS3 sets the S3 bucket, region and endpoint on the PgBackRest
-// spec. Only applies when the backup method is pgbackrest. A non-empty endpoint
-// targets a non-AWS S3-compatible store (MinIO, Cloudflare R2), which makes the
-// operator authenticate with static credentials instead of an IAM role.
-func (b *BranchBuilder) WithPgBackRestS3(bucket, region, endpoint string) *BranchBuilder {
-	if b.branch.Spec.BackupSpec != nil && b.branch.Spec.BackupSpec.IsPgBackRest() {
-		b.branch.Spec.BackupSpec.PgBackRest.Bucket = bucket
-		b.branch.Spec.BackupSpec.PgBackRest.Region = region
-		b.branch.Spec.BackupSpec.PgBackRest.Endpoint = endpoint
+// WithPgBackRest sets the pgbackrest storage backend for the cell's cloud
+// provider: gcs for gcp (bucket + GCP service account, Workload Identity auth),
+// s3 otherwise. Only applies when the backup method is pgbackrest. A non-empty
+// s3 endpoint targets a non-AWS S3-compatible store (MinIO, Cloudflare R2),
+// which makes the operator authenticate with static credentials instead of an
+// IAM role.
+func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, serviceAccount string) *BranchBuilder {
+	if b.branch.Spec.BackupSpec == nil || !b.branch.Spec.BackupSpec.IsPgBackRest() {
+		return b
 	}
+
+	switch provider {
+	case CloudProviderGCP:
+		b.branch.Spec.BackupSpec.PgBackRest.GCS = &v1alpha1.PgBackRestGCSSpec{
+			Bucket:              bucket,
+			ServiceAccountEmail: serviceAccount,
+		}
+	default:
+		b.branch.Spec.BackupSpec.PgBackRest.S3 = &v1alpha1.PgBackRestS3Spec{
+			Bucket:             bucket,
+			Region:             region,
+			Endpoint:           endpoint,
+			InheritFromIAMRole: true,
+		}
+	}
+
 	return b
 }
 
@@ -415,7 +431,6 @@ func backupSpec(b *clustersv1.BackupConfiguration) *v1alpha1.BackupSpec {
 		}
 
 		spec.PgBackRest = &v1alpha1.PgBackRestSpec{
-			InheritFromIAMRole:  true,
 			RetentionFullDays:   retentionDays,
 			CompressType:        DefaultPgBackRestCompressType,
 			ArchiveAsync:        DefaultPgBackRestArchiveAsync,

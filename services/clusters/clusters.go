@@ -265,13 +265,15 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		WithDefaultVolumeSnapshotClass(volumeSnapshotClass).
 		WithDefaultNodeSelector(c.config.ClustersNodeSelector).
 		WithPooler(c.config.EnablePooler).
-		WithPgBackRestS3(c.config.PgBackRestBucket, c.config.PgBackRestRegion, c.config.PgBackRestEndpoint).
+		WithPgBackRest(c.config.CloudProvider, c.config.PgBackRestBucket, c.config.PgBackRestRegion, c.config.PgBackRestEndpoint, c.config.PgBackRestGCSServiceAccount).
 		WithXataUtilsPreloadLibrary().
 		WithMandatoryPostgresParameters()
 
 	// Fail fast if pgbackrest is requested but the cell isn't configured for it
-	if branch := branchBuilder.Build(); branch.Spec.BackupSpec.IsPgBackRest() && (branch.Spec.BackupSpec.PgBackRest.Bucket == "" || branch.Spec.BackupSpec.PgBackRest.Region == "") {
-		return nil, status.Errorf(codes.FailedPrecondition, "pgbackrest backup method requested but XATA_PGBACKREST_BUCKET/XATA_BACKUPS_REGION is not configured in this cell")
+	if branch := branchBuilder.Build(); branch.Spec.BackupSpec.IsPgBackRest() {
+		if err := validatePgBackRestConfigured(branch.Spec.BackupSpec.PgBackRest); err != nil {
+			return nil, err
+		}
 	}
 
 	// If use_pool is set, we look for a create pool matching the request. If one
@@ -327,6 +329,22 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		Id:     req.GetId(),
 		Status: "Creating",
 	}, nil
+}
+
+// validatePgBackRestConfigured fails fast when a branch requests pgbackrest but
+// the cell's backend env is incomplete for its cloud provider.
+func validatePgBackRestConfigured(pgb *branchv1alpha1.PgBackRestSpec) error {
+	switch {
+	case pgb.GCS != nil:
+		if pgb.GCS.Bucket == "" || pgb.GCS.ServiceAccountEmail == "" {
+			return status.Errorf(codes.FailedPrecondition, "pgbackrest backup method requested but XATA_PGBACKREST_BUCKET/XATA_PGBACKREST_GCS_SERVICE_ACCOUNT is not configured in this cell")
+		}
+	case pgb.S3 != nil:
+		if pgb.S3.Bucket == "" || pgb.S3.Region == "" {
+			return status.Errorf(codes.FailedPrecondition, "pgbackrest backup method requested but XATA_PGBACKREST_BUCKET/XATA_BACKUPS_REGION is not configured in this cell")
+		}
+	}
+	return nil
 }
 
 // UpdatePostgresCluster updates an existing Branch CR spec.

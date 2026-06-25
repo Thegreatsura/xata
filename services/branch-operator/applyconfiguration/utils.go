@@ -31,6 +31,10 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &apiv1alpha1.ClusterSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("InheritedMetadata"):
 		return &apiv1alpha1.InheritedMetadataApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("PgBackRestGCSSpec"):
+		return &apiv1alpha1.PgBackRestGCSSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("PgBackRestS3Spec"):
+		return &apiv1alpha1.PgBackRestS3SpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("PgBackRestSpec"):
 		return &apiv1alpha1.PgBackRestSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("PoolerSpec"):
