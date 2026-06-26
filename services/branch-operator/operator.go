@@ -176,6 +176,7 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 		wakeupReconciler := &wakeup.WakeupReconciler{
 			Client:                  mgr.GetClient(),
 			Scheme:                  mgr.GetScheme(),
+			Recorder:                mgr.GetEventRecorder(wakeup.ReconcilerName),
 			CSINodeNamespace:        s.config.CSINodeNamespace,
 			CSINodePort:             s.config.CSINodePort,
 			WakeupRequestTTL:        s.config.WakeupRequestTTL,

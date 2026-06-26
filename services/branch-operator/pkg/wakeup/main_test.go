@@ -15,6 +15,7 @@ import (
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -82,6 +83,7 @@ func TestMain(m *testing.M) {
 			},
 			SchemeAdders: []func(*runtime.Scheme) error{
 				corev1.AddToScheme,
+				eventsv1.AddToScheme,
 				v1alpha1.AddToScheme,
 				poolv1alpha1.AddToScheme,
 				apiv1.AddToScheme,
@@ -91,6 +93,7 @@ func TestMain(m *testing.M) {
 				r := &wakeup.WakeupReconciler{
 					Client:           mgr.GetClient(),
 					Scheme:           mgr.GetScheme(),
+					Recorder:         mgr.GetEventRecorder(wakeup.ReconcilerName),
 					CSINodeNamespace: TestNamespace,
 					WakeupRequestTTL: 1 * time.Second,
 					CSINodePort:      csiNodePort,
@@ -351,5 +354,26 @@ func requireWakeupSucceededCondition(t *testing.T, ctx context.Context, wr *v1al
 		}
 
 		return cond.Status == status && cond.Reason == reason
+	})
+}
+
+// requireEventEventually polls until an Event with the given type and reason
+// has been recorded regarding the WakeupRequest.
+func requireEventEventually(t *testing.T, ctx context.Context, wr *v1alpha1.WakeupRequest, eventType, reason string) {
+	t.Helper()
+
+	requireEventuallyTrue(t, func() bool {
+		eventList := &eventsv1.EventList{}
+		if err := k8sClient.List(ctx, eventList, client.InNamespace(wr.Namespace)); err != nil {
+			return false
+		}
+
+		for _, e := range eventList.Items {
+			if e.Type == eventType && e.Reason == reason && e.Regarding.UID == wr.UID {
+				return true
+			}
+		}
+
+		return false
 	})
 }

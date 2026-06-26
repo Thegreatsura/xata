@@ -8,6 +8,7 @@ import (
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,11 +32,13 @@ const (
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch,namespace=xata-clusters
 // +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch,namespace=xata-clusters
+// +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=create;patch
 
 // WakeupReconciler reconciles a WakeupRequest object
 type WakeupReconciler struct {
 	client.Client
 	Scheme                  *runtime.Scheme
+	Recorder                events.EventRecorder
 	CSINodeNamespace        string
 	CSINodePort             int
 	WakeupRequestTTL        time.Duration
@@ -88,6 +91,7 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// Defer setting status based on errors that occur during reconciliation
 	var err error
 	defer func() {
+		r.recordFailureEvent(wr, err)
 		r.setStatusConditionFromError(ctx, wr, err)
 		r.setLastErrorStatus(ctx, wr, err)
 	}()

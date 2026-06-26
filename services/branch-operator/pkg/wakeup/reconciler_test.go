@@ -231,6 +231,9 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Expect the WakeupRequest to have Succeeded=Unknown with PoolExhausted
 		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionUnknown, v1alpha1.PoolExhaustedReason)
+
+		// Expect an event to be recorded on the WakeupRequest with PoolExhausted
+		requireEventEventually(t, ctx, wr, corev1.EventTypeNormal, v1alpha1.PoolExhaustedReason)
 	})
 
 	t.Run("sets BranchNotFound when the branch does not exist", func(t *testing.T) {
@@ -246,6 +249,9 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Expect the WakeupRequest to have Succeeded=Unknown with BranchNotFound
 		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionUnknown, v1alpha1.BranchNotFoundReason)
+
+		// Expect an event to be recorded on the WakeupRequest with BranchNotFound
+		requireEventEventually(t, ctx, wr, corev1.EventTypeNormal, v1alpha1.BranchNotFoundReason)
 	})
 
 	t.Run("sets PoolNotFound when the pool does not exist", func(t *testing.T) {
@@ -268,6 +274,9 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Expect the WakeupRequest to have Succeeded=False with PoolNotFound
 		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionFalse, v1alpha1.PoolNotFoundReason)
+
+		// Expect an event to be recorded on the WakeupRequest with PoolNotFound
+		requireEventEventually(t, ctx, wr, corev1.EventTypeWarning, v1alpha1.PoolNotFoundReason)
 	})
 
 	t.Run("sets NoPoolAnnotation when the branch has no pool annotation", func(t *testing.T) {
@@ -287,6 +296,9 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Expect the WakeupRequest to have Succeeded=False with NoPoolAnnotation
 		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionFalse, v1alpha1.NoPoolAnnotationReason)
+
+		// Expect an event to be recorded on the WakeupRequest with NoPoolAnnotation
+		requireEventEventually(t, ctx, wr, corev1.EventTypeWarning, v1alpha1.NoPoolAnnotationReason)
 	})
 
 	t.Run("sets CSINodePodNotFound when no CSI node pod exists on the primary's node", func(t *testing.T) {
@@ -396,6 +408,9 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Expect CSINodePodNotFound because no CSI node pod exists on the node
 		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionFalse, v1alpha1.CSINodePodNotFoundReason)
+
+		// Expect an event to be recorded on the WakeupRequest with CSINodePodNotFound
+		requireEventEventually(t, ctx, wr, corev1.EventTypeWarning, v1alpha1.CSINodePodNotFoundReason)
 	})
 
 	t.Run("sets PVNotAvailable when cluster has no TargetPrimary", func(t *testing.T) {
@@ -449,6 +464,9 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Expect PVNotAvailable because the Cluster has no TargetPrimary
 		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionFalse, v1alpha1.PVNotAvailableReason)
+
+		// Expect an event to be recorded on the WakeupRequest with PVNotAvailable
+		requireEventEventually(t, ctx, wr, corev1.EventTypeWarning, v1alpha1.PVNotAvailableReason)
 	})
 
 	t.Run("sets XVolNotReady when the XVol is in Pending state", func(t *testing.T) {
@@ -471,6 +489,9 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Expect XVolNotReady because the XVol is not in a wakeable state
 		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionUnknown, v1alpha1.XVolNotReadyReason)
+
+		// Expect an event to be recorded on the WakeupRequest with XVolNotReady
+		requireEventEventually(t, ctx, wr, corev1.EventTypeNormal, v1alpha1.XVolNotReadyReason)
 	})
 
 	t.Run("sets XVolNotFound when the XVol resource is missing", func(t *testing.T) {
@@ -493,5 +514,8 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Expect XVolNotFound because the XVol resource is missing
 		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionUnknown, v1alpha1.XVolNotFoundReason)
+
+		// Expect an event to be recorded on the WakeupRequest with XVolNotFound
+		requireEventEventually(t, ctx, wr, corev1.EventTypeNormal, v1alpha1.XVolNotFoundReason)
 	})
 }
