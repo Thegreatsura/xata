@@ -796,6 +796,14 @@ func TestSQLStore(t *testing.T) {
 			expectedMultiplier: 1.0,
 		},
 		{
+			name:               "us-west-2 applies 1.0 multiplier",
+			organizationID:     "org-xyz",
+			region:             "us-west-2",
+			wantCount:          len(store.InstanceTypes),
+			wantFirst:          store.InstanceTypes[0],
+			expectedMultiplier: 1.0,
+		},
+		{
 			name:               "eu-central-1 applies 1.15 multiplier",
 			organizationID:     "org-xyz",
 			region:             "eu-central-1",
