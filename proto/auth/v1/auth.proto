@@ -39,6 +39,7 @@ message Organization {
   optional string billing_reason = 6;
   google.protobuf.Timestamp created_at = 7;
   string usage_tier = 8;
+  string marketplace = 9;
 }
 
 message GetOrganizationRequest {

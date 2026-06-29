@@ -26,10 +26,11 @@ type Claims struct {
 }
 
 type Organization struct {
-	ID        string    `json:"id"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UsageTier string    `json:"usage_tier"`
+	ID          string    `json:"id"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	UsageTier   string    `json:"usage_tier"`
+	Marketplace string    `json:"marketplace"`
 }
 
 func (o *Organization) IsNewOrganization() bool {

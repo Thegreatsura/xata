@@ -72,6 +72,24 @@ func TestMain(m *testing.M) {
 
 const defaultStorage = int32(250)
 
+func testClaimsWithMarketplace(marketplace string) token.Claims {
+	return token.Claims{
+		ID:    apitest.TestUserID,
+		Email: apitest.TestUserEmail,
+		Organizations: map[string]token.Organization{
+			apitest.TestOrganization: {
+				ID:          apitest.TestOrganization,
+				Status:      token.OrgEnabledStatus,
+				UsageTier:   "t2",
+				Marketplace: marketplace,
+			},
+		},
+		Scopes:   []string{"*"},
+		Projects: []string{"*"},
+		Branches: []string{"*"},
+	}
+}
+
 func TestListRegions(t *testing.T) {
 	mockStore := mocks.NewProjectsStore(t)
 	feat := openfeaturetest.NewClient(nil)
@@ -109,6 +127,54 @@ func TestListRegions(t *testing.T) {
 	assert.Nil(t, res.Regions[1].OrganizationID) // no org-id
 
 	mockStore.AssertExpectations(t)
+}
+
+func TestListRegionsFiltersByMarketplace(t *testing.T) {
+	mockStore := mocks.NewProjectsStore(t)
+	feat := openfeaturetest.NewClient(nil)
+	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
+
+	handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil)
+	claims := testClaimsWithMarketplace("aws")
+	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(claims)
+
+	regions := []store.Region{
+		{ID: "us-east-1", PublicAccess: true, Provider: store.ProviderAWS},
+		{ID: "gcp-region", PublicAccess: true, Provider: store.ProviderGCP},
+		{ID: "custom-region", PublicAccess: true, Provider: store.ProviderCustom},
+	}
+	mockStore.EXPECT().ListRegions(mock.Anything, apitest.TestOrganization).Return(regions, nil)
+
+	c, rec := e.GET("/organizations/" + apitest.TestOrganization + "/regions").Context()
+	err := handler.ListRegions(c, apitest.TestOrganization)
+	require.NoError(t, err)
+
+	var res struct {
+		Regions []store.Region `json:"regions"`
+	}
+	rec.MustCode(http.StatusOK)
+	rec.ReadBody(&res)
+
+	require.Len(t, res.Regions, 1)
+	assert.Equal(t, "us-east-1", res.Regions[0].ID)
+}
+
+func TestListInstanceTypesRejectsRegionOutsideMarketplace(t *testing.T) {
+	mockStore := mocks.NewProjectsStore(t)
+	feat := openfeaturetest.NewClient(nil)
+	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
+
+	handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil)
+	claims := testClaimsWithMarketplace("aws")
+	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(claims)
+
+	regions := []store.Region{{ID: "gcp-region", PublicAccess: true, Provider: store.ProviderGCP}}
+	mockStore.EXPECT().ListRegions(mock.Anything, apitest.TestOrganization).Return(regions, nil)
+
+	c, _ := e.GET("/organizations/" + apitest.TestOrganization + "/instanceTypes?region=gcp-region").Context()
+	err := handler.ListInstanceTypes(c, apitest.TestOrganization, spec.ListInstanceTypesParams{Region: "gcp-region"})
+
+	require.EqualError(t, err, "invalid parameter [region]: invalid region: provider gcp is not available for aws marketplace organizations")
 }
 
 func TestCreateProject(t *testing.T) {

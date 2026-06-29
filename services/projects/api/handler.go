@@ -123,6 +123,7 @@ const maxMetricsPerRequest = 15
 // (GET /organizations/{organizationID}/regions)
 func (s *handler) ListRegions(c echo.Context, organizationID spec.OrganizationID) error {
 	return s.withOrganizationAccess(c, organizationID, All, func() error {
+		marketplace := api.GetUserClaims(c).Organizations[organizationID].Marketplace
 		regions, err := s.store.ListRegions(c.Request().Context(), organizationID)
 		if err != nil {
 			return err
@@ -130,7 +131,7 @@ func (s *handler) ListRegions(c echo.Context, organizationID spec.OrganizationID
 
 		return c.JSON(http.StatusOK, struct {
 			Regions []store.Region `json:"regions"`
-		}{regions})
+		}{filterRegionsForMarketplace(marketplace, regions)})
 	})
 }
 
@@ -138,10 +139,15 @@ func (s *handler) ListRegions(c echo.Context, organizationID spec.OrganizationID
 // (GET /organizations/{organizationID}/images)
 func (s *handler) ListImages(c echo.Context, organizationID spec.OrganizationID, params spec.ListImagesParams) error {
 	return s.withOrganizationAccess(c, organizationID, All, func() error {
+		marketplace := api.GetUserClaims(c).Organizations[organizationID].Marketplace
 		if params.Region != nil {
-			err := s.validateRegion(c.Request().Context(), organizationID, *params.Region)
+			err := s.validateRegion(c.Request().Context(), validateRegionParams{
+				organizationID: organizationID,
+				marketplace:    marketplace,
+				region:         *params.Region,
+			})
 			if err != nil {
-				if strings.Contains(err.Error(), "not found") {
+				if isInvalidRegionError(err) {
 					return ErrorInvalidParam{Param: "region", Message: "invalid region: " + err.Error()}
 				}
 				return err
@@ -206,10 +212,15 @@ func (s *handler) ListImages(c echo.Context, organizationID spec.OrganizationID,
 // (GET /organizations/{organizationID}/extensions)
 func (s *handler) ListExtensions(c echo.Context, organizationID spec.OrganizationID, params spec.ListExtensionsParams) error {
 	return s.withOrganizationAccess(c, organizationID, All, func() error {
+		marketplace := api.GetUserClaims(c).Organizations[organizationID].Marketplace
 		if params.Region != nil {
-			err := s.validateRegion(c.Request().Context(), organizationID, *params.Region)
+			err := s.validateRegion(c.Request().Context(), validateRegionParams{
+				organizationID: organizationID,
+				marketplace:    marketplace,
+				region:         *params.Region,
+			})
 			if err != nil {
-				if strings.Contains(err.Error(), "not found") {
+				if isInvalidRegionError(err) {
 					return ErrorInvalidParam{Param: "region", Message: "invalid region: " + err.Error()}
 				}
 				return err
@@ -251,7 +262,12 @@ func (s *handler) ListExtensions(c echo.Context, organizationID spec.Organizatio
 // (GET /organizations/{organizationID}/instanceTypes)
 func (s *handler) ListInstanceTypes(c echo.Context, organizationID spec.OrganizationID, params spec.ListInstanceTypesParams) error {
 	return s.withOrganizationAccess(c, organizationID, All, func() error {
-		err := s.validateRegion(c.Request().Context(), organizationID, params.Region)
+		marketplace := api.GetUserClaims(c).Organizations[organizationID].Marketplace
+		err := s.validateRegion(c.Request().Context(), validateRegionParams{
+			organizationID: organizationID,
+			marketplace:    marketplace,
+			region:         params.Region,
+		})
 		if err != nil {
 			return ErrorInvalidParam{Param: "region", Message: "invalid region: " + err.Error()}
 		}
@@ -641,6 +657,7 @@ func (s *handler) CreateBranch(c echo.Context, organizationID spec.OrganizationI
 		log.Ctx(ctx).Info().Bool("usePgBackRest", usePgBackRest).Msg("pgbackrest feature flag")
 
 		claims := api.GetUserClaims(c)
+		marketplace := claims.Organizations[organizationID].Marketplace
 		featureFlags := provisioner.FlagsConfig{
 			UsePool:     s.feat.BoolValue(ctx, flags.UseClusterPool),
 			UseXatastor: useXatastor,
@@ -693,9 +710,16 @@ func (s *handler) CreateBranch(c echo.Context, organizationID spec.OrganizationI
 			if err != nil {
 				return err
 			}
+			if err := s.validateMarketplaceRegion(ctx, validateMarketplaceRegionParams{
+				organizationID: organizationID,
+				marketplace:    marketplace,
+				region:         createClusterPayload.Region,
+			}); err != nil {
+				return ErrorInvalidParam{BranchName: body.Name, Param: "region", Message: err.Error()}
+			}
 		// mode custom - we create a main branch
 		case spec.BranchFromConfiguration:
-			createClusterPayload, err = s.handleBranchFromConfiguration(ctx, organizationID, projectID, body.Name, payload, orgLimits)
+			createClusterPayload, err = s.handleBranchFromConfiguration(ctx, organizationID, projectID, body.Name, payload, orgLimits, marketplace)
 			if err != nil {
 				return err
 			}
@@ -807,11 +831,11 @@ func (s *handler) prepareCreateClusterFromParent(ctx context.Context, organizati
 	}, nil
 }
 
-func (s *handler) handleBranchFromConfiguration(c context.Context, organizationID spec.OrganizationID, projectID, branchName string, payload spec.BranchFromConfiguration, orgLimits provisioner.OrgLimits) (ClusterServicePayload, error) {
+func (s *handler) handleBranchFromConfiguration(c context.Context, organizationID spec.OrganizationID, projectID, branchName string, payload spec.BranchFromConfiguration, orgLimits provisioner.OrgLimits, marketplace string) (ClusterServicePayload, error) {
 	if err := s.validateBranchFromConfiguration(c, organizationID, branchName, payload, orgLimits); err != nil {
 		return ClusterServicePayload{}, err
 	}
-	return s.prepareCreateClusterFromConfiguration(c, organizationID, projectID, branchName, payload, orgLimits)
+	return s.prepareCreateClusterFromConfiguration(c, organizationID, projectID, branchName, payload, orgLimits, marketplace)
 }
 
 func (s *handler) validateBranchFromConfiguration(ctx context.Context, organizationID spec.OrganizationID, name string, payload spec.BranchFromConfiguration, orgLimits provisioner.OrgLimits) error {
@@ -823,7 +847,7 @@ func (s *handler) validateBranchFromConfiguration(ctx context.Context, organizat
 	return validateReplicaCount(name, payload.Configuration.Replicas, orgLimits.MinInstancesPerBranch, orgLimits.MaxInstancesPerBranch)
 }
 
-func (s *handler) prepareCreateClusterFromConfiguration(ctx context.Context, organizationID spec.OrganizationID, projectID, branchName string, payload spec.BranchFromConfiguration, orgLimits provisioner.OrgLimits) (ClusterServicePayload, error) {
+func (s *handler) prepareCreateClusterFromConfiguration(ctx context.Context, organizationID spec.OrganizationID, projectID, branchName string, payload spec.BranchFromConfiguration, orgLimits provisioner.OrgLimits, marketplace string) (ClusterServicePayload, error) {
 	// validate image - from this moment on, the image is in the correct format, no need for prefix, suffix, extra validation
 	validImageFormat, err := s.validateImage(ctx, organizationID, payload.Configuration.Image)
 	if err != nil {
@@ -833,6 +857,9 @@ func (s *handler) prepareCreateClusterFromConfiguration(ctx context.Context, org
 	region, err := s.store.GetRegion(ctx, organizationID, payload.Configuration.Region)
 	if err != nil {
 		return ClusterServicePayload{}, ErrorInvalidParam{BranchName: branchName, Param: "configuration", Message: "invalid region: " + err.Error()}
+	}
+	if err := validateRegionForMarketplace(marketplace, *region); err != nil {
+		return ClusterServicePayload{}, ErrorInvalidParam{BranchName: branchName, Param: "region", Message: err.Error()}
 	}
 
 	// allocate to a cell in the region
@@ -977,18 +1004,80 @@ func (s *handler) getInstanceTypeByResources(ctx context.Context, organizationID
 	return FallbackInstanceType, nil
 }
 
-func (s *handler) validateRegion(ctx context.Context, organizationID spec.OrganizationID, region string) error {
-	regions, err := s.store.ListRegions(ctx, organizationID)
+type validateRegionParams struct {
+	organizationID spec.OrganizationID
+	marketplace    string
+	region         string
+}
+
+func (s *handler) validateRegion(ctx context.Context, params validateRegionParams) error {
+	regions, err := s.store.ListRegions(ctx, params.organizationID)
 	if err != nil {
 		return err
 	}
 
-	for _, r := range regions {
-		if region == r.ID {
-			return nil
+	for _, region := range regions {
+		if params.region == region.ID {
+			return validateRegionForMarketplace(params.marketplace, region)
 		}
 	}
-	return fmt.Errorf("region %s is not found", region)
+	return ErrorInvalidRegion{Message: fmt.Sprintf("region %s is not found", params.region)}
+}
+
+type validateMarketplaceRegionParams struct {
+	organizationID spec.OrganizationID
+	marketplace    string
+	region         string
+}
+
+func (s *handler) validateMarketplaceRegion(ctx context.Context, params validateMarketplaceRegionParams) error {
+	if params.marketplace == "" {
+		return nil
+	}
+
+	region, err := s.store.GetRegion(ctx, params.organizationID, params.region)
+	if err != nil {
+		return err
+	}
+	return validateRegionForMarketplace(params.marketplace, *region)
+}
+
+func filterRegionsForMarketplace(marketplace string, regions []store.Region) []store.Region {
+	if marketplace == "" {
+		return regions
+	}
+
+	filtered := make([]store.Region, 0, len(regions))
+	for _, region := range regions {
+		if isRegionAvailableForMarketplace(marketplace, region) {
+			filtered = append(filtered, region)
+		}
+	}
+	return filtered
+}
+
+func isRegionAvailableForMarketplace(marketplace string, region store.Region) bool {
+	return marketplace == "" || marketplace == string(region.Provider)
+}
+
+type ErrorInvalidRegion struct {
+	Message string
+}
+
+func (e ErrorInvalidRegion) Error() string {
+	return e.Message
+}
+
+func isInvalidRegionError(err error) bool {
+	var invalid ErrorInvalidRegion
+	return errors.As(err, &invalid)
+}
+
+func validateRegionForMarketplace(marketplace string, region store.Region) error {
+	if isRegionAvailableForMarketplace(marketplace, region) {
+		return nil
+	}
+	return ErrorInvalidRegion{Message: fmt.Sprintf("provider %s is not available for %s marketplace organizations", region.Provider, marketplace)}
 }
 
 func (s *handler) validateImage(ctx context.Context, organizationID spec.OrganizationID, image string) (string, error) {
@@ -1823,6 +1912,7 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 		ctx := c.Request().Context()
 
 		claims := api.GetUserClaims(c)
+		marketplace := claims.Organizations[organizationID].Marketplace
 		useXatastor := s.feat.BoolValue(ctx, flags.UseXatastor)
 		orgLimits, err := provisioner.ResolveOrgLimits(ctx, s.store, claims.Organizations[organizationID].UsageTier, organizationID, projectID, provisioner.FlagsConfig{
 			UseXatastor: useXatastor,
@@ -1881,7 +1971,7 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 			createClusterPayload, err = s.handleBranchFromConfiguration(ctx, organizationID, projectID, body.Name, spec.BranchFromConfiguration{
 				Mode:          spec.BranchFromConfigurationModeCustom,
 				Configuration: *body.Configuration,
-			}, orgLimits)
+			}, orgLimits, marketplace)
 			if err != nil {
 				return err
 			}
@@ -1889,6 +1979,16 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 			createClusterPayload.CellID = sourceBranch.CellID
 			// Mark source branch as parent - this will always be the case
 			createClusterPayload.ParentID = &branchID
+		}
+
+		if body.Configuration == nil {
+			if err := s.validateMarketplaceRegion(ctx, validateMarketplaceRegionParams{
+				organizationID: organizationID,
+				marketplace:    marketplace,
+				region:         createClusterPayload.Region,
+			}); err != nil {
+				return ErrorInvalidParam{BranchName: body.Name, Param: "region", Message: err.Error()}
+			}
 		}
 
 		if !createClusterPayload.BackupsEnabled && body.BackupConfiguration != nil {

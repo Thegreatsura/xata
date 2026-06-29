@@ -87,10 +87,11 @@ func mapOrganizations(src map[string]*authv1.Organization) map[string]token.Orga
 	dst := make(map[string]token.Organization, len(src))
 	for id, o := range src {
 		dst[id] = token.Organization{
-			ID:        o.Id,
-			Status:    o.Status,
-			CreatedAt: o.CreatedAt.AsTime(),
-			UsageTier: o.GetUsageTier(),
+			ID:          o.Id,
+			Status:      o.Status,
+			CreatedAt:   o.CreatedAt.AsTime(),
+			UsageTier:   o.GetUsageTier(),
+			Marketplace: o.GetMarketplace(),
 		}
 	}
 	return dst

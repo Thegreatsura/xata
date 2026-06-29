@@ -26,6 +26,7 @@ func TestBuildUserClaims(t *testing.T) {
 		defaultOrgID = "default-org"
 	)
 
+	awsMarketplace := "aws"
 	tests := map[string]struct {
 		defaultOrgID string
 		kcOrgs       []spec.Organization
@@ -123,6 +124,26 @@ func TestBuildUserClaims(t *testing.T) {
 				defaultOrgID: {
 					ID:     defaultOrgID,
 					Status: token.OrgEnabledStatus,
+				},
+			},
+		},
+		"org with marketplace preserves marketplace": {
+			defaultOrgID: "",
+			kcOrgs: []spec.Organization{
+				{
+					Id:          "aws-org",
+					Name:        "AWS Org",
+					Marketplace: &awsMarketplace,
+					Status: spec.OrganizationStatus{
+						Status: spec.Enabled,
+					},
+				},
+			},
+			want: map[string]token.Organization{
+				"aws-org": {
+					ID:          "aws-org",
+					Status:      string(spec.Enabled),
+					Marketplace: "aws",
 				},
 			},
 		},

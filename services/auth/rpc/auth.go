@@ -19,6 +19,7 @@ import (
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"k8s.io/utils/ptr"
 )
 
 // Ensure AuthService implements GRPCService interface.
@@ -169,10 +170,11 @@ func (a *AuthService) ValidateAccess(ctx context.Context, req *authv1.ValidateAc
 	specOrgs := make(map[string]*authv1.Organization)
 	for orgID, orgStatus := range claims.Organizations {
 		specOrgs[orgID] = &authv1.Organization{
-			Id:        orgStatus.ID,
-			Status:    orgStatus.Status,
-			CreatedAt: timestamppb.New(orgStatus.CreatedAt),
-			UsageTier: orgStatus.UsageTier,
+			Id:          orgStatus.ID,
+			Status:      orgStatus.Status,
+			CreatedAt:   timestamppb.New(orgStatus.CreatedAt),
+			UsageTier:   orgStatus.UsageTier,
+			Marketplace: orgStatus.Marketplace,
 		}
 	}
 	return &authv1.ValidateAccessResponse{
@@ -200,6 +202,7 @@ func (a *AuthService) GetOrganization(ctx context.Context, req *authv1.GetOrgani
 		BillingStatus:         string(org.Status.BillingStatus),
 		BillingReason:         org.Status.BillingReason,
 		UsageTier:             string(org.Status.UsageTier),
+		Marketplace:           ptr.Deref(org.Marketplace, ""),
 	}
 	if org.Status.CreatedAt != nil {
 		resp.CreatedAt = timestamppb.New(*org.Status.CreatedAt)
@@ -249,9 +252,10 @@ func (a *AuthService) buildUserClaims(ctx context.Context, userID string) (*toke
 	organizations := make(map[string]token.Organization, len(orgList))
 	for _, org := range orgList {
 		tokenOrg := token.Organization{
-			ID:        org.Id,
-			Status:    string(org.Status.Status),
-			UsageTier: string(org.Status.UsageTier),
+			ID:          org.Id,
+			Status:      string(org.Status.Status),
+			UsageTier:   string(org.Status.UsageTier),
+			Marketplace: ptr.Deref(org.Marketplace, ""),
 		}
 		if org.Status.CreatedAt != nil {
 			tokenOrg.CreatedAt = *org.Status.CreatedAt
@@ -290,9 +294,10 @@ func (a *AuthService) buildOrgClaims(ctx context.Context, orgID string) (*token.
 
 	organizations := make(map[string]token.Organization, 1)
 	tokenOrg := token.Organization{
-		ID:        organization.Id,
-		Status:    string(organization.Status.Status),
-		UsageTier: string(organization.Status.UsageTier),
+		ID:          organization.Id,
+		Status:      string(organization.Status.Status),
+		UsageTier:   string(organization.Status.UsageTier),
+		Marketplace: ptr.Deref(organization.Marketplace, ""),
 	}
 	if organization.Status.CreatedAt != nil {
 		tokenOrg.CreatedAt = *organization.Status.CreatedAt
