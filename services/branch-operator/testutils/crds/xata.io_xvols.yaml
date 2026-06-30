@@ -126,8 +126,8 @@ spec:
                 - type: integer
                 - type: string
                 description: |-
-                  Requested volume size (e.g. "10Gi", "500Mi"). Required for new volumes,
-                  do not set for clones.
+                  Requested volume size (e.g. "10Gi", "500Mi"). Required for new volumes.
+                  For clones, omit at creation (size inherited from source); set later to resize.
                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                 x-kubernetes-int-or-string: true
               source:
@@ -175,15 +175,14 @@ spec:
             - fieldPath: .size
               message: spec.size can only be increased
               reason: FieldValueForbidden
-              rule: '!has(self.size) && !has(oldSelf.size) || has(self.size) && has(oldSelf.size)
-                && quantity(self.size).compareTo(quantity(oldSelf.size)) >= 0'
+              rule: '!has(oldSelf.size) || has(self.size) && quantity(self.size).compareTo(quantity(oldSelf.size))
+                >= 0'
             - fieldPath: .source
               message: spec.source is immutable once set
               reason: FieldValueForbidden
               rule: '!has(oldSelf.source) || self.source == oldSelf.source'
-            - message: spec.size must be set and non-zero for fresh volumes and unset
-                for clones
-              rule: 'has(self.source) ? !has(self.size) : (has(self.size) && quantity(self.size).isGreaterThan(quantity(''0'')))'
+            - message: spec.size must be set and non-zero for fresh volumes
+              rule: has(self.source) || has(self.size) && quantity(self.size).isGreaterThan(quantity('0'))
           status:
             description: XvolStatus is the observed state of the volume.
             properties:
