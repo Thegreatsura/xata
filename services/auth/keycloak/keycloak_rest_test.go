@@ -1,6 +1,7 @@
 package keycloak
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -361,6 +362,53 @@ func TestExtractStatus(t *testing.T) {
 	}
 }
 
+func TestCreateOrganizationRequiresUsageTier(t *testing.T) {
+	t.Parallel()
+
+	r := &restKC{}
+
+	_, err := r.CreateOrganization(context.Background(), "xata", OrganizationCreate{Name: "Acme"})
+
+	require.EqualError(t, err, "usage tier is required")
+}
+
+func TestBuildCreateOrganizationPayload_UsageTier(t *testing.T) {
+	t.Parallel()
+
+	testCases := map[string]struct {
+		params OrganizationCreate
+		want   spec.OrganizationStatusUsageTier
+	}{
+		"normal organization uses t1": {
+			params: OrganizationCreate{Name: "Acme", UsageTier: spec.T1},
+			want:   spec.T1,
+		},
+		"aws marketplace organization uses t2": {
+			params: OrganizationCreate{
+				Name:      "Acme",
+				UsageTier: spec.T2,
+				Marketplace: AWSMarketplace{
+					CustomerID: "cust-1",
+					ProductID:  "prod-1",
+					AccountID:  "acct-1",
+				},
+			},
+			want: spec.T2,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			r := &restKC{}
+
+			org := r.buildCreateOrganizationPayload("org_123", tc.params)
+
+			require.NotNil(t, org.Attributes)
+			require.Equal(t, string(tc.want), org.Attributes[OrganizationUsageTierKey][0])
+		})
+	}
+}
+
 func TestBuildCreateOrganizationPayload_BillingRequired(t *testing.T) {
 	t.Parallel()
 
@@ -373,7 +421,7 @@ func TestBuildCreateOrganizationPayload_BillingRequired(t *testing.T) {
 			},
 		}
 
-		org := r.buildCreateOrganizationPayload(fixedID, OrganizationCreate{Name: "Acme"})
+		org := r.buildCreateOrganizationPayload(fixedID, OrganizationCreate{Name: "Acme", UsageTier: spec.T1})
 
 		require.NotNil(t, org.Attributes)
 		assert.Equal(t, OrganizationBillingStatusNoPaymentMethod, org.Attributes[OrganizationBillingStatusKey][0])
@@ -397,7 +445,7 @@ func TestBuildCreateOrganizationPayload_BillingRequired(t *testing.T) {
 			},
 		}
 
-		org := r.buildCreateOrganizationPayload(fixedID, OrganizationCreate{Name: "Acme"})
+		org := r.buildCreateOrganizationPayload(fixedID, OrganizationCreate{Name: "Acme", UsageTier: spec.T1})
 
 		require.NotNil(t, org.Attributes)
 		assert.Equal(t, string(spec.Ok), org.Attributes[OrganizationBillingStatusKey][0])

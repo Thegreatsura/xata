@@ -55,6 +55,9 @@ func NewRestKC(client *gocloak.GoCloak, authConfig config.AuthConfig) KeyCloak {
 }
 
 func (r *restKC) CreateOrganization(ctx context.Context, realm string, params OrganizationCreate) (spec.Organization, error) {
+	if params.UsageTier == "" {
+		return spec.Organization{}, fmt.Errorf("usage tier is required")
+	}
 	if params.Marketplace != nil {
 		if err := params.Marketplace.Validate(); err != nil {
 			return spec.Organization{}, fmt.Errorf("validate marketplace: %w", err)
@@ -105,7 +108,7 @@ func (r *restKC) buildCreateOrganizationPayload(id string, params OrganizationCr
 		OrganizationDisabledByAdminKey: {"false"},
 		OrganizationBillingStatusKey:   {defaultBillingStatus},
 		OrganizationBillingReasonKey:   {defaultBillingReason},
-		OrganizationUsageTierKey:       {string(params.usageTierOrDefault())},
+		OrganizationUsageTierKey:       {string(params.UsageTier)},
 		OrganizationLastUpdatedKey:     {now},
 		OrganizationCreatedAtKey:       {now},
 	}

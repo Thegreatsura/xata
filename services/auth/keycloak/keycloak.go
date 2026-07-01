@@ -45,13 +45,6 @@ type OrganizationCreate struct {
 	UsageTier   spec.OrganizationStatusUsageTier
 }
 
-func (o OrganizationCreate) usageTierOrDefault() spec.OrganizationStatusUsageTier {
-	if o.UsageTier == "" {
-		return spec.T1
-	}
-	return o.UsageTier
-}
-
 type MarketplaceProvider interface {
 	Validate() error
 	BuildKeycloakAttributes() map[string][]string
