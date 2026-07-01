@@ -96,6 +96,7 @@ func TestMain(m *testing.M) {
 					Recorder:         mgr.GetEventRecorder(wakeup.ReconcilerName),
 					CSINodeNamespace: TestNamespace,
 					WakeupRequestTTL: 1 * time.Second,
+					WakeupRPCTimeout: 10 * time.Second,
 					CSINodePort:      csiNodePort,
 				}
 				return r.SetupWithManager(ctx, mgr)

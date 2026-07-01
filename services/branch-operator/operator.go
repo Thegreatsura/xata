@@ -180,6 +180,7 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 			CSINodeNamespace:        s.config.CSINodeNamespace,
 			CSINodePort:             s.config.CSINodePort,
 			WakeupRequestTTL:        s.config.WakeupRequestTTL,
+			WakeupRPCTimeout:        s.config.WakeupRPCTimeout,
 			MaxConcurrentReconciles: s.config.WakeupMaxConcurrent,
 		}
 		if err := wakeupReconciler.SetupWithManager(ctx, mgr); err != nil {

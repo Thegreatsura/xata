@@ -25,6 +25,10 @@ func (r *WakeupReconciler) wakeUp(ctx context.Context, csiNodePod *v1.Pod, xvolN
 	}
 	defer conn.Close()
 
+	// Set a timeout for the WakeUp RPC
+	ctx, cancel := context.WithTimeout(ctx, r.WakeupRPCTimeout)
+	defer cancel()
+
 	// Call the WakeUp RPC
 	client := slotv1.NewSlotControllerClient(conn)
 	_, err = client.WakeUp(ctx, &slotv1.WakeUpRequest{
