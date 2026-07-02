@@ -20,27 +20,6 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
-const (
-	OrganizationDisabledByAdminKey             = "disabledByAdmin"
-	OrganizationBillingStatusKey               = "billingStatus"
-	OrganizationAdminReasonKey                 = "adminReason"
-	OrganizationBillingReasonKey               = "billingReason"
-	OrganizationLastUpdatedKey                 = "lastUpdated"
-	OrganizationCreatedAtKey                   = "createdAt"
-	OrganizationResourcesCleanedAtKey          = "resourcesCleanedAt"
-	OrganizationBillingStatusNoPaymentMethod   = "no_payment_method"
-	OrganizationBillingStatusDeletionRequested = "deletion_requested"
-
-	OrganizationDeletedAtKey = "deletedAt"
-
-	OrganizationUsageTierKey = "usageTier"
-
-	OrganizationMarketplaceKey   = "marketplace"
-	OrganizationAWSCustomerIDKey = "awsCustomerId"
-	OrganizationAWSProductIDKey  = "awsProductId"
-	OrganizationAWSAccountIDKey  = "awsAccountId"
-)
-
 // Implements kc.go
 type restKC struct {
 	client     *gocloak.GoCloak
