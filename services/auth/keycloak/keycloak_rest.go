@@ -17,7 +17,6 @@ import (
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/go-resty/resty/v2"
-	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 // Implements kc.go
@@ -211,7 +210,7 @@ func (r *restKC) RemoveMember(ctx context.Context, realm string, organizationID 
 	return nil
 }
 
-func (r *restKC) ListMembers(ctx context.Context, realm string, organizationID string) ([]spec.UserWithID, error) {
+func (r *restKC) ListMembers(ctx context.Context, realm string, organizationID string) ([]OrganizationMember, error) {
 	organization, err := r.searchOrganization(ctx, realm, organizationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get organization: %w", err)
@@ -239,12 +238,12 @@ func (r *restKC) ListMembers(ctx context.Context, realm string, organizationID s
 		return nil, fmt.Errorf("failed to unmarshal members: %w", err)
 	}
 
-	res := make([]spec.UserWithID, len(users))
+	res := make([]OrganizationMember, len(users))
 	for i, u := range users {
-		res[i] = spec.UserWithID{
-			Email: openapi_types.Email(u.Email),
+		res[i] = OrganizationMember{
+			Email: u.Email,
 			Name:  fmt.Sprintf("%s %s", u.FirstName, u.LastName),
-			Id:    u.ID,
+			ID:    u.ID,
 		}
 	}
 	return res, nil

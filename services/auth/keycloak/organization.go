@@ -40,6 +40,12 @@ type KeycloakOrganization struct {
 	RedirectURL string              `json:"redirectUrl,omitempty"`
 }
 
+type OrganizationMember struct {
+	ID    string
+	Email string
+	Name  string
+}
+
 type OrganizationCreate struct {
 	Name        string
 	Marketplace MarketplaceAttributes

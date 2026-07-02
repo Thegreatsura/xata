@@ -466,15 +466,15 @@ func (_c *KeyCloak_ListInvitations_Call) Return(_a0 []keycloak.OrganizationInvit
 }
 
 // ListMembers provides a mock function with given fields: c, realm, organizationID
-func (_m *KeyCloak) ListMembers(c context.Context, realm string, organizationID string) ([]spec.UserWithID, error) {
+func (_m *KeyCloak) ListMembers(c context.Context, realm string, organizationID string) ([]keycloak.OrganizationMember, error) {
 	ret := _m.Called(c, realm, organizationID)
 
-	var r0 []spec.UserWithID
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) []spec.UserWithID); ok {
+	var r0 []keycloak.OrganizationMember
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) []keycloak.OrganizationMember); ok {
 		r0 = rf(c, realm, organizationID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]spec.UserWithID)
+			r0 = ret.Get(0).([]keycloak.OrganizationMember)
 		}
 	}
 
@@ -508,7 +508,7 @@ func (_c *KeyCloak_ListMembers_Call) Run(run func(c context.Context, realm strin
 	return _c
 }
 
-func (_c *KeyCloak_ListMembers_Call) Return(_a0 []spec.UserWithID, _a1 error) *KeyCloak_ListMembers_Call {
+func (_c *KeyCloak_ListMembers_Call) Return(_a0 []keycloak.OrganizationMember, _a1 error) *KeyCloak_ListMembers_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }

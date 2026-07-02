@@ -21,7 +21,7 @@ type KeyCloak interface {
 	// RemoveMember removes a user from the organization in the given realm.
 	RemoveMember(c context.Context, realm string, organizationID string, userID string) error
 	// ListMembers lists all members of the organization in the given realm.
-	ListMembers(c context.Context, realm string, organizationID string) ([]spec.UserWithID, error)
+	ListMembers(c context.Context, realm string, organizationID string) ([]OrganizationMember, error)
 	// CreateInvitation sends an invitation for a user to join the organization.
 	CreateInvitation(c context.Context, realm string, organizationID string, email string) error
 	// ListInvitations retrieves all invitations for an organization with optional filtering.
