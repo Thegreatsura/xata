@@ -96,10 +96,24 @@ type handler struct {
 
 	// provisioner handles branch create/delete provisioning
 	provisioner provisioner.Provisioner
+
+	githubInstallationValidator GithubInstallationValidator
 }
 
-func NewAPIHandler(feat openfeature.Client, store store.ProjectsStore, cells cells.Cells, gatewayHostPort string, metricsClient metrics.Client, scheduler *scheduler.Scheduler, analytics analytics.Client, postgresConfigProvider postgrescfg.PostgresConfigProvider, imageProvider postgresversions.ImageProvider, orch provisioner.Provisioner) spec.ServerInterface {
-	return &handler{
+type GithubInstallationValidator interface {
+	ValidateInstallation(ctx context.Context, installationID int64) error
+}
+
+type HandlerOption func(*handler)
+
+func WithGithubInstallationValidator(v GithubInstallationValidator) HandlerOption {
+	return func(h *handler) {
+		h.githubInstallationValidator = v
+	}
+}
+
+func NewAPIHandler(feat openfeature.Client, store store.ProjectsStore, cells cells.Cells, gatewayHostPort string, metricsClient metrics.Client, scheduler *scheduler.Scheduler, analytics analytics.Client, postgresConfigProvider postgrescfg.PostgresConfigProvider, imageProvider postgresversions.ImageProvider, orch provisioner.Provisioner, opts ...HandlerOption) spec.ServerInterface {
+	h := &handler{
 		feat:                   feat,
 		store:                  store,
 		cells:                  cells,
@@ -111,6 +125,10 @@ func NewAPIHandler(feat openfeature.Client, store store.ProjectsStore, cells cel
 		imageProvider:          imageProvider,
 		provisioner:            orch,
 	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
 }
 
 // maxMetricsPerRequest bounds the per-request fan-out to the backend (one
@@ -2268,6 +2286,9 @@ func (s *handler) CreateGithubAppInstallation(c echo.Context, organizationID spe
 		if err := api.ReadBody(c, &body); err != nil {
 			return err
 		}
+		if err := s.validateGithubInstallationID(c.Request().Context(), body.InstallationId); err != nil {
+			return err
+		}
 
 		inst, err := s.store.CreateGithubInstallation(c.Request().Context(), organizationID, body.InstallationId)
 		if err != nil {
@@ -2276,6 +2297,16 @@ func (s *handler) CreateGithubAppInstallation(c echo.Context, organizationID spe
 
 		return c.JSON(http.StatusCreated, storeToAPIGithubInstallation(inst))
 	})
+}
+
+func (s *handler) validateGithubInstallationID(ctx context.Context, installationID int64) error {
+	if installationID <= 0 {
+		return ErrorInvalidParam{Param: "installationId", Message: "must be greater than 0"}
+	}
+	if s.githubInstallationValidator == nil {
+		return ErrorGithubInstallationValidationUnavailable{Err: errors.New("github installation validator is not configured")}
+	}
+	return s.githubInstallationValidator.ValidateInstallation(ctx, installationID)
 }
 
 // (GET /organizations/{organizationID}/githubapp/installations)
@@ -2297,6 +2328,9 @@ func (s *handler) UpdateGithubAppInstallation(c echo.Context, organizationID spe
 	return s.withOrganizationAccess(c, organizationID, OnlyEnabled, func() error {
 		var body spec.UpdateGithubAppInstallationJSONRequestBody
 		if err := api.ReadBody(c, &body); err != nil {
+			return err
+		}
+		if err := s.validateGithubInstallationID(c.Request().Context(), body.InstallationId); err != nil {
 			return err
 		}
 

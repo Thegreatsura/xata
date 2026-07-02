@@ -90,6 +90,24 @@ func testClaimsWithMarketplace(marketplace string) token.Claims {
 	}
 }
 
+type fakeGithubInstallationValidator struct {
+	err   error
+	calls []int64
+}
+
+func (f *fakeGithubInstallationValidator) ValidateInstallation(ctx context.Context, installationID int64) error {
+	f.calls = append(f.calls, installationID)
+	return f.err
+}
+
+func TestValidateGithubInstallationIDRequiresValidator(t *testing.T) {
+	err := (&handler{}).validateGithubInstallationID(context.Background(), 1)
+
+	var got ErrorGithubInstallationValidationUnavailable
+	require.ErrorAs(t, err, &got)
+	assert.Equal(t, http.StatusServiceUnavailable, got.StatusCode())
+}
+
 func TestListRegions(t *testing.T) {
 	mockStore := mocks.NewProjectsStore(t)
 	feat := openfeaturetest.NewClient(nil)
@@ -6931,14 +6949,17 @@ func TestCreateGithubAppInstallation(t *testing.T) {
 	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
 
 	tests := map[string]struct {
-		jsonBody             any
-		setupMocks           func(*mocks.ProjectsStore)
-		wantError            bool
-		expectedError        error
-		expectedInstallation spec.GithubInstallation
+		jsonBody                any
+		setupMocks              func(*mocks.ProjectsStore)
+		validationErr           error
+		expectedValidationCalls []int64
+		wantError               bool
+		expectedError           error
+		expectedInstallation    spec.GithubInstallation
 	}{
 		"create succeeds": {
-			jsonBody: map[string]any{"installationId": 123},
+			jsonBody:                map[string]any{"installationId": 123},
+			expectedValidationCalls: []int64{123},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
 				mockStore.EXPECT().CreateGithubInstallation(mock.Anything, apitest.TestOrganization, int64(123)).Return(&installation, nil)
 			},
@@ -6951,15 +6972,31 @@ func TestCreateGithubAppInstallation(t *testing.T) {
 			},
 		},
 		"duplicate returns error": {
-			jsonBody: map[string]any{"installationId": 456},
+			jsonBody:                map[string]any{"installationId": 456},
+			expectedValidationCalls: []int64{456},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
 				mockStore.EXPECT().CreateGithubInstallation(mock.Anything, apitest.TestOrganization, int64(456)).Return(nil, store.ErrGithubInstallationAlreadyExists{Organization: apitest.TestOrganization, InstallationID: 456})
 			},
 			wantError:     true,
 			expectedError: store.ErrGithubInstallationAlreadyExists{Organization: apitest.TestOrganization, InstallationID: 456},
 		},
+		"invalid installation id returns error": {
+			jsonBody:      map[string]any{"installationId": 0},
+			setupMocks:    func(mockStore *mocks.ProjectsStore) {},
+			wantError:     true,
+			expectedError: ErrorInvalidParam{Param: "installationId", Message: "must be greater than 0"},
+		},
+		"validator returns error": {
+			jsonBody:                map[string]any{"installationId": 123},
+			setupMocks:              func(mockStore *mocks.ProjectsStore) {},
+			validationErr:           ErrorInvalidParam{Param: "installationId", Message: "github app installation not found"},
+			expectedValidationCalls: []int64{123},
+			wantError:               true,
+			expectedError:           ErrorInvalidParam{Param: "installationId", Message: "github app installation not found"},
+		},
 		"store returns generic error": {
-			jsonBody: map[string]any{"installationId": 789},
+			jsonBody:                map[string]any{"installationId": 789},
+			expectedValidationCalls: []int64{789},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
 				mockStore.EXPECT().CreateGithubInstallation(mock.Anything, apitest.TestOrganization, int64(789)).Return(nil, storeErr)
 			},
@@ -6975,7 +7012,8 @@ func TestCreateGithubAppInstallation(t *testing.T) {
 			mockStore := mocks.NewProjectsStore(t)
 			tt.setupMocks(mockStore)
 			sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
-			handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil)
+			validator := &fakeGithubInstallationValidator{err: tt.validationErr}
+			handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil, WithGithubInstallationValidator(validator))
 
 			c, rec := e.POST("/organizations/" + apitest.TestOrganization + "/githubapp/installations").WithJSONBody(tt.jsonBody).Context()
 			err := handler.CreateGithubAppInstallation(c, apitest.TestOrganization)
@@ -6991,6 +7029,7 @@ func TestCreateGithubAppInstallation(t *testing.T) {
 				assert.Equal(t, tt.expectedInstallation, got)
 			}
 
+			assert.Equal(t, tt.expectedValidationCalls, validator.calls)
 			mockStore.AssertExpectations(t)
 		})
 	}
@@ -7089,16 +7128,19 @@ func TestUpdateGithubAppInstallation(t *testing.T) {
 	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
 
 	tests := map[string]struct {
-		githubInstallationID string
-		jsonBody             any
-		setupMocks           func(*mocks.ProjectsStore)
-		wantError            bool
-		expectedError        error
-		expectedInstallation spec.GithubInstallation
+		githubInstallationID    string
+		jsonBody                any
+		setupMocks              func(*mocks.ProjectsStore)
+		validationErr           error
+		expectedValidationCalls []int64
+		wantError               bool
+		expectedError           error
+		expectedInstallation    spec.GithubInstallation
 	}{
 		"update succeeds": {
-			githubInstallationID: "inst-1",
-			jsonBody:             map[string]any{"installationId": 456},
+			githubInstallationID:    "inst-1",
+			jsonBody:                map[string]any{"installationId": 456},
+			expectedValidationCalls: []int64{456},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
 				mockStore.EXPECT().UpdateGithubInstallation(mock.Anything, apitest.TestOrganization, "inst-1", int64(456)).Return(&updatedInstallation, nil)
 			},
@@ -7111,8 +7153,9 @@ func TestUpdateGithubAppInstallation(t *testing.T) {
 			},
 		},
 		"not found returns error": {
-			githubInstallationID: "unknown-id",
-			jsonBody:             map[string]any{"installationId": 456},
+			githubInstallationID:    "unknown-id",
+			jsonBody:                map[string]any{"installationId": 456},
+			expectedValidationCalls: []int64{456},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
 				mockStore.EXPECT().UpdateGithubInstallation(mock.Anything, apitest.TestOrganization, "unknown-id", int64(456)).Return(nil, store.ErrGithubInstallationNotFound{Organization: apitest.TestOrganization, ID: "unknown-id"})
 			},
@@ -7120,17 +7163,35 @@ func TestUpdateGithubAppInstallation(t *testing.T) {
 			expectedError: store.ErrGithubInstallationNotFound{Organization: apitest.TestOrganization, ID: "unknown-id"},
 		},
 		"duplicate installation id returns error": {
-			githubInstallationID: "inst-1",
-			jsonBody:             map[string]any{"installationId": 789},
+			githubInstallationID:    "inst-1",
+			jsonBody:                map[string]any{"installationId": 789},
+			expectedValidationCalls: []int64{789},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
 				mockStore.EXPECT().UpdateGithubInstallation(mock.Anything, apitest.TestOrganization, "inst-1", int64(789)).Return(nil, store.ErrGithubInstallationAlreadyExists{Organization: apitest.TestOrganization, InstallationID: 789})
 			},
 			wantError:     true,
 			expectedError: store.ErrGithubInstallationAlreadyExists{Organization: apitest.TestOrganization, InstallationID: 789},
 		},
-		"store returns generic error": {
+		"invalid installation id returns error": {
 			githubInstallationID: "inst-1",
-			jsonBody:             map[string]any{"installationId": 999},
+			jsonBody:             map[string]any{"installationId": 0},
+			setupMocks:           func(mockStore *mocks.ProjectsStore) {},
+			wantError:            true,
+			expectedError:        ErrorInvalidParam{Param: "installationId", Message: "must be greater than 0"},
+		},
+		"validator returns error": {
+			githubInstallationID:    "inst-1",
+			jsonBody:                map[string]any{"installationId": 456},
+			setupMocks:              func(mockStore *mocks.ProjectsStore) {},
+			validationErr:           ErrorInvalidParam{Param: "installationId", Message: "github app installation not found"},
+			expectedValidationCalls: []int64{456},
+			wantError:               true,
+			expectedError:           ErrorInvalidParam{Param: "installationId", Message: "github app installation not found"},
+		},
+		"store returns generic error": {
+			githubInstallationID:    "inst-1",
+			jsonBody:                map[string]any{"installationId": 999},
+			expectedValidationCalls: []int64{999},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
 				mockStore.EXPECT().UpdateGithubInstallation(mock.Anything, apitest.TestOrganization, "inst-1", int64(999)).Return(nil, storeErr)
 			},
@@ -7146,7 +7207,8 @@ func TestUpdateGithubAppInstallation(t *testing.T) {
 			mockStore := mocks.NewProjectsStore(t)
 			tt.setupMocks(mockStore)
 			sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
-			handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil)
+			validator := &fakeGithubInstallationValidator{err: tt.validationErr}
+			handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil, WithGithubInstallationValidator(validator))
 			c, rec := e.PUT("/organizations/" + apitest.TestOrganization + "/githubapp/installations/" + tt.githubInstallationID).WithJSONBody(tt.jsonBody).Context()
 			err := handler.UpdateGithubAppInstallation(c, apitest.TestOrganization, tt.githubInstallationID)
 			if tt.wantError {
@@ -7161,6 +7223,7 @@ func TestUpdateGithubAppInstallation(t *testing.T) {
 				assert.Equal(t, tt.expectedInstallation, got)
 			}
 
+			assert.Equal(t, tt.expectedValidationCalls, validator.calls)
 			mockStore.AssertExpectations(t)
 		})
 	}

@@ -70,6 +70,25 @@ func (e ErrorInvalidParam) StatusCode() int {
 	return http.StatusBadRequest
 }
 
+type ErrorGithubInstallationValidationUnavailable struct {
+	Err error
+}
+
+func (e ErrorGithubInstallationValidationUnavailable) Error() string {
+	if e.Err == nil {
+		return "cannot validate installation ID"
+	}
+	return fmt.Sprintf("cannot validate installation ID: %v", e.Err)
+}
+
+func (e ErrorGithubInstallationValidationUnavailable) Unwrap() error {
+	return e.Err
+}
+
+func (e ErrorGithubInstallationValidationUnavailable) StatusCode() int {
+	return http.StatusServiceUnavailable
+}
+
 type ErrorBranchNotFound struct {
 	BranchID string
 }

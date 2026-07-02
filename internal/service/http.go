@@ -18,7 +18,7 @@ func RunHTTPService(ctx context.Context, o *o11y.O, svc ...HTTPService) error {
 	logger := o.Logger()
 	for _, s := range svc {
 		if err := s.RegisterHTTPHandlers(o, router.Group("")); err != nil {
-			return errors.New("failed to register HTTP handlers")
+			return fmt.Errorf("register HTTP handlers: %w", err)
 		}
 	}
 

@@ -39,12 +39,13 @@ var _ service.HTTPService = (*ProjectsService)(nil)
 var _ service.GRPCService = (*ProjectsService)(nil)
 
 type ProjectsService struct {
-	config    Config
-	store     store.ProjectsStore
-	feat      openfeature.Client
-	analytics analytics.Client
-	scheduler *scheduler.Scheduler
-	authConn  *internalgrpc.ClientConnection // connection to the auth service
+	config                      Config
+	store                       store.ProjectsStore
+	feat                        openfeature.Client
+	analytics                   analytics.Client
+	scheduler                   *scheduler.Scheduler
+	authConn                    *internalgrpc.ClientConnection // connection to the auth service
+	githubInstallationValidator api.GithubInstallationValidator
 }
 
 func NewProjectsService() *ProjectsService {
@@ -55,6 +56,10 @@ func NewProjectsService() *ProjectsService {
 // SaaS wrapper to inject a PostHog-backed client instead of the default noop.
 func (s *ProjectsService) SetOpenFeatureClient(c openfeature.Client) {
 	s.feat = c
+}
+
+func (s *ProjectsService) SetGithubInstallationValidator(v api.GithubInstallationValidator) {
+	s.githubInstallationValidator = v
 }
 
 func (s *ProjectsService) Name() string {
@@ -174,6 +179,10 @@ func (s *ProjectsService) RegisterHTTPHandlers(o *o11y.O, router *echo.Group) er
 	metricsClient := metrics.NewCellsClient(cellsConn)
 
 	prov := provisioner.NewBranchProvisioner(s.store, cellsConn)
+	opts := []api.HandlerOption{}
+	if s.githubInstallationValidator != nil {
+		opts = append(opts, api.WithGithubInstallationValidator(s.githubInstallationValidator))
+	}
 
 	spec.RegisterHandlers(group,
 		api.NewAPIHandler(
@@ -186,7 +195,8 @@ func (s *ProjectsService) RegisterHTTPHandlers(o *o11y.O, router *echo.Group) er
 			s.analytics,
 			&postgrescfg.DefaultPostgresConfigProvider{},
 			&postgresversions.DefaultImageProvider{},
-			prov),
+			prov,
+			opts...),
 	)
 
 	return nil
