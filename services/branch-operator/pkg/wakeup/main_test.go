@@ -240,6 +240,39 @@ func setupPoolCluster(ctx context.Context, pool *poolv1alpha1.ClusterPool, name,
 	return cluster, nil
 }
 
+// seedPasswordSync simulates the state that the wakeup reconciler waits for in
+// waitForRolePasswordSync. In production the "<branch>-app" secret is created by
+// the branch reconciler and the Cluster's managed role password status is set by
+// CNPG; neither runs in this test environment. It creates the app secret (as the
+// branch reconciler would) and stamps the Cluster's password status for the
+// "xata" role with the secret's resource version (as CNPG would), so that the
+// wait succeeds on its first poll.
+func seedPasswordSync(ctx context.Context, branch *v1alpha1.Branch, cluster *apiv1.Cluster) error {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      branch.Name + "-app",
+			Namespace: cluster.Namespace,
+		},
+		Type: corev1.SecretTypeBasicAuth,
+		Data: map[string][]byte{
+			corev1.BasicAuthUsernameKey: []byte("xata"),
+			corev1.BasicAuthPasswordKey: []byte("password"),
+		},
+	}
+	if err := k8sClient.Create(ctx, secret); err != nil {
+		return err
+	}
+
+	// Stamp the Cluster's managed role password status to point at the secret's
+	// current resource version, mirroring what CNPG does once it applies the
+	// role password.
+	cluster.Status.ManagedRolesStatus.PasswordStatus = map[string]apiv1.PasswordState{
+		"xata": {SecretResourceVersion: secret.ResourceVersion},
+	}
+
+	return k8sClient.Status().Update(ctx, cluster)
+}
+
 // createBranch creates a Branch with the given name, annotations, and the
 // default test spec. It also creates an XVol named "xvol-<name>" in the
 // Available state.

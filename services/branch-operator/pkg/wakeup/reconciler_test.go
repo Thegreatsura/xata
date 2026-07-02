@@ -56,6 +56,10 @@ func TestWakeupReconciler(t *testing.T) {
 		})
 		require.NoError(t, err)
 
+		// Seed the app secret and Cluster password status so the reconciler's
+		// wait for the role password to sync succeeds
+		require.NoError(t, seedPasswordSync(ctx, branch, cluster))
+
 		// Create a WakeupRequest
 		wr, err := createWakeupRequest(ctx, wrName, branch.Name)
 		require.NoError(t, err)
@@ -168,7 +172,7 @@ func TestWakeupReconciler(t *testing.T) {
 		require.NoError(t, k8sClient.Create(ctx, pool))
 
 		// Create a healthy CNPG Cluster withe 1 ready instance, owned by the pool
-		_, err := setupPoolCluster(ctx, pool, clusterName, TestNamespace, 1)
+		cluster, err := setupPoolCluster(ctx, pool, clusterName, TestNamespace, 1)
 		require.NoError(t, err)
 
 		// Create a Branch with pool annotation and no cluster name
@@ -176,6 +180,10 @@ func TestWakeupReconciler(t *testing.T) {
 			v1alpha1.WakeupPoolAnnotation: poolName,
 		})
 		require.NoError(t, err)
+
+		// Seed the app secret and Cluster password status so the reconciler's
+		// wait for the role password to sync succeeds
+		require.NoError(t, seedPasswordSync(ctx, branch, cluster))
 
 		// Create a WakeupRequest
 		wr, err := createWakeupRequest(ctx, wrName, branch.Name)

@@ -164,6 +164,13 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}()
 
+	// Update the Cluster's spec to set the 'xata' user password secret
+	err = r.setUserPasswordSecret(ctx, branch, cluster)
+	if err != nil {
+		log.Error(err, "setting Cluster password secrets", "clusterName", cluster.Name)
+		return ctrl.Result{}, ignoreTerminal(err)
+	}
+
 	// Get the PV backing the Cluster's primary instance
 	pv, err := r.getPersistentVolume(ctx, cluster)
 	if err != nil {
@@ -182,6 +189,13 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	err = r.wakeUp(ctx, csiNodePod, wr.Spec.XVolName, pv.Name)
 	if err != nil {
 		log.Error(err, "calling WakeUp RPC", "clusterName", cluster.Name)
+		return ctrl.Result{}, ignoreTerminal(err)
+	}
+
+	// Wait for the 'xata' user password secret to be synced to the Cluster
+	err = r.waitForRolePasswordSync(ctx, log, branch.Name, cluster)
+	if err != nil {
+		log.Error(err, "waiting for Cluster password secrets", "clusterName", cluster.Name)
 		return ctrl.Result{}, ignoreTerminal(err)
 	}
 

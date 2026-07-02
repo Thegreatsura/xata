@@ -17,6 +17,7 @@ import (
 	"xata/internal/postgresversions"
 	"xata/services/branch-operator/api/v1alpha1"
 	"xata/services/branch-operator/pkg/reconciler/resources"
+	"xata/services/branch-operator/pkg/shared"
 )
 
 const (
@@ -1067,7 +1068,7 @@ func baseExpectedSpec() *apiv1ac.ClusterSpecApplyConfiguration {
 				WithDisabledDefaultServices(
 					apiv1.ServiceSelectorTypeR,
 					apiv1.ServiceSelectorTypeRO)).
-			WithRoles(resources.XataRoleConfiguration(testBranchName))).
+			WithRoles(shared.XataRoleConfiguration(testBranchName))).
 		WithMonitoring(apiv1ac.MonitoringConfiguration().
 			WithTLSConfig(apiv1ac.ClusterMonitoringTLSConfiguration().
 				WithEnabled(true)).
