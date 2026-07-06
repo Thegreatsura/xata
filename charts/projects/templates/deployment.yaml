@@ -133,10 +133,6 @@ spec:
                   name: {{ .Values.postgres.existingSecret }}
                   key: {{ .Values.postgres.userKey }}
             {{- end }}
-            {{- if not .Values.postgres.port }}
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "deployment.environment={{ .Values.observability.environment }}"
-            {{- end }}
             {{- if .Values.postgres.existingSecret }}
             - name: POSTGRES_PASSWORD
               valueFrom:
@@ -149,10 +145,6 @@ spec:
             {{- if .Values.postgres.port }}
             - name: POSTGRES_PORT
               value: {{ .Values.postgres.port | quote }}
-            {{- end }}
-            {{- if .Values.postgres.port }}
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "deployment.environment={{ .Values.observability.environment }}"
             {{- end }}
             {{- if .Values.gateway.hostport }}
             - name: GATEWAY_HOSTPORT
