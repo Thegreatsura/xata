@@ -91,6 +91,18 @@ func TestWakeupReconciler(t *testing.T) {
 			return metav1.GetControllerOf(c) == nil
 		})
 
+		// Expect the Cluster's spec to have the 'xata' managed role configured,
+		// which the reconciler sets via setUserPasswordSecret when PasswordSync
+		// is "Wait"
+		requireEventuallyTrue(t, func() bool {
+			c := &apiv1.Cluster{}
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), c); err != nil {
+				return false
+			}
+
+			return clusterHasXataRole(c)
+		})
+
 		// Expect the PV to be annotated with the name of the XVol used to wake
 		// it up
 		requireEventuallyTrue(t, func() bool {
@@ -102,6 +114,67 @@ func TestWakeupReconciler(t *testing.T) {
 
 			return pv.Annotations[v1alpha1.AwokenByXVolAnnotation] == "xvol-"+branchName
 		})
+	})
+
+	t.Run("skips password sync and assigns the cluster when PasswordSync is Skip", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		poolName := "pool-" + randomString(10)
+		clusterName := "cluster-" + randomString(10)
+		branchName := "branch-" + randomString(10)
+		wrName := "wur-" + randomString(10)
+
+		// Create a ClusterPool
+		pool := &poolv1alpha1.ClusterPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      poolName,
+				Namespace: TestNamespace,
+			},
+			Spec: poolv1alpha1.ClusterPoolSpec{
+				Clusters: 1,
+				ClusterSpec: apiv1.ClusterSpec{
+					Instances: 1,
+				},
+			},
+		}
+		require.NoError(t, k8sClient.Create(ctx, pool))
+
+		// Create a healthy CNPG Cluster with 1 ready instance, owned by the pool
+		cluster, err := setupPoolCluster(ctx, pool, clusterName, TestNamespace, 1)
+		require.NoError(t, err)
+
+		// Create a Branch with pool annotation and no cluster name
+		branch, err := createBranch(ctx, branchName, map[string]string{
+			v1alpha1.WakeupPoolAnnotation:     poolName,
+			v1alpha1.AwaitingWakeupAnnotation: "true",
+		})
+		require.NoError(t, err)
+
+		// Create a WakeupRequest with PasswordSync set to Skip
+		wr, err := createWakeupRequestWithPasswordSync(ctx, wrName, branch.Name, v1alpha1.PasswordSyncModeSkip)
+		require.NoError(t, err)
+
+		// Expect the WakeupRequest to complete successfully
+		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionTrue, v1alpha1.WakeupSucceededReason)
+
+		// Expect the Branch to have a cluster name assigned and no longer be
+		// awaiting wakeup
+		requireEventuallyTrue(t, func() bool {
+			br := &v1alpha1.Branch{}
+			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(branch), br)
+			if err != nil {
+				return false
+			}
+
+			return br.Spec.ClusterSpec.Name != nil && !br.IsAwaitingWakeup()
+		})
+
+		// Expect the Cluster's spec to NOT have the 'xata' managed role
+		// configured, confirming setUserPasswordSecret was skipped
+		c := &apiv1.Cluster{}
+		require.NoError(t, k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), c))
+		require.False(t, clusterHasXataRole(c))
 	})
 
 	t.Run("succeeds without claiming a cluster when the branch already has one assigned", func(t *testing.T) {

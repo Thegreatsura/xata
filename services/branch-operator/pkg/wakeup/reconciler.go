@@ -165,10 +165,12 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}()
 
 	// Update the Cluster's spec to set the 'xata' user password secret
-	err = r.setUserPasswordSecret(ctx, branch, cluster)
-	if err != nil {
-		log.Error(err, "setting Cluster password secrets", "clusterName", cluster.Name)
-		return ctrl.Result{}, ignoreTerminal(err)
+	if wr.Spec.PasswordSync == v1alpha1.PasswordSyncModeWait {
+		err = r.setUserPasswordSecret(ctx, branch, cluster)
+		if err != nil {
+			log.Error(err, "setting Cluster password secrets", "clusterName", cluster.Name)
+			return ctrl.Result{}, ignoreTerminal(err)
+		}
 	}
 
 	// Get the PV backing the Cluster's primary instance
@@ -193,10 +195,12 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// Wait for the 'xata' user password secret to be synced to the Cluster
-	err = r.waitForRolePasswordSync(ctx, log, branch.Name, cluster)
-	if err != nil {
-		log.Error(err, "waiting for Cluster password secrets", "clusterName", cluster.Name)
-		return ctrl.Result{}, ignoreTerminal(err)
+	if wr.Spec.PasswordSync == v1alpha1.PasswordSyncModeWait {
+		err = r.waitForRolePasswordSync(ctx, log, branch.Name, cluster)
+		if err != nil {
+			log.Error(err, "waiting for Cluster password secrets", "clusterName", cluster.Name)
+			return ctrl.Result{}, ignoreTerminal(err)
+		}
 	}
 
 	// Annotate the PV with the name of the XVol used to wake it up

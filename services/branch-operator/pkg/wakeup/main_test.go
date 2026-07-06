@@ -10,6 +10,7 @@ import (
 	"xata/internal/envtestutil"
 	poolv1alpha1 "xata/proto/clusterpool-operator/api/v1alpha1"
 	"xata/services/branch-operator/api/v1alpha1"
+	"xata/services/branch-operator/pkg/shared"
 	"xata/services/branch-operator/pkg/wakeup"
 
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
@@ -273,6 +274,20 @@ func seedPasswordSync(ctx context.Context, branch *v1alpha1.Branch, cluster *api
 	return k8sClient.Status().Update(ctx, cluster)
 }
 
+// clusterHasXataRole reports whether the Cluster's spec has the 'xata' managed
+// role configured
+func clusterHasXataRole(cluster *apiv1.Cluster) bool {
+	if cluster.Spec.Managed == nil {
+		return false
+	}
+	for _, role := range cluster.Spec.Managed.Roles {
+		if role.Name == shared.XataRoleName {
+			return true
+		}
+	}
+	return false
+}
+
 // createBranch creates a Branch with the given name, annotations, and the
 // default test spec. It also creates an XVol named "xvol-<name>" in the
 // Available state.
@@ -353,14 +368,21 @@ func deleteXVol(ctx context.Context, name string) error {
 // createWakeupRequest creates a WakeupRequest in the test namespace for the
 // given branch name.
 func createWakeupRequest(ctx context.Context, name, branchName string) (*v1alpha1.WakeupRequest, error) {
+	return createWakeupRequestWithPasswordSync(ctx, name, branchName, v1alpha1.PasswordSyncModeWait)
+}
+
+// createWakeupRequestWithPasswordSync is like createWakeupRequest but sets the
+// WakeupRequest's PasswordSync mode explicitly.
+func createWakeupRequestWithPasswordSync(ctx context.Context, name, branchName string, mode v1alpha1.PasswordSyncMode) (*v1alpha1.WakeupRequest, error) {
 	wr := &v1alpha1.WakeupRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.WakeupRequestSpec{
-			BranchName: branchName,
-			XVolName:   "xvol-" + branchName,
+			BranchName:   branchName,
+			XVolName:     "xvol-" + branchName,
+			PasswordSync: mode,
 		},
 	}
 
