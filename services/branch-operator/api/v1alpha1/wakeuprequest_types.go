@@ -2,6 +2,15 @@ package v1alpha1
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+// PasswordSyncMode defines how CNPG password synchronization is handled
+// during the wakeup process
+type PasswordSyncMode string
+
+const (
+	PasswordSyncModeWait PasswordSyncMode = "Wait"
+	PasswordSyncModeSkip PasswordSyncMode = "Skip"
+)
+
 // WakeupRequestSpec defines the desired state of a WakeupRequest
 type WakeupRequestSpec struct {
 	// BranchName is the name of the Branch resource to wake up
@@ -15,6 +24,16 @@ type WakeupRequestSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="xVolName is immutable"
 	XVolName string `json:"xVolName"`
+
+	// PasswordSync defines how to handle CNPG password synchronization during
+	// the wakeup process. If set to "Wait", the wakeup process will wait for CNPG
+	// to apply the password for the 'xata' role to the cluster before assigning
+	// the cluster to the Branch. If set to "Skip", the wakeup process will not
+	// wait for CNPG to apply the password
+	// +kubebuilder:validation:Enum=Wait;Skip
+	// +kubebuilder:default=Wait
+	// +optional
+	PasswordSync PasswordSyncMode `json:"passwordSync,omitempty"`
 }
 
 // WakeupRequestStatus defines the observed state of a WakeupRequest

@@ -62,6 +62,18 @@ spec:
                 x-kubernetes-validations:
                 - message: branchName is immutable
                   rule: self == oldSelf
+              passwordSync:
+                default: Wait
+                description: |-
+                  PasswordSync defines how to handle CNPG password synchronization during
+                  the wakeup process. If set to "Wait", the wakeup process will wait for CNPG
+                  to apply the password for the 'xata' role to the cluster before assigning
+                  the cluster to the Branch. If set to "Skip", the wakeup process will not
+                  wait for CNPG to apply the password
+                enum:
+                - Wait
+                - Skip
+                type: string
               xVolName:
                 description: XVolName is the name of the XVol resource to use for
                   waking up the Branch.

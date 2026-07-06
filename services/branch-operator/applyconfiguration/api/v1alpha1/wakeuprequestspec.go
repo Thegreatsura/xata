@@ -2,6 +2,10 @@
 
 package v1alpha1
 
+import (
+	apiv1alpha1 "xata/services/branch-operator/api/v1alpha1"
+)
+
 // WakeupRequestSpecApplyConfiguration represents a declarative configuration of the WakeupRequestSpec type for use
 // with apply.
 //
@@ -11,6 +15,12 @@ type WakeupRequestSpecApplyConfiguration struct {
 	BranchName *string `json:"branchName,omitempty"`
 	// XVolName is the name of the XVol resource to use for waking up the Branch.
 	XVolName *string `json:"xVolName,omitempty"`
+	// PasswordSync defines how to handle CNPG password synchronization during
+	// the wakeup process. If set to "Wait", the wakeup process will wait for CNPG
+	// to apply the password for the 'xata' role to the cluster before assigning
+	// the cluster to the Branch. If set to "Skip", the wakeup process will not
+	// wait for CNPG to apply the password
+	PasswordSync *apiv1alpha1.PasswordSyncMode `json:"passwordSync,omitempty"`
 }
 
 // WakeupRequestSpecApplyConfiguration constructs a declarative configuration of the WakeupRequestSpec type for use with
@@ -32,5 +42,13 @@ func (b *WakeupRequestSpecApplyConfiguration) WithBranchName(value string) *Wake
 // If called multiple times, the XVolName field is set to the value of the last call.
 func (b *WakeupRequestSpecApplyConfiguration) WithXVolName(value string) *WakeupRequestSpecApplyConfiguration {
 	b.XVolName = &value
+	return b
+}
+
+// WithPasswordSync sets the PasswordSync field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the PasswordSync field is set to the value of the last call.
+func (b *WakeupRequestSpecApplyConfiguration) WithPasswordSync(value apiv1alpha1.PasswordSyncMode) *WakeupRequestSpecApplyConfiguration {
+	b.PasswordSync = &value
 	return b
 }
