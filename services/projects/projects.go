@@ -45,6 +45,7 @@ type ProjectsService struct {
 	analytics                   analytics.Client
 	scheduler                   *scheduler.Scheduler
 	authConn                    *internalgrpc.ClientConnection // connection to the auth service
+	cells                       cells.Cells                    // pooled gRPC connections to cells
 	githubInstallationValidator api.GithubInstallationValidator
 }
 
@@ -112,6 +113,13 @@ func (s *ProjectsService) Close(ctx context.Context) error {
 		return err
 	}
 
+	// Close the pooled gRPC connections to cells
+	if s.cells != nil {
+		if err := s.cells.Close(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -145,6 +153,9 @@ func (s *ProjectsService) Init(ctx context.Context) error {
 		return err
 	}
 
+	// Initialize the pooled gRPC connections to cells
+	s.cells = cells.New(s.store)
+
 	// Initialize the scheduler
 	cfgFile, err := os.Open(s.config.SchedulerConfigPath)
 	if err != nil {
@@ -172,7 +183,7 @@ func (s *ProjectsService) RegisterHTTPHandlers(o *o11y.O, router *echo.Group) er
 	// require auth for all routes
 	group := router.Group("", capi.AuthMiddleware(s.authConn), openfeature.Middleware())
 
-	cellsConn := cells.New(s.store)
+	cellsConn := s.cells
 
 	// Metrics client routes branch metric/log queries to the
 	// VictoriaMetrics/VictoriaLogs backend via clusters gRPC.
@@ -214,7 +225,13 @@ func (s *ProjectsService) AuthConn() grpc.ClientConnInterface {
 	return s.authConn
 }
 
+// Cells returns the pooled cell connections so that SaaS wrappers can reuse
+// the same pool instead of opening a second one.
+func (s *ProjectsService) Cells() cells.Cells {
+	return s.cells
+}
+
 // RegisterGRPCHandlers implements service.GRPCService.
 func (s *ProjectsService) RegisterGRPCHandlers(o *o11y.O, server *grpc.Server) {
-	projectsv1.RegisterProjectsServiceServer(server, rpc.NewProjectsService(s.store, cells.New(s.store)))
+	projectsv1.RegisterProjectsServiceServer(server, rpc.NewProjectsService(s.store, s.cells))
 }

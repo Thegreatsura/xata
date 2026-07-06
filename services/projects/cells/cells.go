@@ -2,7 +2,9 @@ package cells
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync"
 
 	clustersv1 "xata/gen/proto/clusters/v1"
 	"xata/internal/grpc"
@@ -20,6 +22,8 @@ import (
 // Cells client for interacting with the clusters service (connect to cells)
 type Cells interface {
 	GetCellConnection(ctx context.Context, organizationID, cellID string) (CellClient, error)
+	// Close tears down all pooled cell connections. Call once on shutdown.
+	Close() error
 }
 
 // CellClient is a client for the clusters service
@@ -30,17 +34,24 @@ type CellClient interface {
 
 type cellsImpl struct {
 	store store.ProjectsStore
+
+	// conns pools one long-lived gRPC connection per cell, keyed by the
+	// cell's gRPC URL. gRPC multiplexes concurrent RPCs over a single
+	// connection and reconnects automatically, so connections are reused
+	// across operations instead of dialed (and torn down) per call.
+	mu    sync.Mutex
+	conns map[string]*grpc.ClientConnection
 }
 
 func New(store store.ProjectsStore) Cells {
 	return &cellsImpl{
 		store: store,
+		conns: map[string]*grpc.ClientConnection{},
 	}
 }
 
 type cellClientImpl struct {
 	clustersv1.ClustersServiceClient
-	conn *grpc.ClientConnection
 }
 
 func (s *cellsImpl) GetCellConnection(ctx context.Context, organizationID, cellID string) (CellClient, error) {
@@ -49,20 +60,54 @@ func (s *cellsImpl) GetCellConnection(ctx context.Context, organizationID, cellI
 		return nil, err
 	}
 
-	o := o11y.Ctx(ctx)
-	conn, err := grpc.NewClient(o, cell.ClustersGRPCURL)
+	conn, err := s.getConn(o11y.Ctx(ctx), cell.ClustersGRPCURL)
 	if err != nil {
 		return nil, err
 	}
 
 	return &cellClientImpl{
 		ClustersServiceClient: clustersv1.NewClustersServiceClient(conn),
-		conn:                  conn,
 	}, nil
 }
 
+// getConn returns the pooled connection for url, dialing and caching one on
+// first use. grpc.NewClient is lazy (it does not block on a handshake), so
+// holding the lock while creating it is cheap.
+func (s *cellsImpl) getConn(o *o11y.O, url string) (*grpc.ClientConnection, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if conn, ok := s.conns[url]; ok {
+		return conn, nil
+	}
+
+	conn, err := grpc.NewClient(o, url)
+	if err != nil {
+		return nil, err
+	}
+	s.conns[url] = conn
+	return conn, nil
+}
+
+// Close is a no-op: the connection is owned and reused by the pool, so
+// per-operation callers must not tear it down. The pool is closed via
+// cellsImpl.Close on shutdown.
 func (c *cellClientImpl) Close() error {
-	return c.conn.Close()
+	return nil
+}
+
+func (s *cellsImpl) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var errs []error
+	for url, conn := range s.conns {
+		if err := conn.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("close cell connection [%s]: %w", url, err))
+		}
+		delete(s.conns, url)
+	}
+	return errors.Join(errs...)
 }
 
 func DeprovisionBranch(ctx context.Context, organizationID string, s store.ProjectsStore, c Cells, b *store.Branch) error {
