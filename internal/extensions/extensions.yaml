@@ -1,7 +1,7 @@
 # PostgreSQL extensions available in each image offering
 # This file is automatically updated by a sync workflow from the postgres-images repo
 
-last_updated: "2026-07-05T14:46:39Z"
+last_updated: "2026-07-06T12:03:48Z"
 updated_by: workflow
 offerings:
   analytics:
@@ -2498,7 +2498,7 @@ offerings:
           docs_url: "https://pgtap.org/"
           preload_required: false
         - name: vector
-          version: "0.8.1"
+          version: "0.8.4"
           description: "Vector similarity search for PostgreSQL"
           docs_url: "https://github.com/pgvector/pgvector"
           preload_required: false
@@ -2833,7 +2833,7 @@ offerings:
           docs_url: "https://pgtap.org/"
           preload_required: false
         - name: vector
-          version: "0.8.1"
+          version: "0.8.4"
           description: "Vector similarity search for PostgreSQL"
           docs_url: "https://github.com/pgvector/pgvector"
           preload_required: false
@@ -3158,7 +3158,7 @@ offerings:
           docs_url: "https://pgtap.org/"
           preload_required: false
         - name: vector
-          version: "0.8.1"
+          version: "0.8.4"
           description: "Vector similarity search for PostgreSQL"
           docs_url: "https://github.com/pgvector/pgvector"
           preload_required: false
@@ -3347,6 +3347,16 @@ offerings:
           description: "Partition management extension for PostgreSQL"
           docs_url: "https://github.com/pgpartman/pg_partman"
           preload_required: false
+        - name: pg_deltax
+          version: "0.2.1"
+          description: "Time-series partitioning, columnar storage and Gorilla compression"
+          docs_url: "https://github.com/xataio/deltax"
+          preload_required: true
+        - name: pg_textsearch
+          version: "1.3.1"
+          description: "Full-text search with BM25 ranking"
+          docs_url: "https://github.com/timescale/pg_textsearch"
+          preload_required: true
         - name: xatautils
           version: "0.3.8"
           description: "Xata utilities (built from source)"
