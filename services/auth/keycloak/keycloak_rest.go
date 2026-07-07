@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"xata/internal/idgen"
-	"xata/services/auth/api/spec"
 	"xata/services/auth/config"
 
 	"github.com/Nerzal/gocloak/v13"
@@ -32,19 +31,19 @@ func NewRestKC(client *gocloak.GoCloak, authConfig config.AuthConfig) KeyCloak {
 	}
 }
 
-func (r *restKC) CreateOrganization(ctx context.Context, realm string, params OrganizationCreate) (spec.Organization, error) {
+func (r *restKC) CreateOrganization(ctx context.Context, realm string, params OrganizationCreate) (Organization, error) {
 	if params.UsageTier == "" {
-		return spec.Organization{}, fmt.Errorf("usage tier is required")
+		return Organization{}, fmt.Errorf("usage tier is required")
 	}
 	if params.Marketplace != nil {
 		if err := params.Marketplace.Validate(); err != nil {
-			return spec.Organization{}, fmt.Errorf("validate marketplace: %w", err)
+			return Organization{}, fmt.Errorf("validate marketplace: %w", err)
 		}
 	}
 
 	orgsURL, err := r.buildRealmURL(realm, "organizations")
 	if err != nil {
-		return spec.Organization{}, err
+		return Organization{}, err
 	}
 
 	id := idgen.GenerateOrganizationID()
@@ -52,31 +51,21 @@ func (r *restKC) CreateOrganization(ctx context.Context, realm string, params Or
 
 	resp, err := r.makeAuthenticatedRequest(ctx, "POST", orgsURL, nil, createOrg)
 	if err != nil {
-		return spec.Organization{}, fmt.Errorf("failed to create organization: %w", err)
+		return Organization{}, fmt.Errorf("failed to create organization: %w", err)
 	}
 
 	if !r.isSuccessStatus(resp.StatusCode(), http.StatusCreated, http.StatusOK) {
-		return spec.Organization{}, fmt.Errorf("failed to create organization: %s, status %d", params.Name, resp.StatusCode())
+		return Organization{}, fmt.Errorf("failed to create organization: %s, status %d", params.Name, resp.StatusCode())
 	}
 
-	org := spec.Organization{
-		Id:   id,
-		Name: params.Name,
-	}
-	if params.Marketplace != nil {
-		attrs := params.Marketplace.BuildKeycloakAttributes()
-		if v, ok := attrs[OrganizationMarketplaceKey]; ok && len(v) > 0 {
-			org.Marketplace = &v[0]
-		}
-	}
-	return org, nil
+	return r.convertToOrganization(createOrg), nil
 }
 
 func (r *restKC) buildCreateOrganizationPayload(id string, params OrganizationCreate) KeycloakOrganization {
 	defaultBillingStatus := OrganizationBillingStatusNoPaymentMethod
 	defaultBillingReason := "Organization created, no payment method set"
 	if !r.authConfig.BillingRequired {
-		defaultBillingStatus = string(spec.Ok)
+		defaultBillingStatus = OrganizationBillingStatusOK
 		defaultBillingReason = "Organization enabled by default since billing is not required"
 	}
 
@@ -84,7 +73,7 @@ func (r *restKC) buildCreateOrganizationPayload(id string, params OrganizationCr
 	attrs := map[string][]string{
 		"displayName":                  {params.Name},
 		OrganizationDisabledByAdminKey: {"false"},
-		OrganizationBillingStatusKey:   {defaultBillingStatus},
+		OrganizationBillingStatusKey:   {string(defaultBillingStatus)},
 		OrganizationBillingReasonKey:   {defaultBillingReason},
 		OrganizationUsageTierKey:       {string(params.UsageTier)},
 		OrganizationLastUpdatedKey:     {now},
@@ -101,20 +90,20 @@ func (r *restKC) buildCreateOrganizationPayload(id string, params OrganizationCr
 	}
 }
 
-func (r *restKC) GetOrganization(ctx context.Context, realm, alias string) (spec.Organization, error) {
+func (r *restKC) GetOrganization(ctx context.Context, realm, alias string) (Organization, error) {
 	organization, err := r.searchOrganization(ctx, realm, alias)
 	if err != nil {
-		return spec.Organization{}, fmt.Errorf("failed to get organization: %w", err)
+		return Organization{}, fmt.Errorf("failed to get organization: %w", err)
 	}
 
 	if _, ok := firstAttr(organization.Attributes, OrganizationDeletedAtKey); ok {
-		return spec.Organization{}, ErrOrganizationNotFound{ID: alias}
+		return Organization{}, ErrOrganizationNotFound{ID: alias}
 	}
 
-	return r.convertToSpecOrganization(organization), nil
+	return r.convertToOrganization(organization), nil
 }
 
-func (r *restKC) ListOrganizations(ctx context.Context, realm, userID string) ([]spec.Organization, error) {
+func (r *restKC) ListOrganizations(ctx context.Context, realm, userID string) ([]Organization, error) {
 	if userID == "" {
 		return nil, fmt.Errorf("userID is empty")
 	}
@@ -143,12 +132,12 @@ func (r *restKC) ListOrganizations(ctx context.Context, realm, userID string) ([
 		return nil, fmt.Errorf("unmarshal organization list: %w", err)
 	}
 
-	orgs := make([]spec.Organization, 0, len(keycloakOrganizations))
+	orgs := make([]Organization, 0, len(keycloakOrganizations))
 	for _, org := range keycloakOrganizations {
 		if _, ok := firstAttr(org.Attributes, OrganizationDeletedAtKey); ok {
 			continue
 		}
-		orgs = append(orgs, r.convertToSpecOrganization(org))
+		orgs = append(orgs, r.convertToOrganization(org))
 	}
 
 	return orgs, nil
@@ -408,10 +397,10 @@ func (r *restKC) UpdateOrganization(
 	ctx context.Context,
 	realm, organizationID string,
 	update OrganizationUpdate,
-) (spec.Organization, error) {
+) (Organization, error) {
 	organization, err := r.searchOrganization(ctx, realm, organizationID)
 	if err != nil {
-		return spec.Organization{}, fmt.Errorf("failed to get organization: %w", err)
+		return Organization{}, fmt.Errorf("failed to get organization: %w", err)
 	}
 
 	// Collect all attribute updates first
@@ -424,7 +413,7 @@ func (r *restKC) UpdateOrganization(
 		updates[OrganizationDisabledByAdminKey] = []string{fmt.Sprintf("%t", *update.DisabledByAdmin)}
 	}
 	if update.BillingStatus != nil {
-		updates[OrganizationBillingStatusKey] = []string{*update.BillingStatus}
+		updates[OrganizationBillingStatusKey] = []string{string(*update.BillingStatus)}
 	}
 	if update.AdminReason != nil {
 		updates[OrganizationAdminReasonKey] = []string{*update.AdminReason}
@@ -433,7 +422,7 @@ func (r *restKC) UpdateOrganization(
 		updates[OrganizationBillingReasonKey] = []string{*update.BillingReason}
 	}
 	if update.UsageTier != nil {
-		updates[OrganizationUsageTierKey] = []string{*update.UsageTier}
+		updates[OrganizationUsageTierKey] = []string{string(*update.UsageTier)}
 	}
 	var deleteResourcesCleanedAt bool
 	if update.ResourcesCleanedAt != nil {
@@ -464,16 +453,16 @@ func (r *restKC) UpdateOrganization(
 
 	updateOrgURL, err := r.buildRealmURL(realm, "organizations", organization.ID)
 	if err != nil {
-		return spec.Organization{}, fmt.Errorf("failed to join URL: %w", err)
+		return Organization{}, fmt.Errorf("failed to join URL: %w", err)
 	}
 
 	resp, err := r.makeAuthenticatedRequest(ctx, http.MethodPut, updateOrgURL, nil, organization)
 	if err != nil {
-		return spec.Organization{}, fmt.Errorf("failed to update organization: %w", err)
+		return Organization{}, fmt.Errorf("failed to update organization: %w", err)
 	}
 
 	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK, http.StatusNoContent) {
-		return spec.Organization{}, fmt.Errorf(
+		return Organization{}, fmt.Errorf(
 			"failed to update organization: %s, status code: %d, error: %s",
 			organizationID, resp.StatusCode(), resp.String(),
 		)
@@ -515,7 +504,7 @@ func (r *restKC) DeleteOrganization(ctx context.Context, realm, organizationID s
 	return nil
 }
 
-func (r *restKC) ListDisabledOrganizations(ctx context.Context, realm string, returnCleanedUpOrgs bool) ([]spec.Organization, error) {
+func (r *restKC) ListDisabledOrganizations(ctx context.Context, realm string, returnCleanedUpOrgs bool) ([]Organization, error) {
 	orgsURL, err := r.buildRealmURL(realm, "organizations")
 	if err != nil {
 		return nil, err
@@ -530,7 +519,7 @@ func (r *restKC) ListDisabledOrganizations(ctx context.Context, realm string, re
 	}
 
 	seen := make(map[string]struct{})
-	result := make([]spec.Organization, 0)
+	result := make([]Organization, 0)
 
 	const pageSize = 200
 
@@ -571,7 +560,7 @@ func (r *restKC) ListDisabledOrganizations(ctx context.Context, realm string, re
 						continue
 					}
 				}
-				result = append(result, r.convertToSpecOrganization(org))
+				result = append(result, r.convertToOrganization(org))
 			}
 
 			fetched = len(keycloakOrganizations)
@@ -781,23 +770,24 @@ func (r *restKC) extractDisplayName(org KeycloakOrganization) string {
 	return org.Name
 }
 
-func (r *restKC) convertToSpecOrganization(org KeycloakOrganization) spec.Organization {
-	result := spec.Organization{
-		Id:     org.Alias,
+func (r *restKC) convertToOrganization(org KeycloakOrganization) Organization {
+	result := Organization{
+		ID:     org.Alias,
 		Name:   r.extractDisplayName(org),
 		Status: r.extractStatus(org.Attributes),
 	}
 	if v, ok := firstAttr(org.Attributes, OrganizationMarketplaceKey); ok && v != "" {
-		result.Marketplace = &v
+		marketplace := OrganizationMarketplaceProvider(v)
+		result.Marketplace = &marketplace
 	}
 	return result
 }
 
-func (r *restKC) extractStatus(attributes map[string][]string) spec.OrganizationStatus {
+func (r *restKC) extractStatus(attributes map[string][]string) OrganizationStatus {
 	// This default apply for organizations with no status in Keycloak (created before org status was introduced)
-	status := spec.OrganizationStatus{
+	status := OrganizationStatus{
 		DisabledByAdmin: false,
-		BillingStatus:   spec.Ok,
+		BillingStatus:   OrganizationBillingStatusOK,
 	}
 
 	if v, ok := firstAttr(attributes, OrganizationDisabledByAdminKey); ok {
@@ -810,19 +800,19 @@ func (r *restKC) extractStatus(attributes map[string][]string) spec.Organization
 	}
 
 	// Billing status default is `ok` for organizations created before billing integration
-	status.BillingStatus = spec.Ok
-	switch v, ok := firstAttr(attributes, OrganizationBillingStatusKey); {
-	case ok && v == string(spec.Ok):
-		status.BillingStatus = spec.Ok
-	case ok && v == string(spec.InvoiceOverdue):
-		status.BillingStatus = spec.InvoiceOverdue
-	case ok && v == string(spec.NoPaymentMethod):
-		status.BillingStatus = spec.NoPaymentMethod
-	case ok && v == string(spec.DeletionRequested):
-		status.BillingStatus = spec.DeletionRequested
-	case ok:
-		// If the billing status is unrecognized, set it to unknown
-		status.BillingStatus = spec.Unknown
+	status.BillingStatus = OrganizationBillingStatusOK
+	if v, ok := firstAttr(attributes, OrganizationBillingStatusKey); ok {
+		billingStatus := OrganizationBillingStatus(v)
+		switch billingStatus {
+		case OrganizationBillingStatusOK,
+			OrganizationBillingStatusInvoiceOverdue,
+			OrganizationBillingStatusNoPaymentMethod,
+			OrganizationBillingStatusDeletionRequested:
+			status.BillingStatus = billingStatus
+		default:
+			// If the billing status is unrecognized, set it to unknown
+			status.BillingStatus = OrganizationBillingStatusUnknown
+		}
 	}
 
 	if v, ok := firstAttr(attributes, OrganizationAdminReasonKey); ok {
@@ -848,17 +838,9 @@ func (r *restKC) extractStatus(attributes map[string][]string) spec.Organization
 		}
 	}
 
-	switch v, ok := firstAttr(attributes, OrganizationUsageTierKey); {
-	case ok && v == string(spec.T2):
-		status.UsageTier = spec.T2
-	default:
-		status.UsageTier = spec.T1
-	}
-
-	if !status.DisabledByAdmin && status.BillingStatus == spec.Ok {
-		status.Status = spec.Enabled
-	} else {
-		status.Status = spec.Disabled
+	status.UsageTier = OrganizationUsageTierT1
+	if v, ok := firstAttr(attributes, OrganizationUsageTierKey); ok && OrganizationUsageTier(v) == OrganizationUsageTierT2 {
+		status.UsageTier = OrganizationUsageTierT2
 	}
 
 	return status

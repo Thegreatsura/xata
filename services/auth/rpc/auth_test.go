@@ -7,7 +7,6 @@ import (
 
 	"xata/gen/protomocks"
 	"xata/internal/token"
-	"xata/services/auth/api/spec"
 	"xata/services/auth/keycloak"
 	keycloakMocks "xata/services/auth/keycloak/mocks"
 	"xata/services/auth/orgs/orgsmock"
@@ -26,15 +25,15 @@ func TestBuildUserClaims(t *testing.T) {
 		defaultOrgID = "default-org"
 	)
 
-	awsMarketplace := "aws"
+	awsMarketplace := keycloak.OrganizationMarketplaceProviderAWS
 	tests := map[string]struct {
 		defaultOrgID string
-		kcOrgs       []spec.Organization
+		kcOrgs       []keycloak.Organization
 		want         map[string]token.Organization
 	}{
 		"default org added when user has no orgs": {
 			defaultOrgID: defaultOrgID,
-			kcOrgs:       []spec.Organization{},
+			kcOrgs:       []keycloak.Organization{},
 			want: map[string]token.Organization{
 				defaultOrgID: {
 					ID:     defaultOrgID,
@@ -44,19 +43,19 @@ func TestBuildUserClaims(t *testing.T) {
 		},
 		"default org added alongside existing orgs": {
 			defaultOrgID: defaultOrgID,
-			kcOrgs: []spec.Organization{
+			kcOrgs: []keycloak.Organization{
 				{
-					Id:   "other-org",
+					ID:   "other-org",
 					Name: "Other Org",
-					Status: spec.OrganizationStatus{
-						Status: spec.Enabled,
+					Status: keycloak.OrganizationStatus{
+						BillingStatus: keycloak.OrganizationBillingStatusOK,
 					},
 				},
 			},
 			want: map[string]token.Organization{
 				"other-org": {
 					ID:     "other-org",
-					Status: string(spec.Enabled),
+					Status: string(keycloak.OrganizationStateEnabled),
 				},
 				defaultOrgID: {
 					ID:     defaultOrgID,
@@ -66,51 +65,52 @@ func TestBuildUserClaims(t *testing.T) {
 		},
 		"existing org not overwritten when it matches default org ID": {
 			defaultOrgID: "other-org",
-			kcOrgs: []spec.Organization{
+			kcOrgs: []keycloak.Organization{
 				{
-					Id:   "other-org",
+					ID:   "other-org",
 					Name: "Other Org",
-					Status: spec.OrganizationStatus{
-						Status: spec.Disabled,
+					Status: keycloak.OrganizationStatus{
+						DisabledByAdmin: true,
+						BillingStatus:   keycloak.OrganizationBillingStatusOK,
 					},
 				},
 			},
 			want: map[string]token.Organization{
 				"other-org": {
 					ID:     "other-org",
-					Status: string(spec.Disabled),
+					Status: string(keycloak.OrganizationStateDisabled),
 				},
 			},
 		},
 		"no default org added when defaultOrgID is empty": {
 			defaultOrgID: "",
-			kcOrgs: []spec.Organization{
+			kcOrgs: []keycloak.Organization{
 				{
-					Id:   "other-org",
+					ID:   "other-org",
 					Name: "Other Org",
-					Status: spec.OrganizationStatus{
-						Status: spec.Enabled,
+					Status: keycloak.OrganizationStatus{
+						BillingStatus: keycloak.OrganizationBillingStatusOK,
 					},
 				},
 			},
 			want: map[string]token.Organization{
 				"other-org": {
 					ID:     "other-org",
-					Status: string(spec.Enabled),
+					Status: string(keycloak.OrganizationStateEnabled),
 				},
 			},
 		},
 		"org with CreatedAt preserves timestamp": {
 			defaultOrgID: defaultOrgID,
-			kcOrgs: func() []spec.Organization {
+			kcOrgs: func() []keycloak.Organization {
 				t := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-				return []spec.Organization{
+				return []keycloak.Organization{
 					{
-						Id:   "existing-org",
+						ID:   "existing-org",
 						Name: "Existing Org",
-						Status: spec.OrganizationStatus{
-							Status:    spec.Enabled,
-							CreatedAt: &t,
+						Status: keycloak.OrganizationStatus{
+							BillingStatus: keycloak.OrganizationBillingStatusOK,
+							CreatedAt:     &t,
 						},
 					},
 				}
@@ -118,7 +118,7 @@ func TestBuildUserClaims(t *testing.T) {
 			want: map[string]token.Organization{
 				"existing-org": {
 					ID:        "existing-org",
-					Status:    string(spec.Enabled),
+					Status:    string(keycloak.OrganizationStateEnabled),
 					CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 				},
 				defaultOrgID: {
@@ -129,20 +129,20 @@ func TestBuildUserClaims(t *testing.T) {
 		},
 		"org with marketplace preserves marketplace": {
 			defaultOrgID: "",
-			kcOrgs: []spec.Organization{
+			kcOrgs: []keycloak.Organization{
 				{
-					Id:          "aws-org",
+					ID:          "aws-org",
 					Name:        "AWS Org",
 					Marketplace: &awsMarketplace,
-					Status: spec.OrganizationStatus{
-						Status: spec.Enabled,
+					Status: keycloak.OrganizationStatus{
+						BillingStatus: keycloak.OrganizationBillingStatusOK,
 					},
 				},
 			},
 			want: map[string]token.Organization{
 				"aws-org": {
 					ID:          "aws-org",
-					Status:      string(spec.Enabled),
+					Status:      string(keycloak.OrganizationStateEnabled),
 					Marketplace: "aws",
 				},
 			},

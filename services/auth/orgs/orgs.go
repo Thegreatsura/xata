@@ -7,11 +7,11 @@ import (
 
 	projectsv1 "xata/gen/proto/projects/v1"
 	"xata/services/auth/api"
-	"xata/services/auth/api/spec"
 	"xata/services/auth/keycloak"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/rs/zerolog/log"
+	"k8s.io/utils/ptr"
 )
 
 //go:generate go run github.com/vektra/mockery/v3 --output orgsmock --outpkg orgsmock --with-expecter --name Organizations
@@ -20,7 +20,7 @@ import (
 const projectsMaxRetries = uint64(5)
 
 type Organizations interface {
-	UpdateOrganization(ctx context.Context, organizationID string, request UpdateOrganizationOptions) (*spec.Organization, error)
+	UpdateOrganization(ctx context.Context, organizationID string, request UpdateOrganizationOptions) (*keycloak.Organization, error)
 }
 type orgsService struct {
 	realm          string
@@ -40,36 +40,19 @@ func NewOrganizations(realm string, kcRest keycloak.KeyCloak, projectsClient pro
 	}
 }
 
-type BillingStatus string
-
-const (
-	BillingStatusOk                BillingStatus = "ok"
-	BillingStatusNoPaymentMethod   BillingStatus = "no_payment_method"
-	BillingStatusInvoiceOverdue    BillingStatus = "invoice_overdue"
-	BillingStatusUnknown           BillingStatus = "unknown"
-	BillingStatusDeletionRequested BillingStatus = "deletion_requested"
-)
-
 type UpdateOrganizationOptions struct {
 	DisabledByAdmin       *bool
 	DisabledByAdminReason *string
-	BillingStatus         *BillingStatus
+	BillingStatus         *keycloak.OrganizationBillingStatus
 	BillingReason         *string
-	UsageTier             *spec.OrganizationStatusUsageTier
-}
-
-func ValueOrDefault[T any](p *T, fallback T) T {
-	if p != nil {
-		return *p
-	}
-	return fallback
+	UsageTier             *keycloak.OrganizationUsageTier
 }
 
 func (o *orgsService) UpdateOrganization(
 	ctx context.Context,
 	organizationID string,
 	req UpdateOrganizationOptions,
-) (*spec.Organization, error) {
+) (*keycloak.Organization, error) {
 	// Ensure the organization exists
 	organization, err := o.kcRest.GetOrganization(ctx, o.realm, organizationID)
 	if err != nil {
@@ -77,8 +60,8 @@ func (o *orgsService) UpdateOrganization(
 	}
 
 	// Desired state
-	shouldDisableByAdmin := ValueOrDefault(req.DisabledByAdmin, organization.Status.DisabledByAdmin)
-	shouldBillingStatus := ValueOrDefault(req.BillingStatus, BillingStatus(organization.Status.BillingStatus))
+	shouldDisableByAdmin := ptr.Deref(req.DisabledByAdmin, organization.Status.DisabledByAdmin)
+	shouldBillingStatus := ptr.Deref(req.BillingStatus, organization.Status.BillingStatus)
 
 	update := keycloak.OrganizationUpdate{}
 
@@ -89,24 +72,27 @@ func (o *orgsService) UpdateOrganization(
 		}
 	}
 
-	if string(organization.Status.BillingStatus) != string(shouldBillingStatus) {
-		update.BillingStatus = new(string(shouldBillingStatus))
+	if organization.Status.BillingStatus != shouldBillingStatus {
+		update.BillingStatus = &shouldBillingStatus
 		if req.BillingReason != nil {
 			update.BillingReason = req.BillingReason
 		}
 	}
 
-	tierChanged := req.UsageTier != nil && *req.UsageTier != organization.Status.UsageTier
-	if tierChanged {
-		tier := string(*req.UsageTier)
-		update.UsageTier = &tier
+	if req.UsageTier != nil && *req.UsageTier != organization.Status.UsageTier {
+		update.UsageTier = req.UsageTier
 	}
 
 	// Only update if flags actually changed (reasons alone do nothing)
 	if update.DisabledByAdmin != nil || update.BillingStatus != nil || update.UsageTier != nil {
-		targetStatus := orgStatus(string(shouldBillingStatus), shouldDisableByAdmin)
+		targetStatus := keycloak.OrganizationStatus{
+			DisabledByAdmin: shouldDisableByAdmin,
+			BillingStatus:   shouldBillingStatus,
+		}
+		targetState := targetStatus.EffectiveState()
+		currentState := organization.Status.EffectiveState()
 
-		if targetStatus == string(spec.Enabled) && organization.Status.Status == spec.Disabled {
+		if targetState == keycloak.OrganizationStateEnabled && currentState == keycloak.OrganizationStateDisabled {
 			update.ResourcesCleanedAt = new("")
 		}
 
@@ -116,10 +102,10 @@ func (o *orgsService) UpdateOrganization(
 		}
 
 		// Then trigger the change in the projects service, but only if general status changed
-		if targetStatus != string(organization.Status.Status) {
+		if targetState != currentState {
 			_, err := o.retryWithBackoff(ctx, o.projectsClient, &projectsv1.UpdateOrganizationStatusRequest{
 				OrganizationId: organizationID,
-				Disabled:       targetStatus != string(spec.Enabled),
+				Disabled:       targetState != keycloak.OrganizationStateEnabled,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("propagate organization status to projects: %w", err)
@@ -151,11 +137,4 @@ func (o *orgsService) retryWithBackoff(ctx context.Context, client projectsv1.Pr
 		})
 
 	return result, err
-}
-
-func orgStatus(billingStatus string, disabledByAdmin bool) string {
-	if billingStatus == string(spec.Ok) && !disabledByAdmin {
-		return "enabled"
-	}
-	return "disabled"
 }

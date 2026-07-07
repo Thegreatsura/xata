@@ -8,8 +8,6 @@ import (
 
 	"xata/services/auth/config"
 
-	"xata/services/auth/api/spec"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -190,19 +188,18 @@ func TestExtractStatus(t *testing.T) {
 	cases := []struct {
 		name   string
 		attrs  map[string][]string
-		expect spec.OrganizationStatus
+		expect OrganizationStatus
 	}{
 		{
 			name:  "when nil attributes the organization is enabled and lastUpdated is epoch",
 			attrs: nil,
-			expect: spec.OrganizationStatus{
+			expect: OrganizationStatus{
 				DisabledByAdmin: false,
-				BillingStatus:   spec.Ok,
+				BillingStatus:   OrganizationBillingStatusOK,
 				AdminReason:     nil,
 				BillingReason:   nil,
 				LastUpdated:     time.Unix(0, 0).UTC(),
-				Status:          spec.Enabled,
-				UsageTier:       spec.T1,
+				UsageTier:       OrganizationUsageTierT1,
 			},
 		},
 		{
@@ -210,54 +207,50 @@ func TestExtractStatus(t *testing.T) {
 			attrs: map[string][]string{
 				OrganizationDisabledByAdminKey: {"TrUe"},
 			},
-			expect: spec.OrganizationStatus{
+			expect: OrganizationStatus{
 				DisabledByAdmin: true,
-				BillingStatus:   spec.Ok,
+				BillingStatus:   OrganizationBillingStatusOK,
 				LastUpdated:     time.Unix(0, 0).UTC(),
-				Status:          spec.Disabled,
-				UsageTier:       spec.T1,
+				UsageTier:       OrganizationUsageTierT1,
 			},
 		},
 		{
 			name: "admin disabled false, billing ok → enabled",
 			attrs: map[string][]string{
 				OrganizationDisabledByAdminKey: {"false"},
-				OrganizationBillingStatusKey:   {string(spec.Ok)},
+				OrganizationBillingStatusKey:   {string(OrganizationBillingStatusOK)},
 			},
-			expect: spec.OrganizationStatus{
+			expect: OrganizationStatus{
 				DisabledByAdmin: false,
-				BillingStatus:   spec.Ok,
+				BillingStatus:   OrganizationBillingStatusOK,
 				LastUpdated:     time.Unix(0, 0).UTC(),
-				Status:          spec.Enabled,
-				UsageTier:       spec.T1,
+				UsageTier:       OrganizationUsageTierT1,
 			},
 		},
 		{
 			name: "billing overdue disables org",
 			attrs: map[string][]string{
 				OrganizationDisabledByAdminKey: {"false"},
-				OrganizationBillingStatusKey:   {string(spec.InvoiceOverdue)},
+				OrganizationBillingStatusKey:   {string(OrganizationBillingStatusInvoiceOverdue)},
 			},
-			expect: spec.OrganizationStatus{
+			expect: OrganizationStatus{
 				DisabledByAdmin: false,
-				BillingStatus:   spec.InvoiceOverdue,
+				BillingStatus:   OrganizationBillingStatusInvoiceOverdue,
 				LastUpdated:     time.Unix(0, 0).UTC(),
-				Status:          spec.Disabled,
-				UsageTier:       spec.T1,
+				UsageTier:       OrganizationUsageTierT1,
 			},
 		},
 		{
 			name: "billing no payment method disables org",
 			attrs: map[string][]string{
 				OrganizationDisabledByAdminKey: {"false"},
-				OrganizationBillingStatusKey:   {string(spec.NoPaymentMethod)},
+				OrganizationBillingStatusKey:   {string(OrganizationBillingStatusNoPaymentMethod)},
 			},
-			expect: spec.OrganizationStatus{
+			expect: OrganizationStatus{
 				DisabledByAdmin: false,
-				BillingStatus:   spec.NoPaymentMethod,
+				BillingStatus:   OrganizationBillingStatusNoPaymentMethod,
 				LastUpdated:     time.Unix(0, 0).UTC(),
-				Status:          spec.Disabled,
-				UsageTier:       spec.T1,
+				UsageTier:       OrganizationUsageTierT1,
 			},
 		},
 		{
@@ -266,31 +259,29 @@ func TestExtractStatus(t *testing.T) {
 				OrganizationDisabledByAdminKey: {"false"},
 				OrganizationBillingStatusKey:   {"some-new-status"},
 			},
-			expect: spec.OrganizationStatus{
+			expect: OrganizationStatus{
 				DisabledByAdmin: false,
-				BillingStatus:   spec.Unknown,
+				BillingStatus:   OrganizationBillingStatusUnknown,
 				LastUpdated:     time.Unix(0, 0).UTC(),
-				Status:          spec.Disabled,
-				UsageTier:       spec.T1,
+				UsageTier:       OrganizationUsageTierT1,
 			},
 		},
 		{
 			name: "reasons and valid lastUpdated",
 			attrs: map[string][]string{
 				OrganizationDisabledByAdminKey: {"true"},
-				OrganizationBillingStatusKey:   {string(spec.InvoiceOverdue)},
+				OrganizationBillingStatusKey:   {string(OrganizationBillingStatusInvoiceOverdue)},
 				OrganizationAdminReasonKey:     {"policy violation"},
 				OrganizationBillingReasonKey:   {"card declined"},
 				OrganizationLastUpdatedKey:     {ts.Format(time.RFC3339)},
 			},
-			expect: spec.OrganizationStatus{
+			expect: OrganizationStatus{
 				DisabledByAdmin: true,
-				BillingStatus:   spec.InvoiceOverdue,
+				BillingStatus:   OrganizationBillingStatusInvoiceOverdue,
 				AdminReason:     new("policy violation"),
 				BillingReason:   new("card declined"),
 				LastUpdated:     ts,
-				Status:          spec.Disabled,
-				UsageTier:       spec.T1,
+				UsageTier:       OrganizationUsageTierT1,
 			},
 		},
 		{
@@ -299,12 +290,11 @@ func TestExtractStatus(t *testing.T) {
 				OrganizationDisabledByAdminKey: {"false"},
 				OrganizationLastUpdatedKey:     {"not-a-timestamp"},
 			},
-			expect: spec.OrganizationStatus{
+			expect: OrganizationStatus{
 				DisabledByAdmin: false,
-				BillingStatus:   spec.Ok,
+				BillingStatus:   OrganizationBillingStatusOK,
 				LastUpdated:     time.Unix(0, 0).UTC(),
-				Status:          spec.Enabled,
-				UsageTier:       spec.T1,
+				UsageTier:       OrganizationUsageTierT1,
 			},
 		},
 		{
@@ -314,42 +304,39 @@ func TestExtractStatus(t *testing.T) {
 				OrganizationBillingStatusKey:   {"   ok "},
 				OrganizationAdminReasonKey:     {"  "}, // empty after trim → nil
 			},
-			expect: spec.OrganizationStatus{
+			expect: OrganizationStatus{
 				DisabledByAdmin: false,
-				BillingStatus:   spec.Ok,
+				BillingStatus:   OrganizationBillingStatusOK,
 				AdminReason:     nil,
 				LastUpdated:     time.Unix(0, 0).UTC(),
-				Status:          spec.Enabled,
-				UsageTier:       spec.T1,
+				UsageTier:       OrganizationUsageTierT1,
 			},
 		},
 		{
 			name: "usage tier t2",
 			attrs: map[string][]string{
 				OrganizationDisabledByAdminKey: {"false"},
-				OrganizationBillingStatusKey:   {string(spec.Ok)},
-				OrganizationUsageTierKey:       {string(spec.T2)},
+				OrganizationBillingStatusKey:   {string(OrganizationBillingStatusOK)},
+				OrganizationUsageTierKey:       {string(OrganizationUsageTierT2)},
 			},
-			expect: spec.OrganizationStatus{
+			expect: OrganizationStatus{
 				DisabledByAdmin: false,
-				BillingStatus:   spec.Ok,
+				BillingStatus:   OrganizationBillingStatusOK,
 				LastUpdated:     time.Unix(0, 0).UTC(),
-				Status:          spec.Enabled,
-				UsageTier:       spec.T2,
+				UsageTier:       OrganizationUsageTierT2,
 			},
 		},
 		{
 			name: "deletion_requested disables org",
 			attrs: map[string][]string{
 				OrganizationDisabledByAdminKey: {"false"},
-				OrganizationBillingStatusKey:   {string(spec.DeletionRequested)},
+				OrganizationBillingStatusKey:   {string(OrganizationBillingStatusDeletionRequested)},
 			},
-			expect: spec.OrganizationStatus{
+			expect: OrganizationStatus{
 				DisabledByAdmin: false,
-				BillingStatus:   spec.DeletionRequested,
+				BillingStatus:   OrganizationBillingStatusDeletionRequested,
 				LastUpdated:     time.Unix(0, 0).UTC(),
-				Status:          spec.Disabled,
-				UsageTier:       spec.T1,
+				UsageTier:       OrganizationUsageTierT1,
 			},
 		},
 	}
@@ -377,23 +364,23 @@ func TestBuildCreateOrganizationPayload_UsageTier(t *testing.T) {
 
 	testCases := map[string]struct {
 		params OrganizationCreate
-		want   spec.OrganizationStatusUsageTier
+		want   OrganizationUsageTier
 	}{
 		"normal organization uses t1": {
-			params: OrganizationCreate{Name: "Acme", UsageTier: spec.T1},
-			want:   spec.T1,
+			params: OrganizationCreate{Name: "Acme", UsageTier: OrganizationUsageTierT1},
+			want:   OrganizationUsageTierT1,
 		},
 		"aws marketplace organization uses t2": {
 			params: OrganizationCreate{
 				Name:      "Acme",
-				UsageTier: spec.T2,
+				UsageTier: OrganizationUsageTierT2,
 				Marketplace: AWSMarketplace{
 					CustomerID: "cust-1",
 					ProductID:  "prod-1",
 					AccountID:  "acct-1",
 				},
 			},
-			want: spec.T2,
+			want: OrganizationUsageTierT2,
 		},
 	}
 
@@ -421,10 +408,10 @@ func TestBuildCreateOrganizationPayload_BillingRequired(t *testing.T) {
 			},
 		}
 
-		org := r.buildCreateOrganizationPayload(fixedID, OrganizationCreate{Name: "Acme", UsageTier: spec.T1})
+		org := r.buildCreateOrganizationPayload(fixedID, OrganizationCreate{Name: "Acme", UsageTier: OrganizationUsageTierT1})
 
 		require.NotNil(t, org.Attributes)
-		assert.Equal(t, OrganizationBillingStatusNoPaymentMethod, org.Attributes[OrganizationBillingStatusKey][0])
+		assert.Equal(t, string(OrganizationBillingStatusNoPaymentMethod), org.Attributes[OrganizationBillingStatusKey][0])
 		assert.Equal(t, "Organization created, no payment method set", org.Attributes[OrganizationBillingReasonKey][0])
 
 		// sanity checks
@@ -436,6 +423,16 @@ func TestBuildCreateOrganizationPayload_BillingRequired(t *testing.T) {
 		lu := org.Attributes[OrganizationLastUpdatedKey][0]
 		_, err := time.Parse(time.RFC3339, lu)
 		assert.NoError(t, err)
+
+		converted := r.convertToOrganization(org)
+		assert.Equal(t, fixedID, converted.ID)
+		assert.Equal(t, "Acme", converted.Name)
+		assert.Equal(t, OrganizationBillingStatusNoPaymentMethod, converted.Status.BillingStatus)
+		assert.Equal(t, OrganizationStateDisabled, converted.Status.EffectiveState())
+		assert.Equal(t, OrganizationUsageTierT1, converted.Status.UsageTier)
+		assert.False(t, converted.Status.LastUpdated.IsZero())
+		require.NotNil(t, converted.Status.CreatedAt)
+		assert.False(t, converted.Status.CreatedAt.IsZero())
 	})
 
 	t.Run("BillingRequired=false -> ok", func(t *testing.T) {
@@ -445,14 +442,24 @@ func TestBuildCreateOrganizationPayload_BillingRequired(t *testing.T) {
 			},
 		}
 
-		org := r.buildCreateOrganizationPayload(fixedID, OrganizationCreate{Name: "Acme", UsageTier: spec.T1})
+		org := r.buildCreateOrganizationPayload(fixedID, OrganizationCreate{Name: "Acme", UsageTier: OrganizationUsageTierT1})
 
 		require.NotNil(t, org.Attributes)
-		assert.Equal(t, string(spec.Ok), org.Attributes[OrganizationBillingStatusKey][0])
+		assert.Equal(t, string(OrganizationBillingStatusOK), org.Attributes[OrganizationBillingStatusKey][0])
 		assert.Equal(t, "Organization enabled by default since billing is not required", org.Attributes[OrganizationBillingReasonKey][0])
 
 		lu := org.Attributes[OrganizationLastUpdatedKey][0]
 		_, err := time.Parse(time.RFC3339, lu)
 		assert.NoError(t, err)
+
+		converted := r.convertToOrganization(org)
+		assert.Equal(t, fixedID, converted.ID)
+		assert.Equal(t, "Acme", converted.Name)
+		assert.Equal(t, OrganizationBillingStatusOK, converted.Status.BillingStatus)
+		assert.Equal(t, OrganizationStateEnabled, converted.Status.EffectiveState())
+		assert.Equal(t, OrganizationUsageTierT1, converted.Status.UsageTier)
+		assert.False(t, converted.Status.LastUpdated.IsZero())
+		require.NotNil(t, converted.Status.CreatedAt)
+		assert.False(t, converted.Status.CreatedAt.IsZero())
 	})
 }

@@ -7,7 +7,7 @@ type MarketplaceAttributes interface {
 	BuildKeycloakAttributes() map[string][]string
 }
 
-const AWSMarketplaceProviderName = "aws"
+const AWSMarketplaceProviderName = string(OrganizationMarketplaceProviderAWS)
 
 type AWSMarketplace struct {
 	CustomerID string

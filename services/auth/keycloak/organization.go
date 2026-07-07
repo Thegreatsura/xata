@@ -1,17 +1,15 @@
 package keycloak
 
-import "xata/services/auth/api/spec"
+import "time"
 
 const (
-	OrganizationDisabledByAdminKey             = "disabledByAdmin"
-	OrganizationBillingStatusKey               = "billingStatus"
-	OrganizationAdminReasonKey                 = "adminReason"
-	OrganizationBillingReasonKey               = "billingReason"
-	OrganizationLastUpdatedKey                 = "lastUpdated"
-	OrganizationCreatedAtKey                   = "createdAt"
-	OrganizationResourcesCleanedAtKey          = "resourcesCleanedAt"
-	OrganizationBillingStatusNoPaymentMethod   = "no_payment_method"
-	OrganizationBillingStatusDeletionRequested = "deletion_requested"
+	OrganizationDisabledByAdminKey    = "disabledByAdmin"
+	OrganizationBillingStatusKey      = "billingStatus"
+	OrganizationAdminReasonKey        = "adminReason"
+	OrganizationBillingReasonKey      = "billingReason"
+	OrganizationLastUpdatedKey        = "lastUpdated"
+	OrganizationCreatedAtKey          = "createdAt"
+	OrganizationResourcesCleanedAtKey = "resourcesCleanedAt"
 
 	OrganizationDeletedAtKey = "deletedAt"
 
@@ -21,6 +19,26 @@ const (
 	OrganizationAWSCustomerIDKey = "awsCustomerId"
 	OrganizationAWSProductIDKey  = "awsProductId"
 	OrganizationAWSAccountIDKey  = "awsAccountId"
+)
+
+const (
+	OrganizationBillingStatusOK                OrganizationBillingStatus = "ok"
+	OrganizationBillingStatusNoPaymentMethod   OrganizationBillingStatus = "no_payment_method"
+	OrganizationBillingStatusInvoiceOverdue    OrganizationBillingStatus = "invoice_overdue"
+	OrganizationBillingStatusDeletionRequested OrganizationBillingStatus = "deletion_requested"
+	OrganizationBillingStatusUnknown           OrganizationBillingStatus = "unknown"
+)
+
+const (
+	OrganizationUsageTierT1 OrganizationUsageTier = "t1"
+	OrganizationUsageTierT2 OrganizationUsageTier = "t2"
+)
+
+const OrganizationMarketplaceProviderAWS OrganizationMarketplaceProvider = "aws"
+
+const (
+	OrganizationStateEnabled  OrganizationState = "enabled"
+	OrganizationStateDisabled OrganizationState = "disabled"
 )
 
 type Domain struct {
@@ -49,17 +67,17 @@ type OrganizationMember struct {
 type OrganizationCreate struct {
 	Name        string
 	Marketplace MarketplaceAttributes
-	UsageTier   spec.OrganizationStatusUsageTier
+	UsageTier   OrganizationUsageTier
 }
 
 type OrganizationUpdate struct {
-	Name               *string `json:"name"`
-	BillingStatus      *string `json:"billingStatus,omitempty"`
-	BillingReason      *string `json:"billingReason,omitempty"`
-	AdminReason        *string `json:"adminReason,omitempty"`
-	DisabledByAdmin    *bool   `json:"disabledByAdmin,omitempty"`
-	ResourcesCleanedAt *string `json:"resourcesCleanedAt,omitempty"`
-	UsageTier          *string `json:"usageTier,omitempty"`
+	Name               *string                    `json:"name"`
+	BillingStatus      *OrganizationBillingStatus `json:"billingStatus,omitempty"`
+	BillingReason      *string                    `json:"billingReason,omitempty"`
+	AdminReason        *string                    `json:"adminReason,omitempty"`
+	DisabledByAdmin    *bool                      `json:"disabledByAdmin,omitempty"`
+	ResourcesCleanedAt *string                    `json:"resourcesCleanedAt,omitempty"`
+	UsageTier          *OrganizationUsageTier     `json:"usageTier,omitempty"`
 }
 
 type OrganizationInvitation struct {
@@ -82,4 +100,36 @@ type ListInvitationsParams struct {
 	Search    *string
 	First     *int
 	Max       *int
+}
+
+type OrganizationBillingStatus string
+
+type OrganizationUsageTier string
+
+type OrganizationMarketplaceProvider string
+
+type OrganizationState string
+
+type Organization struct {
+	ID          string
+	Name        string
+	Marketplace *OrganizationMarketplaceProvider
+	Status      OrganizationStatus
+}
+
+type OrganizationStatus struct {
+	DisabledByAdmin bool
+	BillingStatus   OrganizationBillingStatus
+	AdminReason     *string
+	BillingReason   *string
+	LastUpdated     time.Time
+	CreatedAt       *time.Time
+	UsageTier       OrganizationUsageTier
+}
+
+func (s OrganizationStatus) EffectiveState() OrganizationState {
+	if !s.DisabledByAdmin && s.BillingStatus == OrganizationBillingStatusOK {
+		return OrganizationStateEnabled
+	}
+	return OrganizationStateDisabled
 }

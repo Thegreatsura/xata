@@ -9,7 +9,6 @@ import (
 	"xata/gen/protomocks"
 	"xata/internal/apitest"
 	"xata/services/auth/api"
-	"xata/services/auth/api/spec"
 	"xata/services/auth/keycloak"
 	keycloakMocks "xata/services/auth/keycloak/mocks"
 
@@ -37,7 +36,7 @@ func TestUpdateOrganization(t *testing.T) {
 			},
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
 				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-unknown").
-					Return(spec.Organization{}, api.ErrorNoOrganizationAccess{OrganizationID: "org-unknown"})
+					Return(keycloak.Organization{}, api.ErrorNoOrganizationAccess{OrganizationID: "org-unknown"})
 			},
 			wantErr: true,
 			err:     api.ErrorNoOrganizationAccess{OrganizationID: "org-unknown"},
@@ -48,7 +47,7 @@ func TestUpdateOrganization(t *testing.T) {
 			request:        UpdateOrganizationOptions{},
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
 				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-123").
-					Return(spec.Organization{Id: "org-123"}, nil)
+					Return(keycloak.Organization{ID: "org-123"}, nil)
 			},
 			wantErr: false,
 		},
@@ -61,16 +60,16 @@ func TestUpdateOrganization(t *testing.T) {
 			},
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
 				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-123").
-					Return(spec.Organization{Id: "org-123", Status: spec.OrganizationStatus{DisabledByAdmin: false, BillingStatus: spec.Ok}}, nil)
+					Return(keycloak.Organization{ID: "org-123", Status: keycloak.OrganizationStatus{DisabledByAdmin: false, BillingStatus: keycloak.OrganizationBillingStatusOK}}, nil)
 
 				mockKc.EXPECT().UpdateOrganization(mock.Anything, apitest.TestRealm, "org-123", keycloak.OrganizationUpdate{
 					DisabledByAdmin: new(true),
 					AdminReason:     new("Violation of terms"),
-				}).Return(spec.Organization{
-					Id: "org-123",
-					Status: spec.OrganizationStatus{
+				}).Return(keycloak.Organization{
+					ID: "org-123",
+					Status: keycloak.OrganizationStatus{
 						DisabledByAdmin: true,
-						BillingStatus:   spec.Ok,
+						BillingStatus:   keycloak.OrganizationBillingStatusOK,
 					},
 				}, nil)
 				mockProj.EXPECT().UpdateOrganizationStatus(mock.Anything,
@@ -86,21 +85,21 @@ func TestUpdateOrganization(t *testing.T) {
 			name:           "billingStatus disables org and triggers project update",
 			organizationID: "org-123",
 			request: UpdateOrganizationOptions{
-				BillingStatus: new(BillingStatusNoPaymentMethod),
+				BillingStatus: ptr.To(keycloak.OrganizationBillingStatusNoPaymentMethod),
 				BillingReason: new("No payment method on file"),
 			},
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
 				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-123").
-					Return(spec.Organization{Id: "org-123", Status: spec.OrganizationStatus{DisabledByAdmin: false, BillingStatus: spec.Ok}}, nil)
+					Return(keycloak.Organization{ID: "org-123", Status: keycloak.OrganizationStatus{DisabledByAdmin: false, BillingStatus: keycloak.OrganizationBillingStatusOK}}, nil)
 
 				mockKc.EXPECT().UpdateOrganization(mock.Anything, apitest.TestRealm, "org-123", keycloak.OrganizationUpdate{
-					BillingStatus: new(string(BillingStatusNoPaymentMethod)),
+					BillingStatus: ptr.To(keycloak.OrganizationBillingStatusNoPaymentMethod),
 					BillingReason: new("No payment method on file"),
-				}).Return(spec.Organization{
-					Id: "org-123",
-					Status: spec.OrganizationStatus{
+				}).Return(keycloak.Organization{
+					ID: "org-123",
+					Status: keycloak.OrganizationStatus{
 						DisabledByAdmin: false,
-						BillingStatus:   spec.NoPaymentMethod,
+						BillingStatus:   keycloak.OrganizationBillingStatusNoPaymentMethod,
 					},
 				}, nil)
 				mockProj.EXPECT().UpdateOrganizationStatus(mock.Anything,
@@ -120,7 +119,7 @@ func TestUpdateOrganization(t *testing.T) {
 			},
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
 				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-123").
-					Return(spec.Organization{Id: "org-123", Status: spec.OrganizationStatus{DisabledByAdmin: false, BillingStatus: spec.Ok}}, nil)
+					Return(keycloak.Organization{ID: "org-123", Status: keycloak.OrganizationStatus{DisabledByAdmin: false, BillingStatus: keycloak.OrganizationBillingStatusOK}}, nil)
 			},
 			wantErr: false,
 		},
@@ -129,24 +128,23 @@ func TestUpdateOrganization(t *testing.T) {
 			organizationID: "org-123",
 			request: UpdateOrganizationOptions{
 				DisabledByAdmin: new(false),
-				BillingStatus:   new(BillingStatusNoPaymentMethod),
+				BillingStatus:   ptr.To(keycloak.OrganizationBillingStatusNoPaymentMethod),
 				BillingReason:   new("No payment method on file"),
 			},
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
 				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-123").
-					Return(spec.Organization{Id: "org-123", Status: spec.OrganizationStatus{Status: spec.Disabled, DisabledByAdmin: true, BillingStatus: spec.Ok}}, nil)
+					Return(keycloak.Organization{ID: "org-123", Status: keycloak.OrganizationStatus{DisabledByAdmin: true, BillingStatus: keycloak.OrganizationBillingStatusOK}}, nil)
 
 				mockKc.EXPECT().UpdateOrganization(mock.Anything, apitest.TestRealm, "org-123", keycloak.OrganizationUpdate{
 					DisabledByAdmin: new(false),
-					BillingStatus:   new(string(BillingStatusNoPaymentMethod)),
+					BillingStatus:   ptr.To(keycloak.OrganizationBillingStatusNoPaymentMethod),
 					BillingReason:   new("No payment method on file"),
-				}).Return(spec.Organization{
-					Id: "org-123",
-					Status: spec.OrganizationStatus{
+				}).Return(keycloak.Organization{
+					ID: "org-123",
+					Status: keycloak.OrganizationStatus{
 						DisabledByAdmin: false,
-						BillingStatus:   spec.NoPaymentMethod,
+						BillingStatus:   keycloak.OrganizationBillingStatusNoPaymentMethod,
 						BillingReason:   new("No payment method on file"),
-						Status:          spec.Disabled,
 					},
 				}, nil)
 			},
@@ -156,30 +154,28 @@ func TestUpdateOrganization(t *testing.T) {
 			name:           "re-enabling disabled org clears resourcesCleanedAt",
 			organizationID: "org-123",
 			request: UpdateOrganizationOptions{
-				BillingStatus: new(BillingStatusOk),
+				BillingStatus: ptr.To(keycloak.OrganizationBillingStatusOK),
 				BillingReason: new("Payment method added"),
 			},
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
 				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-123").
-					Return(spec.Organization{
-						Id: "org-123",
-						Status: spec.OrganizationStatus{
+					Return(keycloak.Organization{
+						ID: "org-123",
+						Status: keycloak.OrganizationStatus{
 							DisabledByAdmin: false,
-							BillingStatus:   spec.NoPaymentMethod,
-							Status:          spec.Disabled,
+							BillingStatus:   keycloak.OrganizationBillingStatusNoPaymentMethod,
 						},
 					}, nil)
 
 				mockKc.EXPECT().UpdateOrganization(mock.Anything, apitest.TestRealm, "org-123", keycloak.OrganizationUpdate{
-					BillingStatus:      new(string(BillingStatusOk)),
+					BillingStatus:      ptr.To(keycloak.OrganizationBillingStatusOK),
 					BillingReason:      new("Payment method added"),
 					ResourcesCleanedAt: new(""),
-				}).Return(spec.Organization{
-					Id: "org-123",
-					Status: spec.OrganizationStatus{
+				}).Return(keycloak.Organization{
+					ID: "org-123",
+					Status: keycloak.OrganizationStatus{
 						DisabledByAdmin: false,
-						BillingStatus:   spec.Ok,
-						Status:          spec.Enabled,
+						BillingStatus:   keycloak.OrganizationBillingStatusOK,
 					},
 				}, nil)
 
@@ -196,29 +192,27 @@ func TestUpdateOrganization(t *testing.T) {
 			name:           "UsageTier change updates Keycloak but does not trigger projects update",
 			organizationID: "org-123",
 			request: UpdateOrganizationOptions{
-				UsageTier: ptr.To(spec.T2),
+				UsageTier: ptr.To(keycloak.OrganizationUsageTierT2),
 			},
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
 				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-123").
-					Return(spec.Organization{
-						Id: "org-123",
-						Status: spec.OrganizationStatus{
+					Return(keycloak.Organization{
+						ID: "org-123",
+						Status: keycloak.OrganizationStatus{
 							DisabledByAdmin: false,
-							BillingStatus:   spec.Ok,
-							Status:          spec.Enabled,
-							UsageTier:       spec.T1,
+							BillingStatus:   keycloak.OrganizationBillingStatusOK,
+							UsageTier:       keycloak.OrganizationUsageTierT1,
 						},
 					}, nil)
 
 				mockKc.EXPECT().UpdateOrganization(mock.Anything, apitest.TestRealm, "org-123", keycloak.OrganizationUpdate{
-					UsageTier: new(string(spec.T2)),
-				}).Return(spec.Organization{
-					Id: "org-123",
-					Status: spec.OrganizationStatus{
+					UsageTier: ptr.To(keycloak.OrganizationUsageTierT2),
+				}).Return(keycloak.Organization{
+					ID: "org-123",
+					Status: keycloak.OrganizationStatus{
 						DisabledByAdmin: false,
-						BillingStatus:   spec.Ok,
-						Status:          spec.Enabled,
-						UsageTier:       spec.T2,
+						BillingStatus:   keycloak.OrganizationBillingStatusOK,
+						UsageTier:       keycloak.OrganizationUsageTierT2,
 					},
 				}, nil)
 				// mockProj is intentionally not called
@@ -229,17 +223,16 @@ func TestUpdateOrganization(t *testing.T) {
 			name:           "UsageTier unchanged does not update Keycloak",
 			organizationID: "org-123",
 			request: UpdateOrganizationOptions{
-				UsageTier: ptr.To(spec.T1),
+				UsageTier: ptr.To(keycloak.OrganizationUsageTierT1),
 			},
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
 				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-123").
-					Return(spec.Organization{
-						Id: "org-123",
-						Status: spec.OrganizationStatus{
+					Return(keycloak.Organization{
+						ID: "org-123",
+						Status: keycloak.OrganizationStatus{
 							DisabledByAdmin: false,
-							BillingStatus:   spec.Ok,
-							Status:          spec.Enabled,
-							UsageTier:       spec.T1,
+							BillingStatus:   keycloak.OrganizationBillingStatusOK,
+							UsageTier:       keycloak.OrganizationUsageTierT1,
 						},
 					}, nil)
 				// mockKc.UpdateOrganization and mockProj are intentionally not called
@@ -251,16 +244,16 @@ func TestUpdateOrganization(t *testing.T) {
 			organizationID: "org-123",
 			request:        UpdateOrganizationOptions{DisabledByAdmin: new(true)},
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
-				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-123").Return(spec.Organization{
-					Id:     "org-123",
-					Status: spec.OrganizationStatus{DisabledByAdmin: false, BillingStatus: spec.Ok},
+				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-123").Return(keycloak.Organization{
+					ID:     "org-123",
+					Status: keycloak.OrganizationStatus{DisabledByAdmin: false, BillingStatus: keycloak.OrganizationBillingStatusOK},
 				}, nil)
 
 				mockKc.EXPECT().UpdateOrganization(mock.Anything, apitest.TestRealm, "org-123", keycloak.OrganizationUpdate{
 					DisabledByAdmin: new(true),
-				}).Return(spec.Organization{
-					Id:     "org-123",
-					Status: spec.OrganizationStatus{DisabledByAdmin: true, BillingStatus: spec.Ok},
+				}).Return(keycloak.Organization{
+					ID:     "org-123",
+					Status: keycloak.OrganizationStatus{DisabledByAdmin: true, BillingStatus: keycloak.OrganizationBillingStatusOK},
 				}, nil)
 
 				mockProj.EXPECT().
@@ -279,12 +272,11 @@ func TestUpdateOrganization(t *testing.T) {
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
 				mockKc.EXPECT().
 					GetOrganization(mock.Anything, apitest.TestRealm, "org-123").
-					Return(spec.Organization{
-						Id: "org-123",
-						Status: spec.OrganizationStatus{
+					Return(keycloak.Organization{
+						ID: "org-123",
+						Status: keycloak.OrganizationStatus{
 							DisabledByAdmin: false,
-							BillingStatus:   spec.Ok,
-							Status:          spec.Enabled,
+							BillingStatus:   keycloak.OrganizationBillingStatusOK,
 						},
 					}, nil).
 					Once()
@@ -293,12 +285,11 @@ func TestUpdateOrganization(t *testing.T) {
 					UpdateOrganization(mock.Anything, apitest.TestRealm, "org-123", keycloak.OrganizationUpdate{
 						DisabledByAdmin: new(true),
 					}).
-					Return(spec.Organization{
-						Id: "org-123",
-						Status: spec.OrganizationStatus{
+					Return(keycloak.Organization{
+						ID: "org-123",
+						Status: keycloak.OrganizationStatus{
 							DisabledByAdmin: true,
-							BillingStatus:   spec.Ok,
-							Status:          spec.Disabled,
+							BillingStatus:   keycloak.OrganizationBillingStatusOK,
 						},
 					}, nil).
 					Once()

@@ -195,14 +195,14 @@ func (a *AuthService) GetOrganization(ctx context.Context, req *authv1.GetOrgani
 		return nil, fmt.Errorf("get organization: %w", err)
 	}
 	resp := &authv1.Organization{
-		Id:                    org.Id,
-		Status:                string(org.Status.Status),
+		Id:                    org.ID,
+		Status:                string(org.Status.EffectiveState()),
 		DisabledByAdmin:       org.Status.DisabledByAdmin,
 		DisabledByAdminReason: org.Status.AdminReason,
 		BillingStatus:         string(org.Status.BillingStatus),
 		BillingReason:         org.Status.BillingReason,
 		UsageTier:             string(org.Status.UsageTier),
-		Marketplace:           ptr.Deref(org.Marketplace, ""),
+		Marketplace:           string(ptr.Deref(org.Marketplace, "")),
 	}
 	if org.Status.CreatedAt != nil {
 		resp.CreatedAt = timestamppb.New(*org.Status.CreatedAt)
@@ -220,8 +220,8 @@ func (a *AuthService) UpdateOrganization(ctx context.Context, req *authv1.Update
 	}
 	return &authv1.UpdateOrganizationResponse{
 		Organization: &authv1.Organization{
-			Id:                    org.Id,
-			Status:                string(org.Status.Status),
+			Id:                    org.ID,
+			Status:                string(org.Status.EffectiveState()),
 			DisabledByAdmin:       org.Status.DisabledByAdmin,
 			DisabledByAdminReason: org.Status.AdminReason,
 			BillingStatus:         string(org.Status.BillingStatus),
@@ -252,15 +252,15 @@ func (a *AuthService) buildUserClaims(ctx context.Context, userID string) (*toke
 	organizations := make(map[string]token.Organization, len(orgList))
 	for _, org := range orgList {
 		tokenOrg := token.Organization{
-			ID:          org.Id,
-			Status:      string(org.Status.Status),
+			ID:          org.ID,
+			Status:      string(org.Status.EffectiveState()),
 			UsageTier:   string(org.Status.UsageTier),
-			Marketplace: ptr.Deref(org.Marketplace, ""),
+			Marketplace: string(ptr.Deref(org.Marketplace, "")),
 		}
 		if org.Status.CreatedAt != nil {
 			tokenOrg.CreatedAt = *org.Status.CreatedAt
 		}
-		organizations[org.Id] = tokenOrg
+		organizations[org.ID] = tokenOrg
 	}
 
 	if a.defaultOrgID != "" {
@@ -294,15 +294,15 @@ func (a *AuthService) buildOrgClaims(ctx context.Context, orgID string) (*token.
 
 	organizations := make(map[string]token.Organization, 1)
 	tokenOrg := token.Organization{
-		ID:          organization.Id,
-		Status:      string(organization.Status.Status),
+		ID:          organization.ID,
+		Status:      string(organization.Status.EffectiveState()),
 		UsageTier:   string(organization.Status.UsageTier),
-		Marketplace: ptr.Deref(organization.Marketplace, ""),
+		Marketplace: string(ptr.Deref(organization.Marketplace, "")),
 	}
 	if organization.Status.CreatedAt != nil {
 		tokenOrg.CreatedAt = *organization.Status.CreatedAt
 	}
-	organizations[organization.Id] = tokenOrg
+	organizations[organization.ID] = tokenOrg
 	return &token.Claims{
 		Organizations: organizations,
 		Scopes:        []string{"*"},
