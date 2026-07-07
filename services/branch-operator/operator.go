@@ -167,6 +167,7 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 		Tolerations:                          s.config.Tolerations,
 		EnforceZone:                          s.config.EnforceZone,
 		ImagePullSecrets:                     s.config.ImagePullSecrets,
+		MaxConcurrentReconciles:              s.config.BranchMaxConcurrent,
 	}
 	if err := reconciler.SetupWithManager(ctx, mgr); err != nil {
 		return err

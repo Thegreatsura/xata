@@ -32,6 +32,7 @@ type Config struct {
 	WakeupRequestTTL                     time.Duration `env:"XATA_WAKEUP_REQUEST_TTL" env-default:"60s" env-description:"time to keep completed WakeupRequests before deletion"`
 	WakeupRPCTimeout                     time.Duration `env:"XATA_WAKEUP_RPC_TIMEOUT" env-default:"10s" env-description:"timeout for the WakeUp RPC to the SlotController service on CSI node plugin pods"`
 	WakeupMaxConcurrent                  int           `env:"XATA_WAKEUP_MAX_CONCURRENT" env-default:"16" env-description:"maximum concurrent wakeup reconciliations"`
+	BranchMaxConcurrent                  int           `env:"XATA_BRANCH_MAX_CONCURRENT" env-default:"1" env-description:"maximum concurrent Branch reconciliations (default 1 = current behavior)"`
 }
 
 func (cfg *Config) ParseTolerations() error {

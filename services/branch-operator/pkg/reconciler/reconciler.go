@@ -15,6 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"xata/services/branch-operator/api/v1alpha1"
@@ -56,6 +57,7 @@ type BranchReconciler struct {
 	Tolerations                          []v1.Toleration
 	EnforceZone                          bool
 	ImagePullSecrets                     []string
+	MaxConcurrentReconciles              int
 }
 
 // Reconcile handles reconciliation for Branch resources
@@ -249,6 +251,7 @@ func (r *BranchReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manage
 		Owns(&apiv1.ScheduledBackup{}, onGenerationChanged).
 		Owns(&snapshotv1.VolumeSnapshot{}, onGenerationChanged).
 		Owns(&apiv1.Cluster{}, onRelevantClusterChanges).
+		WithOptions(controller.Options{MaxConcurrentReconciles: r.MaxConcurrentReconciles}).
 		Complete(r)
 }
 
