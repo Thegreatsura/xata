@@ -195,20 +195,7 @@ func (a *AuthService) GetOrganization(ctx context.Context, req *authv1.GetOrgani
 	if err != nil {
 		return nil, fmt.Errorf("get organization: %w", err)
 	}
-	resp := &authv1.Organization{
-		Id:                    org.ID,
-		Status:                string(org.Status.EffectiveState()),
-		DisabledByAdmin:       org.Status.DisabledByAdmin,
-		DisabledByAdminReason: org.Status.AdminReason,
-		BillingStatus:         string(org.Status.BillingStatus),
-		BillingReason:         org.Status.BillingReason,
-		UsageTier:             string(org.Status.UsageTier),
-		Marketplace:           string(ptr.Deref(org.Marketplace, "")),
-	}
-	if org.Status.CreatedAt != nil {
-		resp.CreatedAt = timestamppb.New(*org.Status.CreatedAt)
-	}
-	return &authv1.GetOrganizationResponse{Organization: resp}, nil
+	return &authv1.GetOrganizationResponse{Organization: keycloakOrganizationToProto(org)}, nil
 }
 
 func (a *AuthService) UpdateOrganization(ctx context.Context, req *authv1.UpdateOrganizationRequest) (*authv1.UpdateOrganizationResponse, error) {
@@ -219,16 +206,7 @@ func (a *AuthService) UpdateOrganization(ctx context.Context, req *authv1.Update
 	if err != nil {
 		return nil, err
 	}
-	return &authv1.UpdateOrganizationResponse{
-		Organization: &authv1.Organization{
-			Id:                    org.ID,
-			Status:                string(org.Status.EffectiveState()),
-			DisabledByAdmin:       org.Status.DisabledByAdmin,
-			DisabledByAdminReason: org.Status.AdminReason,
-			BillingStatus:         string(org.Status.BillingStatus),
-			BillingReason:         org.Status.BillingReason,
-		},
-	}, nil
+	return &authv1.UpdateOrganizationResponse{Organization: keycloakOrganizationToProto(*org)}, nil
 }
 
 // buildUserClaims constructs a token.Claims object for a user based on their Keycloak user ID.
