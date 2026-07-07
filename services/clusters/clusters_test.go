@@ -2508,6 +2508,7 @@ func TestCreateWakeupRequestFromUpdate(t *testing.T) {
 				if tt.wantNew {
 					require.Empty(t, wur.Labels["initialWUR"])
 					require.Equal(t, "branch-xvol", wur.Spec.XVolName)
+					require.Equal(t, v1alpha1.PasswordSyncModeSkip, wur.Spec.PasswordSync)
 				} else {
 					require.Equal(t, "true", wur.Labels["initialWUR"])
 					require.Equal(t, "some-xvol", wur.Spec.XVolName)
@@ -2603,6 +2604,7 @@ func TestCreateWakeupRequestForNewBranch(t *testing.T) {
 			require.NoError(t, getErr)
 			require.Equal(t, childName, wur.Spec.BranchName)
 			require.Equal(t, v1alpha1.XVolCloneName(parentName, childName), wur.Spec.XVolName)
+			require.Equal(t, v1alpha1.PasswordSyncModeWait, wur.Spec.PasswordSync)
 		})
 	}
 }

@@ -38,7 +38,10 @@ func (c *ClustersService) createWakeupRequestFromUpdateClusterRequest(
 	}
 
 	// Ensure that a WakeupRequest exists for the branch
-	return c.ensureWakeupRequest(ctx, branch.Name, branch.Status.PrimaryXVolName)
+	return c.ensureWakeupRequest(ctx,
+		branch.Name,
+		branch.Status.PrimaryXVolName,
+		v1alpha1.PasswordSyncModeSkip)
 }
 
 // createWakeupRequestForNewBranch creates a WakeupRequest for a newly created
@@ -56,7 +59,10 @@ func (c *ClustersService) createWakeupRequestForNewBranch(ctx context.Context, b
 	}
 
 	// Ensure that a WakeupRequest exists for the branch
-	return c.ensureWakeupRequest(ctx, branch.Name, v1alpha1.XVolCloneName(parent.Name, branch.Name))
+	return c.ensureWakeupRequest(ctx,
+		branch.Name,
+		v1alpha1.XVolCloneName(parent.Name, branch.Name),
+		v1alpha1.PasswordSyncModeWait)
 }
 
 // ensureWakeupRequest ensures that a WakeupRequest exists for the given
@@ -64,7 +70,10 @@ func (c *ClustersService) createWakeupRequestForNewBranch(ctx context.Context, b
 // status. If the existing WakeupRequest is still in progress, it returns
 // without creating a new one. If the existing WakeupRequest has succeeded or
 // failed, it deletes it and creates a new one.
-func (c *ClustersService) ensureWakeupRequest(ctx context.Context, branchName, xvolName string) error {
+func (c *ClustersService) ensureWakeupRequest(ctx context.Context,
+	branchName, xvolName string,
+	passwordSync v1alpha1.PasswordSyncMode,
+) error {
 	// Check for a WakeupRequest for this branch
 	wur := &v1alpha1.WakeupRequest{}
 	err := c.kubeClient.Get(ctx, types.NamespacedName{
@@ -102,8 +111,9 @@ func (c *ClustersService) ensureWakeupRequest(ctx context.Context, branchName, x
 			Namespace: c.config.ClustersNamespace,
 		},
 		Spec: v1alpha1.WakeupRequestSpec{
-			BranchName: branchName,
-			XVolName:   xvolName,
+			BranchName:   branchName,
+			XVolName:     xvolName,
+			PasswordSync: passwordSync,
 		},
 	}
 
