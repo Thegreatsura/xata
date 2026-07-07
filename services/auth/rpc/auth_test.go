@@ -14,6 +14,7 @@ import (
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -156,9 +157,11 @@ func TestBuildUserClaims(t *testing.T) {
 			mockProjects := protomocks.NewProjectsServiceClient(t)
 			mockOrgs := orgsmock.NewOrganizations(t)
 
-			mockKC.EXPECT().GetUserRepresentation(context.Background(), realm, userID).
+			// buildUserClaims runs these two calls concurrently via errgroup, which
+			// derives a child context, so match on any context rather than identity.
+			mockKC.EXPECT().GetUserRepresentation(mock.Anything, realm, userID).
 				Return(keycloak.User{ID: userID, Email: userEmail}, nil)
-			mockKC.EXPECT().ListOrganizations(context.Background(), realm, userID).
+			mockKC.EXPECT().ListOrganizations(mock.Anything, realm, userID).
 				Return(tc.kcOrgs, nil)
 
 			svc := NewAuthService(mockStore, gocloak.NewClient("http://localhost"), mockKC, mockProjects, mockOrgs, realm, tc.defaultOrgID)

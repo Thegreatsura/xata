@@ -3,14 +3,134 @@ package keycloak
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"xata/services/auth/config"
 
+	"github.com/Nerzal/gocloak/v13"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// newTestRestKC builds a restKC pointed at a test server for both the token
+// endpoint (via the gocloak client) and the Admin REST API (via KeycloakURL).
+func newTestRestKC(baseURL string) *restKC {
+	return &restKC{
+		client: gocloak.NewClient(baseURL),
+		authConfig: config.AuthConfig{
+			KeycloakURL:           baseURL,
+			KeycloakAdminPassword: "test-password",
+		},
+	}
+}
+
+const tokenEndpointSuffix = "/protocol/openid-connect/token"
+
+func TestGetTokenCachesAdminLogin(t *testing.T) {
+	var loginCount, userCount atomic.Int32
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch {
+		case strings.HasSuffix(req.URL.Path, tokenEndpointSuffix):
+			loginCount.Add(1)
+			// gocloak auto-unmarshals the token via resty, which requires a JSON content type.
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"access_token":"test-token","expires_in":300,"token_type":"Bearer"}`))
+		case strings.Contains(req.URL.Path, "/admin/realms/"):
+			userCount.Add(1)
+			_, _ = w.Write([]byte(`{"id":"user-1","username":"alice"}`))
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	r := newTestRestKC(srv.URL)
+
+	for range 3 {
+		_, err := r.GetUserRepresentation(context.Background(), "test-realm", "user-1")
+		require.NoError(t, err)
+	}
+
+	assert.Equal(t, int32(1), loginCount.Load(), "admin login should be cached across calls")
+	assert.Equal(t, int32(3), userCount.Load())
+}
+
+func TestGetTokenDedupesConcurrentLogins(t *testing.T) {
+	var loginCount atomic.Int32
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch {
+		case strings.HasSuffix(req.URL.Path, tokenEndpointSuffix):
+			loginCount.Add(1)
+			// gocloak auto-unmarshals the token via resty, which requires a JSON content type.
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"access_token":"test-token","expires_in":300,"token_type":"Bearer"}`))
+		case strings.Contains(req.URL.Path, "/admin/realms/"):
+			_, _ = w.Write([]byte(`{"id":"user-1","username":"alice"}`))
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	r := newTestRestKC(srv.URL)
+
+	const goroutines = 20
+	errCh := make(chan error, goroutines)
+	var wg sync.WaitGroup
+	for range goroutines {
+		wg.Go(func() {
+			_, err := r.GetUserRepresentation(context.Background(), "test-realm", "user-1")
+			errCh <- err
+		})
+	}
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		require.NoError(t, err)
+	}
+	assert.Equal(t, int32(1), loginCount.Load(), "concurrent callers should share a single admin login")
+}
+
+func TestMakeAuthenticatedRequestRetriesOn401(t *testing.T) {
+	var loginCount, userCount atomic.Int32
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch {
+		case strings.HasSuffix(req.URL.Path, tokenEndpointSuffix):
+			loginCount.Add(1)
+			// gocloak auto-unmarshals the token via resty, which requires a JSON content type.
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"access_token":"test-token","expires_in":300,"token_type":"Bearer"}`))
+		case strings.Contains(req.URL.Path, "/admin/realms/"):
+			// Reject the first request as if the cached token was revoked.
+			if userCount.Add(1) == 1 {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			_, _ = w.Write([]byte(`{"id":"user-1","username":"alice"}`))
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	r := newTestRestKC(srv.URL)
+
+	user, err := r.GetUserRepresentation(context.Background(), "test-realm", "user-1")
+	require.NoError(t, err)
+	assert.Equal(t, "user-1", user.ID)
+	assert.Equal(t, int32(2), loginCount.Load(), "a 401 should invalidate the cache and force a fresh login")
+	assert.Equal(t, int32(2), userCount.Load(), "the request should be retried once after re-login")
+}
 
 func TestFirstAttr(t *testing.T) {
 	t.Parallel()

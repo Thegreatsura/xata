@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"xata/internal/idgen"
@@ -18,10 +19,20 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
+// tokenSafetyMargin is subtracted from the admin token's advertised lifetime so
+// we never hand out a token that expires mid-request.
+const tokenSafetyMargin = 10 * time.Second
+
 // Implements kc.go
 type restKC struct {
 	client     *gocloak.GoCloak
 	authConfig config.AuthConfig
+
+	// tokenMu guards the cached admin token. restKC is a shared singleton hit
+	// concurrently by every auth request, so all cache access is serialized.
+	tokenMu     sync.Mutex
+	cachedToken *gocloak.JWT
+	tokenExpiry time.Time // wall-clock time the cached token stops being usable
 }
 
 func NewRestKC(client *gocloak.GoCloak, authConfig config.AuthConfig) KeyCloak {
@@ -674,12 +685,36 @@ func (r *restKC) UpdateUserAttributes(ctx context.Context, realm, userID string,
 	return nil
 }
 
+// getToken returns an admin token for authenticating Keycloak Admin REST calls.
+// Tokens are cached and reused until shortly before they expire, so we pay for a
+// password login roughly once per token lifetime instead of on every REST call.
 func (r *restKC) getToken(ctx context.Context) (*gocloak.JWT, error) {
+	r.tokenMu.Lock()
+	defer r.tokenMu.Unlock()
+
+	if r.cachedToken != nil && time.Now().Before(r.tokenExpiry) {
+		return r.cachedToken, nil
+	}
+
+	// Holding the lock across the login serializes concurrent refreshes so we
+	// don't stampede Keycloak with parallel logins when the token expires.
 	jwt, err := r.client.LoginAdmin(ctx, "temp-admin", r.authConfig.KeycloakAdminPassword, "master")
 	if err != nil {
 		return nil, fmt.Errorf("failed to login as admin: %w", err)
 	}
-	return jwt, err
+
+	r.cachedToken = jwt
+	r.tokenExpiry = time.Now().Add(time.Duration(jwt.ExpiresIn)*time.Second - tokenSafetyMargin)
+	return jwt, nil
+}
+
+// invalidateToken drops the cached admin token, forcing the next getToken to log
+// in again. Used when a request is rejected with 401 despite a non-expired token.
+func (r *restKC) invalidateToken() {
+	r.tokenMu.Lock()
+	defer r.tokenMu.Unlock()
+	r.cachedToken = nil
+	r.tokenExpiry = time.Time{}
 }
 
 func (r *restKC) searchOrganization(ctx context.Context, realm, alias string) (KeycloakOrganization, error) {
@@ -721,40 +756,58 @@ func (r *restKC) buildRealmURL(realm string, pathSegments ...string) (string, er
 }
 
 func (r *restKC) makeAuthenticatedRequest(ctx context.Context, method, urlStr string, queryParams map[string]string, data any) (*resty.Response, error) {
-	jwt, err := r.getToken(ctx)
+	// doRequest builds and sends the request using the current admin token. It is
+	// a closure so we can rebuild the request with a fresh token on retry.
+	doRequest := func() (*resty.Response, error) {
+		jwt, err := r.getToken(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		req := r.client.GetRequestWithBearerAuth(ctx, jwt.AccessToken)
+
+		if data != nil {
+			switch v := data.(type) {
+			case url.Values:
+				req = req.SetHeader("Content-Type", "application/x-www-form-urlencoded")
+				req = req.SetBody(v.Encode())
+				// Handle JSON body for any other type
+			default:
+				req = req.SetBody(data)
+			}
+		}
+
+		for key, value := range queryParams {
+			req = req.SetQueryParam(key, value)
+		}
+
+		switch method {
+		case "GET":
+			return req.Get(urlStr)
+		case "POST":
+			return req.Post(urlStr)
+		case "PUT":
+			return req.Put(urlStr)
+		case "DELETE":
+			return req.Delete(urlStr)
+		default:
+			return nil, fmt.Errorf("unsupported HTTP method: %s", method)
+		}
+	}
+
+	resp, err := doRequest()
 	if err != nil {
 		return nil, err
 	}
 
-	req := r.client.GetRequestWithBearerAuth(ctx, jwt.AccessToken)
-
-	if data != nil {
-		switch v := data.(type) {
-		case url.Values:
-			req = req.SetHeader("Content-Type", "application/x-www-form-urlencoded")
-			req = req.SetBody(v.Encode())
-			// Handle JSON body for any other type
-		default:
-			req = req.SetBody(data)
-		}
+	// A cached token may be rejected before its expiry (e.g. Keycloak restart or
+	// server-side revocation). Drop it and retry once with a fresh login.
+	if resp.StatusCode() == http.StatusUnauthorized {
+		r.invalidateToken()
+		return doRequest()
 	}
 
-	for key, value := range queryParams {
-		req = req.SetQueryParam(key, value)
-	}
-
-	switch method {
-	case "GET":
-		return req.Get(urlStr)
-	case "POST":
-		return req.Post(urlStr)
-	case "PUT":
-		return req.Put(urlStr)
-	case "DELETE":
-		return req.Delete(urlStr)
-	default:
-		return nil, fmt.Errorf("unsupported HTTP method: %s", method)
-	}
+	return resp, nil
 }
 
 func (r *restKC) isSuccessStatus(actual int, expected ...int) bool {

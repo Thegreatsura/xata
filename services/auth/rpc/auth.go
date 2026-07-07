@@ -18,6 +18,7 @@ import (
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/open-policy-agent/opa/v1/rego"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/utils/ptr"
 )
@@ -236,17 +237,33 @@ func (a *AuthService) buildUserClaims(ctx context.Context, userID string) (*toke
 		return nil, fmt.Errorf("user ID cannot be empty")
 	}
 
-	user, err := a.kcRest.GetUserRepresentation(ctx, a.realm, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user from Keycloak: %w", err)
-	}
-	if user.ID == "" {
-		return nil, fmt.Errorf("user not found in Keycloak: %s", userID)
+	// GetUserRepresentation and ListOrganizations are independent Keycloak calls.
+	// Run them concurrently to save a round-trip on this hot path (auth middleware).
+	var user keycloak.User
+	var orgList []keycloak.Organization
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		var err error
+		user, err = a.kcRest.GetUserRepresentation(gctx, a.realm, userID)
+		if err != nil {
+			return fmt.Errorf("failed to get user from Keycloak: %w", err)
+		}
+		return nil
+	})
+	g.Go(func() error {
+		var err error
+		orgList, err = a.kcRest.ListOrganizations(gctx, a.realm, userID)
+		if err != nil {
+			return fmt.Errorf("failed to list user organizations: %w", err)
+		}
+		return nil
+	})
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
-	orgList, err := a.kcRest.ListOrganizations(ctx, a.realm, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list user organizations: %w", err)
+	if user.ID == "" {
+		return nil, fmt.Errorf("user not found in Keycloak: %s", userID)
 	}
 
 	organizations := make(map[string]token.Organization, len(orgList))
