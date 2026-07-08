@@ -111,10 +111,11 @@ type OrganizationMarketplaceProvider string
 type OrganizationState string
 
 type Organization struct {
-	ID          string
-	Name        string
-	Marketplace *OrganizationMarketplaceProvider
-	Status      OrganizationStatus
+	ID             string
+	Name           string
+	Marketplace    *OrganizationMarketplaceProvider
+	AWSMarketplace *AWSMarketplace
+	Status         OrganizationStatus
 }
 
 type OrganizationStatus struct {

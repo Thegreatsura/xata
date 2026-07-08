@@ -516,6 +516,30 @@ func TestBuildCreateOrganizationPayload_UsageTier(t *testing.T) {
 	}
 }
 
+func TestConvertToOrganization_AWSMarketplace(t *testing.T) {
+	t.Parallel()
+
+	r := &restKC{}
+	org := r.buildCreateOrganizationPayload("org_123", OrganizationCreate{
+		Name:      "Acme",
+		UsageTier: OrganizationUsageTierT2,
+		Marketplace: AWSMarketplace{
+			CustomerID: "cust-1",
+			ProductID:  "prod-1",
+			AccountID:  "acct-1",
+		},
+	})
+
+	converted := r.convertToOrganization(org)
+
+	require.NotNil(t, converted.Marketplace)
+	require.NotNil(t, converted.AWSMarketplace)
+	assert.Equal(t, OrganizationMarketplaceProviderAWS, *converted.Marketplace)
+	assert.Equal(t, "cust-1", converted.AWSMarketplace.CustomerID)
+	assert.Equal(t, "prod-1", converted.AWSMarketplace.ProductID)
+	assert.Equal(t, "acct-1", converted.AWSMarketplace.AccountID)
+}
+
 func TestBuildCreateOrganizationPayload_BillingRequired(t *testing.T) {
 	t.Parallel()
 

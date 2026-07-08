@@ -87,6 +87,22 @@ func TestAWSMarketplace_Validate(t *testing.T) {
 	}
 }
 
+func TestAWSMarketplaceFromKeycloakAttributes(t *testing.T) {
+	t.Parallel()
+
+	got := AWSMarketplaceFromKeycloakAttributes(map[string][]string{
+		OrganizationAWSCustomerIDKey: {"cust-1"},
+		OrganizationAWSProductIDKey:  {"prod-1"},
+		OrganizationAWSAccountIDKey:  {"acct-1"},
+	})
+
+	assert.Equal(t, AWSMarketplace{
+		CustomerID: "cust-1",
+		ProductID:  "prod-1",
+		AccountID:  "acct-1",
+	}, got)
+}
+
 func TestAWSMarketplace_BuildKeycloakAttributes(t *testing.T) {
 	t.Parallel()
 

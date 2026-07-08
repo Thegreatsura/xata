@@ -832,6 +832,10 @@ func (r *restKC) convertToOrganization(org KeycloakOrganization) Organization {
 	if v, ok := firstAttr(org.Attributes, OrganizationMarketplaceKey); ok && v != "" {
 		marketplace := OrganizationMarketplaceProvider(v)
 		result.Marketplace = &marketplace
+		if marketplace == OrganizationMarketplaceProviderAWS {
+			awsMarketplace := AWSMarketplaceFromKeycloakAttributes(org.Attributes)
+			result.AWSMarketplace = &awsMarketplace
+		}
 	}
 	return result
 }
