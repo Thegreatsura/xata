@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // createWakeupRequestFromUpdateClusterRequest creates a WakeupRequest for the branch if the
@@ -39,7 +40,7 @@ func (c *ClustersService) createWakeupRequestFromUpdateClusterRequest(
 
 	// Ensure that a WakeupRequest exists for the branch
 	return c.ensureWakeupRequest(ctx,
-		branch.Name,
+		branch,
 		branch.Status.PrimaryXVolName,
 		v1alpha1.PasswordSyncModeSkip)
 }
@@ -60,7 +61,7 @@ func (c *ClustersService) createWakeupRequestForNewBranch(ctx context.Context, b
 
 	// Ensure that a WakeupRequest exists for the branch
 	return c.ensureWakeupRequest(ctx,
-		branch.Name,
+		branch,
 		v1alpha1.XVolCloneName(parent.Name, branch.Name),
 		v1alpha1.PasswordSyncModeWait)
 }
@@ -71,13 +72,14 @@ func (c *ClustersService) createWakeupRequestForNewBranch(ctx context.Context, b
 // without creating a new one. If the existing WakeupRequest has succeeded or
 // failed, it deletes it and creates a new one.
 func (c *ClustersService) ensureWakeupRequest(ctx context.Context,
-	branchName, xvolName string,
+	branch *v1alpha1.Branch,
+	xvolName string,
 	passwordSync v1alpha1.PasswordSyncMode,
 ) error {
 	// Check for a WakeupRequest for this branch
 	wur := &v1alpha1.WakeupRequest{}
 	err := c.kubeClient.Get(ctx, types.NamespacedName{
-		Name:      branchName,
+		Name:      branch.Name,
 		Namespace: c.config.ClustersNamespace,
 	}, wur)
 	if err != nil && !errors.IsNotFound(err) {
@@ -107,14 +109,20 @@ func (c *ClustersService) ensureWakeupRequest(ctx context.Context,
 	// Build the new WakeupRequest for the branch
 	wur = &v1alpha1.WakeupRequest{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      branchName,
+			Name:      branch.Name,
 			Namespace: c.config.ClustersNamespace,
 		},
 		Spec: v1alpha1.WakeupRequestSpec{
-			BranchName:   branchName,
+			BranchName:   branch.Name,
 			XVolName:     xvolName,
 			PasswordSync: passwordSync,
 		},
+	}
+
+	// Set the branch as the owner so the WakeupRequest is garbage collected
+	// when the branch is deleted
+	if err := controllerutil.SetOwnerReference(branch, wur, c.scheme); err != nil {
+		return fmt.Errorf("set owner reference: %w", err)
 	}
 
 	// Create the WakeupRequest. Multiple connections to a hibernated branch race

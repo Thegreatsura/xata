@@ -61,6 +61,9 @@ type ClustersService struct {
 	// Kubernetes client
 	kubeClient client.Client
 
+	// Scheme used by the Kubernetes client
+	scheme *runtime.Scheme
+
 	// Cached reader for indexed cluster lookups (backed by cache.Cache in production)
 	clusterReader      client.Reader
 	clusterCacheOk     chan struct{}
@@ -100,6 +103,7 @@ func (c *ClustersService) Init(ctx context.Context) error {
 
 	// Create a new scheme and register Branch CRs
 	scheme := runtime.NewScheme()
+	c.scheme = scheme
 	if err := clientgoscheme.AddToScheme(scheme); err != nil {
 		return fmt.Errorf("cannot add clientgo scheme: %w", err)
 	}

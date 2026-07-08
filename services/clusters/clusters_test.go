@@ -1900,6 +1900,7 @@ func setupTestClustersService(t *testing.T, opts ...testServiceOption) (*Cluster
 			PgBackRestGCSServiceAccount: cfg.pgBackRestGCSService,
 		},
 		kubeClient:     fakeClient,
+		scheme:         scheme,
 		clusterReader:  fakeClient,
 		clusterCacheOk: cacheReady,
 		cnpgConnector:  cfg.cnpgConnector,
@@ -2366,6 +2367,13 @@ func TestCreateWakeupRequestFromUpdate(t *testing.T) {
 				Name:      branchName,
 				Namespace: namespace,
 				Labels:    map[string]string{"initialWUR": "true"},
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       v1alpha1.BranchKind,
+						Name:       branchName,
+					},
+				},
 			},
 			Spec: v1alpha1.WakeupRequestSpec{
 				BranchName: branchName,
@@ -2505,6 +2513,10 @@ func TestCreateWakeupRequestFromUpdate(t *testing.T) {
 			if tt.wantWUR {
 				require.NoError(t, getErr)
 				require.Equal(t, branchName, wur.Spec.BranchName)
+				require.Len(t, wur.GetOwnerReferences(), 1)
+				ref := wur.GetOwnerReferences()[0]
+				require.Equal(t, branchName, ref.Name)
+				require.Equal(t, v1alpha1.BranchKind, ref.Kind)
 				if tt.wantNew {
 					require.Empty(t, wur.Labels["initialWUR"])
 					require.Equal(t, "branch-xvol", wur.Spec.XVolName)
@@ -2605,6 +2617,10 @@ func TestCreateWakeupRequestForNewBranch(t *testing.T) {
 			require.Equal(t, childName, wur.Spec.BranchName)
 			require.Equal(t, v1alpha1.XVolCloneName(parentName, childName), wur.Spec.XVolName)
 			require.Equal(t, v1alpha1.PasswordSyncModeWait, wur.Spec.PasswordSync)
+			require.Len(t, wur.GetOwnerReferences(), 1)
+			ref := wur.GetOwnerReferences()[0]
+			require.Equal(t, tt.branch.GetName(), ref.Name)
+			require.Equal(t, v1alpha1.BranchKind, ref.Kind)
 		})
 	}
 }
