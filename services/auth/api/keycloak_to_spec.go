@@ -14,7 +14,7 @@ func ToSpecOrganization(org keycloak.Organization) spec.Organization {
 		Status: ToSpecOrganizationStatus(org.Status),
 	}
 	if org.Marketplace != nil {
-		marketplace := string(*org.Marketplace)
+		marketplace := spec.OrganizationMarketplaceProvider(*org.Marketplace)
 		result.Marketplace = &marketplace
 	}
 	return result

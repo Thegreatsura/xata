@@ -12,7 +12,7 @@ import (
 
 func TestToSpecOrganization(t *testing.T) {
 	marketplace := keycloak.OrganizationMarketplaceProviderAWS
-	marketplaceSpec := "aws"
+	marketplaceSpec := spec.OrganizationMarketplaceProvider("aws")
 	cases := map[string]struct {
 		org  keycloak.Organization
 		want spec.Organization

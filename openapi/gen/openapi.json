@@ -4475,7 +4475,11 @@
           },
           "marketplace": {
             "description": "Marketplace provider for this organization (e.g. \"aws\"), if billed through a marketplace",
-            "type": "string",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationMarketplaceProvider"
+              }
+            ],
             "nullable": true
           }
         },
@@ -4626,7 +4630,11 @@
           },
           "marketplace": {
             "description": "Marketplace provider for this organization (e.g. \"aws\"), if billed through a marketplace",
-            "type": "string",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationMarketplaceProvider"
+              }
+            ],
             "nullable": true
           },
           "has_payment_method": {
@@ -4957,15 +4965,36 @@
           "url"
         ]
       },
+      "MarketplaceRegistrationProvider": {
+        "description": "Marketplace provider accepted for registration.",
+        "type": "string",
+        "enum": [
+          "aws"
+        ],
+        "x-enum-varnames": [
+          "MarketplaceRegistrationProviderAWS"
+        ]
+      },
+      "OrganizationMarketplaceProvider": {
+        "description": "Marketplace provider associated with an organization.",
+        "type": "string",
+        "enum": [
+          "aws"
+        ],
+        "x-enum-varnames": [
+          "OrganizationMarketplaceProviderAWS"
+        ]
+      },
       "MarketplaceRegisterRequest": {
         "description": "Request to register with a cloud marketplace",
         "type": "object",
         "properties": {
           "marketplace": {
             "description": "The cloud marketplace provider",
-            "type": "string",
-            "enum": [
-              "aws"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MarketplaceRegistrationProvider"
+              }
             ]
           },
           "company_name": {

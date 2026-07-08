@@ -28,15 +28,20 @@ const (
 	Void   BillingInvoiceStatus = "void"
 )
 
-// Defines values for MarketplaceRegisterRequestMarketplace.
+// Defines values for MarketplaceRegistrationProvider.
 const (
-	Aws MarketplaceRegisterRequestMarketplace = "aws"
+	MarketplaceRegistrationProviderAWS MarketplaceRegistrationProvider = "aws"
 )
 
 // Defines values for OrganizationInvitationStatus.
 const (
 	OrganizationInvitationStatusExpired OrganizationInvitationStatus = "expired"
 	OrganizationInvitationStatusPending OrganizationInvitationStatus = "pending"
+)
+
+// Defines values for OrganizationMarketplaceProvider.
+const (
+	OrganizationMarketplaceProviderAWS OrganizationMarketplaceProvider = "aws"
 )
 
 // Defines values for OrganizationStatusBillingStatus.
@@ -148,7 +153,7 @@ type BillingCustomerResponse struct {
 	HasPaymentMethod bool `json:"has_payment_method"`
 
 	// Marketplace Marketplace provider for this organization (e.g. "aws"), if billed through a marketplace
-	Marketplace *string `json:"marketplace"`
+	Marketplace *OrganizationMarketplaceProvider `json:"marketplace"`
 }
 
 // BillingInvoice defines model for BillingInvoice.
@@ -282,18 +287,18 @@ type MarketplaceRegisterRequest struct {
 	CompanyName string `json:"company_name"`
 
 	// Marketplace The cloud marketplace provider
-	Marketplace MarketplaceRegisterRequestMarketplace `json:"marketplace"`
+	Marketplace MarketplaceRegistrationProvider `json:"marketplace"`
 }
 
-// MarketplaceRegisterRequestMarketplace The cloud marketplace provider
-type MarketplaceRegisterRequestMarketplace string
+// MarketplaceRegistrationProvider Marketplace provider accepted for registration.
+type MarketplaceRegistrationProvider string
 
 // Organization Organization details including ID and name
 type Organization struct {
 	Id OrganizationID `json:"id" validate:"identifier"`
 
 	// Marketplace Marketplace provider for this organization (e.g. "aws"), if billed through a marketplace
-	Marketplace *string `json:"marketplace"`
+	Marketplace *OrganizationMarketplaceProvider `json:"marketplace"`
 
 	// Name Human-readable name of the organization
 	Name   string             `json:"name"`
@@ -333,6 +338,9 @@ type OrganizationInvitation struct {
 
 // OrganizationInvitationStatus Current status of the invitation
 type OrganizationInvitationStatus string
+
+// OrganizationMarketplaceProvider Marketplace provider associated with an organization.
+type OrganizationMarketplaceProvider string
 
 // OrganizationMembershipLimits Membership limits for an organization
 type OrganizationMembershipLimits struct {
