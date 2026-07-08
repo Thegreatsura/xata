@@ -146,6 +146,9 @@ type BillingCustomerResponse struct {
 
 	// HasPaymentMethod True when the customer has a valid Stripe default card payment method.
 	HasPaymentMethod bool `json:"has_payment_method"`
+
+	// Marketplace Marketplace provider for this organization (e.g. "aws"), if billed through a marketplace
+	Marketplace *string `json:"marketplace"`
 }
 
 // BillingInvoice defines model for BillingInvoice.

@@ -1090,6 +1090,10 @@ components:
         billing_email:
           type: string
           format: email
+        marketplace:
+          description: Marketplace provider for this organization (e.g. "aws"), if billed through a marketplace
+          type: string
+          nullable: true
         has_payment_method:
           description: True when the customer has a valid Stripe default card payment method.
           type: boolean
@@ -1106,6 +1110,7 @@ components:
           $ref: '#/components/schemas/BillingCreditDetails'
       required:
         - billing_email
+        - marketplace
         - has_payment_method
         - default_payment_method
         - credits
