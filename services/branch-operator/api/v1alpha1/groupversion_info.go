@@ -10,6 +10,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
+const (
+	// BranchKind is the kind name of Branches
+	BranchKind = "Branch"
+)
+
 var (
 	// GroupVersion is group version used to register these objects
 	GroupVersion = schema.GroupVersion{Group: "xata.io", Version: "v1alpha1"}

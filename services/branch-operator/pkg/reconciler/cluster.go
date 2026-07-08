@@ -56,7 +56,7 @@ func (r *BranchReconciler) reconcileCluster(
 		WithAnnotations(clusterAnnotations(branch)).
 		WithOwnerReferences(metav1ac.OwnerReference().
 			WithAPIVersion(v1alpha1.GroupVersion.String()).
-			WithKind("Branch").
+			WithKind(v1alpha1.BranchKind).
 			WithName(branch.Name).
 			WithUID(branch.UID).
 			WithBlockOwnerDeletion(true).

@@ -263,7 +263,7 @@ func setupIndexers(ctx context.Context, mgr ctrl.Manager) error {
 		if owner == nil {
 			return nil
 		}
-		if owner.APIVersion != v1alpha1.GroupVersion.String() || owner.Kind != "Branch" {
+		if owner.APIVersion != v1alpha1.GroupVersion.String() || owner.Kind != v1alpha1.BranchKind {
 			return nil
 		}
 		return []string{owner.Name}
