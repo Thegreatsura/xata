@@ -1,7 +1,7 @@
 # PostgreSQL extensions available in each image offering
 # This file is automatically updated by a sync workflow from the postgres-images repo
 
-last_updated: "2026-07-06T12:03:48Z"
+last_updated: "2026-07-08T09:38:53Z"
 updated_by: workflow
 offerings:
   analytics:
@@ -161,7 +161,7 @@ offerings:
           docs_url: "https://pgtap.org/"
           preload_required: false
         - name: vector
-          version: "0.8.1"
+          version: "0.8.4"
           description: "Vector similarity search for PostgreSQL"
           docs_url: "https://github.com/pgvector/pgvector"
           preload_required: false
@@ -486,7 +486,7 @@ offerings:
           docs_url: "https://pgtap.org/"
           preload_required: false
         - name: vector
-          version: "0.8.1"
+          version: "0.8.4"
           description: "Vector similarity search for PostgreSQL"
           docs_url: "https://github.com/pgvector/pgvector"
           preload_required: false
@@ -837,7 +837,7 @@ offerings:
           docs_url: "https://pgtap.org/"
           preload_required: false
         - name: vector
-          version: "0.8.1"
+          version: "0.8.4"
           description: "Vector similarity search for PostgreSQL"
           docs_url: "https://github.com/pgvector/pgvector"
           preload_required: false
@@ -1162,7 +1162,7 @@ offerings:
           docs_url: "https://pgtap.org/"
           preload_required: false
         - name: vector
-          version: "0.8.1"
+          version: "0.8.4"
           description: "Vector similarity search for PostgreSQL"
           docs_url: "https://github.com/pgvector/pgvector"
           preload_required: false
@@ -1492,7 +1492,7 @@ offerings:
           docs_url: "https://pgtap.org/"
           preload_required: false
         - name: vector
-          version: "0.8.1"
+          version: "0.8.4"
           description: "Vector similarity search for PostgreSQL"
           docs_url: "https://github.com/pgvector/pgvector"
           preload_required: false
@@ -1827,7 +1827,7 @@ offerings:
           docs_url: "https://pgtap.org/"
           preload_required: false
         - name: vector
-          version: "0.8.1"
+          version: "0.8.4"
           description: "Vector similarity search for PostgreSQL"
           docs_url: "https://github.com/pgvector/pgvector"
           preload_required: false
@@ -2147,7 +2147,7 @@ offerings:
           docs_url: "https://pgtap.org/"
           preload_required: false
         - name: vector
-          version: "0.8.1"
+          version: "0.8.4"
           description: "Vector similarity search for PostgreSQL"
           docs_url: "https://github.com/pgvector/pgvector"
           preload_required: false
