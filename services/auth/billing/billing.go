@@ -80,18 +80,20 @@ type InvoiceAutoCollection struct {
 }
 
 type Invoice struct {
-	ID             string
-	InvoiceNumber  string
-	AmountDue      float64
-	Total          float64
-	Currency       string
-	Status         string
-	InvoiceDate    time.Time
-	DueDate        time.Time
-	IssuedAt       time.Time
-	PaidAt         time.Time
-	InvoicePDF     *string
-	AutoCollection InvoiceAutoCollection
+	ID                 string
+	InvoiceNumber      string
+	AmountDue          float64
+	AmountDueCents     int64
+	Total              float64
+	Currency           string
+	Status             string
+	InvoiceDate        time.Time
+	BillingPeriodStart time.Time
+	DueDate            time.Time
+	IssuedAt           time.Time
+	PaidAt             time.Time
+	InvoicePDF         *string
+	AutoCollection     InvoiceAutoCollection
 }
 
 type InvoiceListOptions struct {
