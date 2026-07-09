@@ -91,13 +91,28 @@ func testClaimsWithMarketplace(marketplace string) token.Claims {
 }
 
 type fakeGithubInstallationValidator struct {
-	err   error
-	calls []int64
+	err       error
+	calls     []int64
+	repoErr   error
+	repoCalls []fakeGithubRepositoryValidationCall
+}
+
+type fakeGithubRepositoryValidationCall struct {
+	repositoryID    int64
+	installationIDs []int64
 }
 
 func (f *fakeGithubInstallationValidator) ValidateInstallation(ctx context.Context, installationID int64) error {
 	f.calls = append(f.calls, installationID)
 	return f.err
+}
+
+func (f *fakeGithubInstallationValidator) ValidateRepositoryAccess(ctx context.Context, repositoryID int64, installationIDs []int64) error {
+	f.repoCalls = append(f.repoCalls, fakeGithubRepositoryValidationCall{
+		repositoryID:    repositoryID,
+		installationIDs: slices.Clone(installationIDs),
+	})
+	return f.repoErr
 }
 
 func TestValidateGithubInstallationIDRequiresValidator(t *testing.T) {
@@ -106,6 +121,49 @@ func TestValidateGithubInstallationIDRequiresValidator(t *testing.T) {
 	var got ErrorGithubInstallationValidationUnavailable
 	require.ErrorAs(t, err, &got)
 	assert.Equal(t, http.StatusServiceUnavailable, got.StatusCode())
+}
+
+func TestValidateGithubRepositoryAccessRequiresValidator(t *testing.T) {
+	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
+	c, _ := e.GET("/organizations/" + apitest.TestOrganization + "/githubapp/installations").Context()
+
+	err := (&handler{}).validateGithubRepositoryAccess(c, 1)
+
+	var got ErrorGithubRepositoryValidationUnavailable
+	require.ErrorAs(t, err, &got)
+	assert.Equal(t, http.StatusServiceUnavailable, got.StatusCode())
+}
+
+func TestValidateGithubRepositoryAccessUsesAllClaimOrganizations(t *testing.T) {
+	claims := token.Claims{
+		ID:    apitest.TestUserID,
+		Email: apitest.TestUserEmail,
+		Organizations: map[string]token.Organization{
+			"org-b": {ID: "org-b", Status: token.OrgEnabledStatus},
+			"org-a": {ID: "org-a", Status: token.OrgEnabledStatus},
+		},
+		Scopes:   []string{"*"},
+		Projects: []string{"*"},
+		Branches: []string{"*"},
+	}
+	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(claims)
+	c, _ := e.GET("/organizations/org-a/githubapp/installations").Context()
+	mockStore := mocks.NewProjectsStore(t)
+	mockStore.EXPECT().ListGithubInstallations(mock.Anything, "org-a").Return([]store.GithubInstallation{
+		{InstallationID: 222},
+		{InstallationID: 111},
+	}, nil)
+	mockStore.EXPECT().ListGithubInstallations(mock.Anything, "org-b").Return([]store.GithubInstallation{
+		{InstallationID: 111},
+	}, nil)
+	validator := &fakeGithubInstallationValidator{}
+	handler := &handler{store: mockStore, githubInstallationValidator: validator}
+
+	err := handler.validateGithubRepositoryAccess(c, 42)
+
+	require.NoError(t, err)
+	assert.Equal(t, []fakeGithubRepositoryValidationCall{{repositoryID: 42, installationIDs: []int64{111, 222}}}, validator.repoCalls)
+	mockStore.AssertExpectations(t)
 }
 
 func TestListRegions(t *testing.T) {
@@ -7314,6 +7372,13 @@ func TestGetGithubRepository(t *testing.T) {
 
 func TestCreateGithubRepository(t *testing.T) {
 	now, _ := time.Parse(time.RFC3339, "2021-01-01T00:00:00Z")
+	installation := store.GithubInstallation{
+		ID:             "inst-1",
+		InstallationID: 123,
+		Organization:   apitest.TestOrganization,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
 	mapping := store.GithubRepoMapping{
 		ID:                 "map-1",
 		GithubRepositoryID: 789,
@@ -7327,21 +7392,25 @@ func TestCreateGithubRepository(t *testing.T) {
 	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
 
 	tests := map[string]struct {
-		projectID       string
-		branchID        string
-		jsonBody        any
-		setupMocks      func(*mocks.ProjectsStore)
-		wantError       bool
-		expectedError   error
-		expectedMapping spec.GithubRepository
+		projectID         string
+		branchID          string
+		jsonBody          any
+		setupMocks        func(*mocks.ProjectsStore)
+		validationErr     error
+		expectedRepoCalls []fakeGithubRepositoryValidationCall
+		wantError         bool
+		expectedError     error
+		expectedMapping   spec.GithubRepository
 	}{
 		"create succeeds": {
 			projectID: "proj-1",
 			branchID:  "branch-1",
 			jsonBody:  map[string]any{"githubRepositoryID": 789},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListGithubInstallations(mock.Anything, apitest.TestOrganization).Return([]store.GithubInstallation{installation}, nil)
 				mockStore.EXPECT().CreateGithubRepoMapping(mock.Anything, apitest.TestOrganization, "proj-1", int64(789), "branch-1").Return(&mapping, nil)
 			},
+			expectedRepoCalls: []fakeGithubRepositoryValidationCall{{repositoryID: 789, installationIDs: []int64{123}}},
 			expectedMapping: spec.GithubRepository{
 				Id:                 mapping.ID,
 				GithubRepositoryID: mapping.GithubRepositoryID,
@@ -7356,40 +7425,70 @@ func TestCreateGithubRepository(t *testing.T) {
 			branchID:  "branch-1",
 			jsonBody:  map[string]any{"githubRepositoryID": 789},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListGithubInstallations(mock.Anything, apitest.TestOrganization).Return([]store.GithubInstallation{installation}, nil)
 				mockStore.EXPECT().CreateGithubRepoMapping(mock.Anything, apitest.TestOrganization, "proj-dup", int64(789), "branch-1").Return(nil, store.ErrGithubRepoMappingAlreadyExists{Organization: apitest.TestOrganization, Project: "proj-dup"})
 			},
-			wantError:     true,
-			expectedError: store.ErrGithubRepoMappingAlreadyExists{Organization: apitest.TestOrganization, Project: "proj-dup"},
+			expectedRepoCalls: []fakeGithubRepositoryValidationCall{{repositoryID: 789, installationIDs: []int64{123}}},
+			wantError:         true,
+			expectedError:     store.ErrGithubRepoMappingAlreadyExists{Organization: apitest.TestOrganization, Project: "proj-dup"},
 		},
 		"project not found returns error": {
 			projectID: "proj-unknown",
 			branchID:  "branch-1",
 			jsonBody:  map[string]any{"githubRepositoryID": 789},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListGithubInstallations(mock.Anything, apitest.TestOrganization).Return([]store.GithubInstallation{installation}, nil)
 				mockStore.EXPECT().CreateGithubRepoMapping(mock.Anything, apitest.TestOrganization, "proj-unknown", int64(789), "branch-1").Return(nil, &store.ErrProjectNotFound{ID: "proj-unknown"})
 			},
-			wantError:     true,
-			expectedError: &store.ErrProjectNotFound{ID: "proj-unknown"},
+			expectedRepoCalls: []fakeGithubRepositoryValidationCall{{repositoryID: 789, installationIDs: []int64{123}}},
+			wantError:         true,
+			expectedError:     &store.ErrProjectNotFound{ID: "proj-unknown"},
 		},
 		"branch not found returns error": {
 			projectID: "proj-1",
 			branchID:  "bad-branch",
 			jsonBody:  map[string]any{"githubRepositoryID": 789},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListGithubInstallations(mock.Anything, apitest.TestOrganization).Return([]store.GithubInstallation{installation}, nil)
 				mockStore.EXPECT().CreateGithubRepoMapping(mock.Anything, apitest.TestOrganization, "proj-1", int64(789), "bad-branch").Return(nil, store.ErrBranchNotFound{ID: "bad-branch"})
 			},
-			wantError:     true,
-			expectedError: store.ErrBranchNotFound{ID: "bad-branch"},
+			expectedRepoCalls: []fakeGithubRepositoryValidationCall{{repositoryID: 789, installationIDs: []int64{123}}},
+			wantError:         true,
+			expectedError:     store.ErrBranchNotFound{ID: "bad-branch"},
 		},
 		"store returns generic error": {
 			projectID: "proj-1",
 			branchID:  "branch-1",
 			jsonBody:  map[string]any{"githubRepositoryID": 789},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListGithubInstallations(mock.Anything, apitest.TestOrganization).Return([]store.GithubInstallation{installation}, nil)
 				mockStore.EXPECT().CreateGithubRepoMapping(mock.Anything, apitest.TestOrganization, "proj-1", int64(789), "branch-1").Return(nil, errors.New("unexpected"))
 			},
+			expectedRepoCalls: []fakeGithubRepositoryValidationCall{{repositoryID: 789, installationIDs: []int64{123}}},
+			wantError:         true,
+			expectedError:     errors.New("unexpected"),
+		},
+		"repository not accessible returns error": {
+			projectID:     "proj-1",
+			branchID:      "branch-1",
+			jsonBody:      map[string]any{"githubRepositoryID": 789},
+			validationErr: ErrorInvalidParam{Param: "githubRepositoryID", Message: "github repository is not accessible"},
+			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListGithubInstallations(mock.Anything, apitest.TestOrganization).Return([]store.GithubInstallation{installation}, nil)
+			},
+			expectedRepoCalls: []fakeGithubRepositoryValidationCall{{repositoryID: 789, installationIDs: []int64{123}}},
+			wantError:         true,
+			expectedError:     ErrorInvalidParam{Param: "githubRepositoryID", Message: "github repository is not accessible"},
+		},
+		"no installations returns error": {
+			projectID: "proj-1",
+			branchID:  "branch-1",
+			jsonBody:  map[string]any{"githubRepositoryID": 789},
+			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListGithubInstallations(mock.Anything, apitest.TestOrganization).Return([]store.GithubInstallation{}, nil)
+			},
 			wantError:     true,
-			expectedError: errors.New("unexpected"),
+			expectedError: ErrorInvalidParam{Param: "githubRepositoryID", Message: "github repository is not accessible"},
 		},
 	}
 
@@ -7400,7 +7499,8 @@ func TestCreateGithubRepository(t *testing.T) {
 			mockStore := mocks.NewProjectsStore(t)
 			tt.setupMocks(mockStore)
 			sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
-			handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil)
+			validator := &fakeGithubInstallationValidator{repoErr: tt.validationErr}
+			handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil, WithGithubInstallationValidator(validator))
 			c, rec := e.POST("/organizations/" + apitest.TestOrganization + "/projects/" + tt.projectID + "/branches/" + tt.branchID + "/githubapp/repository").WithJSONBody(tt.jsonBody).Context()
 			err := handler.CreateGithubRepository(c, apitest.TestOrganization, tt.projectID, tt.branchID)
 			if tt.wantError {
@@ -7415,6 +7515,7 @@ func TestCreateGithubRepository(t *testing.T) {
 				assert.Equal(t, tt.expectedMapping, got)
 			}
 
+			assert.Equal(t, tt.expectedRepoCalls, validator.repoCalls)
 			mockStore.AssertExpectations(t)
 		})
 	}
@@ -7422,6 +7523,13 @@ func TestCreateGithubRepository(t *testing.T) {
 
 func TestUpdateGithubRepository(t *testing.T) {
 	now, _ := time.Parse(time.RFC3339, "2021-01-01T00:00:00Z")
+	installation := store.GithubInstallation{
+		ID:             "inst-1",
+		InstallationID: 123,
+		Organization:   apitest.TestOrganization,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
 	updated := store.GithubRepoMapping{
 		ID:                 "map-1",
 		GithubRepositoryID: 999,
@@ -7435,21 +7543,25 @@ func TestUpdateGithubRepository(t *testing.T) {
 	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
 
 	tests := map[string]struct {
-		projectID       string
-		branchID        string
-		jsonBody        any
-		setupMocks      func(*mocks.ProjectsStore)
-		wantError       bool
-		expectedError   error
-		expectedMapping spec.GithubRepository
+		projectID         string
+		branchID          string
+		jsonBody          any
+		setupMocks        func(*mocks.ProjectsStore)
+		validationErr     error
+		expectedRepoCalls []fakeGithubRepositoryValidationCall
+		wantError         bool
+		expectedError     error
+		expectedMapping   spec.GithubRepository
 	}{
 		"update succeeds": {
 			projectID: "proj-1",
 			branchID:  "branch-2",
 			jsonBody:  map[string]any{"githubRepositoryID": 999},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListGithubInstallations(mock.Anything, apitest.TestOrganization).Return([]store.GithubInstallation{installation}, nil)
 				mockStore.EXPECT().UpdateGithubRepoMapping(mock.Anything, apitest.TestOrganization, "proj-1", int64(999), "branch-2").Return(&updated, nil)
 			},
+			expectedRepoCalls: []fakeGithubRepositoryValidationCall{{repositoryID: 999, installationIDs: []int64{123}}},
 			expectedMapping: spec.GithubRepository{
 				Id:                 updated.ID,
 				GithubRepositoryID: updated.GithubRepositoryID,
@@ -7464,30 +7576,48 @@ func TestUpdateGithubRepository(t *testing.T) {
 			branchID:  "branch-2",
 			jsonBody:  map[string]any{"githubRepositoryID": 999},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListGithubInstallations(mock.Anything, apitest.TestOrganization).Return([]store.GithubInstallation{installation}, nil)
 				mockStore.EXPECT().UpdateGithubRepoMapping(mock.Anything, apitest.TestOrganization, "proj-missing", int64(999), "branch-2").Return(nil, store.ErrGithubRepoMappingNotFound{Organization: apitest.TestOrganization, Project: "proj-missing"})
 			},
-			wantError:     true,
-			expectedError: store.ErrGithubRepoMappingNotFound{Organization: apitest.TestOrganization, Project: "proj-missing"},
+			expectedRepoCalls: []fakeGithubRepositoryValidationCall{{repositoryID: 999, installationIDs: []int64{123}}},
+			wantError:         true,
+			expectedError:     store.ErrGithubRepoMappingNotFound{Organization: apitest.TestOrganization, Project: "proj-missing"},
 		},
 		"branch not found returns error": {
 			projectID: "proj-1",
 			branchID:  "bad-branch",
 			jsonBody:  map[string]any{"githubRepositoryID": 999},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListGithubInstallations(mock.Anything, apitest.TestOrganization).Return([]store.GithubInstallation{installation}, nil)
 				mockStore.EXPECT().UpdateGithubRepoMapping(mock.Anything, apitest.TestOrganization, "proj-1", int64(999), "bad-branch").Return(nil, store.ErrBranchNotFound{ID: "bad-branch"})
 			},
-			wantError:     true,
-			expectedError: store.ErrBranchNotFound{ID: "bad-branch"},
+			expectedRepoCalls: []fakeGithubRepositoryValidationCall{{repositoryID: 999, installationIDs: []int64{123}}},
+			wantError:         true,
+			expectedError:     store.ErrBranchNotFound{ID: "bad-branch"},
 		},
 		"store returns generic error": {
 			projectID: "proj-1",
 			branchID:  "branch-2",
 			jsonBody:  map[string]any{"githubRepositoryID": 999},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListGithubInstallations(mock.Anything, apitest.TestOrganization).Return([]store.GithubInstallation{installation}, nil)
 				mockStore.EXPECT().UpdateGithubRepoMapping(mock.Anything, apitest.TestOrganization, "proj-1", int64(999), "branch-2").Return(nil, errors.New("unexpected"))
 			},
-			wantError:     true,
-			expectedError: errors.New("unexpected"),
+			expectedRepoCalls: []fakeGithubRepositoryValidationCall{{repositoryID: 999, installationIDs: []int64{123}}},
+			wantError:         true,
+			expectedError:     errors.New("unexpected"),
+		},
+		"repository not accessible returns error": {
+			projectID:     "proj-1",
+			branchID:      "branch-2",
+			jsonBody:      map[string]any{"githubRepositoryID": 999},
+			validationErr: ErrorInvalidParam{Param: "githubRepositoryID", Message: "github repository is not accessible"},
+			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().ListGithubInstallations(mock.Anything, apitest.TestOrganization).Return([]store.GithubInstallation{installation}, nil)
+			},
+			expectedRepoCalls: []fakeGithubRepositoryValidationCall{{repositoryID: 999, installationIDs: []int64{123}}},
+			wantError:         true,
+			expectedError:     ErrorInvalidParam{Param: "githubRepositoryID", Message: "github repository is not accessible"},
 		},
 	}
 
@@ -7498,7 +7628,8 @@ func TestUpdateGithubRepository(t *testing.T) {
 			mockStore := mocks.NewProjectsStore(t)
 			tt.setupMocks(mockStore)
 			sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
-			handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil)
+			validator := &fakeGithubInstallationValidator{repoErr: tt.validationErr}
+			handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil, WithGithubInstallationValidator(validator))
 			c, rec := e.PUT("/organizations/" + apitest.TestOrganization + "/projects/" + tt.projectID + "/branches/" + tt.branchID + "/githubapp/repository").WithJSONBody(tt.jsonBody).Context()
 			err := handler.UpdateGithubRepository(c, apitest.TestOrganization, tt.projectID, tt.branchID)
 			if tt.wantError {
@@ -7513,6 +7644,7 @@ func TestUpdateGithubRepository(t *testing.T) {
 				assert.Equal(t, tt.expectedMapping, got)
 			}
 
+			assert.Equal(t, tt.expectedRepoCalls, validator.repoCalls)
 			mockStore.AssertExpectations(t)
 		})
 	}

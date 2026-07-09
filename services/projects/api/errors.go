@@ -89,6 +89,25 @@ func (e ErrorGithubInstallationValidationUnavailable) StatusCode() int {
 	return http.StatusServiceUnavailable
 }
 
+type ErrorGithubRepositoryValidationUnavailable struct {
+	Err error
+}
+
+func (e ErrorGithubRepositoryValidationUnavailable) Error() string {
+	if e.Err == nil {
+		return "cannot validate github repository ID"
+	}
+	return fmt.Sprintf("cannot validate github repository ID: %v", e.Err)
+}
+
+func (e ErrorGithubRepositoryValidationUnavailable) Unwrap() error {
+	return e.Err
+}
+
+func (e ErrorGithubRepositoryValidationUnavailable) StatusCode() int {
+	return http.StatusServiceUnavailable
+}
+
 type ErrorBranchNotFound struct {
 	BranchID string
 }

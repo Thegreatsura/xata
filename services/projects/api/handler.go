@@ -102,6 +102,7 @@ type handler struct {
 
 type GithubInstallationValidator interface {
 	ValidateInstallation(ctx context.Context, installationID int64) error
+	ValidateRepositoryAccess(ctx context.Context, repositoryID int64, installationIDs []int64) error
 }
 
 type HandlerOption func(*handler)
@@ -2309,6 +2310,45 @@ func (s *handler) validateGithubInstallationID(ctx context.Context, installation
 	return s.githubInstallationValidator.ValidateInstallation(ctx, installationID)
 }
 
+func (s *handler) validateGithubRepositoryAccess(c echo.Context, repositoryID int64) error {
+	if s.githubInstallationValidator == nil {
+		return ErrorGithubRepositoryValidationUnavailable{Err: errors.New("github repository validator is not configured")}
+	}
+
+	claims := api.GetUserClaims(c)
+	if claims == nil {
+		return echo.NewHTTPError(http.StatusUnauthorized)
+	}
+
+	organizationIDs := make([]string, 0, len(claims.Organizations))
+	for organizationID := range claims.Organizations {
+		organizationIDs = append(organizationIDs, organizationID)
+	}
+	slices.Sort(organizationIDs)
+
+	installationIDSet := map[int64]struct{}{}
+	for _, organizationID := range organizationIDs {
+		installations, err := s.store.ListGithubInstallations(c.Request().Context(), organizationID)
+		if err != nil {
+			return err
+		}
+		for _, installation := range installations {
+			installationIDSet[installation.InstallationID] = struct{}{}
+		}
+	}
+
+	installationIDs := make([]int64, 0, len(installationIDSet))
+	for installationID := range installationIDSet {
+		installationIDs = append(installationIDs, installationID)
+	}
+	slices.Sort(installationIDs)
+	if len(installationIDs) == 0 {
+		return ErrorInvalidParam{Param: "githubRepositoryID", Message: "github repository is not accessible"}
+	}
+
+	return s.githubInstallationValidator.ValidateRepositoryAccess(c.Request().Context(), repositoryID, installationIDs)
+}
+
 // (GET /organizations/{organizationID}/githubapp/installations)
 func (s *handler) ListGithubAppInstallations(c echo.Context, organizationID spec.OrganizationID) error {
 	return s.withOrganizationAccess(c, organizationID, All, func() error {
@@ -2368,6 +2408,9 @@ func (s *handler) CreateGithubRepository(c echo.Context, organizationID spec.Org
 		if strings.TrimSpace(branchID) == "" {
 			return ErrorInvalidParam{Param: "branchID", Message: "must not be empty"}
 		}
+		if err := s.validateGithubRepositoryAccess(c, body.GithubRepositoryID); err != nil {
+			return err
+		}
 
 		mapping, err := s.store.CreateGithubRepoMapping(c.Request().Context(), organizationID, projectID, body.GithubRepositoryID, branchID)
 		if err != nil {
@@ -2390,6 +2433,9 @@ func (s *handler) UpdateGithubRepository(c echo.Context, organizationID spec.Org
 		}
 		if strings.TrimSpace(branchID) == "" {
 			return ErrorInvalidParam{Param: "branchID", Message: "must not be empty"}
+		}
+		if err := s.validateGithubRepositoryAccess(c, body.GithubRepositoryID); err != nil {
+			return err
 		}
 
 		mapping, err := s.store.UpdateGithubRepoMapping(c.Request().Context(), organizationID, projectID, body.GithubRepositoryID, branchID)
