@@ -1217,7 +1217,7 @@ func (s *handler) DescribeBranch(c echo.Context, organizationID spec.Organizatio
 		connString, err := s.getConnectionString(c, organizationID, branch)
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			log.Ctx(c.Request().Context()).
-				Err(err).
+				Info().
 				Str("branchID", branch.ID).
 				Str("grpc.message", st.Message()).
 				Msg("connection string not found")
