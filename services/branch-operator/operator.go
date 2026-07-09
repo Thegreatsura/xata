@@ -69,6 +69,13 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 	// Get Kubernetes configuration
 	config := ctrl.GetConfigOrDie()
 
+	if s.config.KubeClientQPS > 0 {
+		config.QPS = float32(s.config.KubeClientQPS)
+	}
+	if s.config.KubeClientBurst > 0 {
+		config.Burst = s.config.KubeClientBurst
+	}
+
 	// Create a new scheme and register types
 	scheme := runtime.NewScheme()
 	if err := clientgoscheme.AddToScheme(scheme); err != nil {
