@@ -115,13 +115,14 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// If the branch doesn't need to be woken up (ie it already has a cluster
 	// assigned) then:
-	// * ensure that the awaiting wakeup annotation is cleared
+	// * ensure that the awaiting wakeup annotation is cleared by re-assigning
+	//   the cluster to the branch
 	// * set the Succeeded condition to True
 	// * requeue the WakeupRequest for deletion after its TTL expires
 	if branch.Spec.ClusterSpec.Name != nil {
-		err = r.clearAwaitingWakeup(ctx, branch)
+		err = r.assignClusterToBranch(ctx, branch, *branch.Spec.ClusterSpec.Name)
 		if err != nil {
-			log.Error(err, "clearing awaiting wakeup annotation", "branchName", branch.Name)
+			log.Error(err, "re-assigning cluster to Branch", "branchName", branch.Name)
 			return ctrl.Result{}, ignoreTerminal(err)
 		}
 

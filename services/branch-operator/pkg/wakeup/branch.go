@@ -68,18 +68,3 @@ func (r *WakeupReconciler) assignClusterToBranch(ctx context.Context, branch *v1
 
 	return nil
 }
-
-// clearAwaitingWakeup updates the Branch resource to set the awaiting wakeup
-// annotation to false.
-func (r *WakeupReconciler) clearAwaitingWakeup(ctx context.Context, branch *v1alpha1.Branch) error {
-	ac := v1alpha1ac.Branch(branch.Name, "").
-		WithAnnotations(map[string]string{v1alpha1.AwaitingWakeupAnnotation: "false"})
-
-	// Apply the Branch annotation update using SSA
-	err := r.Apply(ctx, ac, client.FieldOwner(ReconcilerName), client.ForceOwnership)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}

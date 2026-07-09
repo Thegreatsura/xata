@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"xata/internal/envtestutil"
 	poolv1alpha1 "xata/proto/clusterpool-operator/api/v1alpha1"
 	"xata/services/branch-operator/api/v1alpha1"
 
@@ -181,32 +180,63 @@ func TestWakeupReconciler(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		branchName := "branch-" + randomString(10)
-		wrName := "wur-" + randomString(10)
+		poolName := "pool-" + randomString(10)
 		clusterName := "cluster-" + randomString(10)
+		branchName := "branch-" + randomString(10)
 
-		// Create a Branch with a pool annotation and no cluster name
+		// Create a ClusterPool
+		pool := &poolv1alpha1.ClusterPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      poolName,
+				Namespace: TestNamespace,
+			},
+			Spec: poolv1alpha1.ClusterPoolSpec{
+				Clusters: 1,
+				ClusterSpec: apiv1.ClusterSpec{
+					Instances: 1,
+				},
+			},
+		}
+		require.NoError(t, k8sClient.Create(ctx, pool))
+
+		// Create a healthy CNPG Cluster with 1 ready instance, owned by the pool
+		cluster, err := setupPoolCluster(ctx, pool, clusterName, TestNamespace, 1)
+		require.NoError(t, err)
+
+		// Create a Branch with pool annotation and no cluster name
 		branch, err := createBranch(ctx, branchName, map[string]string{
-			v1alpha1.WakeupPoolAnnotation:     "some-pool",
+			v1alpha1.WakeupPoolAnnotation:     poolName,
 			v1alpha1.AwaitingWakeupAnnotation: "true",
 		})
 		require.NoError(t, err)
 
-		// Update the Branch to have a cluster name assigned
-		err = envtestutil.RetryOnConflict(ctx, k8sClient, branch, func(b *v1alpha1.Branch) {
-			b.Spec.ClusterSpec.Name = new(clusterName)
+		// Set up the Cluster to simulate that the password sync has already
+		// completed
+		require.NoError(t, seedPasswordSync(ctx, branch, cluster))
+
+		// Create a first WakeupRequest and ensure that it succeeds
+		firstWR, err := createWakeupRequest(ctx, "wur-"+randomString(10), branch.Name)
+		require.NoError(t, err)
+		requireWakeupSucceededCondition(t, ctx, firstWR, metav1.ConditionTrue, v1alpha1.WakeupSucceededReason)
+
+		// Expect the Branch to have a cluster name assigned
+		requireEventuallyTrue(t, func() bool {
+			br := &v1alpha1.Branch{}
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(branch), br); err != nil {
+				return false
+			}
+			return br.Spec.ClusterSpec.Name != nil && *br.Spec.ClusterSpec.Name == clusterName
 		})
+
+		// Create a second WakeupRequest for the same Branch
+		secondWR, err := createWakeupRequest(ctx, "wur-"+randomString(10), branch.Name)
 		require.NoError(t, err)
 
-		// Create a WakeupRequest for the already-woken branch
-		wr, err := createWakeupRequest(ctx, wrName, branch.Name)
-		require.NoError(t, err)
-
-		// Expect the WakeupRequest to complete successfully
-		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionTrue, v1alpha1.WakeupSucceededReason)
+		// Expect the second WakeupRequest to complete successfully
+		requireWakeupSucceededCondition(t, ctx, secondWR, metav1.ConditionTrue, v1alpha1.WakeupSucceededReason)
 
 		// Expect the Branch to retain its existing cluster name and have the
-		// awaiting wakeup annotation set to false
+		// awaiting wakeup annotation set to false.
 		requireEventuallyTrue(t, func() bool {
 			br := &v1alpha1.Branch{}
 			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(branch), br)
