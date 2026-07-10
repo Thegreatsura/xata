@@ -64,7 +64,7 @@ var metricCatalog = map[string]MetricInfo{
 	"latency_write":        {PromName: "cnpg_pg_stat_io_total_write_time_ms", Unit: "ms", Kind: Counter, TemporalAggDefault: "rate"},
 	"throughput_read":      {PromName: "container_fs_reads_bytes_total", Unit: "bytes", Kind: Counter, TemporalAggDefault: "rate"},
 	"throughput_write":     {PromName: "container_fs_writes_bytes_total", Unit: "bytes", Kind: Counter, TemporalAggDefault: "rate"},
-	"wal_sync_time":        {PromName: "cnpg_collector_wal_sync_time", Unit: "ms", Kind: Gauge, SpaceAggDefault: "avg"},
+	"wal_sync_time":        {PromName: "cnpg_collector_wal_sync_time", Unit: "ms", Kind: Counter, TemporalAggDefault: "rate"},
 	"replication_lag_time": {PromName: "cnpg_pg_replication_lag", Unit: "s", Kind: Gauge, SpaceAggDefault: "avg"},
 }
 

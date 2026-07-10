@@ -67,6 +67,15 @@ func TestMetricsQuerier_BuildsPromQLPerMetric(t *testing.T) {
 				"sum by (pod) (max_over_time(cnpg_pg_stat_activity_connections_active{",
 			},
 		},
+		"counter wal_sync_time rate": {
+			// cnpg_collector_wal_sync_time is cumulative (pg_stat_wal), so it
+			// must be rated rather than shown as a raw ever-growing total.
+			metric:       "wal_sync_time",
+			aggregations: []string{"avg"},
+			wantContains: []string{
+				"avg by (pod) (rate(cnpg_collector_wal_sync_time{",
+			},
+		},
 	}
 
 	for name, tt := range tests {
