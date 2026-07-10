@@ -322,9 +322,11 @@ var InstanceTypes = []InstanceType{
 }
 
 var RegionMultiplier = map[string]float64{
-	"us-east-1":    1.0,
-	"us-west-2":    1.0,
-	"eu-central-1": 1.15,
+	"us-east-1":       1.0,
+	"us-west-2":       1.0,
+	"eu-central-1":    1.15,
+	"us-central1":     1.0,
+	"asia-southeast1": 1.2,
 }
 
 type GithubInstallation struct {
