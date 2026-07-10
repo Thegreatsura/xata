@@ -25,9 +25,11 @@ import (
 var migrationsFS embed.FS
 
 const (
-	UniqueConstraintProject = "unique_org_project_active"
-	UniqueConstraintBranch  = "unique_project_branch_name_active"
-	UniqueRegionsConstraint = "regions_pkey"
+	UniqueConstraintProject                          = "unique_org_project_active"
+	UniqueConstraintBranch                           = "unique_project_branch_name_active"
+	UniqueRegionsConstraint                          = "regions_pkey"
+	UniqueConstraintGithubInstallationOrg            = "github_installations_unique_org_installation"
+	UniqueConstraintGithubInstallationInstallationID = "github_installations_unique_installation_id"
 )
 
 const (
@@ -1368,7 +1370,7 @@ func (s *sqlProjectStore) CreateGithubInstallation(ctx context.Context, organiza
 		idgen.Generate(), installationID, organization).Scan(
 		&inst.ID, &inst.InstallationID, &inst.Organization, &inst.CreatedAt, &inst.UpdatedAt)
 	if err != nil {
-		if IsConstraintError(err, "github_installations_unique_org_installation") {
+		if isGithubInstallationAlreadyExistsError(err) {
 			return nil, store.ErrGithubInstallationAlreadyExists{Organization: organization, InstallationID: installationID}
 		}
 		return nil, err
@@ -1412,12 +1414,17 @@ func (s *sqlProjectStore) UpdateGithubInstallation(ctx context.Context, organiza
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrGithubInstallationNotFound{Organization: organization, ID: id}
 		}
-		if IsConstraintError(err, "github_installations_unique_org_installation") {
+		if isGithubInstallationAlreadyExistsError(err) {
 			return nil, store.ErrGithubInstallationAlreadyExists{Organization: organization, InstallationID: installationID}
 		}
 		return nil, err
 	}
 	return &inst, nil
+}
+
+func isGithubInstallationAlreadyExistsError(err error) bool {
+	return IsConstraintError(err, UniqueConstraintGithubInstallationOrg) ||
+		IsConstraintError(err, UniqueConstraintGithubInstallationInstallationID)
 }
 
 func (s *sqlProjectStore) CreateGithubRepoMapping(ctx context.Context, organization, project string, repoID int64, rootBranchID string) (*store.GithubRepoMapping, error) {

@@ -264,7 +264,7 @@ type ErrGithubInstallationAlreadyExists struct {
 }
 
 func (e ErrGithubInstallationAlreadyExists) Error() string {
-	return fmt.Sprintf("github installation [%d] already exists for organization [%s]", e.InstallationID, e.Organization)
+	return fmt.Sprintf("github installation [%d] is already linked to a Xata organization", e.InstallationID)
 }
 
 func (e ErrGithubInstallationAlreadyExists) StatusCode() int {

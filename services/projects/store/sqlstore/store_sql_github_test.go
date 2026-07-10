@@ -45,7 +45,7 @@ func TestSQLStoreGithubInstallations(t *testing.T) {
 
 	t.Run("create github installation", func(t *testing.T) {
 		existingOrg := "gh-create-existing-org"
-		var existingInstallationID int64 = 12345
+		var existingInstallationID int64 = 12346
 		_, err := sqlStore.CreateGithubInstallation(ctx, existingOrg, existingInstallationID)
 		require.NoError(t, err)
 
@@ -68,9 +68,14 @@ func TestSQLStoreGithubInstallations(t *testing.T) {
 					require.ErrorAs(t, err, &target)
 				},
 			},
-			"same installation id in different org succeeds": {
+			"duplicate installation in different org returns error": {
 				organization:   "gh-create-other-org",
 				installationID: existingInstallationID,
+				wantError:      true,
+				checkError: func(t *testing.T, err error) {
+					var target store.ErrGithubInstallationAlreadyExists
+					require.ErrorAs(t, err, &target)
+				},
 			},
 		}
 
@@ -92,13 +97,19 @@ func TestSQLStoreGithubInstallations(t *testing.T) {
 
 	t.Run("update github installation", func(t *testing.T) {
 		updateOrg := "gh-update-org"
-		inst, err := sqlStore.CreateGithubInstallation(ctx, updateOrg, 12345)
+		inst, err := sqlStore.CreateGithubInstallation(ctx, updateOrg, 12347)
 		require.NoError(t, err)
 
 		conflictOrg := "gh-update-conflict-org"
 		conflictInst, err := sqlStore.CreateGithubInstallation(ctx, conflictOrg, 11111)
 		require.NoError(t, err)
 		_, err = sqlStore.CreateGithubInstallation(ctx, conflictOrg, 22222)
+		require.NoError(t, err)
+
+		otherOrg := "gh-update-other-org"
+		otherInst, err := sqlStore.CreateGithubInstallation(ctx, otherOrg, 33333)
+		require.NoError(t, err)
+		_, err = sqlStore.CreateGithubInstallation(ctx, "gh-update-existing-other-org", 44444)
 		require.NoError(t, err)
 
 		tests := map[string]struct {
@@ -111,7 +122,7 @@ func TestSQLStoreGithubInstallations(t *testing.T) {
 			"updates installation id": {
 				organization:      updateOrg,
 				installationID:    inst.ID,
-				newInstallationID: 99999,
+				newInstallationID: 55555,
 			},
 			"unknown installation returns not found": {
 				organization:      updateOrg,
@@ -127,6 +138,16 @@ func TestSQLStoreGithubInstallations(t *testing.T) {
 				organization:      conflictOrg,
 				installationID:    conflictInst.ID,
 				newInstallationID: 22222,
+				wantError:         true,
+				checkError: func(t *testing.T, err error) {
+					var target store.ErrGithubInstallationAlreadyExists
+					require.ErrorAs(t, err, &target)
+				},
+			},
+			"duplicate installation id in different org returns error": {
+				organization:      otherOrg,
+				installationID:    otherInst.ID,
+				newInstallationID: 44444,
 				wantError:         true,
 				checkError: func(t *testing.T, err error) {
 					var target store.ErrGithubInstallationAlreadyExists
