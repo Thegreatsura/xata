@@ -6,9 +6,12 @@ import (
 	"fmt"
 
 	"xata/services/branch-operator/api/v1alpha1"
+	v1alpha1ac "xata/services/branch-operator/applyconfiguration/api/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // ConditionError indicates that a specific condition on a Branch should be set
@@ -27,84 +30,83 @@ func (e *ConditionError) Unwrap() error {
 	return e.Err
 }
 
-// ensureStatusConditions initializes all status conditions for a Branch to
-// their default state if they are not already set.
-func (r *BranchReconciler) ensureStatusConditions(ctx context.Context, br *v1alpha1.Branch) error {
-	if len(br.Status.Conditions) != 0 {
-		return nil
+// applyStatus applies Branch status using Server-Side Apply. A Branch's status
+// is built up in-memory during reconciliation, and then applied to the API
+// server once at the end of reconciliation
+func (r *BranchReconciler) applyStatus(ctx context.Context, br *v1alpha1.Branch) error {
+	status := v1alpha1ac.BranchStatus().
+		WithObservedGeneration(br.Status.ObservedGeneration).
+		WithLastError(br.Status.LastError).
+		WithConditions(conditionsAC(br.Status.Conditions)...)
+
+	if br.Status.PrimaryXVolName != "" {
+		status = status.WithPrimaryXVolName(br.Status.PrimaryXVolName)
 	}
 
-	br.Status.Conditions = make([]metav1.Condition, 0)
-	readyCondition := metav1.Condition{
-		Type:               v1alpha1.BranchReadyConditionType,
-		Status:             metav1.ConditionUnknown,
-		ObservedGeneration: br.Generation,
-		Reason:             v1alpha1.AwaitingReconciliationReason,
-		Message:            v1alpha1.BranchConditionMessages[v1alpha1.AwaitingReconciliationReason],
-	}
+	ac := v1alpha1ac.Branch(br.Name, "").WithStatus(status)
 
-	meta.SetStatusCondition(&br.Status.Conditions, readyCondition)
-
-	return r.Status().Update(ctx, br)
+	return r.Status().Apply(ctx, ac, client.FieldOwner(OperatorName), client.ForceOwnership)
 }
 
-// setStatusConditionFromError sets a status condition to False on the Branch
-// based on the provided error. If the error is a ConditionError, the specified
-// condition type and reason are used. Otherwise, the Branch Ready condition is
-// set to False with a generic reconciliation failure reason.
-func (r *BranchReconciler) setStatusConditionFromError(ctx context.Context, br *v1alpha1.Branch, err error) error {
+// conditionsAC converts the given conditions to apply configurations.
+func conditionsAC(conditions []metav1.Condition) []*metav1ac.ConditionApplyConfiguration {
+	acs := make([]*metav1ac.ConditionApplyConfiguration, 0, len(conditions))
+
+	for _, cond := range conditions {
+		acs = append(acs, metav1ac.Condition().
+			WithType(cond.Type).
+			WithStatus(cond.Status).
+			WithReason(cond.Reason).
+			WithMessage(cond.Message).
+			WithObservedGeneration(cond.ObservedGeneration).
+			WithLastTransitionTime(cond.LastTransitionTime))
+	}
+	return acs
+}
+
+// setStatusConditionFromError sets the Branch Ready condition in memory based on
+// the provided error. When the error is nil the condition is left unchanged (the
+// caller sets the success condition). When the error is non-nil the condition is
+// set to False: the condition type and reason from a ConditionError, or the
+// generic Ready=False reconciliation failure otherwise.
+func setStatusConditionFromError(br *v1alpha1.Branch, err error) {
 	if err == nil {
-		return nil
+		return
 	}
 
-	var condErr *ConditionError
-	ok := errors.As(err, &condErr)
-	if ok {
-		return r.setStatusCondition(ctx, br, condErr.ConditionType, metav1.ConditionFalse, condErr.ConditionReason)
+	conditionType := v1alpha1.BranchReadyConditionType
+	reason := v1alpha1.ReconciliationFailedReason
+	if condErr, ok := errors.AsType[*ConditionError](err); ok {
+		conditionType = condErr.ConditionType
+		reason = condErr.ConditionReason
 	}
 
-	return r.setStatusCondition(ctx, br, v1alpha1.BranchReadyConditionType, metav1.ConditionFalse, v1alpha1.ReconciliationFailedReason)
+	setStatusCondition(br, conditionType, metav1.ConditionFalse, reason)
 }
 
-// setStatusCondition sets the specified condition on the Branch status
-func (r *BranchReconciler) setStatusCondition(ctx context.Context,
-	br *v1alpha1.Branch,
-	conditionType string,
-	status metav1.ConditionStatus,
-	reason string,
-) error {
-	condition := metav1.Condition{
+// setStatusCondition sets the given condition on the Branch's in-memory
+// conditions using meta.SetStatusCondition, which populates LastTransitionTime
+// (a required field) and advances it only on an actual status transition.
+func setStatusCondition(br *v1alpha1.Branch, conditionType string, status metav1.ConditionStatus, reason string) {
+	meta.SetStatusCondition(&br.Status.Conditions, metav1.Condition{
 		Type:               conditionType,
 		Status:             status,
 		Reason:             reason,
 		Message:            v1alpha1.BranchConditionMessages[reason],
 		ObservedGeneration: br.Generation,
-	}
-
-	meta.SetStatusCondition(&br.Status.Conditions, condition)
-
-	return r.Status().Update(ctx, br)
+	})
 }
 
-// setReadyConditionTrue sets the Branch Ready condition to True with the given
-// reason
-func (r *BranchReconciler) setReadyConditionTrue(ctx context.Context, br *v1alpha1.Branch, reason string) error {
-	return r.setStatusCondition(ctx, br, v1alpha1.BranchReadyConditionType, metav1.ConditionTrue, reason)
+// setReadyCondition sets the Branch Ready condition in memory with the given
+// status and reason.
+func setReadyCondition(br *v1alpha1.Branch, status metav1.ConditionStatus, reason string) {
+	setStatusCondition(br, v1alpha1.BranchReadyConditionType, status, reason)
 }
 
-// setReadyConditionUnknown sets the Branch Ready condition to Unknown with the given
-// reason
-func (r *BranchReconciler) setReadyConditionUnknown(ctx context.Context, br *v1alpha1.Branch, reason string) error {
-	return r.setStatusCondition(ctx, br, v1alpha1.BranchReadyConditionType, metav1.ConditionUnknown, reason)
-}
-
-// setLastErrorStatus sets the LastError field in the Branch status
-func (r *BranchReconciler) setLastErrorStatus(ctx context.Context, br *v1alpha1.Branch, err error) error {
-	var msg string
+// errorMessage returns the error's message, or the empty string if err is nil.
+func errorMessage(err error) string {
 	if err != nil {
-		msg = err.Error()
+		return err.Error()
 	}
-
-	br.Status.LastError = msg
-	return r.Status().Update(ctx, br)
+	return ""
 }

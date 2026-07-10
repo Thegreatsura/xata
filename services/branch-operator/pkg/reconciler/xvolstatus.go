@@ -51,12 +51,9 @@ func (r *BranchReconciler) updateXVolStatus(ctx context.Context, branch *v1alpha
 		}
 	}
 
-	// The XVol exists, record its name on the Branch's status
+	// The XVol exists, record its name on the Branch's in-memory status; the
+	// deferred apply in Reconcile writes it.
 	branch.Status.PrimaryXVolName = xVol.GetName()
-	err = r.Status().Update(ctx, branch)
-	if err != nil {
-		return err
-	}
 
 	return nil
 }

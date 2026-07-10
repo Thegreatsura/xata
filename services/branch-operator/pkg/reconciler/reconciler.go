@@ -79,34 +79,24 @@ func (r *BranchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// Check if reconciliation is paused
 	if isReconciliationPaused(branch) {
-		err := r.setReadyConditionUnknown(ctx, branch, v1alpha1.ReconciliationPausedReason)
-		if err != nil {
+		setReadyCondition(branch, metav1.ConditionUnknown, v1alpha1.ReconciliationPausedReason)
+		if err := r.applyStatus(ctx, branch); err != nil {
 			log.Error(err, "setting Branch Ready condition to Unknown")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}
 
-	// Ensure status conditions are initialized
-	if err := r.ensureStatusConditions(ctx, branch); err != nil {
-		log.Error(err, "ensuring status conditions")
-		return ctrl.Result{}, err
-	}
+	// Set the observed generation to the current generation
+	branch.Status.ObservedGeneration = branch.Generation
 
-	// Set ObservedGeneration to the branch's current Generation
-	if branch.Status.ObservedGeneration != branch.Generation {
-		branch.Status.ObservedGeneration = branch.Generation
-		if err := r.Status().Update(ctx, branch); err != nil {
-			log.Error(err, "updating Branch status")
-			return ctrl.Result{}, err
-		}
-	}
-
-	// Defer setting status based on errors that occur during reconciliation
 	var err error
 	defer func() {
-		r.setStatusConditionFromError(ctx, branch, err)
-		r.setLastErrorStatus(ctx, branch, err)
+		setStatusConditionFromError(branch, err)
+		branch.Status.LastError = errorMessage(err)
+		if applyErr := r.applyStatus(ctx, branch); applyErr != nil {
+			log.Error(applyErr, "updating Branch status")
+		}
 	}()
 
 	// Reconcile the ObjectStore for the branch
@@ -223,11 +213,7 @@ func (r *BranchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// Set the Branch Ready condition to True
-	err = r.setReadyConditionTrue(ctx, branch, v1alpha1.ResourcesReadyReason)
-	if err != nil {
-		log.Error(err, "setting Branch Ready condition to True")
-		return ctrl.Result{}, err
-	}
+	setReadyCondition(branch, metav1.ConditionTrue, v1alpha1.ResourcesReadyReason)
 
 	return ctrl.Result{}, nil
 }
