@@ -104,7 +104,10 @@ func (h *handler) Query(c echo.Context, params spec.QueryParams) error {
 		o11y.SetReqAttribute(c, "branch_id", branch.ID)
 		o11y.SetReqAttribute(c, "error_type", errorType)
 		_ = handlePgError(c, err)
-		if errors.Is(err, context.Canceled) {
+		// Client-side conditions are not server faults: a canceled request
+		// (client gave up) or a user query that exceeded the execution
+		// timeout
+		if errorType == errTypeCanceled || errorType == errTypeQueryTimeout {
 			return nil
 		}
 
@@ -217,6 +220,15 @@ func (h *handler) connectTraced(ctx context.Context, branch *session.Branch, con
 	return conn, nil
 }
 
+// asExecTimeout maps an error to ErrQueryExecTimeout when the per-query
+// execution deadline was the cause, and passes through other errors unchanged
+func asExecTimeout(execCtx context.Context, err error) error {
+	if err != nil && errors.Is(context.Cause(execCtx), ErrQueryExecTimeout) {
+		return ErrQueryExecTimeout
+	}
+	return err
+}
+
 func (h *handler) executeQuery(ctx context.Context, branch *session.Branch, connInfo *connectionInfo, query string, params []any, opts queryOptions) (*spec.QueryResult, error) {
 	conn, err := h.connectTraced(ctx, branch, connInfo)
 	if err != nil {
@@ -224,7 +236,7 @@ func (h *handler) executeQuery(ctx context.Context, branch *session.Branch, conn
 	}
 	defer conn.Close(context.Background())
 
-	execCtx, cancel := context.WithTimeout(ctx, queryTimeout)
+	execCtx, cancel := context.WithTimeoutCause(ctx, queryTimeout, ErrQueryExecTimeout)
 	defer cancel()
 
 	execCtx, execSpan := h.tracer.Start(execCtx, "sql_execute")
@@ -232,9 +244,13 @@ func (h *handler) executeQuery(ctx context.Context, branch *session.Branch, conn
 
 	rows, err := conn.Query(execCtx, query, queryArgs(params)...)
 	if err != nil {
-		return nil, err
+		return nil, asExecTimeout(execCtx, err)
 	}
-	return processRows(rows, opts)
+	result, err := processRows(rows, opts)
+	if err != nil {
+		return nil, asExecTimeout(execCtx, err)
+	}
+	return result, nil
 }
 
 func (h *handler) executeBatch(ctx context.Context, branch *session.Branch, connInfo *connectionInfo, queries []spec.QueryItem, opts queryOptions, txOpts pgx.TxOptions) (*spec.BatchResponse, error) {
@@ -244,7 +260,7 @@ func (h *handler) executeBatch(ctx context.Context, branch *session.Branch, conn
 	}
 	defer conn.Close(context.Background())
 
-	execCtx, cancel := context.WithTimeout(ctx, queryTimeout)
+	execCtx, cancel := context.WithTimeoutCause(ctx, queryTimeout, ErrQueryExecTimeout)
 	defer cancel()
 
 	_, execSpan := h.tracer.Start(execCtx, "sql_execute")
@@ -252,7 +268,7 @@ func (h *handler) executeBatch(ctx context.Context, branch *session.Branch, conn
 
 	tx, err := conn.BeginTx(execCtx, txOpts)
 	if err != nil {
-		return nil, fmt.Errorf("begin transaction: %w", err)
+		return nil, asExecTimeout(execCtx, fmt.Errorf("begin transaction: %w", err))
 	}
 	defer func() { _ = tx.Rollback(context.Background()) }()
 
@@ -260,17 +276,17 @@ func (h *handler) executeBatch(ctx context.Context, branch *session.Branch, conn
 	for _, q := range queries {
 		rows, err := tx.Query(execCtx, q.Query, queryArgs(ptr.Deref(q.Params, nil))...)
 		if err != nil {
-			return nil, err
+			return nil, asExecTimeout(execCtx, err)
 		}
 		result, err := processRows(rows, opts.withArrayMode(q.ArrayMode))
 		if err != nil {
-			return nil, err
+			return nil, asExecTimeout(execCtx, err)
 		}
 		results = append(results, *result)
 	}
 
 	if err := tx.Commit(execCtx); err != nil {
-		return nil, fmt.Errorf("commit transaction: %w", err)
+		return nil, asExecTimeout(execCtx, fmt.Errorf("commit transaction: %w", err))
 	}
 
 	return &spec.BatchResponse{Results: results}, nil

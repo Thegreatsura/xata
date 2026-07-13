@@ -1749,7 +1749,7 @@
             }
           },
           "400": {
-            "description": "Invalid request or SQL error",
+            "description": "Invalid request, SQL error, or query execution timeout",
             "content": {
               "application/json": {
                 "schema": {
@@ -1770,6 +1770,16 @@
           },
           "500": {
             "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Timed out connecting to the database",
             "content": {
               "application/json": {
                 "schema": {

@@ -668,14 +668,24 @@ func TestHandlePgError(t *testing.T) {
 			wantStatusCode: http.StatusBadRequest,
 			wantCode:       "53200",
 		},
-		"deadline exceeded": {
+		"connect deadline exceeded": {
 			err:            fmt.Errorf("connect: %w", context.DeadlineExceeded),
 			wantStatusCode: http.StatusGatewayTimeout,
-			wantCode:       "QUERY_TIMEOUT",
+			wantCode:       "GATEWAY_TIMEOUT",
 		},
 		"bare deadline exceeded": {
 			err:            context.DeadlineExceeded,
 			wantStatusCode: http.StatusGatewayTimeout,
+			wantCode:       "GATEWAY_TIMEOUT",
+		},
+		"query execution timeout": {
+			err:            ErrQueryExecTimeout,
+			wantStatusCode: http.StatusBadRequest,
+			wantCode:       "QUERY_TIMEOUT",
+		},
+		"wrapped query execution timeout": {
+			err:            fmt.Errorf("query: %w", ErrQueryExecTimeout),
+			wantStatusCode: http.StatusBadRequest,
 			wantCode:       "QUERY_TIMEOUT",
 		},
 		"branch hibernated": {
@@ -733,6 +743,42 @@ func TestHandlePgError_Canceled(t *testing.T) {
 	require.Empty(t, rec.Body.String())
 }
 
+func TestExecTimeoutErr(t *testing.T) {
+	t.Run("maps execution deadline to sentinel", func(t *testing.T) {
+		// The per-query execution context carries ErrQueryExecTimeout as its
+		// cancellation cause; a slow user query surfaces a wrapped
+		// DeadlineExceeded that must be relabeled.
+		ctx, cancel := context.WithTimeoutCause(context.Background(), time.Millisecond, ErrQueryExecTimeout)
+		defer cancel()
+		<-ctx.Done()
+
+		got := asExecTimeout(ctx, fmt.Errorf("query failed: %w", context.DeadlineExceeded))
+		require.ErrorIs(t, got, ErrQueryExecTimeout)
+	})
+
+	t.Run("leaves a deadline without our cause unchanged", func(t *testing.T) {
+		// A dial timeout returns before execCtx exists, but guard on the cause
+		// (not on DeadlineExceeded) so a plain deadline is never relabeled as a
+		// user query timeout — it must stay a server fault.
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+		defer cancel()
+		<-ctx.Done()
+
+		connErr := fmt.Errorf("connect: %w", context.DeadlineExceeded)
+		got := asExecTimeout(ctx, connErr)
+		require.Equal(t, connErr, got)
+		require.NotErrorIs(t, got, ErrQueryExecTimeout)
+	})
+
+	t.Run("passes through nil", func(t *testing.T) {
+		ctx, cancel := context.WithTimeoutCause(context.Background(), time.Millisecond, ErrQueryExecTimeout)
+		defer cancel()
+		<-ctx.Done()
+
+		require.NoError(t, asExecTimeout(ctx, nil))
+	})
+}
+
 func TestClassifyError(t *testing.T) {
 	tests := map[string]struct {
 		err  error
@@ -749,6 +795,14 @@ func TestClassifyError(t *testing.T) {
 		"wrapped deadline exceeded": {
 			err:  fmt.Errorf("connect: %w", context.DeadlineExceeded),
 			want: "timeout",
+		},
+		"query execution timeout": {
+			err:  ErrQueryExecTimeout,
+			want: "query_timeout",
+		},
+		"wrapped query execution timeout": {
+			err:  fmt.Errorf("query: %w", ErrQueryExecTimeout),
+			want: "query_timeout",
 		},
 		"canceled": {
 			err:  context.Canceled,

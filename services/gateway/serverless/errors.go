@@ -23,6 +23,7 @@ var (
 	ErrMissingConnectionString = errors.New("missing Connection-String header")
 	ErrInvalidConnectionString = errors.New("invalid connection string format")
 	ErrResponseTooLarge        = errors.New("response too large")
+	ErrQueryExecTimeout        = errors.New("query execution exceeded timeout")
 )
 
 // Error classifications returned by classifyError. They are used as a metric
@@ -30,6 +31,7 @@ var (
 const (
 	errTypeHibernated       = "hibernated"
 	errTypeBranchNotFound   = "branch_not_found"
+	errTypeQueryTimeout     = "query_timeout"
 	errTypeTimeout          = "timeout"
 	errTypeCanceled         = "canceled"
 	errTypeResponseTooLarge = "response_too_large"
@@ -125,8 +127,10 @@ func handlePgError(c echo.Context, err error) error {
 	switch classifyError(err) {
 	case errTypeResponseTooLarge:
 		return c.JSON(http.StatusInsufficientStorage, errorResponse("RESPONSE_TOO_LARGE", err.Error()))
+	case errTypeQueryTimeout:
+		return c.JSON(http.StatusBadRequest, errorResponse("QUERY_TIMEOUT", "query exceeded the timeout limit"))
 	case errTypeTimeout:
-		return c.JSON(http.StatusGatewayTimeout, errorResponse("QUERY_TIMEOUT", "query exceeded the timeout limit"))
+		return c.JSON(http.StatusGatewayTimeout, errorResponse("GATEWAY_TIMEOUT", "timed out connecting to the database"))
 	case errTypeCanceled:
 		return nil
 	case errTypeHibernated:
@@ -164,6 +168,9 @@ func classifyError(err error) string {
 	}
 	if errors.Is(err, session.ErrBranchNotFound) {
 		return errTypeBranchNotFound
+	}
+	if errors.Is(err, ErrQueryExecTimeout) {
+		return errTypeQueryTimeout
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return errTypeTimeout
