@@ -70,17 +70,24 @@ func (_c *Client_CountPendingInvoices_Call) Return(_a0 int, _a1 error) *Client_C
 }
 
 // CreateCustomer provides a mock function with given fields: ctx, name, email, externalCustomerID, organizationsCount, metadata
-func (_m *Client) CreateCustomer(ctx context.Context, name string, email string, externalCustomerID string, organizationsCount int, metadata billing.OrbCustomerMetadata) error {
+func (_m *Client) CreateCustomer(ctx context.Context, name string, email string, externalCustomerID string, organizationsCount int, metadata billing.OrbCustomerMetadata) (billing.CreateCustomerResult, error) {
 	ret := _m.Called(ctx, name, email, externalCustomerID, organizationsCount, metadata)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, int, billing.OrbCustomerMetadata) error); ok {
+	var r0 billing.CreateCustomerResult
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, int, billing.OrbCustomerMetadata) billing.CreateCustomerResult); ok {
 		r0 = rf(ctx, name, email, externalCustomerID, organizationsCount, metadata)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(billing.CreateCustomerResult)
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, int, billing.OrbCustomerMetadata) error); ok {
+		r1 = rf(ctx, name, email, externalCustomerID, organizationsCount, metadata)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // Client_CreateCustomer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateCustomer'
@@ -106,8 +113,8 @@ func (_c *Client_CreateCustomer_Call) Run(run func(ctx context.Context, name str
 	return _c
 }
 
-func (_c *Client_CreateCustomer_Call) Return(_a0 error) *Client_CreateCustomer_Call {
-	_c.Call.Return(_a0)
+func (_c *Client_CreateCustomer_Call) Return(_a0 billing.CreateCustomerResult, _a1 error) *Client_CreateCustomer_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 

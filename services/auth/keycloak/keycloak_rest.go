@@ -73,19 +73,12 @@ func (r *restKC) CreateOrganization(ctx context.Context, realm string, params Or
 }
 
 func (r *restKC) buildCreateOrganizationPayload(id string, params OrganizationCreate) KeycloakOrganization {
-	defaultBillingStatus := OrganizationBillingStatusNoPaymentMethod
-	defaultBillingReason := "Organization created, no payment method set"
-	if !r.authConfig.BillingRequired {
-		defaultBillingStatus = OrganizationBillingStatusOK
-		defaultBillingReason = "Organization enabled by default since billing is not required"
-	}
-
 	now := time.Now().UTC().Format(time.RFC3339)
 	attrs := map[string][]string{
 		"displayName":                  {params.Name},
 		OrganizationDisabledByAdminKey: {"false"},
-		OrganizationBillingStatusKey:   {string(defaultBillingStatus)},
-		OrganizationBillingReasonKey:   {defaultBillingReason},
+		OrganizationBillingStatusKey:   {string(params.BillingStatus)},
+		OrganizationBillingReasonKey:   {params.BillingReason},
 		OrganizationUsageTierKey:       {string(params.UsageTier)},
 		OrganizationLastUpdatedKey:     {now},
 		OrganizationCreatedAtKey:       {now},

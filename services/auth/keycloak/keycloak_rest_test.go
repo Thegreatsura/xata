@@ -521,8 +521,10 @@ func TestConvertToOrganization_AWSMarketplace(t *testing.T) {
 
 	r := &restKC{}
 	org := r.buildCreateOrganizationPayload("org_123", OrganizationCreate{
-		Name:      "Acme",
-		UsageTier: OrganizationUsageTierT2,
+		Name:          "Acme",
+		UsageTier:     OrganizationUsageTierT2,
+		BillingStatus: OrganizationBillingStatusOK,
+		BillingReason: "Organization enabled with marketplace billing",
 		Marketplace: AWSMarketplace{
 			CustomerID: "cust-1",
 			ProductID:  "prod-1",
@@ -538,21 +540,24 @@ func TestConvertToOrganization_AWSMarketplace(t *testing.T) {
 	assert.Equal(t, "cust-1", converted.AWSMarketplace.CustomerID)
 	assert.Equal(t, "prod-1", converted.AWSMarketplace.ProductID)
 	assert.Equal(t, "acct-1", converted.AWSMarketplace.AccountID)
+	assert.Equal(t, OrganizationBillingStatusOK, converted.Status.BillingStatus)
+	assert.Equal(t, OrganizationStateEnabled, converted.Status.EffectiveState())
 }
 
-func TestBuildCreateOrganizationPayload_BillingRequired(t *testing.T) {
+func TestBuildCreateOrganizationPayload_BillingStatus(t *testing.T) {
 	t.Parallel()
 
 	fixedID := "org_123"
 
-	t.Run("BillingRequired=true -> no_payment_method", func(t *testing.T) {
-		r := &restKC{
-			authConfig: config.AuthConfig{
-				BillingRequired: true,
-			},
-		}
+	t.Run("no_payment_method", func(t *testing.T) {
+		r := &restKC{}
 
-		org := r.buildCreateOrganizationPayload(fixedID, OrganizationCreate{Name: "Acme", UsageTier: OrganizationUsageTierT1})
+		org := r.buildCreateOrganizationPayload(fixedID, OrganizationCreate{
+			Name:          "Acme",
+			UsageTier:     OrganizationUsageTierT1,
+			BillingStatus: OrganizationBillingStatusNoPaymentMethod,
+			BillingReason: "Organization created, no payment method set",
+		})
 
 		require.NotNil(t, org.Attributes)
 		assert.Equal(t, string(OrganizationBillingStatusNoPaymentMethod), org.Attributes[OrganizationBillingStatusKey][0])
@@ -579,14 +584,15 @@ func TestBuildCreateOrganizationPayload_BillingRequired(t *testing.T) {
 		assert.False(t, converted.Status.CreatedAt.IsZero())
 	})
 
-	t.Run("BillingRequired=false -> ok", func(t *testing.T) {
-		r := &restKC{
-			authConfig: config.AuthConfig{
-				BillingRequired: false,
-			},
-		}
+	t.Run("ok", func(t *testing.T) {
+		r := &restKC{}
 
-		org := r.buildCreateOrganizationPayload(fixedID, OrganizationCreate{Name: "Acme", UsageTier: OrganizationUsageTierT1})
+		org := r.buildCreateOrganizationPayload(fixedID, OrganizationCreate{
+			Name:          "Acme",
+			UsageTier:     OrganizationUsageTierT1,
+			BillingStatus: OrganizationBillingStatusOK,
+			BillingReason: "Organization enabled by default since billing is not required",
+		})
 
 		require.NotNil(t, org.Attributes)
 		assert.Equal(t, string(OrganizationBillingStatusOK), org.Attributes[OrganizationBillingStatusKey][0])

@@ -65,9 +65,11 @@ type OrganizationMember struct {
 }
 
 type OrganizationCreate struct {
-	Name        string
-	Marketplace MarketplaceAttributes
-	UsageTier   OrganizationUsageTier
+	Name          string
+	Marketplace   MarketplaceAttributes
+	UsageTier     OrganizationUsageTier
+	BillingStatus OrganizationBillingStatus
+	BillingReason string
 }
 
 type OrganizationUpdate struct {

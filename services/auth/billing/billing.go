@@ -121,6 +121,10 @@ type OrbCustomerMetadata struct {
 	Marketplace string
 }
 
+type CreateCustomerResult struct {
+	CreditAmount int
+}
+
 func (m OrbCustomerMetadata) Values() map[string]string {
 	if m.Marketplace == "" {
 		return nil
@@ -148,7 +152,7 @@ type StripePaymentMethodCard struct {
 
 type Client interface {
 	// CreateCustomer creates a new customer in the billing system
-	CreateCustomer(ctx context.Context, name, email, externalCustomerID string, organizationsCount int, metadata OrbCustomerMetadata) error
+	CreateCustomer(ctx context.Context, name, email, externalCustomerID string, organizationsCount int, metadata OrbCustomerMetadata) (CreateCustomerResult, error)
 	CustomerExists(ctx context.Context, externalCustomerID string) (bool, error)
 	// FetchCustomer retrieves a customer record from the billing system.
 	// The customerID parameter should be the Orb internal customer ID (not the external customer ID).
@@ -199,8 +203,8 @@ type Client interface {
 
 type NoopBilling struct{}
 
-func (n *NoopBilling) CreateCustomer(ctx context.Context, name, email, externalCustomerID string, organizationsCount int, metadata OrbCustomerMetadata) error {
-	return nil
+func (n *NoopBilling) CreateCustomer(ctx context.Context, name, email, externalCustomerID string, organizationsCount int, metadata OrbCustomerMetadata) (CreateCustomerResult, error) {
+	return CreateCustomerResult{}, nil
 }
 
 func (n *NoopBilling) CustomerExists(ctx context.Context, customerID string) (bool, error) {
