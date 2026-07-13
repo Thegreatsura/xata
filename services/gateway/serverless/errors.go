@@ -25,6 +25,20 @@ var (
 	ErrResponseTooLarge        = errors.New("response too large")
 )
 
+// Error classifications returned by classifyError. They are used as a metric
+// attribute, a structured log field, and to select the HTTP response.
+const (
+	errTypeHibernated       = "hibernated"
+	errTypeBranchNotFound   = "branch_not_found"
+	errTypeTimeout          = "timeout"
+	errTypeCanceled         = "canceled"
+	errTypeResponseTooLarge = "response_too_large"
+	errTypePgError          = "pg_error"
+	errTypeClient           = "client"
+	errTypeConnection       = "connection"
+	errTypeOther            = "other"
+)
+
 func errorResponse(code, message string) *spec.ErrorResponse {
 	return &spec.ErrorResponse{Message: message, Code: &code}
 }
@@ -109,21 +123,21 @@ func pgErrorResponse(pgErr *pgconn.PgError) *spec.ErrorResponse {
 // handlePgError maps the error classification to an HTTP response.
 func handlePgError(c echo.Context, err error) error {
 	switch classifyError(err) {
-	case "response_too_large":
+	case errTypeResponseTooLarge:
 		return c.JSON(http.StatusInsufficientStorage, errorResponse("RESPONSE_TOO_LARGE", err.Error()))
-	case "timeout":
+	case errTypeTimeout:
 		return c.JSON(http.StatusGatewayTimeout, errorResponse("QUERY_TIMEOUT", "query exceeded the timeout limit"))
-	case "canceled":
+	case errTypeCanceled:
 		return nil
-	case "hibernated":
+	case errTypeHibernated:
 		return c.JSON(http.StatusConflict, errorResponse("BRANCH_HIBERNATED", "branch is hibernated, reactivate it to continue"))
-	case "branch_not_found":
+	case errTypeBranchNotFound:
 		return c.JSON(http.StatusNotFound, errorResponse("BRANCH_NOT_FOUND", "branch not found"))
-	case "pg_error":
+	case errTypePgError:
 		var pgErr *pgconn.PgError
 		errors.As(err, &pgErr)
 		return c.JSON(http.StatusBadRequest, pgErrorResponse(pgErr))
-	case "client":
+	case errTypeClient:
 		return c.JSON(http.StatusBadRequest, errorResponse("08P01", err.Error()))
 	default:
 		return c.JSON(http.StatusInternalServerError, errorResponse("XX000", sanitizeError(err)))
@@ -146,31 +160,31 @@ func classifyError(err error) string {
 		return ""
 	}
 	if errors.Is(err, session.ErrBranchHibernated) {
-		return "hibernated"
+		return errTypeHibernated
 	}
 	if errors.Is(err, session.ErrBranchNotFound) {
-		return "branch_not_found"
+		return errTypeBranchNotFound
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return "timeout"
+		return errTypeTimeout
 	}
 	if errors.Is(err, context.Canceled) {
-		return "canceled"
+		return errTypeCanceled
 	}
 	if errors.Is(err, ErrResponseTooLarge) {
-		return "response_too_large"
+		return errTypeResponseTooLarge
 	}
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
-		return "pg_error"
+		return errTypePgError
 	}
 	if isPgxClientError(err) {
-		return "client"
+		return errTypeClient
 	}
 	if isConnectionError(err) {
-		return "connection"
+		return errTypeConnection
 	}
-	return "other"
+	return errTypeOther
 }
 
 func isConnectionError(err error) bool {
