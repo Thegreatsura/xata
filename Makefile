@@ -3,6 +3,7 @@ GOVERSION := $(shell go version | awk '{print $$3}')
 GO := GOTOOLCHAIN=$(GOVERSION) go
 BUF := $(GO) run github.com/bufbuild/buf/cmd/buf
 GOLANGCI := $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+GOMPLATE := $(GO) run github.com/hairyhenderson/gomplate/v4/cmd/gomplate@latest
 DOCKER_FLAGS=--rm --user $(shell id -u):$(shell id -g)
 DOCKER_OPA := docker run $(DOCKER_FLAGS) -v $(PWD)/internal/opa:/policy openpolicyagent/opa:latest
 DOCKER_JQ := docker run $(DOCKER_FLAGS) -v $(PWD):/data -w /data jq-tools
@@ -30,7 +31,7 @@ machine-destroy: ## Destroy your personal EC2 machine
 	@pulumi env run -i xata/default/account-sandbox -- ./dev/scripts/machine.sh destroy
 
 .PHONY: check
-check: lint  ## CI code checks
+check: lint check-playbooks  ## CI code checks
 
 .PHONY: lint
 lint: lint-openapi lint-go lint-buf lint-opa lint-keycloak-turnstile lint-charts lint-kube ## Lint source code
@@ -100,7 +101,7 @@ fmt-keycloak-turnstile: ## Format Keycloak Turnstile plugin (Kotlin)
 	@cd dev/docker/keycloak/keycloak-turnstile && $(MAKE) fmt
 
 .PHONY: generate
-generate: generate-openapi generate-buf generate-go generate-agents ## Generate code
+generate: generate-openapi generate-buf generate-go generate-agents generate-playbooks ## Generate code
 	@echo "All generate tasks completed at $$(date)"
 
 .PHONY: generate-openapi
@@ -119,6 +120,17 @@ generate-go: ## Generate Go code (use FILES="path1 path2" for specific files/dir
 .PHONY: generate-agents
 generate-agents: ## Generate agent files
 	cp AGENTS.md CLAUDE.md
+
+.PHONY: generate-playbooks
+generate-playbooks: ## Generate the playbooks index
+	@$(GOMPLATE) -f playbooks/README.md.tmpl -o playbooks/README.md
+
+.PHONY: check-playbooks
+check-playbooks: ## Check that the playbooks index is generated
+	@tmp=$$(mktemp); \
+	trap 'rm -f "$$tmp"' EXIT; \
+	$(GOMPLATE) -f playbooks/README.md.tmpl -o "$$tmp"; \
+	diff -u playbooks/README.md "$$tmp"
 
 .PHONY: test
 test: ## Run unit and integration tests
