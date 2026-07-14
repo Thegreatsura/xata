@@ -23,6 +23,9 @@ config:
 
 httpRoute:
   hostname: localhost
+  parentRef:
+    name: eg
+    namespace: ""
 
 resources:
   limits:

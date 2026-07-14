@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: auth
+  name: {{ .Chart.Name }}
   namespace: {{ .Release.Namespace }}
   labels:
-    app: auth
+    app: {{ .Chart.Name }}
   annotations:
     reloader.stakater.com/auto: "true"
 spec:
   selector:
     matchLabels:
-      app: auth
+      app: {{ .Chart.Name }}
   template:
     metadata:
       labels:
-        app: auth
+        app: {{ .Chart.Name }}
     spec:
       enableServiceLinks: false
       {{- with .Values.affinity }}
@@ -22,7 +22,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       initContainers:
-        - name: auth-init
+        - name: {{ .Chart.Name }}-init
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           command: ["/server"]
           args: ["setup"]
@@ -52,7 +52,7 @@ spec:
               drop:
                 - ALL
       containers:
-        - name: auth
+        - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
