@@ -50,7 +50,10 @@ func (s *AuthService) Name() string {
 }
 
 func (s *AuthService) ReadConfig(ctx context.Context) error {
-	return envcfg.Read(&s.config)
+	if err := envcfg.Read(&s.config); err != nil {
+		return err
+	}
+	return s.config.Validate()
 }
 
 func (s *AuthService) Setup(ctx context.Context) error {

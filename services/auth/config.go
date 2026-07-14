@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"fmt"
+
 	"xata/services/auth/config"
 	"xata/services/auth/store/sqlstore"
 )
@@ -21,4 +23,18 @@ type Config struct {
 
 	// DefaultOrgName is the name of the default organization for OSS deployments
 	DefaultOrgName string `env:"DEFAULT_ORG_NAME" env-default:"Default Organization"`
+}
+
+// Validate checks config shared by every entrypoint. The Keycloak admin
+// credentials are intentionally not required here: the `setup` init container
+// runs ReadConfig without them (they are injected only on the serving
+// container), so requiring them globally breaks bootstrap.
+func (c *Config) Validate() error {
+	if c.AuthConfig.KeycloakURL == "" {
+		return fmt.Errorf("keycloak url is required")
+	}
+	if c.AuthConfig.Realm == "" {
+		return fmt.Errorf("keycloak realm is required")
+	}
+	return nil
 }
