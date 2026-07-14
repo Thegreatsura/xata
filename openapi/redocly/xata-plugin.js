@@ -26,7 +26,7 @@ function verifyReservedPathParameters() {
             for (const reserved of RESERVED_PATH_PARAMS) {
                 for (const [method, operation] of Object.entries(node)) {
                     if (!['get', 'post', 'put', 'delete', 'patch'].includes(method.toLowerCase())) continue;
-                    const params = (operation.parameters || node.parameters || []).map(param =>
+                    const params = [...(node.parameters || []), ...(operation.parameters || [])].map(param =>
                         param.$ref ? ctx.resolve(param).node : param
                     );
                     const found = params.some(p => p.in === 'path' && p.name === reserved);

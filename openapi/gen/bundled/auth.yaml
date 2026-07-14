@@ -185,12 +185,12 @@ paths:
       tags:
         - Organizations
   /organizations/{organizationID}/api-keys:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
     get:
       operationId: listOrganizationAPIKeys
       summary: List API Keys for an organization
       description: Retrieve a list of API keys for a specific organization.
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
       responses:
         '200':
           description: List of API keys retrieved successfully
@@ -225,8 +225,6 @@ paths:
       operationId: createOrganizationAPIKey
       summary: Create an Organization API Key
       description: Create a new API key for an organization.
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
       requestBody:
         required: true
         content:
@@ -256,8 +254,6 @@ paths:
       operationId: deleteOrganizationAPIKeys
       summary: Bulk delete API Keys for an organization
       description: Delete multiple API keys in a single request.
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
       requestBody:
         required: true
         content:
@@ -288,11 +284,11 @@ paths:
       tags:
         - API Keys
   /organizations/{organizationID}/members:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
     get:
       operationId: listOrganizationMembers
       summary: List members of an organization
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
       responses:
         '200':
           description: OK
@@ -313,12 +309,12 @@ paths:
       tags:
         - Organizations
   /organizations/{organizationID}/members/{userID}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+      - $ref: '#/components/parameters/UserIDParam'
     delete:
       operationId: removeOrganizationMember
       summary: Remove a member from an organization
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
-        - $ref: '#/components/parameters/UserIDParam'
       responses:
         '204':
           description: Member removed
@@ -328,12 +324,13 @@ paths:
       tags:
         - Organizations
   /organizations/{organizationID}/invitations:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
     get:
       operationId: listOrganizationInvitations
       summary: List invitations for an organization
       description: Retrieve all invitations for an organization with optional filtering by status, email, and name.
       parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
         - name: status
           in: query
           description: Filter invitations by status
@@ -410,8 +407,6 @@ paths:
       operationId: createOrganizationInvitation
       summary: Send an invitation to join an organization
       description: Send an invitation email to a user to join an organization.
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
       requestBody:
         required: true
         content:
@@ -439,13 +434,13 @@ paths:
       tags:
         - Organizations
   /organizations/{organizationID}/invitations/{invitationID}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+      - $ref: '#/components/parameters/InvitationIDParam'
     get:
       operationId: getOrganizationInvitation
       summary: Get details of a specific invitation
       description: Retrieve detailed information about a specific invitation by its ID.
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
-        - $ref: '#/components/parameters/InvitationIDParam'
       responses:
         '200':
           description: Invitation details retrieved successfully
@@ -472,9 +467,6 @@ paths:
       operationId: deleteOrganizationInvitation
       summary: Delete an invitation
       description: Permanently delete an invitation record.
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
-        - $ref: '#/components/parameters/InvitationIDParam'
       responses:
         '204':
           description: Invitation deleted successfully
@@ -494,13 +486,13 @@ paths:
       tags:
         - Organizations
   /organizations/{organizationID}/invitations/{invitationID}/resend:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+      - $ref: '#/components/parameters/InvitationIDParam'
     post:
       operationId: resendOrganizationInvitation
       summary: Resend an invitation
       description: Resend a pending invitation with a fresh expiration time.
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
-        - $ref: '#/components/parameters/InvitationIDParam'
       responses:
         '204':
           description: Invitation resent successfully
@@ -520,6 +512,8 @@ paths:
       tags:
         - Organizations
   /organizations/{organizationID}/deletion-request:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
     post:
       operationId: requestOrganizationDeletion
       summary: Request organization deletion
@@ -527,8 +521,6 @@ paths:
         Flags the organization for deletion. The request is rejected if the organization still has active projects.
         The subscription is cancelled immediately and any outstanding invoices are collected automatically after a grace period that prevents missing delayed usage reports.
         Deletion completes asynchronously once all invoices are issued and settled.
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
       responses:
         '202':
           description: Deletion requested — the organization will be removed once all outstanding invoices are settled
@@ -548,12 +540,12 @@ paths:
       tags:
         - Organizations
   /organizations/{organizationID}/membership-limits:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
     get:
       operationId: getOrganizationMembershipLimits
       summary: Get organization membership limits
       description: Retrieves the membership limits for the specified organization (maximum members and invitations).
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
       responses:
         '200':
           description: Membership limits for the organization
@@ -573,12 +565,12 @@ paths:
       tags:
         - Organizations
   /organizations/{organizationID}/billing/checkout-session:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
     post:
       operationId: createBillingCheckoutSession
       summary: Create a billing checkout session
       description: Creates a Stripe checkout session used to activate card billing for an organization.
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
       responses:
         '200':
           description: Billing checkout session created
@@ -601,12 +593,12 @@ paths:
         - Billing
       x-excluded: true
   /organizations/{organizationID}/billing/payment-method-session:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
     post:
       operationId: createBillingPaymentMethodSession
       summary: Create a billing payment method session
       description: Creates a Stripe setup-mode checkout session used to add or update an organization payment method.
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
       responses:
         '200':
           description: Billing payment method session created
@@ -629,12 +621,12 @@ paths:
         - Billing
       x-excluded: true
   /organizations/{organizationID}/billing/customer:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
     get:
       operationId: getBillingCustomer
       summary: Get billing customer details
       description: Retrieves billing customer details for the specified organization.
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
       responses:
         '200':
           description: Billing customer details
@@ -660,8 +652,6 @@ paths:
       operationId: updateBillingCustomer
       summary: Update billing customer details
       description: Updates billing customer details for the specified organization.
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
       requestBody:
         required: true
         content:
@@ -692,12 +682,13 @@ paths:
         - Billing
       x-excluded: true
   /organizations/{organizationID}/billing/invoices:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
     get:
       operationId: getBillingInvoices
       summary: List billing invoices
       description: Retrieves billing invoices for the specified organization.
       parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
         - name: cursor
           in: query
           description: Pagination cursor from a previous response
@@ -735,12 +726,12 @@ paths:
         - Billing
       x-excluded: true
   /organizations/{organizationID}/billing/invoices/upcoming:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
     get:
       operationId: getBillingUpcomingInvoice
       summary: Get upcoming billing invoice
       description: Retrieves the upcoming billing invoice for the specified organization's active subscription. Organizations are expected to have at most one active subscription.
-      parameters:
-        - $ref: '#/components/parameters/OrganizationIDParam'
       responses:
         '200':
           description: Upcoming billing invoice
