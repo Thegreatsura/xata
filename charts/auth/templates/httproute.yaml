@@ -14,36 +14,24 @@ spec:
   hostnames:
     - {{ .Values.httpRoute.hostname }}
   rules:
+    {{- /* Gateway API allows at most 8 matches per rule, so split matches across rules. */}}
+    {{- range chunk 8 .Values.httpRoute.matches }}
     - backendRefs:
         - group: ""
           kind: Service
-          name: {{ .Chart.Name }}
-          port: {{ .Values.service.httpPort }}
+          name: {{ $.Chart.Name }}
+          port: {{ $.Values.service.httpPort }}
           weight: 1
       matches:
+        {{- range . }}
         - path:
-            type: PathPrefix
-            value: /_hello
-        - path:
-            type: PathPrefix
-            value: /openapi.yaml
-        - path:
-            type: PathPrefix
-            value: /openapi.json
-        - path:
-            type: PathPrefix
-            value: /user
-        - path:
-            type: PathPrefix
-            value: /api-keys
-        - path:
-            type: RegularExpression
-            value: "^/webhooks/(orb|stripe)(/.*)?$"
-        - path:
-            type: PathPrefix
-            value: /marketplace
-        - path:
-            type: RegularExpression
-            value: "^/organizations(/*)$|^/organizations/([^/]+)(/api-keys|/members.*|/invitations.*|/deletion-request|/membership-limits|/billing/(checkout-session|payment-method-session|customer|invoices(/upcoming)?))?$"
+            type: {{ .type }}
+            {{- if eq .type "RegularExpression" }}
+            value: {{ .path | quote }}
+            {{- else }}
+            value: {{ .path }}
+            {{- end }}
+        {{- end }}
       timeouts:
         request: 60s
+    {{- end }}

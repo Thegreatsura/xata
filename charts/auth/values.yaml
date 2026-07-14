@@ -26,6 +26,23 @@ httpRoute:
   parentRef:
     name: eg
     namespace: ""
+  matches:
+    - path: /_hello
+      type: PathPrefix
+    - path: /openapi.yaml
+      type: PathPrefix
+    - path: /openapi.json
+      type: PathPrefix
+    - path: /user
+      type: PathPrefix
+    - path: /api-keys
+      type: PathPrefix
+    - path: "^/webhooks/(orb|stripe)(/.*)?$"
+      type: RegularExpression
+    - path: /marketplace
+      type: PathPrefix
+    - path: "^/organizations(/*)$|^/organizations/([^/]+)(/api-keys|/members.*|/invitations.*|/deletion-request|/membership-limits|/billing/(checkout-session|payment-method-session|customer|invoices(/upcoming)?))?$"
+      type: RegularExpression
 
 resources:
   limits:
