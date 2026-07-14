@@ -1543,6 +1543,8 @@ olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3 h1:slmdOY3vp8a7KQbHkL
 olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3/go.mod h1:oVgVk4OWVDi43qWBEyGhXgYxt7+ED4iYNpTngSLX2Iw=
 oras.land/oras-go/v2 v2.6.0 h1:X4ELRsiGkrbeox69+9tzTu492FMUu7zJQW6eJU+I2oc=
 oras.land/oras-go/v2 v2.6.0/go.mod h1:magiQDfG6H1O9APp+rOsvCPcW1GD2MM7vgnKY0Y+u1o=
+oras.land/oras-go/v2 v2.6.2 h1:N04RXngAp1LJKTG6ifz3xHPipasEkWr+hFmInja5YKo=
+oras.land/oras-go/v2 v2.6.2/go.mod h1:PlTtg4JTDJkDe8yVHpM2wz7/YDc00GVas+i4jAW2TZ4=
 pgregory.net/rapid v1.2.0 h1:keKAYRcjm+e1F0oAuU5F5+YPAWcyxNNRK2wud503Gnk=
 pgregory.net/rapid v1.2.0/go.mod h1:PY5XlDGj0+V1FCq0o192FdRhpKHGTRIWBgqjDBTrq04=
 pluginrpc.com/pluginrpc v0.5.0 h1:tOQj2D35hOmvHyPu8e7ohW2/QvAnEtKscy2IJYWQ2yo=
