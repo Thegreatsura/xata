@@ -775,16 +775,13 @@ func (s *handler) CreateBranch(c echo.Context, organizationID spec.OrganizationI
 
 		branch, err := s.provisioner.CreateBranch(ctx, projectID, organizationID, body.Name, &createClusterPayload)
 		if err != nil {
-			var notFound provisioner.ErrBranchNotFound
-			if errors.As(err, &notFound) {
+			if notFound, ok := errors.AsType[provisioner.ErrBranchNotFound](err); ok {
 				return ErrorBranchNotFound{BranchID: notFound.BranchID}
 			}
-			var invalidCfg provisioner.ErrInvalidConfiguration
-			if errors.As(err, &invalidCfg) {
+			if invalidCfg, ok := errors.AsType[provisioner.ErrInvalidConfiguration](err); ok {
 				return ErrorInvalidParam{BranchName: body.Name, Param: "configuration", Message: invalidCfg.Message}
 			}
-			var unhealthy provisioner.ErrParentBranchUnhealthy
-			if errors.As(err, &unhealthy) {
+			if unhealthy, ok := errors.AsType[provisioner.ErrParentBranchUnhealthy](err); ok {
 				return ErrorParentBranchUnhealthy{ParentID: unhealthy.ParentID}
 			}
 			return err

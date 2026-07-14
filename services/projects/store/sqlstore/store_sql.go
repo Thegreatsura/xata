@@ -1106,8 +1106,7 @@ func (s *sqlProjectStore) DeleteBranch(ctx context.Context, organizationID, proj
 
 // IsConstraintError checks if a given constraint was not met
 func IsConstraintError(err error, constraint string) bool {
-	var pqErr *pq.Error
-	if errors.As(err, &pqErr) {
+	if pqErr, ok := errors.AsType[*pq.Error](err); ok {
 		return pqErr.Code == "23505" && pqErr.Constraint == constraint
 	}
 	return false

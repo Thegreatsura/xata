@@ -232,8 +232,7 @@ func (s *sqlAuthStore) GetAPIKey(ctx context.Context, id string) (*store.APIKey,
 
 	apiKey, err := scanAPIKey(row)
 	if err != nil {
-		var notFound *store.ErrAPIKeyNotFound
-		if errors.As(err, &notFound) {
+		if _, ok := errors.AsType[*store.ErrAPIKeyNotFound](err); ok {
 			return nil, &store.ErrAPIKeyNotFound{ID: id}
 		}
 		return nil, fmt.Errorf("get API key: %w", err)
@@ -371,8 +370,7 @@ func (s *sqlAuthStore) CreateAPIKey(ctx context.Context, targetType store.KeyTar
 
 // IsConstraintError checks if a given constraint was not met
 func IsConstraintError(err error, constraint string) bool {
-	var pqErr *pq.Error
-	if errors.As(err, &pqErr) {
+	if pqErr, ok := errors.AsType[*pq.Error](err); ok {
 		return pqErr.Code == "23505" && pqErr.Constraint == constraint
 	}
 	return false

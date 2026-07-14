@@ -101,8 +101,7 @@ func copyLoop(ctx context.Context, branch string, to io.Writer, from io.Reader) 
 			return nil
 		}
 
-		var netOpError *net.OpError
-		if errors.As(err, &netOpError) {
+		if netOpError, ok := errors.AsType[*net.OpError](err); ok {
 			if netOpError.Op == "read" {
 				if wrappedErr := errors.Unwrap(err); wrappedErr != nil {
 					log.Ctx(ctx).Info().Err(wrappedErr).Msgf("wrapped error: %T", wrappedErr)

@@ -181,8 +181,7 @@ func classifyError(err error) string {
 	if errors.Is(err, ErrResponseTooLarge) {
 		return errTypeResponseTooLarge
 	}
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
+	if _, ok := errors.AsType[*pgconn.PgError](err); ok {
 		return errTypePgError
 	}
 	if isPgxClientError(err) {
@@ -198,8 +197,7 @@ func isConnectionError(err error) bool {
 	if errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ECONNRESET) {
 		return true
 	}
-	var opErr *net.OpError
-	if errors.As(err, &opErr) {
+	if _, ok := errors.AsType[*net.OpError](err); ok {
 		return true
 	}
 	return strings.Contains(err.Error(), "connect:")
