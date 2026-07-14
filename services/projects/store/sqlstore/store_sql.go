@@ -46,12 +46,10 @@ type sqlProjectStore struct {
 	pgroll *pgroll.PGRoll
 	// maxDepth is the maximum depth of the branch tree
 	maxDepth int32
-	// maxChildren is the maximum number of children a child branch can have
-	maxChildren int32
 }
 
 // NewSQLProjectStore creates a ProjectStore backend that uses SQL.
-func NewSQLProjectStore(ctx context.Context, cfg Config, maxBranchTreeDepth, maxChildBranchChildren int32) (*sqlProjectStore, error) {
+func NewSQLProjectStore(ctx context.Context, cfg Config, maxBranchTreeDepth int32) (*sqlProjectStore, error) {
 	// set search path to the latest known version
 	pgroll, err := pgroll.FromEmbeddedFS(&migrationsFS)
 	if err != nil {
@@ -66,11 +64,10 @@ func NewSQLProjectStore(ctx context.Context, cfg Config, maxBranchTreeDepth, max
 	}
 
 	return &sqlProjectStore{
-		sql:         db,
-		config:      cfg,
-		pgroll:      pgroll,
-		maxDepth:    maxBranchTreeDepth,
-		maxChildren: maxChildBranchChildren,
+		sql:      db,
+		config:   cfg,
+		pgroll:   pgroll,
+		maxDepth: maxBranchTreeDepth,
 	}, nil
 }
 
@@ -747,12 +744,7 @@ func (s *sqlProjectStore) CreateBranch(ctx context.Context, organizationID, proj
 	branchDepth := int32(1)
 	if config.ParentID != nil {
 		// check whether a child branch can be added
-		row := tx.QueryRowContext(ctx, "SELECT COUNT(id) FROM branches WHERE parent_id = $1 AND status = $2", *config.ParentID, StatusActive)
-		var childrenCount int32
-		if err = row.Scan(&childrenCount); err != nil {
-			return nil, err
-		}
-		branchDepth, err = parentBranch.CanAddChild(childrenCount, s.maxChildren, s.maxDepth)
+		branchDepth, err = parentBranch.CanAddChild(s.maxDepth)
 		if err != nil {
 			return nil, err
 		}

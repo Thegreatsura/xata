@@ -16,9 +16,6 @@ type Config struct {
 	// GatewayHost is the host of the gateway service, used to build connection strings
 	GatewayHostPort string `env:"GATEWAY_HOSTPORT" env-default:"127.0.0.1.nip.io:7654"`
 
-	// BranchTreeChildMaxChildren is the maximum number of children a child branch can have
-	BranchTreeChildMaxChildren int32 `env:"BRANCH_TREE_CHILD_MAX_CHILDREN" env-default:"100" env-description:"The maximum number of children a child branch can have"`
-
 	// BranchTreeMaxDepth is the maximum depth of the branch tree
 	BranchTreeMaxDepth int32 `env:"BRANCH_TREE_MAX_DEPTH" env-default:"50" env-description:"The maximum depth of the branch tree"`
 

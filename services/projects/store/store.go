@@ -490,19 +490,12 @@ type ProjectsStore interface {
 }
 
 // CanAddChild returns the child depth in the branch tree if another child branch can be added
-func (b *Branch) CanAddChild(currentChildren, childBranchMaxChildren, maxDepth int32) (int32, error) {
+func (b *Branch) CanAddChild(maxDepth int32) (int32, error) {
 	if b == nil {
 		return 1, nil
 	}
-	if b.Depth == 1 {
-		// First generation branches have no child limit
-		return 2, nil
-	}
 	if b.Depth >= maxDepth {
 		return 0, ErrMaxDepthExceeded{BranchID: b.ID, MaxDepth: maxDepth}
-	}
-	if currentChildren >= childBranchMaxChildren {
-		return 0, ErrMaxChildrenExceeded{BranchID: b.ID, MaxChildren: childBranchMaxChildren}
 	}
 
 	return b.Depth + 1, nil

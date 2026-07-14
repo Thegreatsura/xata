@@ -125,7 +125,7 @@ func (s *ProjectsService) Close(ctx context.Context) error {
 
 func (s *ProjectsService) Init(ctx context.Context) error {
 	var err error
-	s.store, err = sqlstore.NewSQLProjectStore(ctx, s.config.SQLStore, s.config.BranchTreeMaxDepth, s.config.BranchTreeChildMaxChildren)
+	s.store, err = sqlstore.NewSQLProjectStore(ctx, s.config.SQLStore, s.config.BranchTreeMaxDepth)
 	if err != nil {
 		return err
 	}

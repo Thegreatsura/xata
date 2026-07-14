@@ -14,7 +14,7 @@ func TestSQLStoreRegions(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+	sqlStore := setupSQLStore(ctx, t, maxDepth)
 
 	testRegionID := "test-region"
 	testOrganizationRegionID := "test-organization-region"
@@ -245,7 +245,7 @@ func TestPrimaryCellUniqueness(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+	sqlStore := setupSQLStore(ctx, t, maxDepth)
 
 	testRegionID := "test-region"
 	testCellID := "test-cell"
@@ -436,7 +436,7 @@ func TestGetPrimaryCell(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+			sqlStore := setupSQLStore(ctx, t, maxDepth)
 
 			// Setup regions
 			for _, region := range tc.setupRegions {

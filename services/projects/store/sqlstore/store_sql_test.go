@@ -21,14 +21,13 @@ import (
 )
 
 const (
-	// Low limits on purpose so testing is faster
-	maxDepth    = 3
-	maxChildren = 2
+	// Low limit on purpose so testing is faster
+	maxDepth = 3
 )
 
 func TestSQLStore(t *testing.T) {
 	ctx := context.Background()
-	sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+	sqlStore := setupSQLStore(ctx, t, maxDepth)
 
 	t.Run("projects", func(t *testing.T) {
 		// create project with empty name fails
@@ -255,7 +254,7 @@ func TestSQLStore(t *testing.T) {
 	_, cleanupBranchLimit := createProjectAndBranchesForLimitTest(t, ctx, sqlStore, "organizationID", "branchLimitProject")
 	defer cleanupBranchLimit()
 
-	depthProject, depthBranch, childrenBranch, cleanupDepthLimit := createProjectAndBranchesForDepthTest(t, ctx, sqlStore, "organizationID", "depthProject")
+	depthProject, depthBranch, cleanupDepthLimit := createProjectAndBranchesForDepthTest(t, ctx, sqlStore, "organizationID", "depthProject")
 	defer cleanupDepthLimit()
 
 	parentNotFoundErr := store.ErrBranchNotFound{ID: fakeParentID}
@@ -362,19 +361,6 @@ func TestSQLStore(t *testing.T) {
 			},
 			wantError:    true,
 			errorMessage: store.ErrMaxDepthExceeded{BranchID: depthBranch.ID, MaxDepth: maxDepth}.Error(),
-		},
-		{
-			name:           "create branch fails due to max children limit",
-			branchName:     "b113",
-			organizationID: "organizationID",
-			projectID:      depthProject.ID,
-			parentID:       &childrenBranch.ID,
-			description:    nil,
-			callbackFunc: func(b *store.Branch) error {
-				return nil
-			},
-			wantError:    true,
-			errorMessage: store.ErrMaxChildrenExceeded{BranchID: childrenBranch.ID, MaxChildren: maxChildren}.Error(),
 		},
 		{
 			name:           "create branch with custom backup retention period succeeds",
@@ -971,24 +957,13 @@ func createProjectAndBranchesForLimitTest(t *testing.T, ctx context.Context, sql
 	}
 }
 
-func createProjectAndBranchesForDepthTest(t *testing.T, ctx context.Context, sqlStore *sqlProjectStore, orgID string, name string) (project *store.Project, depthBranch *store.Branch, childrenBranch *store.Branch, cleanup func()) {
+func createProjectAndBranchesForDepthTest(t *testing.T, ctx context.Context, sqlStore *sqlProjectStore, orgID string, name string) (project *store.Project, depthBranch *store.Branch, cleanup func()) {
 	project, err := sqlStore.CreateProject(ctx, orgID, createProjectConfig(name, nil))
 	require.NoError(t, err)
 
 	// create a parent branch
 	parent, err := sqlStore.CreateBranch(ctx, "organizationID", project.ID, "cell", createBranchConfig("b1", nil, nil), noopProvisionFunc)
 	require.NoError(t, err)
-
-	// add first child
-	childrenBranch, err = sqlStore.CreateBranch(ctx, "organizationID", project.ID, "cell", createBranchConfig("b11", &parent.ID, nil), noopProvisionFunc)
-	require.NoError(t, err)
-
-	// Add children until about to hit the limit
-	_, err = sqlStore.CreateBranch(ctx, "organizationID", project.ID, "cell", createBranchConfig("b111", &childrenBranch.ID, nil), noopProvisionFunc)
-	require.NoError(t, err)
-	_, err = sqlStore.CreateBranch(ctx, "organizationID", project.ID, "cell", createBranchConfig("b112", &childrenBranch.ID, nil), noopProvisionFunc)
-	require.NoError(t, err)
-	// Creating b113 should fail
 
 	// Add nested children until about to hit the limit
 	b12, err := sqlStore.CreateBranch(ctx, "organizationID", project.ID, "cell", createBranchConfig("b12", &parent.ID, nil), noopProvisionFunc)
@@ -997,7 +972,7 @@ func createProjectAndBranchesForDepthTest(t *testing.T, ctx context.Context, sql
 	require.NoError(t, err)
 	// creating b1211 should fail
 
-	return project, depthBranch, childrenBranch, func() {
+	return project, depthBranch, func() {
 		deleteBranches(t, ctx, sqlStore, orgID, project.ID)
 		err := sqlStore.DeleteProject(ctx, orgID, project.ID)
 		require.NoError(t, err)
@@ -1016,7 +991,7 @@ func deleteBranches(t *testing.T, ctx context.Context, sqlStore *sqlProjectStore
 	}
 }
 
-func setupSQLStore(ctx context.Context, t *testing.T, maxDepth, maxChildren int32) *sqlProjectStore {
+func setupSQLStore(ctx context.Context, t *testing.T, maxDepth int32) *sqlProjectStore {
 	// launch postgres container with testcontainers (TODO abstract this with a helper)
 	postgresContainer, err := postgres.Run(ctx,
 		"postgres:16-alpine", // TODO parametrize version
@@ -1038,7 +1013,7 @@ func setupSQLStore(ctx context.Context, t *testing.T, maxDepth, maxChildren int3
 	// create a new SQL sqlStore
 	config, err := ConfigFromConnectionString(postgresContainer.MustConnectionString(ctx, "sslmode=disable"))
 	require.NoError(t, err)
-	sqlStore, err := NewSQLProjectStore(ctx, config, maxDepth, maxChildren)
+	sqlStore, err := NewSQLProjectStore(ctx, config, maxDepth)
 	if err != nil {
 		t.Fatalf("failed to create store: %s", err)
 	}
@@ -1092,7 +1067,7 @@ func createRegionAndCell(t testing.TB, sqlStore *sqlProjectStore, regionID, cell
 
 func TestValidateHierarchy(t *testing.T) {
 	ctx := context.Background()
-	sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+	sqlStore := setupSQLStore(ctx, t, maxDepth)
 
 	createRegionAndCell(t, sqlStore, "region", "cell")
 
@@ -1209,7 +1184,7 @@ func TestSoftDeleteBehavior(t *testing.T) {
 	t.Run("active project can reuse terminated project name", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+		sqlStore := setupSQLStore(ctx, t, maxDepth)
 		orgID := "softDeleteOrg"
 
 		project, err := sqlStore.CreateProject(ctx, orgID, createProjectConfig("reusableName", nil))
@@ -1227,7 +1202,7 @@ func TestSoftDeleteBehavior(t *testing.T) {
 	t.Run("active branch can reuse terminated branch name", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+		sqlStore := setupSQLStore(ctx, t, maxDepth)
 		createRegionAndCell(t, sqlStore, "region", "cell")
 		orgID := "softDeleteOrg"
 
@@ -1249,7 +1224,7 @@ func TestSoftDeleteBehavior(t *testing.T) {
 	t.Run("terminated project not returned by GetProject", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+		sqlStore := setupSQLStore(ctx, t, maxDepth)
 		orgID := "softDeleteOrg"
 
 		project, err := sqlStore.CreateProject(ctx, orgID, createProjectConfig("getTerminated", nil))
@@ -1266,7 +1241,7 @@ func TestSoftDeleteBehavior(t *testing.T) {
 	t.Run("terminated project not returned by ListProjects", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+		sqlStore := setupSQLStore(ctx, t, maxDepth)
 		listOrg := "listTerminatedOrg"
 
 		project1, err := sqlStore.CreateProject(ctx, listOrg, createProjectConfig("activeProject", nil))
@@ -1287,7 +1262,7 @@ func TestSoftDeleteBehavior(t *testing.T) {
 	t.Run("terminated branch not returned by DescribeBranch", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+		sqlStore := setupSQLStore(ctx, t, maxDepth)
 		createRegionAndCell(t, sqlStore, "region", "cell")
 		orgID := "softDeleteOrg"
 
@@ -1308,7 +1283,7 @@ func TestSoftDeleteBehavior(t *testing.T) {
 	t.Run("terminated branch not returned by GetBranchByName", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+		sqlStore := setupSQLStore(ctx, t, maxDepth)
 		createRegionAndCell(t, sqlStore, "region", "cell")
 		orgID := "softDeleteOrg"
 
@@ -1329,7 +1304,7 @@ func TestSoftDeleteBehavior(t *testing.T) {
 	t.Run("terminated branch not returned by ListBranches", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+		sqlStore := setupSQLStore(ctx, t, maxDepth)
 		createRegionAndCell(t, sqlStore, "region", "cell")
 		orgID := "softDeleteOrg"
 
@@ -1354,7 +1329,7 @@ func TestSoftDeleteBehavior(t *testing.T) {
 	t.Run("CountActiveProjectBranches excludes terminated branches", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+		sqlStore := setupSQLStore(ctx, t, maxDepth)
 		createRegionAndCell(t, sqlStore, "region", "cell")
 		orgID := "softDeleteOrg"
 		project, cleanup := createProjectAndBranchesForLimitTest(t, ctx, sqlStore, orgID, "branchLimitProject2")
@@ -1374,41 +1349,10 @@ func TestSoftDeleteBehavior(t *testing.T) {
 		require.Equal(t, int64(store.MaxBranchesPerProject-1), count)
 	})
 
-	t.Run("terminated children branches do not count toward children limit", func(t *testing.T) {
-		t.Parallel()
-		ctx := context.Background()
-		sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
-		createRegionAndCell(t, sqlStore, "region", "cell")
-		orgID := "softDeleteOrg"
-
-		project, err := sqlStore.CreateProject(ctx, orgID, createProjectConfig("childLimitProject", nil))
-		require.NoError(t, err)
-
-		parent, err := sqlStore.CreateBranch(ctx, orgID, project.ID, "cell", createBranchConfig("parent", nil, nil), noopProvisionFunc)
-		require.NoError(t, err)
-
-		firstChild, err := sqlStore.CreateBranch(ctx, orgID, project.ID, "cell", createBranchConfig("child1", &parent.ID, nil), noopProvisionFunc)
-		require.NoError(t, err)
-
-		grandChild1, err := sqlStore.CreateBranch(ctx, orgID, project.ID, "cell", createBranchConfig("grandchild1", &firstChild.ID, nil), noopProvisionFunc)
-		require.NoError(t, err)
-		_, err = sqlStore.CreateBranch(ctx, orgID, project.ID, "cell", createBranchConfig("grandchild2", &firstChild.ID, nil), noopProvisionFunc)
-		require.NoError(t, err)
-
-		_, err = sqlStore.CreateBranch(ctx, orgID, project.ID, "cell", createBranchConfig("grandchild3", &firstChild.ID, nil), noopProvisionFunc)
-		require.Equal(t, store.ErrMaxChildrenExceeded{BranchID: firstChild.ID, MaxChildren: maxChildren}, err)
-
-		err = sqlStore.DeleteBranch(ctx, orgID, project.ID, grandChild1.ID, func(*store.Branch) error { return nil })
-		require.NoError(t, err)
-
-		_, err = sqlStore.CreateBranch(ctx, orgID, project.ID, "cell", createBranchConfig("grandchild3", &firstChild.ID, nil), noopProvisionFunc)
-		require.NoError(t, err)
-	})
-
 	t.Run("CleanupTerminatedProjects", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+		sqlStore := setupSQLStore(ctx, t, maxDepth)
 		cleanupOrg := "cleanupTerminatedOrg"
 
 		// Create and terminate a project

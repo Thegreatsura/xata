@@ -224,19 +224,6 @@ func (e ErrMaxDepthExceeded) StatusCode() int {
 	return http.StatusBadRequest
 }
 
-type ErrMaxChildrenExceeded struct {
-	BranchID    string
-	MaxChildren int32
-}
-
-func (e ErrMaxChildrenExceeded) Error() string {
-	return fmt.Sprintf("BranchID [%s]: a child branch would exceed the maximum children allowed (%d). Please, remove a branch or use a different parent", e.BranchID, e.MaxChildren)
-}
-
-func (e ErrMaxChildrenExceeded) StatusCode() int {
-	return http.StatusBadRequest
-}
-
 type ErrInvalidHierarchy struct {
 	Type string
 	ID   string

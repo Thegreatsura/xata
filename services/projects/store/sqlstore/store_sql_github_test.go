@@ -13,7 +13,7 @@ func TestSQLStoreGithubInstallations(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+	sqlStore := setupSQLStore(ctx, t, maxDepth)
 
 	t.Run("list github installations", func(t *testing.T) {
 		orgWithInstalls := "gh-list-org"
@@ -257,7 +257,7 @@ func TestSQLStoreGithubRepoMappings(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	sqlStore := setupSQLStore(ctx, t, maxDepth, maxChildren)
+	sqlStore := setupSQLStore(ctx, t, maxDepth)
 	createRegionAndCell(t, sqlStore, "region", "cell")
 
 	createProjectAndBranch := func(t *testing.T, org, projectName, branchName string) (projectID, branchID string) {
