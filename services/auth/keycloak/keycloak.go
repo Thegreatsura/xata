@@ -40,4 +40,8 @@ type KeyCloak interface {
 	ListDisabledOrganizations(ctx context.Context, realm string, returnCleanedUpOrgs bool) ([]Organization, error)
 	// UpdateUserAttributes merges the given attributes into the user's existing attributes.
 	UpdateUserAttributes(ctx context.Context, realm, userID string, update UserAttributesUpdate) error
+	// GetIdentityProviderToken retrieves the external identity provider token (e.g. the
+	// GitHub user access token) stored in Keycloak for the user identified by userToken.
+	// The userToken must be a valid Keycloak access token with the broker read-token role.
+	GetIdentityProviderToken(ctx context.Context, realm, provider, userToken string) (string, error)
 }

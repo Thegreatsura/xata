@@ -514,6 +514,97 @@ func (x *UpdateOrganizationResponse) GetOrganization() *Organization {
 	return nil
 }
 
+type GetGithubIdentityProviderTokenRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// token is the user's Keycloak access token, used both to identify the user
+	// and to authorize the Keycloak identity broker token endpoint.
+	Token         string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetGithubIdentityProviderTokenRequest) Reset() {
+	*x = GetGithubIdentityProviderTokenRequest{}
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetGithubIdentityProviderTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetGithubIdentityProviderTokenRequest) ProtoMessage() {}
+
+func (x *GetGithubIdentityProviderTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetGithubIdentityProviderTokenRequest.ProtoReflect.Descriptor instead.
+func (*GetGithubIdentityProviderTokenRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetGithubIdentityProviderTokenRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+type GetGithubIdentityProviderTokenResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// access_token is the GitHub user access token stored in Keycloak for the user.
+	AccessToken   string `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetGithubIdentityProviderTokenResponse) Reset() {
+	*x = GetGithubIdentityProviderTokenResponse{}
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetGithubIdentityProviderTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetGithubIdentityProviderTokenResponse) ProtoMessage() {}
+
+func (x *GetGithubIdentityProviderTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetGithubIdentityProviderTokenResponse.ProtoReflect.Descriptor instead.
+func (*GetGithubIdentityProviderTokenResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetGithubIdentityProviderTokenResponse) GetAccessToken() string {
+	if x != nil {
+		return x.AccessToken
+	}
+	return ""
+}
+
 var File_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_auth_v1_auth_proto_rawDesc = "" +
@@ -566,11 +657,16 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x18disabled_by_admin_reason\x18\x03 \x01(\tH\x00R\x15disabledByAdminReason\x88\x01\x01B\x1b\n" +
 	"\x19_disabled_by_admin_reason\"W\n" +
 	"\x1aUpdateOrganizationResponse\x129\n" +
-	"\forganization\x18\x01 \x01(\v2\x15.auth.v1.OrganizationR\forganization2\x95\x02\n" +
+	"\forganization\x18\x01 \x01(\v2\x15.auth.v1.OrganizationR\forganization\"=\n" +
+	"%GetGithubIdentityProviderTokenRequest\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"K\n" +
+	"&GetGithubIdentityProviderTokenResponse\x12!\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken2\x99\x03\n" +
 	"\vAuthService\x12Q\n" +
 	"\x0eValidateAccess\x12\x1e.auth.v1.ValidateAccessRequest\x1a\x1f.auth.v1.ValidateAccessResponse\x12T\n" +
 	"\x0fGetOrganization\x12\x1f.auth.v1.GetOrganizationRequest\x1a .auth.v1.GetOrganizationResponse\x12]\n" +
-	"\x12UpdateOrganization\x12\".auth.v1.UpdateOrganizationRequest\x1a#.auth.v1.UpdateOrganizationResponseB|\n" +
+	"\x12UpdateOrganization\x12\".auth.v1.UpdateOrganizationRequest\x1a#.auth.v1.UpdateOrganizationResponse\x12\x81\x01\n" +
+	"\x1eGetGithubIdentityProviderToken\x12..auth.v1.GetGithubIdentityProviderTokenRequest\x1a/.auth.v1.GetGithubIdentityProviderTokenResponseB|\n" +
 	"\vcom.auth.v1B\tAuthProtoP\x01Z%github.com/xataio/maki/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
 
 var (
@@ -585,35 +681,39 @@ func file_auth_v1_auth_proto_rawDescGZIP() []byte {
 	return file_auth_v1_auth_proto_rawDescData
 }
 
-var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_auth_v1_auth_proto_goTypes = []any{
-	(*ValidateAccessRequest)(nil),      // 0: auth.v1.ValidateAccessRequest
-	(*ValidateAccessResponse)(nil),     // 1: auth.v1.ValidateAccessResponse
-	(*Organization)(nil),               // 2: auth.v1.Organization
-	(*GetOrganizationRequest)(nil),     // 3: auth.v1.GetOrganizationRequest
-	(*GetOrganizationResponse)(nil),    // 4: auth.v1.GetOrganizationResponse
-	(*UpdateOrganizationRequest)(nil),  // 5: auth.v1.UpdateOrganizationRequest
-	(*UpdateOrganizationResponse)(nil), // 6: auth.v1.UpdateOrganizationResponse
-	nil,                                // 7: auth.v1.ValidateAccessResponse.OrganizationsEntry
-	(*timestamppb.Timestamp)(nil),      // 8: google.protobuf.Timestamp
+	(*ValidateAccessRequest)(nil),                  // 0: auth.v1.ValidateAccessRequest
+	(*ValidateAccessResponse)(nil),                 // 1: auth.v1.ValidateAccessResponse
+	(*Organization)(nil),                           // 2: auth.v1.Organization
+	(*GetOrganizationRequest)(nil),                 // 3: auth.v1.GetOrganizationRequest
+	(*GetOrganizationResponse)(nil),                // 4: auth.v1.GetOrganizationResponse
+	(*UpdateOrganizationRequest)(nil),              // 5: auth.v1.UpdateOrganizationRequest
+	(*UpdateOrganizationResponse)(nil),             // 6: auth.v1.UpdateOrganizationResponse
+	(*GetGithubIdentityProviderTokenRequest)(nil),  // 7: auth.v1.GetGithubIdentityProviderTokenRequest
+	(*GetGithubIdentityProviderTokenResponse)(nil), // 8: auth.v1.GetGithubIdentityProviderTokenResponse
+	nil,                           // 9: auth.v1.ValidateAccessResponse.OrganizationsEntry
+	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
 }
 var file_auth_v1_auth_proto_depIdxs = []int32{
-	7, // 0: auth.v1.ValidateAccessResponse.organizations:type_name -> auth.v1.ValidateAccessResponse.OrganizationsEntry
-	8, // 1: auth.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
-	2, // 2: auth.v1.GetOrganizationResponse.organization:type_name -> auth.v1.Organization
-	2, // 3: auth.v1.UpdateOrganizationResponse.organization:type_name -> auth.v1.Organization
-	2, // 4: auth.v1.ValidateAccessResponse.OrganizationsEntry.value:type_name -> auth.v1.Organization
-	0, // 5: auth.v1.AuthService.ValidateAccess:input_type -> auth.v1.ValidateAccessRequest
-	3, // 6: auth.v1.AuthService.GetOrganization:input_type -> auth.v1.GetOrganizationRequest
-	5, // 7: auth.v1.AuthService.UpdateOrganization:input_type -> auth.v1.UpdateOrganizationRequest
-	1, // 8: auth.v1.AuthService.ValidateAccess:output_type -> auth.v1.ValidateAccessResponse
-	4, // 9: auth.v1.AuthService.GetOrganization:output_type -> auth.v1.GetOrganizationResponse
-	6, // 10: auth.v1.AuthService.UpdateOrganization:output_type -> auth.v1.UpdateOrganizationResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	9,  // 0: auth.v1.ValidateAccessResponse.organizations:type_name -> auth.v1.ValidateAccessResponse.OrganizationsEntry
+	10, // 1: auth.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
+	2,  // 2: auth.v1.GetOrganizationResponse.organization:type_name -> auth.v1.Organization
+	2,  // 3: auth.v1.UpdateOrganizationResponse.organization:type_name -> auth.v1.Organization
+	2,  // 4: auth.v1.ValidateAccessResponse.OrganizationsEntry.value:type_name -> auth.v1.Organization
+	0,  // 5: auth.v1.AuthService.ValidateAccess:input_type -> auth.v1.ValidateAccessRequest
+	3,  // 6: auth.v1.AuthService.GetOrganization:input_type -> auth.v1.GetOrganizationRequest
+	5,  // 7: auth.v1.AuthService.UpdateOrganization:input_type -> auth.v1.UpdateOrganizationRequest
+	7,  // 8: auth.v1.AuthService.GetGithubIdentityProviderToken:input_type -> auth.v1.GetGithubIdentityProviderTokenRequest
+	1,  // 9: auth.v1.AuthService.ValidateAccess:output_type -> auth.v1.ValidateAccessResponse
+	4,  // 10: auth.v1.AuthService.GetOrganization:output_type -> auth.v1.GetOrganizationResponse
+	6,  // 11: auth.v1.AuthService.UpdateOrganization:output_type -> auth.v1.UpdateOrganizationResponse
+	8,  // 12: auth.v1.AuthService.GetGithubIdentityProviderToken:output_type -> auth.v1.GetGithubIdentityProviderTokenResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_auth_proto_init() }
@@ -629,7 +729,7 @@ func file_auth_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_auth_proto_rawDesc), len(file_auth_v1_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

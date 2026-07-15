@@ -613,3 +613,76 @@ func TestBuildCreateOrganizationPayload_BillingStatus(t *testing.T) {
 		assert.False(t, converted.Status.CreatedAt.IsZero())
 	})
 }
+
+func TestGetIdentityProviderToken(t *testing.T) {
+	tests := map[string]struct {
+		status      int
+		body        string
+		wantToken   string
+		wantErr     error
+		wantErrText string
+	}{
+		"json response": {
+			status:    http.StatusOK,
+			body:      `{"access_token":"gh-user-token","token_type":"bearer","scope":""}`,
+			wantToken: "gh-user-token",
+		},
+		"form encoded response": {
+			status:    http.StatusOK,
+			body:      `access_token=gh-user-token&scope=&token_type=bearer`,
+			wantToken: "gh-user-token",
+		},
+		"missing access token": {
+			status:      http.StatusOK,
+			body:        `{"token_type":"bearer"}`,
+			wantErrText: "no access_token in response",
+		},
+		"identity not linked": {
+			status:  http.StatusBadRequest,
+			body:    `{"errorMessage":"Identity Provider [github] does not exist or is not linked."}`,
+			wantErr: ErrIdentityProviderNotLinked{Provider: "github"},
+		},
+		"no stored token": {
+			status:  http.StatusNotFound,
+			wantErr: ErrIdentityProviderNotLinked{Provider: "github"},
+		},
+		"missing broker read-token role": {
+			status:  http.StatusForbidden,
+			wantErr: ErrIdentityProviderTokenForbidden{Provider: "github"},
+		},
+		"server error": {
+			status:      http.StatusInternalServerError,
+			wantErrText: "status 500",
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			var gotPath, gotAuth string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				gotPath = req.URL.Path
+				gotAuth = req.Header.Get("Authorization")
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			r := newTestRestKC(srv.URL)
+
+			got, err := r.GetIdentityProviderToken(context.Background(), "test-realm", "github", "user-token")
+
+			assert.Equal(t, "/realms/test-realm/broker/github/token", gotPath)
+			assert.Equal(t, "Bearer user-token", gotAuth, "request must use the user's token, not the admin token")
+
+			switch {
+			case tc.wantErr != nil:
+				require.ErrorIs(t, err, tc.wantErr)
+			case tc.wantErrText != "":
+				require.ErrorContains(t, err, tc.wantErrText)
+			default:
+				require.NoError(t, err)
+				assert.Equal(t, tc.wantToken, got)
+			}
+		})
+	}
+}

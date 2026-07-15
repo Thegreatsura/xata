@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AuthService_ValidateAccess_FullMethodName     = "/auth.v1.AuthService/ValidateAccess"
-	AuthService_GetOrganization_FullMethodName    = "/auth.v1.AuthService/GetOrganization"
-	AuthService_UpdateOrganization_FullMethodName = "/auth.v1.AuthService/UpdateOrganization"
+	AuthService_ValidateAccess_FullMethodName                 = "/auth.v1.AuthService/ValidateAccess"
+	AuthService_GetOrganization_FullMethodName                = "/auth.v1.AuthService/GetOrganization"
+	AuthService_UpdateOrganization_FullMethodName             = "/auth.v1.AuthService/UpdateOrganization"
+	AuthService_GetGithubIdentityProviderToken_FullMethodName = "/auth.v1.AuthService/GetGithubIdentityProviderToken"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -36,6 +37,10 @@ type AuthServiceClient interface {
 	GetOrganization(ctx context.Context, in *GetOrganizationRequest, opts ...grpc.CallOption) (*GetOrganizationResponse, error)
 	// UpdateOrganization updates an organization's administrative status and triggers hibernation/wake-up of all branches under the organization.
 	UpdateOrganization(ctx context.Context, in *UpdateOrganizationRequest, opts ...grpc.CallOption) (*UpdateOrganizationResponse, error)
+	// GetGithubIdentityProviderToken returns the GitHub user access token stored in
+	// Keycloak for the user identified by the given Keycloak access token.
+	// Fails with FAILED_PRECONDITION if the user has no linked GitHub identity.
+	GetGithubIdentityProviderToken(ctx context.Context, in *GetGithubIdentityProviderTokenRequest, opts ...grpc.CallOption) (*GetGithubIdentityProviderTokenResponse, error)
 }
 
 type authServiceClient struct {
@@ -76,6 +81,16 @@ func (c *authServiceClient) UpdateOrganization(ctx context.Context, in *UpdateOr
 	return out, nil
 }
 
+func (c *authServiceClient) GetGithubIdentityProviderToken(ctx context.Context, in *GetGithubIdentityProviderTokenRequest, opts ...grpc.CallOption) (*GetGithubIdentityProviderTokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetGithubIdentityProviderTokenResponse)
+	err := c.cc.Invoke(ctx, AuthService_GetGithubIdentityProviderToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -88,6 +103,10 @@ type AuthServiceServer interface {
 	GetOrganization(context.Context, *GetOrganizationRequest) (*GetOrganizationResponse, error)
 	// UpdateOrganization updates an organization's administrative status and triggers hibernation/wake-up of all branches under the organization.
 	UpdateOrganization(context.Context, *UpdateOrganizationRequest) (*UpdateOrganizationResponse, error)
+	// GetGithubIdentityProviderToken returns the GitHub user access token stored in
+	// Keycloak for the user identified by the given Keycloak access token.
+	// Fails with FAILED_PRECONDITION if the user has no linked GitHub identity.
+	GetGithubIdentityProviderToken(context.Context, *GetGithubIdentityProviderTokenRequest) (*GetGithubIdentityProviderTokenResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -106,6 +125,9 @@ func (UnimplementedAuthServiceServer) GetOrganization(context.Context, *GetOrgan
 }
 func (UnimplementedAuthServiceServer) UpdateOrganization(context.Context, *UpdateOrganizationRequest) (*UpdateOrganizationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateOrganization not implemented")
+}
+func (UnimplementedAuthServiceServer) GetGithubIdentityProviderToken(context.Context, *GetGithubIdentityProviderTokenRequest) (*GetGithubIdentityProviderTokenResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetGithubIdentityProviderToken not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -182,6 +204,24 @@ func _AuthService_UpdateOrganization_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_GetGithubIdentityProviderToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetGithubIdentityProviderTokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).GetGithubIdentityProviderToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_GetGithubIdentityProviderToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).GetGithubIdentityProviderToken(ctx, req.(*GetGithubIdentityProviderTokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -200,6 +240,10 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateOrganization",
 			Handler:    _AuthService_UpdateOrganization_Handler,
+		},
+		{
+			MethodName: "GetGithubIdentityProviderToken",
+			Handler:    _AuthService_GetGithubIdentityProviderToken_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

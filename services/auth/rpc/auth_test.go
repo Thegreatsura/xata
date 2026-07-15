@@ -2,10 +2,14 @@ package rpc
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
+	authv1 "xata/gen/proto/auth/v1"
 	"xata/gen/protomocks"
+	"xata/internal/api/key"
 	"xata/internal/token"
 	"xata/services/auth/keycloak"
 	keycloakMocks "xata/services/auth/keycloak/mocks"
@@ -16,6 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestBuildUserClaims(t *testing.T) {
@@ -171,6 +177,53 @@ func TestBuildUserClaims(t *testing.T) {
 			assert.Equal(t, userID, got.ID)
 			assert.Equal(t, userEmail, got.Email)
 			assert.Equal(t, tc.want, got.Organizations)
+		})
+	}
+}
+
+func TestGetGithubIdentityProviderTokenRejectsWithoutKeycloak(t *testing.T) {
+	apiKey, err := key.NewUserKey()
+	require.NoError(t, err)
+
+	tests := map[string]struct {
+		token    string
+		wantCode codes.Code
+	}{
+		"empty token": {
+			token:    "",
+			wantCode: codes.InvalidArgument,
+		},
+		"api key": {
+			token:    string(apiKey),
+			wantCode: codes.Unauthenticated,
+		},
+		"invalid access token": {
+			token:    "not-a-jwt",
+			wantCode: codes.Unauthenticated,
+		},
+	}
+
+	// Keycloak certs endpoint always fails, so any token decode fails. The
+	// broker token endpoint must never be reached; the KeyCloak mock has no
+	// expectations and fails the test on any call.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mockKC := keycloakMocks.NewKeyCloak(t)
+			mockStore := storeMocks.NewAuthStore(t)
+			mockProjects := protomocks.NewProjectsServiceClient(t)
+			mockOrgs := orgsmock.NewOrganizations(t)
+
+			svc := NewAuthService(mockStore, gocloak.NewClient(srv.URL), mockKC, mockProjects, mockOrgs, "test-realm", "")
+
+			_, err := svc.GetGithubIdentityProviderToken(context.Background(), &authv1.GetGithubIdentityProviderTokenRequest{Token: tc.token})
+
+			require.Error(t, err)
+			assert.Equal(t, tc.wantCode, status.Code(err))
 		})
 	}
 }

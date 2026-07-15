@@ -101,7 +101,10 @@ type handler struct {
 }
 
 type GithubInstallationValidator interface {
-	ValidateInstallation(ctx context.Context, installationID int64) error
+	// ValidateUserInstallationAccess checks that the GitHub app installation is
+	// visible to the GitHub user connected to the Xata user identified by the
+	// given session token.
+	ValidateUserInstallationAccess(ctx context.Context, sessionToken string, installationID int64) error
 	ValidateRepositoryAccess(ctx context.Context, repositoryID int64, installationIDs []int64) error
 }
 
@@ -2284,7 +2287,7 @@ func (s *handler) CreateGithubAppInstallation(c echo.Context, organizationID spe
 		if err := api.ReadBody(c, &body); err != nil {
 			return err
 		}
-		if err := s.validateGithubInstallationID(c.Request().Context(), body.InstallationId); err != nil {
+		if err := s.validateGithubInstallationAccess(c, body.InstallationId); err != nil {
 			return err
 		}
 
@@ -2297,14 +2300,29 @@ func (s *handler) CreateGithubAppInstallation(c echo.Context, organizationID spe
 	})
 }
 
-func (s *handler) validateGithubInstallationID(ctx context.Context, installationID int64) error {
+func (s *handler) validateGithubInstallationAccess(c echo.Context, installationID int64) error {
 	if installationID <= 0 {
 		return ErrorInvalidParam{Param: "installationId", Message: "must be greater than 0"}
 	}
 	if s.githubInstallationValidator == nil {
 		return ErrorGithubInstallationValidationUnavailable{Err: errors.New("github installation validator is not configured")}
 	}
-	return s.githubInstallationValidator.ValidateInstallation(ctx, installationID)
+
+	claims := api.GetUserClaims(c)
+	if claims == nil {
+		return echo.NewHTTPError(http.StatusUnauthorized)
+	}
+	// API keys have no Keycloak session and therefore no connected GitHub account.
+	if claims.APIKeyID() != "" {
+		return ErrorGithubUserSessionRequired{}
+	}
+
+	sessionToken, err := api.BearerTokenFromHeader(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized)
+	}
+
+	return s.githubInstallationValidator.ValidateUserInstallationAccess(c.Request().Context(), sessionToken, installationID)
 }
 
 func (s *handler) validateGithubRepositoryAccess(c echo.Context, repositoryID int64) error {
@@ -2367,7 +2385,7 @@ func (s *handler) UpdateGithubAppInstallation(c echo.Context, organizationID spe
 		if err := api.ReadBody(c, &body); err != nil {
 			return err
 		}
-		if err := s.validateGithubInstallationID(c.Request().Context(), body.InstallationId); err != nil {
+		if err := s.validateGithubInstallationAccess(c, body.InstallationId); err != nil {
 			return err
 		}
 

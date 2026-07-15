@@ -34,7 +34,7 @@ func AuthMiddleware(conn *grpc.ClientConnection) echo.MiddlewareFunc {
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			tokenStr, err := tokenFromHeader(c)
+			tokenStr, err := BearerTokenFromHeader(c)
 			if err != nil {
 				return echo.NewHTTPError(http.StatusUnauthorized, "no token found")
 			}
@@ -97,7 +97,8 @@ func mapOrganizations(src map[string]*authv1.Organization) map[string]token.Orga
 	return dst
 }
 
-func tokenFromHeader(c echo.Context) (string, error) {
+// BearerTokenFromHeader returns the bearer token from the Authorization header of the request.
+func BearerTokenFromHeader(c echo.Context) (string, error) {
 	authScheme := "Bearer"
 	auth := c.Request().Header.Get(echo.HeaderAuthorization)
 	l := len(authScheme)

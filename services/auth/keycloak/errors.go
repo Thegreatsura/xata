@@ -79,6 +79,34 @@ func (e ErrInvitationConflict) StatusCode() int {
 	return http.StatusConflict
 }
 
+// ErrIdentityProviderNotLinked is returned when the user has no linked identity
+// for the provider, or the linked identity has no stored token.
+type ErrIdentityProviderNotLinked struct {
+	Provider string
+}
+
+func (e ErrIdentityProviderNotLinked) Error() string {
+	return fmt.Sprintf("identity provider %s is not linked", e.Provider)
+}
+
+func (e ErrIdentityProviderNotLinked) StatusCode() int {
+	return http.StatusBadRequest
+}
+
+// ErrIdentityProviderTokenForbidden is returned when the user token is not allowed
+// to read the stored identity provider token (missing broker read-token role).
+type ErrIdentityProviderTokenForbidden struct {
+	Provider string
+}
+
+func (e ErrIdentityProviderTokenForbidden) Error() string {
+	return fmt.Sprintf("not allowed to read the %s identity provider token", e.Provider)
+}
+
+func (e ErrIdentityProviderTokenForbidden) StatusCode() int {
+	return http.StatusForbidden
+}
+
 type ErrInvitationFailed struct {
 	Email string
 }

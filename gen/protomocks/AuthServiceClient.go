@@ -24,6 +24,68 @@ func (_m *AuthServiceClient) EXPECT() *AuthServiceClient_Expecter {
 	return &AuthServiceClient_Expecter{mock: &_m.Mock}
 }
 
+// GetGithubIdentityProviderToken provides a mock function with given fields: ctx, in, opts
+func (_m *AuthServiceClient) GetGithubIdentityProviderToken(ctx context.Context, in *authv1.GetGithubIdentityProviderTokenRequest, opts ...grpc.CallOption) (*authv1.GetGithubIdentityProviderTokenResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 *authv1.GetGithubIdentityProviderTokenResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *authv1.GetGithubIdentityProviderTokenRequest, ...grpc.CallOption) *authv1.GetGithubIdentityProviderTokenResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*authv1.GetGithubIdentityProviderTokenResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *authv1.GetGithubIdentityProviderTokenRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AuthServiceClient_GetGithubIdentityProviderToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGithubIdentityProviderToken'
+type AuthServiceClient_GetGithubIdentityProviderToken_Call struct {
+	*mock.Call
+}
+
+// GetGithubIdentityProviderToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *authv1.GetGithubIdentityProviderTokenRequest
+//   - opts ...grpc.CallOption
+func (_e *AuthServiceClient_Expecter) GetGithubIdentityProviderToken(ctx interface{}, in interface{}, opts ...interface{}) *AuthServiceClient_GetGithubIdentityProviderToken_Call {
+	return &AuthServiceClient_GetGithubIdentityProviderToken_Call{Call: _e.mock.On("GetGithubIdentityProviderToken",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *AuthServiceClient_GetGithubIdentityProviderToken_Call) Run(run func(ctx context.Context, in *authv1.GetGithubIdentityProviderTokenRequest, opts ...grpc.CallOption)) *AuthServiceClient_GetGithubIdentityProviderToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*authv1.GetGithubIdentityProviderTokenRequest), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *AuthServiceClient_GetGithubIdentityProviderToken_Call) Return(_a0 *authv1.GetGithubIdentityProviderTokenResponse, _a1 error) *AuthServiceClient_GetGithubIdentityProviderToken_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // GetOrganization provides a mock function with given fields: ctx, in, opts
 func (_m *AuthServiceClient) GetOrganization(ctx context.Context, in *authv1.GetOrganizationRequest, opts ...grpc.CallOption) (*authv1.GetOrganizationResponse, error) {
 	_va := make([]interface{}, len(opts))

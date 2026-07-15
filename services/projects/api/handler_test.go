@@ -38,6 +38,7 @@ import (
 	"xata/services/projects/store/mocks"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/require"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	"google.golang.org/grpc/codes"
@@ -90,9 +91,12 @@ func testClaimsWithMarketplace(marketplace string) token.Claims {
 	}
 }
 
+const testSessionToken = "test-session-token"
+
 type fakeGithubInstallationValidator struct {
 	err       error
 	calls     []int64
+	tokens    []string
 	repoErr   error
 	repoCalls []fakeGithubRepositoryValidationCall
 }
@@ -102,8 +106,9 @@ type fakeGithubRepositoryValidationCall struct {
 	installationIDs []int64
 }
 
-func (f *fakeGithubInstallationValidator) ValidateInstallation(ctx context.Context, installationID int64) error {
+func (f *fakeGithubInstallationValidator) ValidateUserInstallationAccess(ctx context.Context, sessionToken string, installationID int64) error {
 	f.calls = append(f.calls, installationID)
+	f.tokens = append(f.tokens, sessionToken)
 	return f.err
 }
 
@@ -115,8 +120,11 @@ func (f *fakeGithubInstallationValidator) ValidateRepositoryAccess(ctx context.C
 	return f.repoErr
 }
 
-func TestValidateGithubInstallationIDRequiresValidator(t *testing.T) {
-	err := (&handler{}).validateGithubInstallationID(context.Background(), 1)
+func TestValidateGithubInstallationAccessRequiresValidator(t *testing.T) {
+	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
+	c, _ := e.POST("/organizations/" + apitest.TestOrganization + "/githubapp/installations").Context()
+
+	err := (&handler{}).validateGithubInstallationAccess(c, 1)
 
 	var got ErrorGithubInstallationValidationUnavailable
 	require.ErrorAs(t, err, &got)
@@ -7044,13 +7052,21 @@ func TestCreateGithubAppInstallation(t *testing.T) {
 			wantError:     true,
 			expectedError: ErrorInvalidParam{Param: "installationId", Message: "must be greater than 0"},
 		},
-		"validator returns error": {
+		"installation not accessible returns error": {
 			jsonBody:                map[string]any{"installationId": 123},
 			setupMocks:              func(mockStore *mocks.ProjectsStore) {},
-			validationErr:           ErrorInvalidParam{Param: "installationId", Message: "github app installation not found"},
+			validationErr:           ErrorGithubInstallationNotAccessible{InstallationID: 123},
 			expectedValidationCalls: []int64{123},
 			wantError:               true,
-			expectedError:           ErrorInvalidParam{Param: "installationId", Message: "github app installation not found"},
+			expectedError:           ErrorGithubInstallationNotAccessible{InstallationID: 123},
+		},
+		"github account not connected returns error": {
+			jsonBody:                map[string]any{"installationId": 123},
+			setupMocks:              func(mockStore *mocks.ProjectsStore) {},
+			validationErr:           ErrorGithubAccountNotConnected{},
+			expectedValidationCalls: []int64{123},
+			wantError:               true,
+			expectedError:           ErrorGithubAccountNotConnected{},
 		},
 		"store returns generic error": {
 			jsonBody:                map[string]any{"installationId": 789},
@@ -7073,7 +7089,10 @@ func TestCreateGithubAppInstallation(t *testing.T) {
 			validator := &fakeGithubInstallationValidator{err: tt.validationErr}
 			handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil, WithGithubInstallationValidator(validator))
 
-			c, rec := e.POST("/organizations/" + apitest.TestOrganization + "/githubapp/installations").WithJSONBody(tt.jsonBody).Context()
+			c, rec := e.POST("/organizations/"+apitest.TestOrganization+"/githubapp/installations").
+				WithJSONBody(tt.jsonBody).
+				WithHeader(echo.HeaderAuthorization, "Bearer "+testSessionToken).
+				Context()
 			err := handler.CreateGithubAppInstallation(c, apitest.TestOrganization)
 			if tt.wantError {
 				assert.Error(t, err)
@@ -7088,9 +7107,55 @@ func TestCreateGithubAppInstallation(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.expectedValidationCalls, validator.calls)
+			for _, token := range validator.tokens {
+				assert.Equal(t, testSessionToken, token)
+			}
 			mockStore.AssertExpectations(t)
 		})
 	}
+}
+
+func TestCreateGithubAppInstallationRequiresUserSession(t *testing.T) {
+	apiKeyClaims := apitest.TestClaims
+	apiKeyClaims.KeyID = "key-1"
+	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apiKeyClaims)
+
+	feat := openfeaturetest.NewClient(nil)
+	mockStore := mocks.NewProjectsStore(t)
+	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
+	validator := &fakeGithubInstallationValidator{}
+	handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil, WithGithubInstallationValidator(validator))
+
+	c, _ := e.POST("/organizations/"+apitest.TestOrganization+"/githubapp/installations").
+		WithJSONBody(map[string]any{"installationId": 123}).
+		WithHeader(echo.HeaderAuthorization, "Bearer "+testSessionToken).
+		Context()
+	err := handler.CreateGithubAppInstallation(c, apitest.TestOrganization)
+
+	assert.Equal(t, ErrorGithubUserSessionRequired{}, err)
+	assert.Empty(t, validator.calls)
+	mockStore.AssertExpectations(t)
+}
+
+func TestCreateGithubAppInstallationRequiresBearerToken(t *testing.T) {
+	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
+
+	feat := openfeaturetest.NewClient(nil)
+	mockStore := mocks.NewProjectsStore(t)
+	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
+	validator := &fakeGithubInstallationValidator{}
+	handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil, WithGithubInstallationValidator(validator))
+
+	c, _ := e.POST("/organizations/" + apitest.TestOrganization + "/githubapp/installations").
+		WithJSONBody(map[string]any{"installationId": 123}).
+		Context()
+	err := handler.CreateGithubAppInstallation(c, apitest.TestOrganization)
+
+	var httpErr *echo.HTTPError
+	require.ErrorAs(t, err, &httpErr)
+	assert.Equal(t, http.StatusUnauthorized, httpErr.Code)
+	assert.Empty(t, validator.calls)
+	mockStore.AssertExpectations(t)
 }
 
 func TestListGithubAppInstallations(t *testing.T) {
@@ -7237,14 +7302,14 @@ func TestUpdateGithubAppInstallation(t *testing.T) {
 			wantError:            true,
 			expectedError:        ErrorInvalidParam{Param: "installationId", Message: "must be greater than 0"},
 		},
-		"validator returns error": {
+		"installation not accessible returns error": {
 			githubInstallationID:    "inst-1",
 			jsonBody:                map[string]any{"installationId": 456},
 			setupMocks:              func(mockStore *mocks.ProjectsStore) {},
-			validationErr:           ErrorInvalidParam{Param: "installationId", Message: "github app installation not found"},
+			validationErr:           ErrorGithubInstallationNotAccessible{InstallationID: 456},
 			expectedValidationCalls: []int64{456},
 			wantError:               true,
-			expectedError:           ErrorInvalidParam{Param: "installationId", Message: "github app installation not found"},
+			expectedError:           ErrorGithubInstallationNotAccessible{InstallationID: 456},
 		},
 		"store returns generic error": {
 			githubInstallationID:    "inst-1",
@@ -7267,7 +7332,10 @@ func TestUpdateGithubAppInstallation(t *testing.T) {
 			sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
 			validator := &fakeGithubInstallationValidator{err: tt.validationErr}
 			handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil, WithGithubInstallationValidator(validator))
-			c, rec := e.PUT("/organizations/" + apitest.TestOrganization + "/githubapp/installations/" + tt.githubInstallationID).WithJSONBody(tt.jsonBody).Context()
+			c, rec := e.PUT("/organizations/"+apitest.TestOrganization+"/githubapp/installations/"+tt.githubInstallationID).
+				WithJSONBody(tt.jsonBody).
+				WithHeader(echo.HeaderAuthorization, "Bearer "+testSessionToken).
+				Context()
 			err := handler.UpdateGithubAppInstallation(c, apitest.TestOrganization, tt.githubInstallationID)
 			if tt.wantError {
 				assert.Error(t, err)

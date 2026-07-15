@@ -748,6 +748,64 @@ func (r *restKC) buildRealmURL(realm string, pathSegments ...string) (string, er
 	return url.JoinPath(r.authConfig.KeycloakURL, segments...)
 }
 
+// GetIdentityProviderToken retrieves the stored external identity provider token for
+// the user identified by userToken via the Keycloak identity broker token endpoint.
+// The request is authenticated with the user's own token, not the admin token.
+func (r *restKC) GetIdentityProviderToken(ctx context.Context, realm, provider, userToken string) (string, error) {
+	brokerURL, err := url.JoinPath(r.authConfig.KeycloakURL, "realms", realm, "broker", provider, "token")
+	if err != nil {
+		return "", fmt.Errorf("build broker token url: %w", err)
+	}
+
+	resp, err := r.client.GetRequestWithBearerAuth(ctx, userToken).Get(brokerURL)
+	if err != nil {
+		return "", fmt.Errorf("get identity provider token: %w", err)
+	}
+
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		token, err := parseIdentityProviderToken(resp.Body())
+		if err != nil {
+			return "", fmt.Errorf("parse %s identity provider token: %w", provider, err)
+		}
+		return token, nil
+	case http.StatusBadRequest, http.StatusNotFound:
+		// Keycloak returns 400 when the identity is not linked (callers are expected
+		// to have validated the user token beforehand) and 404 when the linked
+		// identity has no stored token.
+		return "", ErrIdentityProviderNotLinked{Provider: provider}
+	case http.StatusForbidden:
+		return "", ErrIdentityProviderTokenForbidden{Provider: provider}
+	default:
+		return "", fmt.Errorf("get identity provider token: status %d", resp.StatusCode())
+	}
+}
+
+// parseIdentityProviderToken extracts the access token from the identity broker
+// response. Keycloak stores the provider's token endpoint response verbatim, so the
+// body can be JSON or form-encoded depending on the provider configuration.
+func parseIdentityProviderToken(body []byte) (string, error) {
+	var jsonBody struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal(body, &jsonBody); err == nil {
+		if jsonBody.AccessToken == "" {
+			return "", fmt.Errorf("no access_token in response")
+		}
+		return jsonBody.AccessToken, nil
+	}
+
+	values, err := url.ParseQuery(string(body))
+	if err != nil {
+		return "", fmt.Errorf("response is neither JSON nor form-encoded")
+	}
+	token := values.Get("access_token")
+	if token == "" {
+		return "", fmt.Errorf("no access_token in response")
+	}
+	return token, nil
+}
+
 func (r *restKC) makeAuthenticatedRequest(ctx context.Context, method, urlStr string, queryParams map[string]string, data any) (*resty.Response, error) {
 	// doRequest builds and sends the request using the current admin token. It is
 	// a closure so we can rebuild the request with a fresh token on retry.

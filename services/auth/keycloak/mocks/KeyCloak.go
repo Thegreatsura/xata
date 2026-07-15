@@ -227,6 +227,53 @@ func (_c *KeyCloak_DeleteOrganization_Call) Return(_a0 error) *KeyCloak_DeleteOr
 	return _c
 }
 
+// GetIdentityProviderToken provides a mock function with given fields: ctx, realm, provider, userToken
+func (_m *KeyCloak) GetIdentityProviderToken(ctx context.Context, realm string, provider string, userToken string) (string, error) {
+	ret := _m.Called(ctx, realm, provider, userToken)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) string); ok {
+		r0 = rf(ctx, realm, provider, userToken)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, realm, provider, userToken)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// KeyCloak_GetIdentityProviderToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetIdentityProviderToken'
+type KeyCloak_GetIdentityProviderToken_Call struct {
+	*mock.Call
+}
+
+// GetIdentityProviderToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - provider string
+//   - userToken string
+func (_e *KeyCloak_Expecter) GetIdentityProviderToken(ctx interface{}, realm interface{}, provider interface{}, userToken interface{}) *KeyCloak_GetIdentityProviderToken_Call {
+	return &KeyCloak_GetIdentityProviderToken_Call{Call: _e.mock.On("GetIdentityProviderToken", ctx, realm, provider, userToken)}
+}
+
+func (_c *KeyCloak_GetIdentityProviderToken_Call) Run(run func(ctx context.Context, realm string, provider string, userToken string)) *KeyCloak_GetIdentityProviderToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_GetIdentityProviderToken_Call) Return(_a0 string, _a1 error) *KeyCloak_GetIdentityProviderToken_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // GetInvitation provides a mock function with given fields: c, realm, organizationID, invitationID
 func (_m *KeyCloak) GetInvitation(c context.Context, realm string, organizationID string, invitationID string) (keycloak.OrganizationInvitation, error) {
 	ret := _m.Called(c, realm, organizationID, invitationID)

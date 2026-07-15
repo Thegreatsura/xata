@@ -60,6 +60,17 @@ message UpdateOrganizationResponse {
   Organization organization = 1;
 }
 
+message GetGithubIdentityProviderTokenRequest {
+  // token is the user's Keycloak access token, used both to identify the user
+  // and to authorize the Keycloak identity broker token endpoint.
+  string token = 1;
+}
+
+message GetGithubIdentityProviderTokenResponse {
+  // access_token is the GitHub user access token stored in Keycloak for the user.
+  string access_token = 1;
+}
+
 // AuthService is the service that provides authentication-related RPCs.
 service AuthService {
   // ValidateAccess checks if the given token can call the specified endpoint
@@ -70,4 +81,9 @@ service AuthService {
 
   // UpdateOrganization updates an organization's administrative status and triggers hibernation/wake-up of all branches under the organization.
   rpc UpdateOrganization(UpdateOrganizationRequest) returns (UpdateOrganizationResponse);
+
+  // GetGithubIdentityProviderToken returns the GitHub user access token stored in
+  // Keycloak for the user identified by the given Keycloak access token.
+  // Fails with FAILED_PRECONDITION if the user has no linked GitHub identity.
+  rpc GetGithubIdentityProviderToken(GetGithubIdentityProviderTokenRequest) returns (GetGithubIdentityProviderTokenResponse);
 }

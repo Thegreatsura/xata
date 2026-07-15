@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
@@ -19,9 +20,14 @@ import (
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/utils/ptr"
 )
+
+// githubIdentityProvider is the alias of the GitHub identity provider in Keycloak.
+const githubIdentityProvider = "github"
 
 // Ensure AuthService implements GRPCService interface.
 var _ authv1.AuthServiceServer = (*AuthService)(nil)
@@ -188,6 +194,37 @@ func (a *AuthService) ValidateAccess(ctx context.Context, req *authv1.ValidateAc
 		Projects:      claims.Projects,
 		Branches:      claims.Branches,
 	}, nil
+}
+
+// GetGithubIdentityProviderToken returns the GitHub user access token stored in
+// Keycloak for the user identified by the given Keycloak access token.
+func (a *AuthService) GetGithubIdentityProviderToken(ctx context.Context, req *authv1.GetGithubIdentityProviderTokenRequest) (*authv1.GetGithubIdentityProviderTokenResponse, error) {
+	tokenStr := req.GetToken()
+	if tokenStr == "" {
+		return nil, status.Error(codes.InvalidArgument, "token is required")
+	}
+	// API keys have no Keycloak session, so there is no brokered token to retrieve.
+	if key.Key(tokenStr).IsValid() {
+		return nil, status.Error(codes.Unauthenticated, "a user session is required")
+	}
+
+	jwt, _, err := a.kc.DecodeAccessToken(ctx, tokenStr, a.realm)
+	if err != nil || !jwt.Valid {
+		return nil, status.Error(codes.Unauthenticated, "invalid token")
+	}
+
+	githubToken, err := a.kcRest.GetIdentityProviderToken(ctx, a.realm, githubIdentityProvider, tokenStr)
+	if err != nil {
+		if _, ok := errors.AsType[keycloak.ErrIdentityProviderNotLinked](err); ok {
+			return nil, status.Error(codes.FailedPrecondition, "github account is not connected")
+		}
+		if _, ok := errors.AsType[keycloak.ErrIdentityProviderTokenForbidden](err); ok {
+			return nil, status.Error(codes.PermissionDenied, "not allowed to read the github identity provider token")
+		}
+		return nil, status.Error(codes.Unavailable, "get github identity provider token")
+	}
+
+	return &authv1.GetGithubIdentityProviderTokenResponse{AccessToken: githubToken}, nil
 }
 
 func (a *AuthService) GetOrganization(ctx context.Context, req *authv1.GetOrganizationRequest) (*authv1.GetOrganizationResponse, error) {

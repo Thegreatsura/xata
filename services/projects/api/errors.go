@@ -89,6 +89,57 @@ func (e ErrorGithubInstallationValidationUnavailable) StatusCode() int {
 	return http.StatusServiceUnavailable
 }
 
+// ErrorGithubUserSessionRequired is returned when github app installations are
+// managed with an API key instead of a user session.
+type ErrorGithubUserSessionRequired struct{}
+
+func (e ErrorGithubUserSessionRequired) Error() string {
+	return "github app installations can only be managed with a user session"
+}
+
+func (e ErrorGithubUserSessionRequired) StatusCode() int {
+	return http.StatusForbidden
+}
+
+// ErrorGithubAccountNotConnected is returned when the user has no GitHub account
+// connected to their Xata account.
+type ErrorGithubAccountNotConnected struct{}
+
+func (e ErrorGithubAccountNotConnected) Error() string {
+	return "github account is not connected"
+}
+
+func (e ErrorGithubAccountNotConnected) StatusCode() int {
+	return http.StatusBadRequest
+}
+
+// ErrorGithubAccountReconnectRequired is returned when the stored GitHub token is
+// expired or revoked and the user needs to reconnect their GitHub account.
+type ErrorGithubAccountReconnectRequired struct{}
+
+func (e ErrorGithubAccountReconnectRequired) Error() string {
+	return "github connection has expired, reconnect your github account"
+}
+
+func (e ErrorGithubAccountReconnectRequired) StatusCode() int {
+	return http.StatusBadRequest
+}
+
+// ErrorGithubInstallationNotAccessible is returned when the github app installation
+// is not visible to the user's GitHub account. It intentionally does not distinguish
+// between installations that do not exist and installations of other users.
+type ErrorGithubInstallationNotAccessible struct {
+	InstallationID int64
+}
+
+func (e ErrorGithubInstallationNotAccessible) Error() string {
+	return fmt.Sprintf("github app installation [%d] is not accessible", e.InstallationID)
+}
+
+func (e ErrorGithubInstallationNotAccessible) StatusCode() int {
+	return http.StatusForbidden
+}
+
 type ErrorGithubRepositoryValidationUnavailable struct {
 	Err error
 }
