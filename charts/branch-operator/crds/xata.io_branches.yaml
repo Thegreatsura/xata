@@ -425,6 +425,10 @@ spec:
                         description: StorageClass is the Kubernetes storage class
                           for the cluster PVCs
                         type: string
+                      volumeAttributesClass:
+                        description: VolumeAttributesClass is the Kubernetes volume
+                          attributes class for the cluster PVCs
+                        type: string
                       volumeSnapshotClass:
                         description: VolumeSnapshotClass is the Kubernetes volume
                           snapshot class for snapshots

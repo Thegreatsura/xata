@@ -414,6 +414,11 @@ func (in *StorageSpec) DeepCopyInto(out *StorageSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.VolumeAttributesClass != nil {
+		in, out := &in.VolumeAttributesClass, &out.VolumeAttributesClass
+		*out = new(string)
+		**out = **in
+	}
 	if in.VolumeSnapshotClass != nil {
 		in, out := &in.VolumeSnapshotClass, &out.VolumeSnapshotClass
 		*out = new(string)

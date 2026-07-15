@@ -196,6 +196,10 @@ type StorageSpec struct {
 	// +optional
 	StorageClass *string `json:"storageClass,omitempty"`
 
+	// VolumeAttributesClass is the Kubernetes volume attributes class for the cluster PVCs
+	// +optional
+	VolumeAttributesClass *string `json:"volumeAttributesClass,omitempty"`
+
 	// VolumeSnapshotClass is the Kubernetes volume snapshot class for snapshots
 	// +optional
 	VolumeSnapshotClass *string `json:"volumeSnapshotClass,omitempty"`

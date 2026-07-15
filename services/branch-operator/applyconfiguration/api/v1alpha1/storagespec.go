@@ -11,6 +11,8 @@ type StorageSpecApplyConfiguration struct {
 	Size *string `json:"size,omitempty"`
 	// StorageClass is the Kubernetes storage class for the cluster PVCs
 	StorageClass *string `json:"storageClass,omitempty"`
+	// VolumeAttributesClass is the Kubernetes volume attributes class for the cluster PVCs
+	VolumeAttributesClass *string `json:"volumeAttributesClass,omitempty"`
 	// VolumeSnapshotClass is the Kubernetes volume snapshot class for snapshots
 	VolumeSnapshotClass *string `json:"volumeSnapshotClass,omitempty"`
 	// MountPropagation sets the mount propagation mode for the storage volume.
@@ -37,6 +39,14 @@ func (b *StorageSpecApplyConfiguration) WithSize(value string) *StorageSpecApply
 // If called multiple times, the StorageClass field is set to the value of the last call.
 func (b *StorageSpecApplyConfiguration) WithStorageClass(value string) *StorageSpecApplyConfiguration {
 	b.StorageClass = &value
+	return b
+}
+
+// WithVolumeAttributesClass sets the VolumeAttributesClass field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the VolumeAttributesClass field is set to the value of the last call.
+func (b *StorageSpecApplyConfiguration) WithVolumeAttributesClass(value string) *StorageSpecApplyConfiguration {
+	b.VolumeAttributesClass = &value
 	return b
 }
 
