@@ -197,6 +197,11 @@ func ClusterSpec(
 	if cfg.Storage.StorageClass != nil {
 		storage = storage.WithStorageClass(*cfg.Storage.StorageClass)
 	}
+	if cfg.Storage.VolumeAttributesClass != nil {
+		storage = storage.WithPersistentVolumeClaimTemplate(corev1.PersistentVolumeClaimSpec{
+			VolumeAttributesClassName: cfg.Storage.VolumeAttributesClass,
+		})
+	}
 	if cfg.Storage.MountPropagation != nil {
 		storage = storage.WithMountPropagation(corev1.MountPropagationMode(*cfg.Storage.MountPropagation))
 	}

@@ -81,6 +81,19 @@ func TestClusterSpec(t *testing.T) {
 					WithStorageClass("some-new-storage-class")),
 		},
 		{
+			name: "volume attributes class - volume attributes class is set",
+			cfgModifier: func(cfg *resources.ClusterConfig) {
+				cfg.Storage.VolumeAttributesClass = new("some-volume-attributes-class")
+			},
+			expected: baseExpectedSpec().
+				WithPlugins(scaleToZeroPlugin(), barmanPlugin(false, map[string]string{"barmanObjectName": testBranchName})).
+				WithStorageConfiguration(apiv1ac.StorageConfiguration().
+					WithSize("10Gi").
+					WithPersistentVolumeClaimTemplate(corev1.PersistentVolumeClaimSpec{
+						VolumeAttributesClassName: new("some-volume-attributes-class"),
+					})),
+		},
+		{
 			name: "volume snapshot class - volume snapshot class is set",
 			cfgModifier: func(cfg *resources.ClusterConfig) {
 				cfg.Storage.VolumeSnapshotClass = new("some-other-snapshot-class")
