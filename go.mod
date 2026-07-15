@@ -22,7 +22,7 @@ require (
 	github.com/go-logr/zerologr v1.2.3
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/go-resty/resty/v2 v2.16.5
-	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-github/v84 v84.0.0
 	github.com/google/uuid v1.6.0
 	github.com/grafana/pyroscope-go v1.4.1
@@ -35,6 +35,7 @@ require (
 	github.com/labstack/echo/v4 v4.15.2
 	github.com/lib/pq v1.12.3
 	github.com/mattn/go-isatty v0.0.22
+	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/open-feature/go-sdk v1.16.0
 	github.com/orbcorp/orb-go v1.13.0
@@ -153,6 +154,7 @@ require (
 	github.com/golangci/golines v0.15.0 // indirect
 	github.com/golangci/swaggoswag v0.0.0-20250504205917-77f2aca3143e // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
+	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gosuri/uitable v0.0.4 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -192,6 +194,7 @@ require (
 	github.com/woodsbury/decimal128 v1.3.0 // indirect
 	github.com/yannh/kubeconform v0.7.0 // indirect
 	github.com/yashtewari/glob-intersection v0.2.0 // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.augendre.info/arangolint v0.4.0 // indirect
 	go.augendre.info/fatcontext v0.9.0 // indirect
 	k8s.io/apiserver v0.35.1 // indirect

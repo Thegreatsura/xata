@@ -54,5 +54,9 @@ var (
 		Name:           "usePgBackRest",
 		DefaultEnabled: false,
 	}
+	MCPServer = openfeature.FeatureFlag{
+		Name:           "mcpServer",
+		DefaultEnabled: false,
+	}
 	// WARNING: Feature Flags should have positive names. Avoid disabled suffix in future
 )
