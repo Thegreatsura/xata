@@ -18,7 +18,6 @@ import (
 	"xata/services/auth/store"
 
 	"github.com/Nerzal/gocloak/v13"
-	"github.com/open-policy-agent/opa/v1/rego"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -40,7 +39,7 @@ type AuthService struct {
 	realm          string
 	kc             *gocloak.GoCloak
 	store          store.AuthStore
-	policy         rego.PreparedEvalQuery
+	policy         *opa.Policy
 	projectsClient projectsv1.ProjectsServiceClient
 	orgs           orgs.Organizations
 	defaultOrgID   string
@@ -48,12 +47,7 @@ type AuthService struct {
 
 // NewAuthService creates a new AuthService.
 func NewAuthService(store store.AuthStore, kcClient *gocloak.GoCloak, kcRest keycloak.KeyCloak, projectsClient projectsv1.ProjectsServiceClient, orgs orgs.Organizations, realm, defaultOrgID string) *AuthService {
-	r := rego.New(
-		rego.Query("data.policy.allow"),
-		rego.Module("policy.rego", opa.Policy),
-	)
-
-	policy, err := r.PrepareForEval(context.Background())
+	policy, err := opa.NewPolicy(context.Background())
 	if err != nil {
 		log.Fatalf("failed to prepare OPA policy: %v", err)
 	}
@@ -162,16 +156,9 @@ func (a *AuthService) ValidateAccess(ctx context.Context, req *authv1.ValidateAc
 		},
 	}
 
-	allowed := false
-	res, err := a.policy.Eval(ctx, rego.EvalInput(input))
+	allowed, err := a.policy.Allow(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("OPA policy evaluation failed: %w", err)
-	}
-
-	if len(res) > 0 && len(res[0].Expressions) > 0 {
-		if val, ok := res[0].Expressions[0].Value.(bool); ok {
-			allowed = val
-		}
 	}
 
 	specOrgs := make(map[string]*authv1.Organization)

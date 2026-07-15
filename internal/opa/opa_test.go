@@ -5,32 +5,48 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/stretchr/testify/require"
 )
 
 // Compiling the Rego module dominates test runtime, so reuse one prepared
-// query across every case — matches how AuthService holds it in prod.
-var preparedAllow = sync.OnceValues(func() (rego.PreparedEvalQuery, error) {
-	return rego.New(
-		rego.Query("data.policy.allow"),
-		rego.Module("policy.rego", Policy),
-	).PrepareForEval(context.Background())
+// policy across every case — matches how AuthService holds it in prod.
+var sharedPolicy = sync.OnceValues(func() (*Policy, error) {
+	return NewPolicy(context.Background())
 })
 
 func evalAllow(t *testing.T, input PolicyInput) bool {
 	t.Helper()
 
-	q, err := preparedAllow()
+	p, err := sharedPolicy()
 	require.NoError(t, err)
 
-	res, err := q.Eval(context.Background(), rego.EvalInput(input))
+	allow, err := p.Allow(context.Background(), input)
 	require.NoError(t, err)
-	require.NotEmpty(t, res)
-	require.NotEmpty(t, res[0].Expressions)
-	allow, ok := res[0].Expressions[0].Value.(bool)
-	require.True(t, ok)
 	return allow
+}
+
+// normalized must fill every nil slice and the organizations map; a nil value marshals to null, which valid_input rejects.
+func TestNormalizedFillsNilValues(t *testing.T) {
+	t.Parallel()
+
+	got := PolicyInput{}.normalized()
+
+	require.NotNil(t, got.Request.Scopes)
+	require.NotNil(t, got.Claims.Scopes)
+	require.NotNil(t, got.Claims.Projects)
+	require.NotNil(t, got.Claims.Branches)
+	require.NotNil(t, got.Claims.Organizations)
+}
+
+// A no-scope request (nil slices, e.g. the MCP server's /mcp route) must be admitted; Allow normalizes the input.
+func TestPolicyNoScopeRouteAllowed(t *testing.T) {
+	t.Parallel()
+
+	input := PolicyInput{
+		Request: RequestInput{Method: "POST", Path: "/mcp"},
+		Claims:  ClaimsInput{Organizations: map[string]Organization{"org1": {ID: "org1", Status: "enabled"}}},
+	}
+	require.True(t, evalAllow(t, input), "no-scope route should be allowed")
 }
 
 func TestPolicyCollectionRouteBypass(t *testing.T) {
