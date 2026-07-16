@@ -1,7 +1,7 @@
 # PostgreSQL extensions available in each image offering
 # This file is automatically updated by a sync workflow from the postgres-images repo
 
-last_updated: "2026-07-08T09:38:53Z"
+last_updated: "2026-07-16T16:34:18Z"
 updated_by: workflow
 offerings:
   analytics:
@@ -114,11 +114,6 @@ offerings:
           version: "3.6.4"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
-          preload_required: false
-        - name: postgis_topology
-          version: "3.6.4"
-          description: "PostGIS topology spatial types and functions"
-          docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
           version: "3.6.4"
@@ -444,11 +439,6 @@ offerings:
           version: "3.6.4"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
-          preload_required: false
-        - name: postgis_topology
-          version: "3.6.4"
-          description: "PostGIS topology spatial types and functions"
-          docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
           version: "3.6.4"
@@ -796,11 +786,6 @@ offerings:
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
-        - name: postgis_topology
-          version: "3.6.4"
-          description: "PostGIS topology spatial types and functions"
-          docs_url: "https://postgis.net/docs/Topology.html"
-          preload_required: false
         - name: postgis_tiger_geocoder
           version: "3.6.4"
           description: "PostGIS tiger geocoder and reverse geocoder"
@@ -1121,11 +1106,6 @@ offerings:
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
-        - name: postgis_topology
-          version: "3.6.4"
-          description: "PostGIS topology spatial types and functions"
-          docs_url: "https://postgis.net/docs/Topology.html"
-          preload_required: false
         - name: postgis_tiger_geocoder
           version: "3.6.4"
           description: "PostGIS tiger geocoder and reverse geocoder"
@@ -1445,11 +1425,6 @@ offerings:
           version: "3.6.4"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
-          preload_required: false
-        - name: postgis_topology
-          version: "3.6.4"
-          description: "PostGIS topology spatial types and functions"
-          docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
           version: "3.6.4"
@@ -1781,11 +1756,6 @@ offerings:
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
-        - name: postgis_topology
-          version: "3.6.4"
-          description: "PostGIS topology spatial types and functions"
-          docs_url: "https://postgis.net/docs/Topology.html"
-          preload_required: false
         - name: postgis_tiger_geocoder
           version: "3.6.4"
           description: "PostGIS tiger geocoder and reverse geocoder"
@@ -2105,11 +2075,6 @@ offerings:
           version: "3.6.4"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
-          preload_required: false
-        - name: postgis_topology
-          version: "3.6.4"
-          description: "PostGIS topology spatial types and functions"
-          docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
           version: "3.6.4"
@@ -2452,11 +2417,6 @@ offerings:
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
-        - name: postgis_topology
-          version: "3.6.4"
-          description: "PostGIS topology spatial types and functions"
-          docs_url: "https://postgis.net/docs/Topology.html"
-          preload_required: false
         - name: postgis_tiger_geocoder
           version: "3.6.4"
           description: "PostGIS tiger geocoder and reverse geocoder"
@@ -2787,11 +2747,6 @@ offerings:
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
           preload_required: false
-        - name: postgis_topology
-          version: "3.6.4"
-          description: "PostGIS topology spatial types and functions"
-          docs_url: "https://postgis.net/docs/Topology.html"
-          preload_required: false
         - name: postgis_tiger_geocoder
           version: "3.6.4"
           description: "PostGIS tiger geocoder and reverse geocoder"
@@ -3116,11 +3071,6 @@ offerings:
           version: "3.6.4"
           description: "PostGIS geometry and geography spatial types and functions"
           docs_url: "https://postgis.net/"
-          preload_required: false
-        - name: postgis_topology
-          version: "3.6.4"
-          description: "PostGIS topology spatial types and functions"
-          docs_url: "https://postgis.net/docs/Topology.html"
           preload_required: false
         - name: postgis_tiger_geocoder
           version: "3.6.4"
