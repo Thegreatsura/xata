@@ -361,6 +361,12 @@ func (s *handler) CreateProject(c echo.Context, organizationID spec.Organization
 			return err
 		}
 
+		if req.Configuration != nil {
+			if err := validateIPFiltering(req.Configuration.IpFiltering); err != nil {
+				return err
+			}
+		}
+
 		cfg := apiToStoreCreateProjectConfig(req, claims.Organizations[organizationID].UsageTier)
 		createdProject, err := s.store.CreateProject(ctx, organizationID, cfg)
 		if err != nil {
@@ -458,6 +464,12 @@ func (s *handler) UpdateProject(c echo.Context, organizationID spec.Organization
 
 		if body.Name == nil && body.Configuration == nil {
 			return ErrorInvalidParam{ProjectID: projectID, Param: "all", Message: "at least one of the request fields needs to be set"}
+		}
+
+		if body.Configuration != nil {
+			if err := validateIPFiltering(body.Configuration.IpFiltering); err != nil {
+				return err
+			}
 		}
 
 		ctx := c.Request().Context()

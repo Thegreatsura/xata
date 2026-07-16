@@ -1764,6 +1764,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CidrEntry'
+          maxItems: 64
       required:
         - enabled
         - cidr
@@ -1771,11 +1772,14 @@ components:
       type: object
       properties:
         cidr:
-          description: 'CIDR block (e.g., "192.168.0.0/24")'
+          description: 'IP address or CIDR block (e.g., "192.168.0.0/24")'
           type: string
+          maxLength: 64
+          minLength: 1
         description:
           description: Optional label for the CIDR entry
           type: string
+          maxLength: 100
       required:
         - cidr
     BranchFromParent:
