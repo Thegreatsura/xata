@@ -88,6 +88,22 @@ resourceCleanup:
       cpu: 50m
       memory: 64Mi
 
+# Periodic sweep of stale MCP clients (dynamically-registered Keycloak clients
+# carrying requiredScope). Suspended and dry-run by default; unsuspend per env
+# and review the dry-run logs before turning dryRun off. See cleanup_mcp_clients.
+mcpClientCleanup:
+  schedule: "0 4 * * *"
+  requiredScope: "mcp-client"
+  dryRun: true
+  suspend: true
+  resources:
+    limits:
+      cpu: 100m
+      memory: 64Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
 trialExpiryEmails:
   schedule: "0 9 * * *"
   timeZone: "Etc/UTC"

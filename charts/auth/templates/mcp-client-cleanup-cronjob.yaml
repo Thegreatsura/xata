@@ -1,0 +1,65 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Chart.Name }}-mcp-client-cleanup
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    description: "ServiceAccount for Stale MCP Client Cleanup Job"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Chart.Name }}-mcp-client-cleanup
+  namespace: {{ .Release.Namespace }}
+spec:
+  suspend: {{ .Values.mcpClientCleanup.suspend }}
+  schedule: {{ .Values.mcpClientCleanup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          serviceAccountName: {{ .Chart.Name }}-mcp-client-cleanup
+          restartPolicy: Never
+          enableServiceLinks: false
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: mcp-client-cleanup
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["/server"]
+              args:
+                - cleanup_mcp_clients
+                - --required-scope={{ .Values.mcpClientCleanup.requiredScope }}
+                - --dry-run={{ .Values.mcpClientCleanup.dryRun }}
+              env:
+                - name: KEYCLOAK_ADMIN_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: auth-keycloak-initial-admin
+                      key: username
+                - name: KEYCLOAK_ADMIN_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: auth-keycloak-initial-admin
+                      key: password
+              envFrom:
+                - configMapRef:
+                    name: keycloak-api-settings
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                {{- toYaml .Values.mcpClientCleanup.resources | nindent 16 }}
