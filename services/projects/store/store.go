@@ -43,6 +43,7 @@ var tierDefaults = map[UsageTier]map[LimitKey]int{
 		LimitMaxProjects:            10,
 		LimitMaxProjectsPerHour:     5,
 		LimitMaxAllowedInstanceType: 2000,
+		LimitMaxStorageGBPerBranch:  250,
 	},
 	TierT2: {
 		LimitMaxDescriptionLength:   50,
@@ -54,6 +55,7 @@ var tierDefaults = map[UsageTier]map[LimitKey]int{
 		LimitMaxProjects:            100,
 		LimitMaxProjectsPerHour:     20,
 		LimitMaxAllowedInstanceType: 32000, // xata.8xlarge, the largest instance type
+		LimitMaxStorageGBPerBranch:  5000,  // 5TB
 	},
 }
 

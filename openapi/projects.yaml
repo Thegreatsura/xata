@@ -2145,10 +2145,10 @@ components:
           maximum: 4
           minimum: 0
         storage:
-          description: Branch storage in GiB (gigabytes)
+          description: Branch storage in GiB (gigabytes). The maximum allowed value depends on the organization's storage limit.
           type: integer
           format: int32
-          maximum: 250
+          minimum: 1
         instanceType:
           description: New instance type for the branch
           type: string
@@ -2333,6 +2333,11 @@ components:
           type: integer
           minimum: 1
           title: Maximum branch creation rate per hour
+        maxStorageGBPerBranch:
+          description: Maximum storage in GiB (gigabytes) allowed per branch; 0 means no limit
+          type: integer
+          minimum: 0
+          title: Maximum storage per branch (GiB)
       required:
         - maxDescriptionLength
         - maxBranchesPerProject
@@ -2340,6 +2345,7 @@ components:
         - minInstancesPerBranch
         - maxAllowedInstanceType
         - maxBranchesPerHour
+        - maxStorageGBPerBranch
     BranchMetricsRequest:
       type: object
       properties:

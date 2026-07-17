@@ -794,7 +794,7 @@ func TestUpdatePostgresCluster(t *testing.T) {
 		{
 			name: "error - storage size exceeds maximum",
 			requestFn: func(r *clustersv1.UpdatePostgresClusterRequest) {
-				r.UpdateConfiguration.StorageSize = new(int32(2048))
+				r.UpdateConfiguration.StorageSize = new(int32(MaxStorageSizeGi + 1))
 			},
 			expectedStatusCode: codes.InvalidArgument,
 		},

@@ -482,6 +482,7 @@ func TestResolveOrgLimits(t *testing.T) {
 		MinInstancesPerBranch:  store.TierDefaultInt(store.TierT1, store.LimitMinInstancesPerBranch, 0),
 		MaxDescriptionLength:   store.TierDefaultInt(store.TierT1, store.LimitMaxDescriptionLength, 0),
 		MaxAllowedInstanceType: store.TierDefaultInt(store.TierT1, store.LimitMaxAllowedInstanceType, 0),
+		MaxStorageGBPerBranch:  store.TierDefaultInt(store.TierT1, store.LimitMaxStorageGBPerBranch, 0),
 	}
 
 	t2Defaults := OrgLimits{
@@ -494,6 +495,7 @@ func TestResolveOrgLimits(t *testing.T) {
 		MinInstancesPerBranch:  store.TierDefaultInt(store.TierT2, store.LimitMinInstancesPerBranch, 0),
 		MaxDescriptionLength:   store.TierDefaultInt(store.TierT2, store.LimitMaxDescriptionLength, 0),
 		MaxAllowedInstanceType: store.TierDefaultInt(store.TierT2, store.LimitMaxAllowedInstanceType, 0),
+		MaxStorageGBPerBranch:  store.TierDefaultInt(store.TierT2, store.LimitMaxStorageGBPerBranch, 0),
 	}
 
 	tests := map[string]struct {

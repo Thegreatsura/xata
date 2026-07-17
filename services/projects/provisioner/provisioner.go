@@ -28,6 +28,7 @@ type OrgLimits struct {
 	MinInstancesPerBranch  int
 	MaxDescriptionLength   int
 	MaxAllowedInstanceType int
+	MaxStorageGBPerBranch  int
 }
 
 // StoreLimits returns the subset of limits needed by store.CreateBranch.
@@ -78,6 +79,7 @@ func ResolveOrgLimits(ctx context.Context, s store.ProjectsStore, usageTier, org
 		MinInstancesPerBranch:  resolve(store.LimitMinInstancesPerBranch, def(store.LimitMinInstancesPerBranch)),
 		MaxDescriptionLength:   resolve(store.LimitMaxDescriptionLength, def(store.LimitMaxDescriptionLength)),
 		MaxAllowedInstanceType: resolve(store.LimitMaxAllowedInstanceType, def(store.LimitMaxAllowedInstanceType)),
+		MaxStorageGBPerBranch:  resolve(store.LimitMaxStorageGBPerBranch, def(store.LimitMaxStorageGBPerBranch)),
 	}, nil
 }
 

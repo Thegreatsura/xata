@@ -620,6 +620,18 @@ func isValidBackupTimeFormat(s string) bool {
 	return pattern.MatchString(s)
 }
 
+// validateStorageSize checks a requested storage size against the org's limit.
+// A max of 0 means "no limit".
+func validateStorageSize(branchName string, storageGB int32, max int) error {
+	if storageGB < 1 {
+		return ErrorInvalidParam{BranchName: branchName, Param: "storage", Message: "storage size must be at least 1 GB"}
+	}
+	if max > 0 && storageGB > int32(max) {
+		return ErrorInvalidParam{BranchName: branchName, Param: "storage", Message: fmt.Sprintf("storage size exceeds the maximum of %d GB", max)}
+	}
+	return nil
+}
+
 func validateReplicaCount(branchName string, replicas int32, min, max int) error {
 	numInstances := replicas + 1
 	if numInstances < int32(min) {
@@ -1397,6 +1409,12 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 			}
 		}
 
+		if body.Storage != nil {
+			if err := validateStorageSize(branchID, *body.Storage, orgLimits.MaxStorageGBPerBranch); err != nil {
+				return err
+			}
+		}
+
 		// CNPG rejects simultaneous image and configuration changes when
 		// primaryUpdateMethod is set to "switchover". Instance type changes are
 		// included because they auto-adjust postgres parameters. Preload libraries
@@ -1449,7 +1467,8 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 			needsClusterInfo := (body.InstanceType != nil && *body.InstanceType != FallbackInstanceType) ||
 				body.PostgresConfigurationParameters != nil ||
 				body.PreloadLibraries != nil ||
-				body.Image != nil
+				body.Image != nil ||
+				body.Storage != nil
 			if needsClusterInfo {
 				cluster, err = client.DescribePostgresCluster(c.Request().Context(), &clustersv1.DescribePostgresClusterRequest{Id: branchID})
 				if err != nil {
@@ -1459,6 +1478,12 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 					}
 					return err
 				}
+			}
+
+			// Volumes can only grow: the Branch CR rejects a decrease, so catch it
+			// here to report a 400 instead of an opaque failure from the operator.
+			if body.Storage != nil && *body.Storage < cluster.Configuration.StorageSize {
+				return ErrorInvalidParam{BranchName: branchID, Param: "storage", Message: fmt.Sprintf("storage size cannot be decreased (current: %d GB)", cluster.Configuration.StorageSize)}
 			}
 
 			// Validate preload libraries against extensions available for this image
@@ -1780,6 +1805,7 @@ func (s *handler) GetProjectLimits(c echo.Context, organizationID spec.Organizat
 				MinInstancesPerBranch:  limits.MinInstancesPerBranch,
 				MaxAllowedInstanceType: limits.MaxAllowedInstanceType,
 				MaxBranchesPerHour:     limits.MaxBranchesPerHour,
+				MaxStorageGBPerBranch:  limits.MaxStorageGBPerBranch,
 			})
 		})
 	})
@@ -1826,6 +1852,7 @@ func orgLimitsToSpec(l provisioner.OrgLimits) spec.OrganizationLimits {
 		MinInstancesPerBranch:  l.MinInstancesPerBranch,
 		MaxDescriptionLength:   l.MaxDescriptionLength,
 		MaxAllowedInstanceType: l.MaxAllowedInstanceType,
+		MaxStorageGBPerBranch:  l.MaxStorageGBPerBranch,
 	}
 }
 

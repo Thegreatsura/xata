@@ -42,7 +42,11 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-const MaxStorageSizeGi = 1024
+// MaxStorageSizeGi is a data-plane sanity backstop against absurd requests
+// (e.g. a fat-fingered size). The effective per-tier storage limits are
+// enforced by the projects service (max_storage_gb_per_branch), so this is
+// deliberately far above them; 64Ti is also the largest EBS (io2) volume size.
+const MaxStorageSizeGi = 65536
 
 const clusterOwnerKey = ".metadata.ownerReferences[controller=true].name"
 

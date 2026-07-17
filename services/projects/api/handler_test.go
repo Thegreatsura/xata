@@ -4294,10 +4294,100 @@ func TestUpdateBranch(t *testing.T) {
 					Password: "pass",
 				}, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: ""}, nil).Once()
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{Id: "123"}).Return(&clustersv1.DescribePostgresClusterResponse{
+					Id:            "123",
+					Configuration: &clustersv1.ClusterConfiguration{StorageSize: 10},
+				}, nil).Once()
 				mockClusters.EXPECT().UpdatePostgresCluster(mock.Anything, &clustersv1.UpdatePostgresClusterRequest{
 					Id: "123",
 					UpdateConfiguration: &clustersv1.UpdateClusterConfiguration{
 						StorageSize: new(int32(25)),
+					},
+				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
+			},
+			wantError: false,
+		},
+		{
+			name:      "update branch storage below current size fails",
+			projectID: "project_id",
+			branchID:  "123",
+			jsonBody:  map[string]int32{"storage": 100},
+			setupMocks: func() {
+				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
+				branch := store.Branch{
+					ID:          "123",
+					Name:        "newTest",
+					Description: new("newDesc"),
+					Region:      "region-id-1",
+				}
+				mockStore.EXPECT().UpdateBranch(mock.Anything, apitest.TestOrganization, "project_id", "123", updateBranchConfig(nil, nil), mock.Anything).Run(func(ctx context.Context, organizationID string, projectID string, branchID string, cfg *store.UpdateBranchConfiguration, provisionFn func(*store.Branch) error) {
+					err := provisionFn(&branch)
+					assert.Error(t, err)
+				}).Return(nil, ErrorInvalidParam{BranchName: "123", Param: "storage", Message: "storage size cannot be decreased (current: 250 GB)"}).Once()
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{Id: "123"}).Return(&clustersv1.DescribePostgresClusterResponse{
+					Id:            "123",
+					Configuration: &clustersv1.ClusterConfiguration{StorageSize: defaultStorage},
+				}, nil).Once()
+			},
+			wantError:     true,
+			expectedError: ErrorInvalidParam{BranchName: "123", Param: "storage", Message: "storage size cannot be decreased (current: 250 GB)"},
+		},
+		{
+			name:      "update branch storage above tier limit fails",
+			projectID: "project_id",
+			branchID:  "123",
+			jsonBody:  map[string]int32{"storage": 5001},
+			setupMocks: func() {
+				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
+			},
+			wantError:     true,
+			expectedError: ErrorInvalidParam{BranchName: "123", Param: "storage", Message: "storage size exceeds the maximum of 5000 GB"},
+		},
+		{
+			name:      "update branch storage above org override fails",
+			projectID: "project_id",
+			branchID:  "123",
+			jsonBody:  map[string]int32{"storage": 501},
+			setupMocks: func() {
+				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{
+					store.LimitMaxStorageGBPerBranch: json.Number("500"),
+				}, nil).Once()
+			},
+			wantError:     true,
+			expectedError: ErrorInvalidParam{BranchName: "123", Param: "storage", Message: "storage size exceeds the maximum of 500 GB"},
+		},
+		{
+			name:      "update branch storage within org override works",
+			projectID: "project_id",
+			branchID:  "123",
+			jsonBody:  map[string]int32{"storage": 5500},
+			setupMocks: func() {
+				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{
+					store.LimitMaxStorageGBPerBranch: json.Number("6000"),
+				}, nil).Once()
+				branch := store.Branch{
+					ID:          "123",
+					Name:        "newTest",
+					Description: new("newDesc"),
+					Region:      "region-id-1",
+				}
+				mockStore.EXPECT().UpdateBranch(mock.Anything, apitest.TestOrganization, "project_id", "123", updateBranchConfig(nil, nil), mock.Anything).Run(func(ctx context.Context, organizationID string, projectID string, branchID string, cfg *store.UpdateBranchConfiguration, provisionFn func(*store.Branch) error) {
+					err := provisionFn(&branch)
+					assert.Nil(t, err)
+				}).Return(&branch, nil).Once()
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+					Username: "user",
+					Password: "pass",
+				}, nil).Once()
+				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: ""}, nil).Once()
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{Id: "123"}).Return(&clustersv1.DescribePostgresClusterResponse{
+					Id:            "123",
+					Configuration: &clustersv1.ClusterConfiguration{StorageSize: defaultStorage},
+				}, nil).Once()
+				mockClusters.EXPECT().UpdatePostgresCluster(mock.Anything, &clustersv1.UpdatePostgresClusterRequest{
+					Id: "123",
+					UpdateConfiguration: &clustersv1.UpdateClusterConfiguration{
+						StorageSize: new(int32(5500)),
 					},
 				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
 			},
@@ -5433,6 +5523,7 @@ func TestHandler_GetOrganizationLimits(t *testing.T) {
 				MaxBranchesPerHour:     store.TierDefaultInt(store.TierT1, store.LimitMaxBranchesPerHour, 0),
 				MaxDescriptionLength:   store.TierDefaultInt(store.TierT1, store.LimitMaxDescriptionLength, 0),
 				MaxAllowedInstanceType: store.TierDefaultInt(store.TierT1, store.LimitMaxAllowedInstanceType, 0),
+				MaxStorageGBPerBranch:  store.TierDefaultInt(store.TierT1, store.LimitMaxStorageGBPerBranch, 0),
 			},
 		},
 		"t2 with no overrides returns t2 tier defaults": {
@@ -5448,6 +5539,7 @@ func TestHandler_GetOrganizationLimits(t *testing.T) {
 				MaxBranchesPerHour:     store.TierDefaultInt(store.TierT2, store.LimitMaxBranchesPerHour, 0),
 				MaxDescriptionLength:   store.TierDefaultInt(store.TierT2, store.LimitMaxDescriptionLength, 0),
 				MaxAllowedInstanceType: store.TierDefaultInt(store.TierT2, store.LimitMaxAllowedInstanceType, 0),
+				MaxStorageGBPerBranch:  store.TierDefaultInt(store.TierT2, store.LimitMaxStorageGBPerBranch, 0),
 			},
 		},
 		"t2 with overrides applies overrides on top of t2 defaults": {
@@ -5466,6 +5558,7 @@ func TestHandler_GetOrganizationLimits(t *testing.T) {
 				MaxBranchesPerHour:     store.TierDefaultInt(store.TierT2, store.LimitMaxBranchesPerHour, 0),
 				MaxDescriptionLength:   store.TierDefaultInt(store.TierT2, store.LimitMaxDescriptionLength, 0),
 				MaxAllowedInstanceType: store.TierDefaultInt(store.TierT2, store.LimitMaxAllowedInstanceType, 0),
+				MaxStorageGBPerBranch:  store.TierDefaultInt(store.TierT2, store.LimitMaxStorageGBPerBranch, 0),
 			},
 		},
 		"t2 with xatastor flag uses xatastor defaults for branch counts": {
@@ -5482,6 +5575,7 @@ func TestHandler_GetOrganizationLimits(t *testing.T) {
 				MaxBranchesPerHour:     store.XatastorMaxBranchesPerHour,
 				MaxDescriptionLength:   store.TierDefaultInt(store.TierT2, store.LimitMaxDescriptionLength, 0),
 				MaxAllowedInstanceType: store.TierDefaultInt(store.TierT2, store.LimitMaxAllowedInstanceType, 0),
+				MaxStorageGBPerBranch:  store.TierDefaultInt(store.TierT2, store.LimitMaxStorageGBPerBranch, 0),
 			},
 		},
 	}
@@ -5536,6 +5630,7 @@ func TestHandler_GetProjectLimits(t *testing.T) {
 				MinInstancesPerBranch:  store.TierDefaultInt(store.TierT1, store.LimitMinInstancesPerBranch, 0),
 				MaxAllowedInstanceType: store.TierDefaultInt(store.TierT1, store.LimitMaxAllowedInstanceType, 0),
 				MaxBranchesPerHour:     store.TierDefaultInt(store.TierT1, store.LimitMaxBranchesPerHour, 0),
+				MaxStorageGBPerBranch:  store.TierDefaultInt(store.TierT1, store.LimitMaxStorageGBPerBranch, 0),
 			},
 		},
 		"t2 with no overrides returns t2 tier defaults": {
@@ -5548,6 +5643,7 @@ func TestHandler_GetProjectLimits(t *testing.T) {
 				MinInstancesPerBranch:  store.TierDefaultInt(store.TierT2, store.LimitMinInstancesPerBranch, 0),
 				MaxAllowedInstanceType: store.TierDefaultInt(store.TierT2, store.LimitMaxAllowedInstanceType, 0),
 				MaxBranchesPerHour:     store.TierDefaultInt(store.TierT2, store.LimitMaxBranchesPerHour, 0),
+				MaxStorageGBPerBranch:  store.TierDefaultInt(store.TierT2, store.LimitMaxStorageGBPerBranch, 0),
 			},
 		},
 		"t2 with overrides applies overrides on top of t2 defaults": {
@@ -5563,6 +5659,7 @@ func TestHandler_GetProjectLimits(t *testing.T) {
 				MinInstancesPerBranch:  store.TierDefaultInt(store.TierT2, store.LimitMinInstancesPerBranch, 0),
 				MaxAllowedInstanceType: store.TierDefaultInt(store.TierT2, store.LimitMaxAllowedInstanceType, 0),
 				MaxBranchesPerHour:     store.TierDefaultInt(store.TierT2, store.LimitMaxBranchesPerHour, 0),
+				MaxStorageGBPerBranch:  store.TierDefaultInt(store.TierT2, store.LimitMaxStorageGBPerBranch, 0),
 			},
 		},
 		"t2 with xatastor flag uses xatastor defaults for branch counts": {
@@ -5576,6 +5673,7 @@ func TestHandler_GetProjectLimits(t *testing.T) {
 				MinInstancesPerBranch:  store.TierDefaultInt(store.TierT2, store.LimitMinInstancesPerBranch, 0),
 				MaxAllowedInstanceType: store.TierDefaultInt(store.TierT2, store.LimitMaxAllowedInstanceType, 0),
 				MaxBranchesPerHour:     store.XatastorMaxBranchesPerHour,
+				MaxStorageGBPerBranch:  store.TierDefaultInt(store.TierT2, store.LimitMaxStorageGBPerBranch, 0),
 			},
 		},
 	}
