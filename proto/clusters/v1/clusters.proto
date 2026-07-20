@@ -184,6 +184,7 @@ message UpdateClusterConfiguration {
   map<string, string> postgres_configuration_parameters = 10;
   repeated string preload_libraries = 11;
   optional BackupConfiguration backup_configuration = 12;
+  optional string storage_qos_class = 13;
 }
 
 message ScaleToZero {

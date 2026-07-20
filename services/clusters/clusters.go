@@ -374,7 +374,7 @@ func (c *ClustersService) UpdatePostgresCluster(ctx context.Context, req *cluste
 	// Build the updated Branch Custom Resource
 	branch = NewBranchBuilder().
 		FromExistingBranch(branch).
-		WithUpdatesFrom(req).
+		WithUpdatesFrom(req, c.config.UseStorageQoSClasses).
 		WithXataUtilsPreloadLibrary().
 		WithMandatoryPostgresParameters().
 		Build()

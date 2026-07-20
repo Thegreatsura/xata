@@ -147,7 +147,7 @@ func (b *BranchBuilder) WithOverridesFromParent(parent *v1alpha1.Branch) *Branch
 
 // WithUpdatesFrom configures the BranchBuilder with updates from the
 // UpdatePostgresClusterRequest.
-func (b *BranchBuilder) WithUpdatesFrom(req *clustersv1.UpdatePostgresClusterRequest) *BranchBuilder {
+func (b *BranchBuilder) WithUpdatesFrom(req *clustersv1.UpdatePostgresClusterRequest, useStorageQoSClasses bool) *BranchBuilder {
 	update := req.GetUpdateConfiguration()
 	branchSpec := &b.branch.Spec
 
@@ -188,6 +188,11 @@ func (b *BranchBuilder) WithUpdatesFrom(req *clustersv1.UpdatePostgresClusterReq
 	// Update storage size
 	if update.StorageSize != nil {
 		branchSpec.ClusterSpec.Storage.Size = storageSize(update.GetStorageSize())
+	}
+
+	// Update storage QoS class
+	if update.StorageQosClass != nil {
+		branchSpec.ClusterSpec.Storage = storageWithQoSClass(branchSpec.ClusterSpec.Storage, useStorageQoSClasses, update.GetStorageQosClass())
 	}
 
 	// Update resource requests and limits

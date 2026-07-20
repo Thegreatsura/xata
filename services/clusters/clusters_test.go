@@ -787,6 +787,7 @@ func TestUpdatePostgresCluster(t *testing.T) {
 	tests := []struct {
 		name               string
 		extraObjects       []client.Object
+		serviceOpts        []testServiceOption
 		inputBranchFn      func(b *v1alpha1.Branch)
 		requestFn          func(r *clustersv1.UpdatePostgresClusterRequest)
 		expectedBranchFn   func(b *v1alpha1.Branch)
@@ -947,6 +948,78 @@ func TestUpdatePostgresCluster(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:        "storage QoS class update - replaces the VolumeAttributesClass",
+			serviceOpts: []testServiceOption{withStorageQoSClasses(true)},
+			inputBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.StorageClass = new("xatastor")
+				b.Spec.ClusterSpec.Storage.VolumeAttributesClass = new("xatastor-micro")
+			},
+			requestFn: func(r *clustersv1.UpdatePostgresClusterRequest) {
+				r.UpdateConfiguration.StorageQosClass = new(storageqos.ClassXLarge)
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.StorageClass = new("xatastor")
+				b.Spec.ClusterSpec.Storage.VolumeAttributesClass = new("xatastor-xlarge")
+			},
+		},
+		{
+			name:        "storage QoS class update - unset class preserves the VolumeAttributesClass",
+			serviceOpts: []testServiceOption{withStorageQoSClasses(true)},
+			inputBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.StorageClass = new("xatastor")
+				b.Spec.ClusterSpec.Storage.VolumeAttributesClass = new("xatastor-micro")
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.StorageClass = new("xatastor")
+				b.Spec.ClusterSpec.Storage.VolumeAttributesClass = new("xatastor-micro")
+			},
+		},
+		{
+			name:        "storage QoS class update - ignored when cell QoS support is disabled",
+			serviceOpts: []testServiceOption{withStorageQoSClasses(false)},
+			inputBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.StorageClass = new("xatastor")
+				b.Spec.ClusterSpec.Storage.VolumeAttributesClass = new("xatastor-micro")
+			},
+			requestFn: func(r *clustersv1.UpdatePostgresClusterRequest) {
+				r.UpdateConfiguration.StorageQosClass = new(storageqos.ClassXLarge)
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.StorageClass = new("xatastor")
+				b.Spec.ClusterSpec.Storage.VolumeAttributesClass = new("xatastor-micro")
+			},
+		},
+		{
+			name:        "storage QoS class update - unknown class preserves the VolumeAttributesClass",
+			serviceOpts: []testServiceOption{withStorageQoSClasses(true)},
+			inputBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.StorageClass = new("xatastor")
+				b.Spec.ClusterSpec.Storage.VolumeAttributesClass = new("xatastor-micro")
+			},
+			requestFn: func(r *clustersv1.UpdatePostgresClusterRequest) {
+				r.UpdateConfiguration.StorageQosClass = new("no-such-class")
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.StorageClass = new("xatastor")
+				b.Spec.ClusterSpec.Storage.VolumeAttributesClass = new("xatastor-micro")
+			},
+		},
+		{
+			name:        "storage QoS class update - ignored on a storage class without VolumeAttributesClasses",
+			serviceOpts: []testServiceOption{withStorageQoSClasses(true)},
+			inputBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.StorageClass = new("default-storage-class")
+				b.Spec.ClusterSpec.Storage.VolumeAttributesClass = nil
+			},
+			requestFn: func(r *clustersv1.UpdatePostgresClusterRequest) {
+				r.UpdateConfiguration.StorageQosClass = new(storageqos.ClassXLarge)
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.StorageClass = new("default-storage-class")
+				b.Spec.ClusterSpec.Storage.VolumeAttributesClass = nil
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -960,7 +1033,8 @@ func TestUpdatePostgresCluster(t *testing.T) {
 			}
 
 			existingObjs := append([]client.Object{branchToUpdate}, tt.extraObjects...)
-			svc, k8sClient := setupTestClustersService(t, withExistingObjects(existingObjs...))
+			svc, k8sClient := setupTestClustersService(t,
+				append([]testServiceOption{withExistingObjects(existingObjs...)}, tt.serviceOpts...)...)
 
 			if tt.requestFn != nil {
 				tt.requestFn(req)

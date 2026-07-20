@@ -1122,6 +1122,7 @@ type UpdateClusterConfiguration struct {
 	PostgresConfigurationParameters map[string]string    `protobuf:"bytes,10,rep,name=postgres_configuration_parameters,json=postgresConfigurationParameters,proto3" json:"postgres_configuration_parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	PreloadLibraries                []string             `protobuf:"bytes,11,rep,name=preload_libraries,json=preloadLibraries,proto3" json:"preload_libraries,omitempty"`
 	BackupConfiguration             *BackupConfiguration `protobuf:"bytes,12,opt,name=backup_configuration,json=backupConfiguration,proto3,oneof" json:"backup_configuration,omitempty"`
+	StorageQosClass                 *string              `protobuf:"bytes,13,opt,name=storage_qos_class,json=storageQosClass,proto3,oneof" json:"storage_qos_class,omitempty"`
 	unknownFields                   protoimpl.UnknownFields
 	sizeCache                       protoimpl.SizeCache
 }
@@ -1239,6 +1240,13 @@ func (x *UpdateClusterConfiguration) GetBackupConfiguration() *BackupConfigurati
 		return x.BackupConfiguration
 	}
 	return nil
+}
+
+func (x *UpdateClusterConfiguration) GetStorageQosClass() string {
+	if x != nil && x.StorageQosClass != nil {
+		return *x.StorageQosClass
+	}
+	return ""
 }
 
 type ScaleToZero struct {
@@ -3059,7 +3067,7 @@ const file_clusters_v1_clusters_proto_rawDesc = "" +
 	"$PostgresConfigurationParametersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x14\n" +
-	"\x12_storage_qos_class\"\x93\a\n" +
+	"\x12_storage_qos_class\"\xda\a\n" +
 	"\x1aUpdateClusterConfiguration\x12(\n" +
 	"\rnum_instances\x18\x01 \x01(\x05H\x00R\fnumInstances\x88\x01\x01\x12&\n" +
 	"\fstorage_size\x18\x02 \x01(\x05H\x01R\vstorageSize\x88\x01\x01\x12\"\n" +
@@ -3075,7 +3083,9 @@ const file_clusters_v1_clusters_proto_rawDesc = "" +
 	"!postgres_configuration_parameters\x18\n" +
 	" \x03(\v2L.clusters.v1.UpdateClusterConfiguration.PostgresConfigurationParametersEntryR\x1fpostgresConfigurationParameters\x12+\n" +
 	"\x11preload_libraries\x18\v \x03(\tR\x10preloadLibraries\x12X\n" +
-	"\x14backup_configuration\x18\f \x01(\v2 .clusters.v1.BackupConfigurationH\tR\x13backupConfiguration\x88\x01\x01\x1aR\n" +
+	"\x14backup_configuration\x18\f \x01(\v2 .clusters.v1.BackupConfigurationH\tR\x13backupConfiguration\x88\x01\x01\x12/\n" +
+	"\x11storage_qos_class\x18\r \x01(\tH\n" +
+	"R\x0fstorageQosClass\x88\x01\x01\x1aR\n" +
 	"$PostgresConfigurationParametersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x10\n" +
@@ -3089,7 +3099,8 @@ const file_clusters_v1_clusters_proto_rawDesc = "" +
 	"\x0e_scale_to_zeroB\x0f\n" +
 	"\r_vcpu_requestB\r\n" +
 	"\v_vcpu_limitB\x17\n" +
-	"\x15_backup_configuration\"c\n" +
+	"\x15_backup_configurationB\x14\n" +
+	"\x12_storage_qos_class\"c\n" +
 	"\vScaleToZero\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12:\n" +
 	"\x19inactivity_period_minutes\x18\x02 \x01(\x03R\x17inactivityPeriodMinutes\"O\n" +
