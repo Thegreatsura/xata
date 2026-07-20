@@ -61,7 +61,7 @@ type ErrProjectNotFound struct {
 }
 
 func (e ErrProjectNotFound) Error() string {
-	return fmt.Sprintf("project [%s] not found", e.ID)
+	return fmt.Sprintf("project with ID [%s] not found", e.ID)
 }
 
 func (e ErrProjectNotFound) StatusCode() int {
@@ -113,7 +113,7 @@ type ErrBranchNotFound struct {
 }
 
 func (e ErrBranchNotFound) Error() string {
-	return fmt.Sprintf("branch [%s] not found", e.ID)
+	return fmt.Sprintf("branch with ID [%s] not found", e.ID)
 }
 
 func (e ErrBranchNotFound) StatusCode() int {
@@ -138,7 +138,7 @@ type ErrProjectNotEmpty struct {
 }
 
 func (e ErrProjectNotEmpty) Error() string {
-	return fmt.Sprintf("project %s is not empty. Please delete its branches first.", e.ID)
+	return fmt.Sprintf("project with ID [%s] is not empty. Please delete its branches first.", e.ID)
 }
 
 func (e ErrProjectNotEmpty) StatusCode() int {
@@ -152,7 +152,7 @@ type ErrTooManyBranches struct {
 }
 
 func (e ErrTooManyBranches) Error() string {
-	return fmt.Sprintf("project [%s] has reached the limit of %d branches", e.ID, e.Limit)
+	return fmt.Sprintf("project with ID [%s] has reached the limit of %d branches", e.ID, e.Limit)
 }
 
 func (e ErrTooManyBranches) StatusCode() int {
@@ -165,7 +165,7 @@ type ErrOrgBranchLimitExceeded struct {
 }
 
 func (e ErrOrgBranchLimitExceeded) Error() string {
-	return fmt.Sprintf("organization [%s] has reached the limit of %d branches", e.OrganizationID, e.Limit)
+	return fmt.Sprintf("organization with ID [%s] has reached the limit of %d branches", e.OrganizationID, e.Limit)
 }
 
 func (e ErrOrgBranchLimitExceeded) StatusCode() int {
@@ -178,7 +178,7 @@ type ErrOrgProjectLimitExceeded struct {
 }
 
 func (e ErrOrgProjectLimitExceeded) Error() string {
-	return fmt.Sprintf("organization [%s] has reached the limit of %d projects", e.OrganizationID, e.Limit)
+	return fmt.Sprintf("organization with ID [%s] has reached the limit of %d projects", e.OrganizationID, e.Limit)
 }
 
 func (e ErrOrgProjectLimitExceeded) StatusCode() int {
@@ -191,7 +191,7 @@ type ErrBranchRateLimitExceeded struct {
 }
 
 func (e ErrBranchRateLimitExceeded) Error() string {
-	return fmt.Sprintf("organization [%s] has reached the limit of %d branch creations per hour", e.OrganizationID, e.Limit)
+	return fmt.Sprintf("organization with ID [%s] has reached the limit of %d branch creations per hour", e.OrganizationID, e.Limit)
 }
 
 func (e ErrBranchRateLimitExceeded) StatusCode() int {
@@ -204,7 +204,7 @@ type ErrProjectRateLimitExceeded struct {
 }
 
 func (e ErrProjectRateLimitExceeded) Error() string {
-	return fmt.Sprintf("organization [%s] has reached the limit of %d project creations per hour", e.OrganizationID, e.Limit)
+	return fmt.Sprintf("organization with ID [%s] has reached the limit of %d project creations per hour", e.OrganizationID, e.Limit)
 }
 
 func (e ErrProjectRateLimitExceeded) StatusCode() int {
@@ -217,7 +217,7 @@ type ErrMaxDepthExceeded struct {
 }
 
 func (e ErrMaxDepthExceeded) Error() string {
-	return fmt.Sprintf("BranchID [%s]: a child branch would exceed the maximum depth of the branch tree (%d). Please, remove a depth level or use a different parent", e.BranchID, e.MaxDepth)
+	return fmt.Sprintf("Branch with ID [%s]: a child branch would exceed the maximum depth of the branch tree (%d). Please, remove a depth level or use a different parent", e.BranchID, e.MaxDepth)
 }
 
 func (e ErrMaxDepthExceeded) StatusCode() int {
@@ -238,7 +238,7 @@ func (e ErrInvalidHierarchy) Error() string {
 		return fmt.Sprintf("invalid hierarchy: %s", e.Type)
 	}
 
-	return fmt.Sprintf("invalid hierarchy: %s with ID %s", e.Type, e.ID)
+	return fmt.Sprintf("invalid hierarchy: %s with ID [%s]", e.Type, e.ID)
 }
 
 func (e ErrInvalidHierarchy) StatusCode() int {

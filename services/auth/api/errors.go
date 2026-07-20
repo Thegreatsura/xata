@@ -34,7 +34,7 @@ type ErrorNoOrganizationAccess struct {
 }
 
 func (e ErrorNoOrganizationAccess) Error() string {
-	return fmt.Sprintf("No access to organization %s", e.OrganizationID)
+	return fmt.Sprintf("No access to organization with ID [%s]", e.OrganizationID)
 }
 
 func (e ErrorNoOrganizationAccess) StatusCode() int {

@@ -54,6 +54,10 @@ type ErrorInvalidParam struct {
 }
 
 func (e ErrorInvalidParam) Error() string {
+	// Do not change the "Project [...]: " / "Branch [...]: " prefixes without
+	// coordinating with the frontend: the webapp parses this exact format to
+	// strip the prefix from postgres configuration errors (see
+	// cleanPostgresError in apps/webapp/src/components/settings/postgres-configuration.tsx).
 	errMsg := strings.Builder{}
 	if e.ProjectID != "" {
 		fmt.Fprintf(&errMsg, "Project [%s]: ", e.ProjectID)
@@ -164,7 +168,7 @@ type ErrorBranchNotFound struct {
 }
 
 func (e ErrorBranchNotFound) Error() string {
-	return fmt.Sprintf("Branch [%s]: not found", e.BranchID)
+	return fmt.Sprintf("Branch with ID [%s]: not found", e.BranchID)
 }
 
 func (e ErrorBranchNotFound) StatusCode() int {
@@ -177,7 +181,7 @@ type ErrorCredentialsForBranchNotFound struct {
 }
 
 func (e ErrorCredentialsForBranchNotFound) Error() string {
-	return fmt.Sprintf("Credentials for username [%s] on branch [%s]: not found", e.Username, e.BranchID)
+	return fmt.Sprintf("Credentials for username [%s] on branch with ID [%s]: not found", e.Username, e.BranchID)
 }
 
 func (e ErrorCredentialsForBranchNotFound) StatusCode() int {
@@ -199,7 +203,7 @@ type ErrorOrganizationDisabled struct {
 }
 
 func (e ErrorOrganizationDisabled) Error() string {
-	return fmt.Sprintf("Organization [%s] is disabled, please check your billing settings or contact support", e.OrganizationID)
+	return fmt.Sprintf("Organization with ID [%s] is disabled, please check your billing settings or contact support", e.OrganizationID)
 }
 
 func (e ErrorOrganizationDisabled) StatusCode() int {
@@ -221,7 +225,7 @@ type ErrorParentBranchUnhealthy struct {
 }
 
 func (e ErrorParentBranchUnhealthy) Error() string {
-	return fmt.Sprintf("Cannot create child branch because parent branch [%s] is not healthy", e.ParentID)
+	return fmt.Sprintf("Cannot create child branch because parent branch with ID [%s] is not healthy", e.ParentID)
 }
 
 func (e ErrorParentBranchUnhealthy) StatusCode() int {
@@ -236,7 +240,7 @@ func (e ErrorBranchUpdateForbidden) Error() string {
 	// Assume that forbidden branch updates are temporary for now, they should
 	// only originate from Kubernetes admission policies used to temporarily
 	// block updates.
-	return fmt.Sprintf("Branch [%s] update is temporarily unavailable", e.BranchID)
+	return fmt.Sprintf("Branch with ID [%s] update is temporarily unavailable", e.BranchID)
 }
 
 func (e ErrorBranchUpdateForbidden) StatusCode() int {
@@ -248,7 +252,7 @@ type ErrorBackupNotFound struct {
 }
 
 func (e ErrorBackupNotFound) Error() string {
-	return fmt.Sprintf("Backup [%s]: not found", e.ID)
+	return fmt.Sprintf("Backup with ID [%s]: not found", e.ID)
 }
 
 func (e ErrorBackupNotFound) StatusCode() int {
@@ -260,7 +264,7 @@ type ErrorBranchConflict struct {
 }
 
 func (e ErrorBranchConflict) Error() string {
-	return fmt.Sprintf("branch [%s] was modified concurrently, please retry", e.BranchID)
+	return fmt.Sprintf("branch with ID [%s] was modified concurrently, please retry", e.BranchID)
 }
 
 func (e ErrorBranchConflict) StatusCode() int {
@@ -272,7 +276,7 @@ type ErrorNewOrgBranchLimitExceeded struct {
 }
 
 func (e ErrorNewOrgBranchLimitExceeded) Error() string {
-	return fmt.Sprintf("Organization [%s] has reached the branch limit for new organizations", e.OrganizationID)
+	return fmt.Sprintf("Organization with ID [%s] has reached the branch limit for new organizations", e.OrganizationID)
 }
 
 func (e ErrorNewOrgBranchLimitExceeded) StatusCode() int {

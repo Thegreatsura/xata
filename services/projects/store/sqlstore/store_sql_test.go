@@ -492,7 +492,7 @@ func TestSQLStore(t *testing.T) {
 			organizationID: "organizationID",
 			projectID:      altProject.ID,
 			wantError:      true,
-			errorMessage:   fmt.Sprintf("project [%s] not found", altProject.ID),
+			errorMessage:   fmt.Sprintf("project with ID [%s] not found", altProject.ID),
 		},
 		{
 			name:           "describe branch fails for non-existing branch",
@@ -500,7 +500,7 @@ func TestSQLStore(t *testing.T) {
 			organizationID: "organizationID",
 			projectID:      project.ID,
 			wantError:      true,
-			errorMessage:   "branch [fake-branch-id] not found",
+			errorMessage:   "branch with ID [fake-branch-id] not found",
 		},
 	}
 
@@ -539,7 +539,7 @@ func TestSQLStore(t *testing.T) {
 			organizationID: "organizationID",
 			projectID:      altProject.ID,
 			wantError:      true,
-			errorMessage:   fmt.Sprintf("project [%s] not found", altProject.ID),
+			errorMessage:   fmt.Sprintf("project with ID [%s] not found", altProject.ID),
 		},
 		{
 			name:           "get branch by name fails for non-existing branch",
@@ -547,7 +547,7 @@ func TestSQLStore(t *testing.T) {
 			organizationID: "organizationID",
 			projectID:      project.ID,
 			wantError:      true,
-			errorMessage:   "branch [fake-branch-name] not found",
+			errorMessage:   "branch with ID [fake-branch-name] not found",
 		},
 	}
 
@@ -641,7 +641,7 @@ func TestSQLStore(t *testing.T) {
 			organizationID: "organizationID",
 			projectID:      altProject.ID,
 			wantError:      true,
-			errorMessage:   fmt.Sprintf("project [%s] not found", altProject.ID),
+			errorMessage:   fmt.Sprintf("project with ID [%s] not found", altProject.ID),
 		},
 		{
 			name:           "update branch fails for non-existing branch",
@@ -649,7 +649,7 @@ func TestSQLStore(t *testing.T) {
 			organizationID: "organizationID",
 			projectID:      project.ID,
 			wantError:      true,
-			errorMessage:   "branch [fake-branch-id] not found",
+			errorMessage:   "branch with ID [fake-branch-id] not found",
 		},
 		{
 			name:              "update branch fails when branch belongs to a different project",
@@ -659,7 +659,7 @@ func TestSQLStore(t *testing.T) {
 			organizationID:    "organizationID",
 			projectID:         project.ID,
 			wantError:         true,
-			errorMessage:      fmt.Sprintf("branch [%s] not found", foreignBranch.ID),
+			errorMessage:      fmt.Sprintf("branch with ID [%s] not found", foreignBranch.ID),
 		},
 		{
 			name:           "update branch name fails for already existing branch with that name",
@@ -717,7 +717,7 @@ func TestSQLStore(t *testing.T) {
 				return nil
 			},
 			wantError:    true,
-			errorMessage: fmt.Sprintf("project [%s] not found", altProject.ID),
+			errorMessage: fmt.Sprintf("project with ID [%s] not found", altProject.ID),
 		},
 		{
 			name:           "delete branch fails for incorrect branch ID",
@@ -728,7 +728,7 @@ func TestSQLStore(t *testing.T) {
 				return nil
 			},
 			wantError:    true,
-			errorMessage: "branch [fake-branch-id] not found",
+			errorMessage: "branch with ID [fake-branch-id] not found",
 		},
 		{
 			name:           "delete branch fails if infra call fails",
