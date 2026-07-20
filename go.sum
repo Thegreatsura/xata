@@ -915,6 +915,8 @@ github.com/opentracing/opentracing-go v1.2.0 h1:uEJPy/1a5RIPAJ0Ov+OIO8OxWu77jEv+
 github.com/opentracing/opentracing-go v1.2.0/go.mod h1:GxEUsuufX4nBwe+T+Wl9TAgYrxe9dPLANfrWvHYVTgc=
 github.com/orbcorp/orb-go v1.13.0 h1:wc8Y4805aek2300rb76ckfa4wrOrYCSnTRkwhXOQmXw=
 github.com/orbcorp/orb-go v1.13.0/go.mod h1:6FJHrPKR3jNHm4J/SXE6Y+wT4R+FJ+nzc/vadbRF9SU=
+github.com/orbcorp/orb-go v1.101.0 h1:alklRN0rjwLkq1bnexj4B89OhURN6oDrQ4XE2mRCMaM=
+github.com/orbcorp/orb-go v1.101.0/go.mod h1:RpVsvY2cgFfYhHzVlYZAA/eUM7+22AyqYX50SeVuQNU=
 github.com/otiai10/copy v1.2.0/go.mod h1:rrF5dJ5F0t/EWSYODDu4j9/vEeYHMkc8jt0zJChqQWw=
 github.com/otiai10/copy v1.14.0 h1:dCI/t1iTdYGtkvCuBG2BgR6KZa83PTclw4U5n2wAllU=
 github.com/otiai10/copy v1.14.0/go.mod h1:ECfuL02W+/FkTWZWgQqXPWZgW9oeKCSQ5qVfSc4qc4w=
