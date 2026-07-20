@@ -500,6 +500,15 @@ func (c *ClustersService) DescribePostgresCluster(ctx context.Context, request *
 		backupConfiguration.BackupsEnabled = false
 	}
 
+	// Reverse-map the Branch's VolumeAttributesClass to its storage QoS class
+	var storageQoSClass *string
+	storage := branch.Spec.ClusterSpec.Storage
+	if storage.StorageClass != nil && storage.VolumeAttributesClass != nil {
+		if class, ok := storageQoSClassForVAC(*storage.StorageClass, *storage.VolumeAttributesClass); ok {
+			storageQoSClass = new(class)
+		}
+	}
+
 	return &clustersv1.DescribePostgresClusterResponse{
 		Id: branch.Name,
 		Configuration: &clustersv1.ClusterConfiguration{
@@ -513,6 +522,7 @@ func (c *ClustersService) DescribePostgresCluster(ctx context.Context, request *
 			ScaleToZero:                     scaleToZero,
 			PostgresConfigurationParameters: resources.PostgresParametersToMap(branch.Spec.ClusterSpec.Postgres),
 			PreloadLibraries:                branch.Spec.ClusterSpec.Postgres.SharedPreloadLibraries,
+			StorageQosClass:                 storageQoSClass,
 		},
 		Status:              clusterStatus,
 		BackupConfiguration: backupConfiguration,

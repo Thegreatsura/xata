@@ -1402,6 +1402,25 @@ func TestDescribePostgresCluster(t *testing.T) {
 			}(),
 		},
 		{
+			name: "branch with a VolumeAttributesClass reports its storage QoS class",
+			existingObjects: func() []client.Object {
+				_, branch, _, _, _ := exampleRequestsAndBranches()
+				branch.Spec.ClusterSpec.Storage.StorageClass = new("xatastor")
+				branch.Spec.ClusterSpec.Storage.VolumeAttributesClass = new("xatastor-micro")
+				return []client.Object{branch}
+			},
+			requestID: "lsmevenv7t3l56euo1v9bh3b74",
+			wantResp: func() *clustersv1.DescribePostgresClusterResponse {
+				_, _, resp, _, _ := exampleRequestsAndBranches()
+				resp.Status = &clustersv1.ClusterStatus{
+					Status:     apiv1.PhaseHealthy,
+					StatusType: clustersv1.ClusterStatus_STATUS_TYPE_HIBERNATED,
+				}
+				resp.Configuration.StorageQosClass = new(storageqos.ClassMicro)
+				return resp
+			}(),
+		},
+		{
 			name:      "no branch CR returns not found",
 			requestID: "test-branch",
 			wantErr:   "not found",

@@ -16,3 +16,14 @@ var volumeAttributesClassNames = map[string]map[string]string{
 		storageqos.Class8XLarge: "xatastor-8xlarge",
 	},
 }
+
+// storageQoSClassForVAC returns the storage QoS class whose
+// VolumeAttributesClass is vac under the given storage class
+func storageQoSClassForVAC(storageClass, vac string) (string, bool) {
+	for class, vacName := range volumeAttributesClassNames[storageClass] {
+		if vacName == vac {
+			return class, true
+		}
+	}
+	return "", false
+}
