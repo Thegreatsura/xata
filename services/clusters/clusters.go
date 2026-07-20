@@ -270,6 +270,7 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		WithOverridesFromParent(parent).
 		WithDefaultStorageSize(c.config.ClustersStorageRequest).
 		WithDefaultStorageClass(storageClass).
+		WithStorageQoSClass(c.config.UseStorageQoSClasses, req.GetConfiguration().GetStorageQosClass()).
 		WithDefaultVolumeSnapshotClass(volumeSnapshotClass).
 		WithDefaultNodeSelector(c.config.ClustersNodeSelector).
 		WithPooler(c.config.EnablePooler).

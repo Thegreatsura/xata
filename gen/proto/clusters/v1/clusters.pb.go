@@ -987,6 +987,7 @@ type ClusterConfiguration struct {
 	VcpuLimit                       string            `protobuf:"bytes,9,opt,name=vcpu_limit,json=vcpuLimit,proto3" json:"vcpu_limit,omitempty"`
 	PostgresConfigurationParameters map[string]string `protobuf:"bytes,10,rep,name=postgres_configuration_parameters,json=postgresConfigurationParameters,proto3" json:"postgres_configuration_parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	PreloadLibraries                []string          `protobuf:"bytes,11,rep,name=preload_libraries,json=preloadLibraries,proto3" json:"preload_libraries,omitempty"`
+	StorageQosClass                 *string           `protobuf:"bytes,12,opt,name=storage_qos_class,json=storageQosClass,proto3,oneof" json:"storage_qos_class,omitempty"`
 	unknownFields                   protoimpl.UnknownFields
 	sizeCache                       protoimpl.SizeCache
 }
@@ -1097,6 +1098,13 @@ func (x *ClusterConfiguration) GetPreloadLibraries() []string {
 		return x.PreloadLibraries
 	}
 	return nil
+}
+
+func (x *ClusterConfiguration) GetStorageQosClass() string {
+	if x != nil && x.StorageQosClass != nil {
+		return *x.StorageQosClass
+	}
+	return ""
 }
 
 type UpdateClusterConfiguration struct {
@@ -3031,7 +3039,7 @@ const file_clusters_v1_clusters_proto_rawDesc = "" +
 	"\x1fRegisterPostgresClusterResponse\"2\n" +
 	" DeregisterPostgresClusterRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"#\n" +
-	"!DeregisterPostgresClusterResponse\"\xe1\x04\n" +
+	"!DeregisterPostgresClusterResponse\"\xa8\x05\n" +
 	"\x14ClusterConfiguration\x12#\n" +
 	"\rnum_instances\x18\x01 \x01(\x05R\fnumInstances\x12!\n" +
 	"\fstorage_size\x18\x02 \x01(\x05R\vstorageSize\x12\x1d\n" +
@@ -3046,10 +3054,12 @@ const file_clusters_v1_clusters_proto_rawDesc = "" +
 	"vcpu_limit\x18\t \x01(\tR\tvcpuLimit\x12\x92\x01\n" +
 	"!postgres_configuration_parameters\x18\n" +
 	" \x03(\v2F.clusters.v1.ClusterConfiguration.PostgresConfigurationParametersEntryR\x1fpostgresConfigurationParameters\x12+\n" +
-	"\x11preload_libraries\x18\v \x03(\tR\x10preloadLibraries\x1aR\n" +
+	"\x11preload_libraries\x18\v \x03(\tR\x10preloadLibraries\x12/\n" +
+	"\x11storage_qos_class\x18\f \x01(\tH\x00R\x0fstorageQosClass\x88\x01\x01\x1aR\n" +
 	"$PostgresConfigurationParametersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x93\a\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x14\n" +
+	"\x12_storage_qos_class\"\x93\a\n" +
 	"\x1aUpdateClusterConfiguration\x12(\n" +
 	"\rnum_instances\x18\x01 \x01(\x05H\x00R\fnumInstances\x88\x01\x01\x12&\n" +
 	"\fstorage_size\x18\x02 \x01(\x05H\x01R\vstorageSize\x88\x01\x01\x12\"\n" +
@@ -3386,6 +3396,7 @@ func file_clusters_v1_clusters_proto_init() {
 		(*CreatePostgresClusterRequest_ContinuousBackup)(nil),
 		(*CreatePostgresClusterRequest_BaseBackup)(nil),
 	}
+	file_clusters_v1_clusters_proto_msgTypes[16].OneofWrappers = []any{}
 	file_clusters_v1_clusters_proto_msgTypes[17].OneofWrappers = []any{}
 	file_clusters_v1_clusters_proto_msgTypes[28].OneofWrappers = []any{}
 	file_clusters_v1_clusters_proto_msgTypes[46].OneofWrappers = []any{}

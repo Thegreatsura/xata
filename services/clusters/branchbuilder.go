@@ -107,6 +107,7 @@ func (b *BranchBuilder) WithOverridesFromParent(parent *v1alpha1.Branch) *Branch
 	// Override Branch spec fields with values from the parent Branch
 	clusterSpec.Storage.Size = parent.Spec.ClusterSpec.Storage.Size
 	clusterSpec.Storage.VolumeSnapshotClass = parent.Spec.ClusterSpec.Storage.VolumeSnapshotClass
+	clusterSpec.Storage.VolumeAttributesClass = parent.Spec.ClusterSpec.Storage.VolumeAttributesClass
 	clusterSpec.Storage.MountPropagation = parent.Spec.ClusterSpec.Storage.MountPropagation
 	clusterSpec.Image = parent.Spec.ClusterSpec.Image
 	clusterSpec.Resources = parent.Spec.ClusterSpec.Resources
@@ -288,6 +289,12 @@ func (b *BranchBuilder) WithDefaultVolumeSnapshotClass(vsc string) *BranchBuilde
 	return b
 }
 
+// WithStorageQoSClass sets the storage QoS class for the Branch
+func (b *BranchBuilder) WithStorageQoSClass(useStorageQoSClasses bool, storageQoSClass string) *BranchBuilder {
+	b.branch.Spec.ClusterSpec.Storage = storageWithQoSClass(b.branch.Spec.ClusterSpec.Storage, useStorageQoSClasses, storageQoSClass)
+	return b
+}
+
 // WithPgBackRest sets the pgbackrest storage backend for the cell's cloud
 // provider: gcs for gcp (bucket + GCP service account, Workload Identity auth),
 // s3 otherwise. Only applies when the backup method is pgbackrest. A non-empty
@@ -386,6 +393,25 @@ func (b *BranchBuilder) WithPooler(enabled bool) *BranchBuilder {
 // Build returns the built Branch.
 func (b *BranchBuilder) Build() *v1alpha1.Branch {
 	return b.branch
+}
+
+// storageWithQoSClass returns the StorageSpec with its VolumeAttributesClass
+// set for the given storage QoS class
+func storageWithQoSClass(storage v1alpha1.StorageSpec, useStorageQoSClasses bool, storageQoSClass string) v1alpha1.StorageSpec {
+	if !useStorageQoSClasses || storage.StorageClass == nil {
+		return storage
+	}
+
+	// Look up the VolumeAttributesClass for the branch's storage class; not
+	// every storage class supports VolumeAttributesClasses, and unknown QoS
+	// class names are ignored
+	vac, ok := volumeAttributesClassNames[*storage.StorageClass][storageQoSClass]
+	if !ok {
+		return storage
+	}
+
+	storage.VolumeAttributesClass = new(vac)
+	return storage
 }
 
 // scaleToZeroConfig converts a clustersv1.ScaleToZero to a

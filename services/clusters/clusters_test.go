@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	clustersv1 "xata/gen/proto/clusters/v1"
+	"xata/internal/storageqos"
 	cpv1alpha1 "xata/proto/clusterpool-operator/api/v1alpha1"
 	"xata/services/branch-operator/api/v1alpha1"
 	"xata/services/clusters/internal/connectors/cnpg"
@@ -525,6 +526,89 @@ func TestCreatePostgresCluster(t *testing.T) {
 				b.Spec.ClusterSpec.Storage.Size = "200Gi"
 				b.Spec.ClusterSpec.Storage.StorageClass = new("some-other-storage-class")
 				b.Spec.ClusterSpec.Storage.VolumeSnapshotClass = new("some-other-snapshot-class")
+				b.Spec.ClusterSpec.Resources = corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("1948Mi"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("2"),
+						corev1.ResourceMemory: resource.MustParse("1948Mi"),
+					},
+				}
+				b.Spec.ClusterSpec.Postgres.Parameters = updatePostgresParam(b.Spec.ClusterSpec.Postgres.Parameters, "max_connections", "100")
+				b.Spec.ClusterSpec.Postgres.Parameters = updatePostgresParam(b.Spec.ClusterSpec.Postgres.Parameters, "shared_buffers", "128MB")
+				b.Spec.ClusterSpec.Postgres.SharedPreloadLibraries = []string{"xatautils", "pg_stat_statements"}
+				b.Spec.BackupSpec = nil
+			},
+		},
+		{
+			name:            "storage QoS class - resolves to VolumeAttributesClass on xatastor",
+			xatastorEnabled: true,
+			serviceOpts:     []testServiceOption{withStorageQoSClasses(true)},
+			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
+				r.UseXatastor = new(true)
+				r.Configuration.StorageQosClass = new(storageqos.ClassMicro)
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.StorageClass = new("xatastor")
+				b.Spec.ClusterSpec.Storage.VolumeSnapshotClass = new("xatastor")
+				b.Spec.ClusterSpec.Storage.VolumeAttributesClass = new("xatastor-micro")
+			},
+		},
+		{
+			name:            "storage QoS class - ignored when cell QoS support is disabled",
+			xatastorEnabled: true,
+			serviceOpts:     []testServiceOption{withStorageQoSClasses(false)},
+			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
+				r.UseXatastor = new(true)
+				r.Configuration.StorageQosClass = new(storageqos.ClassMicro)
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.StorageClass = new("xatastor")
+				b.Spec.ClusterSpec.Storage.VolumeSnapshotClass = new("xatastor")
+			},
+		},
+		{
+			name:        "storage QoS class - ignored on a storage class without VolumeAttributesClasses",
+			serviceOpts: []testServiceOption{withStorageQoSClasses(true)},
+			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
+				r.UseXatastor = new(false)
+				r.Configuration.StorageQosClass = new(storageqos.ClassMicro)
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.ClusterSpec.Storage.StorageClass = new("default-storage-class")
+				b.Spec.ClusterSpec.Storage.VolumeAttributesClass = nil
+			},
+		},
+		{
+			name: "child branch - inherits parent VolumeAttributesClass",
+			parentBranch: parentBranch(
+				withStorageClass("xatastor"),
+				withVolumeSnapshotClass("xatastor"),
+				withVolumeAttributesClass("xatastor-large"),
+				withBackupDisabled(),
+			),
+			serviceOpts: []testServiceOption{withStorageQoSClasses(true)},
+			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
+				r.ParentId = new("gmnfj6042d3qd09dcc8a7le0eo")
+				r.DataSource = &clustersv1.CreatePostgresClusterRequest_ClusterSnapshot{
+					ClusterSnapshot: &clustersv1.ClusterSnapshot{
+						ClusterId: "gmnfj6042d3qd09dcc8a7le0eo",
+					},
+				}
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.Restore = &v1alpha1.RestoreSpec{
+					Type: v1alpha1.RestoreTypeVolumeSnapshot,
+					Name: "gmnfj6042d3qd09dcc8a7le0eo",
+				}
+				b.Spec.ClusterSpec.Instances = 1
+				b.Spec.ClusterSpec.Image = "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:16.3"
+				b.Spec.ClusterSpec.Storage.Size = "200Gi"
+				b.Spec.ClusterSpec.Storage.StorageClass = new("xatastor")
+				b.Spec.ClusterSpec.Storage.VolumeSnapshotClass = new("xatastor")
+				b.Spec.ClusterSpec.Storage.VolumeAttributesClass = new("xatastor-large")
 				b.Spec.ClusterSpec.Resources = corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("1"),
@@ -1794,6 +1878,7 @@ type testServiceConfig struct {
 	nodeSelector         map[string]string
 	cnpgConnector        *cnpgmocks.Connector
 	xatastorEnabled      bool
+	useStorageQoSClasses bool
 	pgBackRestBucket     string
 	cloudProvider        string
 	pgBackRestGCSService string
@@ -1823,6 +1908,12 @@ func withCNPGConnector(m *cnpgmocks.Connector) testServiceOption {
 func withXatastorEnabled(enabled bool) testServiceOption {
 	return func(c *testServiceConfig) {
 		c.xatastorEnabled = enabled
+	}
+}
+
+func withStorageQoSClasses(enabled bool) testServiceOption {
+	return func(c *testServiceConfig) {
+		c.useStorageQoSClasses = enabled
 	}
 }
 
@@ -1894,6 +1985,7 @@ func setupTestClustersService(t *testing.T, opts ...testServiceOption) (*Cluster
 			ClustersVolumeSnapshotClass: "default-snapshot-class",
 			ClustersNodeSelector:        cfg.nodeSelector,
 			XatastorEnabled:             cfg.xatastorEnabled,
+			UseStorageQoSClasses:        cfg.useStorageQoSClasses,
 			CloudProvider:               cfg.cloudProvider,
 			PgBackRestBucket:            cfg.pgBackRestBucket,
 			PgBackRestRegion:            "us-east-1",
@@ -2236,6 +2328,12 @@ func withStorageClass(storageClass string) parentBranchOption {
 func withVolumeSnapshotClass(className string) parentBranchOption {
 	return func(b *v1alpha1.Branch) {
 		b.Spec.ClusterSpec.Storage.VolumeSnapshotClass = new(className)
+	}
+}
+
+func withVolumeAttributesClass(className string) parentBranchOption {
+	return func(b *v1alpha1.Branch) {
+		b.Spec.ClusterSpec.Storage.VolumeAttributesClass = new(className)
 	}
 }
 

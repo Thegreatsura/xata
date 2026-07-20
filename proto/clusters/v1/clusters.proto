@@ -168,6 +168,7 @@ message ClusterConfiguration {
   string vcpu_limit = 9;
   map<string, string> postgres_configuration_parameters = 10;
   repeated string preload_libraries = 11;
+  optional string storage_qos_class = 12;
 }
 
 message UpdateClusterConfiguration {
