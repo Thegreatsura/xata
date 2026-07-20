@@ -153,6 +153,11 @@ spec:
                   Optional. If set, pins the volume to this node; if empty, a node is
                   chosen automatically (or, for clones, inherited from the source).
                 type: string
+              volumeAttributesClassName:
+                description: |-
+                  VolumeAttributesClassName is the name of the VolumeAttributesClass
+                  that provides QoS parameters for this volume.
+                type: string
               xvolReclaimPolicy:
                 default: Delete
                 description: |-
@@ -337,6 +342,33 @@ spec:
                   cycle. Set on transition to Bound, preserved while Connected and on
                   return to Bound, cleared on transition to Available.
                 type: string
+              qos:
+                description: QoS holds the resolved QoS limits computed from VolumeAttributesClass.
+                properties:
+                  local:
+                    description: Local holds cgroup-enforced limits applied on the
+                      compute node.
+                    properties:
+                      readBPS:
+                        description: ReadBPS is the read bandwidth limit in bytes
+                          per second.
+                        format: int64
+                        type: integer
+                      readIOPS:
+                        description: ReadIOPS is the read IOPS limit.
+                        format: int64
+                        type: integer
+                      writeBPS:
+                        description: WriteBPS is the write bandwidth limit in bytes
+                          per second.
+                        format: int64
+                        type: integer
+                      writeIOPS:
+                        description: WriteIOPS is the write IOPS limit.
+                        format: int64
+                        type: integer
+                    type: object
+                type: object
               stateTransitionTime:
                 description: |-
                   Timestamp of the last state transition (e.g. Available → Bound).
