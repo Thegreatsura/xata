@@ -37,7 +37,7 @@ require (
 	github.com/mattn/go-isatty v0.0.22
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/oapi-codegen/runtime v1.1.2
-	github.com/open-feature/go-sdk v1.16.0
+	github.com/open-feature/go-sdk v1.17.2
 	github.com/orbcorp/orb-go v1.101.0
 	github.com/philip-bui/grpc-zerolog v1.0.1
 	github.com/pires/go-proxyproto v0.8.1
