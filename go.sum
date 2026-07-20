@@ -299,6 +299,8 @@ github.com/curioswitch/go-reassign v0.3.0 h1:dh3kpQHuADL3cobV/sSGETA8DOv457dwl+f
 github.com/curioswitch/go-reassign v0.3.0/go.mod h1:nApPCCTtqLJN/s8HfItCcKV0jIPwluBOvZP+dsJGA88=
 github.com/customerio/go-customerio/v3 v3.6.0 h1:PBtAt2UiuK/v19V8OaUxZjEEk2YA6rgC0lbpYpvfgnc=
 github.com/customerio/go-customerio/v3 v3.6.0/go.mod h1:V7VZutpfHNViX7nuJ+u+pe5bW/6FSKmYdasDM1XrNTM=
+github.com/customerio/go-customerio/v3 v3.11.0 h1:X6jQUbzDZAvbAK+2KUhZqMhMlKnZkHOLE3M0Gxeevk8=
+github.com/customerio/go-customerio/v3 v3.11.0/go.mod h1:1yj6saavatHEAPevSoZurssILRgR8LVP6NJXAXXpbOY=
 github.com/cyphar/filepath-securejoin v0.6.1 h1:5CeZ1jPXEiYt3+Z6zqprSAgSWiggmpVyciv8syjIpVE=
 github.com/cyphar/filepath-securejoin v0.6.1/go.mod h1:A8hd4EnAeyujCJRrICiOWqjS1AX0a9kM5XL+NwKoYSc=
 github.com/daixiang0/gci v0.13.7 h1:+0bG5eK9vlI08J+J/NWGbWPTNiXPG4WhNLJOkSxWITQ=

@@ -15,7 +15,7 @@ require (
 	github.com/cloudnative-pg/machinery v0.3.3
 	github.com/cloudnative-pg/plugin-barman-cloud v0.7.0
 	github.com/coder/websocket v1.8.14
-	github.com/customerio/go-customerio/v3 v3.6.0
+	github.com/customerio/go-customerio/v3 v3.11.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/elastic/go-concert v0.3.1
 	github.com/getkin/kin-openapi v0.133.0
