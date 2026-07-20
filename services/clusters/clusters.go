@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,6 +33,7 @@ import (
 
 	clustersv1 "xata/gen/proto/clusters/v1"
 
+	"xata/internal/passwords"
 	cpv1alpha1 "xata/proto/clusterpool-operator/api/v1alpha1"
 	branchv1alpha1 "xata/services/branch-operator/api/v1alpha1"
 	"xata/services/branch-operator/pkg/reconciler/resources"
@@ -322,10 +324,28 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		}
 	}
 
+	// Provision the <branchID>-app secret holding the xata role credentials
+	// before the Branch, so the operator never generates the password and
+	// never observes a Branch without its secret. For clusters adopted from
+	// a pool, CNPG's managed role reconciliation syncs this password onto
+	// the adopted cluster.
+	createdSecret, err := c.createAppSecret(ctx, req.GetId()+"-app", req)
+	if err != nil {
+		return nil, err
+	}
+
 	branch := branchBuilder.Build()
 
 	// Create the Branch CR
 	if err := c.kubeClient.Create(ctx, branch); err != nil {
+		// Best-effort cleanup of a secret created by this call (skip if it
+		// pre-existed): without a Branch to adopt it, nothing owns it.
+		if createdSecret != nil {
+			if delErr := c.kubeClient.Delete(ctx, createdSecret); delErr != nil {
+				log.Ctx(ctx).Warn().Err(delErr).Str("secret", createdSecret.Name).
+					Msg("clean up app secret after branch create failure")
+			}
+		}
 		return nil, k8sErrorToGRPCError(err)
 	}
 
@@ -393,38 +413,46 @@ func (c *ClustersService) UpdatePostgresCluster(ctx context.Context, req *cluste
 	return &clustersv1.UpdatePostgresClusterResponse{}, nil
 }
 
-// userToSecretSuffix maps Postgres usernames to their K8s secret suffixes.
-var userToSecretSuffix = map[string]string{
-	"xata":     "app",
-	"postgres": "superuser",
-}
-
-// RotatePostgresClusterCredentials deletes the K8s secret for the given user,
-// triggering the branch-operator to recreate it with a new password on the
-// next reconciliation loop.
+// RotatePostgresClusterCredentials updates the K8s secret for the given user
+// in place with a freshly generated password. CNPG picks up the change via
+// the cnpg.io/reload label (and, for the xata role, managed role
+// reconciliation) and syncs the new password to PostgreSQL.
 func (c *ClustersService) RotatePostgresClusterCredentials(ctx context.Context, req *clustersv1.RotatePostgresClusterCredentialsRequest) (*clustersv1.RotatePostgresClusterCredentialsResponse, error) {
-	suffix, ok := userToSecretSuffix[req.GetUser()]
-	if !ok {
-		return nil, status.Errorf(codes.InvalidArgument, "unknown user %q", req.GetUser())
-	}
-
 	// Verify the branch exists
 	if _, err := c.getBranch(ctx, req.GetId()); err != nil {
 		return nil, k8sErrorToGRPCError(err)
 	}
 
-	// Deleting the secret triggers the branch-operator to recreate it with a
-	// new password. The operator's reconcileSecret uses CreateOrUpdate which
-	// only generates a password when the secret doesn't exist (len(Data) == 0).
-	// Once recreated, CNPG picks up the change via the cnpg.io/reload label
-	// and syncs the new password to PostgreSQL.
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      req.GetId() + "-" + suffix,
-			Namespace: c.config.ClustersNamespace,
-		},
+	var secretName string
+	switch req.GetUser() {
+	case "xata":
+		secretName = req.GetId() + "-app"
+	case "postgres":
+		secretName = req.GetId() + "-superuser"
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "unknown user %q", req.GetUser())
 	}
-	if err := c.kubeClient.Delete(ctx, secret); err != nil {
+
+	pw, err := passwords.Generate()
+	if err != nil {
+		return nil, fmt.Errorf("generate password: %w", err)
+	}
+
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		secret := &corev1.Secret{}
+		if err := c.kubeClient.Get(ctx, types.NamespacedName{
+			Name:      secretName,
+			Namespace: c.config.ClustersNamespace,
+		}, secret); err != nil {
+			return err
+		}
+		if secret.Data == nil {
+			secret.Data = map[string][]byte{}
+		}
+		secret.Data[corev1.BasicAuthPasswordKey] = []byte(pw)
+		return c.kubeClient.Update(ctx, secret)
+	})
+	if err != nil {
 		return nil, k8sErrorToGRPCError(err)
 	}
 
@@ -529,11 +557,12 @@ func (c *ClustersService) DescribePostgresCluster(ctx context.Context, request *
 	}, nil
 }
 
-// GetPostgresClusterCredentials retrieves the credentials for a Branch.
+// GetPostgresClusterCredentials retrieves the credentials for a Branch. The
+// username in the request is the secret suffix ("app" or "superuser").
 func (c *ClustersService) GetPostgresClusterCredentials(ctx context.Context, request *clustersv1.GetPostgresClusterCredentialsRequest) (*clustersv1.GetPostgresClusterCredentialsResponse, error) {
 	creds, err := c.cnpgConnector.GetClusterCredentials(ctx, request.GetId(), c.config.ClustersNamespace, request.GetUsername())
 	if err != nil {
-		if strings.Contains(err.Error(), fmt.Sprintf("secrets \"%s\" not found", request.GetId()+"-"+request.GetUsername())) {
+		if apierrors.IsNotFound(err) {
 			return nil, SecretNotFoundForIDError(request.GetId())
 		}
 		return nil, fmt.Errorf("get credentials: %w", err)

@@ -781,6 +781,117 @@ func TestCreatePostgresCluster(t *testing.T) {
 	}
 }
 
+func TestCreatePostgresClusterAppSecret(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	appSecretKey := func(name string) client.ObjectKey {
+		return client.ObjectKey{Name: name, Namespace: "xata-clusters"}
+	}
+
+	t.Run("fresh root branch - secret created before the Branch", func(t *testing.T) {
+		svc, k8sClient := setupTestClustersService(t)
+		req, _, _, _, _ := exampleRequestsAndBranches()
+
+		_, err := svc.CreatePostgresCluster(ctx, req)
+		require.NoError(t, err)
+
+		secret := &corev1.Secret{}
+		require.NoError(t, k8sClient.Get(ctx, appSecretKey(req.GetId()+"-app"), secret))
+		require.Equal(t, corev1.SecretTypeBasicAuth, secret.Type)
+		require.Equal(t, "true", secret.Labels["cnpg.io/reload"])
+		require.Equal(t, req.GetOrganizationId(), secret.Labels[LabelOrgID])
+		require.Equal(t, req.GetProjectId(), secret.Labels[LabelProjectID])
+		require.Equal(t, req.GetId(), secret.Labels[LabelBranchID])
+		require.Equal(t, "xata", string(secret.Data[corev1.BasicAuthUsernameKey]))
+		require.Len(t, string(secret.Data[corev1.BasicAuthPasswordKey]), 64)
+	})
+
+	t.Run("use_pool adoption - branch secret still created", func(t *testing.T) {
+		svc, k8sClient := setupTestClustersService(t,
+			withExistingObjects(
+				poolForTest("default-storage-class", testImage, "2", "3996Mi"),
+				poolClusterForTest(),
+			))
+		req, _, _, _, _ := exampleRequestsAndBranches()
+		req.UsePool = new(true)
+
+		_, err := svc.CreatePostgresCluster(ctx, req)
+		require.NoError(t, err)
+
+		branch, err := getBranchFromK8s(ctx, k8sClient, req.GetId())
+		require.NoError(t, err)
+		require.Equal(t, new("pool-cluster-1"), branch.Spec.ClusterSpec.Name)
+
+		// The branch gets its own <id>-app secret; CNPG's managed role
+		// reconciliation syncs its password onto the adopted cluster.
+		secret := &corev1.Secret{}
+		require.NoError(t, k8sClient.Get(ctx, appSecretKey(req.GetId()+"-app"), secret))
+		require.NotEmpty(t, secret.Data[corev1.BasicAuthPasswordKey])
+	})
+
+	t.Run("child branch - fresh secret created", func(t *testing.T) {
+		parent := parentBranch(withWakeupPool("test-pool"))
+		svc, k8sClient := setupTestClustersService(t,
+			withExistingObjects(parent))
+		req, _, _, _, _ := exampleRequestsAndBranches()
+		req.ParentId = new(parent.Name)
+		req.DataSource = &clustersv1.CreatePostgresClusterRequest_ClusterSnapshot{
+			ClusterSnapshot: &clustersv1.ClusterSnapshot{ClusterId: parent.Name},
+		}
+
+		_, err := svc.CreatePostgresCluster(ctx, req)
+		require.NoError(t, err)
+
+		secret := &corev1.Secret{}
+		require.NoError(t, k8sClient.Get(ctx, appSecretKey(req.GetId()+"-app"), secret))
+		require.NotEmpty(t, secret.Data[corev1.BasicAuthPasswordKey])
+	})
+
+	t.Run("pre-existing secret - data preserved", func(t *testing.T) {
+		req, _, _, _, _ := exampleRequestsAndBranches()
+		existing := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      req.GetId() + "-app",
+				Namespace: "xata-clusters",
+			},
+			Type: corev1.SecretTypeBasicAuth,
+			Data: map[string][]byte{
+				corev1.BasicAuthUsernameKey: []byte("xata"),
+				corev1.BasicAuthPasswordKey: []byte("existing-password"),
+			},
+		}
+		svc, k8sClient := setupTestClustersService(t,
+			withExistingObjects(existing))
+
+		_, err := svc.CreatePostgresCluster(ctx, req)
+		require.NoError(t, err)
+
+		secret := &corev1.Secret{}
+		require.NoError(t, k8sClient.Get(ctx, appSecretKey(req.GetId()+"-app"), secret))
+		require.Equal(t, "existing-password", string(secret.Data[corev1.BasicAuthPasswordKey]))
+	})
+
+	t.Run("branch create failure - created secret cleaned up", func(t *testing.T) {
+		svc, k8sClient := setupTestClustersService(t,
+			withInterceptorFuncs(interceptor.Funcs{
+				Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+					if _, ok := obj.(*v1alpha1.Branch); ok {
+						return fmt.Errorf("branch create failed")
+					}
+					return c.Create(ctx, obj, opts...)
+				},
+			}))
+		req, _, _, _, _ := exampleRequestsAndBranches()
+
+		_, err := svc.CreatePostgresCluster(ctx, req)
+		require.Error(t, err)
+
+		err = k8sClient.Get(ctx, appSecretKey(req.GetId()+"-app"), &corev1.Secret{})
+		require.True(t, errors.IsNotFound(err))
+	})
+}
+
 func TestUpdatePostgresCluster(t *testing.T) {
 	t.Parallel()
 
@@ -1454,25 +1565,37 @@ func TestGetPostgresClusterCredentials(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]struct {
+		username  string
 		setupMock func(m *cnpgmocks.Connector)
 		wantUser  string
 		wantErr   string
 	}{
 		"success": {
+			username: "app",
 			setupMock: func(m *cnpgmocks.Connector) {
 				m.EXPECT().GetClusterCredentials(mock.Anything, "cluster-1", "xata-clusters", "app").
-					Return(&cnpg.Credentials{Username: "app", Password: "secret"}, nil)
+					Return(&cnpg.Credentials{Username: "xata", Password: "secret"}, nil)
 			},
-			wantUser: "app",
+			wantUser: "xata",
+		},
+		"success with superuser": {
+			username: "superuser",
+			setupMock: func(m *cnpgmocks.Connector) {
+				m.EXPECT().GetClusterCredentials(mock.Anything, "cluster-1", "xata-clusters", "superuser").
+					Return(&cnpg.Credentials{Username: "postgres", Password: "secret"}, nil)
+			},
+			wantUser: "postgres",
 		},
 		"secret not found": {
+			username: "app",
 			setupMock: func(m *cnpgmocks.Connector) {
 				m.EXPECT().GetClusterCredentials(mock.Anything, "cluster-1", "xata-clusters", "app").
-					Return(nil, fmt.Errorf(`secrets "cluster-1-app" not found`))
+					Return(nil, errors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "cluster-1-app"))
 			},
 			wantErr: "secret not found",
 		},
 		"other error": {
+			username: "app",
 			setupMock: func(m *cnpgmocks.Connector) {
 				m.EXPECT().GetClusterCredentials(mock.Anything, "cluster-1", "xata-clusters", "app").
 					Return(nil, fmt.Errorf("connection refused"))
@@ -1489,7 +1612,7 @@ func TestGetPostgresClusterCredentials(t *testing.T) {
 			svc, _ := setupTestClustersService(t, withCNPGConnector(cnpgMock))
 
 			resp, err := svc.GetPostgresClusterCredentials(context.Background(),
-				&clustersv1.GetPostgresClusterCredentialsRequest{Id: "cluster-1", Username: "app"})
+				&clustersv1.GetPostgresClusterCredentialsRequest{Id: "cluster-1", Username: tt.username})
 
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
@@ -1510,19 +1633,19 @@ func TestRotatePostgresClusterCredentials(t *testing.T) {
 		branchExists       bool
 		createSecret       bool
 		expectedStatusCode codes.Code
-		secretName         string
+		secretSuffix       string
 	}{
 		"success with xata user": {
 			user:         "xata",
 			branchExists: true,
 			createSecret: true,
-			secretName:   "app",
+			secretSuffix: "app",
 		},
 		"success with postgres user": {
 			user:         "postgres",
 			branchExists: true,
 			createSecret: true,
-			secretName:   "superuser",
+			secretSuffix: "superuser",
 		},
 		"unknown user": {
 			user:               "unknown",
@@ -1534,6 +1657,12 @@ func TestRotatePostgresClusterCredentials(t *testing.T) {
 			branchExists:       false,
 			expectedStatusCode: codes.NotFound,
 		},
+		"secret not found": {
+			user:               "xata",
+			branchExists:       true,
+			createSecret:       false,
+			expectedStatusCode: codes.NotFound,
+		},
 	}
 
 	for name, tt := range tests {
@@ -1542,6 +1671,8 @@ func TestRotatePostgresClusterCredentials(t *testing.T) {
 
 			_, branchToUpdate, _, _, _ := exampleRequestsAndBranches()
 
+			secretName := branchToUpdate.Name + "-" + tt.secretSuffix
+
 			var existingObjs []client.Object
 			if tt.branchExists {
 				existingObjs = append(existingObjs, branchToUpdate)
@@ -1549,7 +1680,7 @@ func TestRotatePostgresClusterCredentials(t *testing.T) {
 			if tt.createSecret {
 				existingObjs = append(existingObjs, &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      branchToUpdate.Name + "-" + tt.secretName,
+						Name:      secretName,
 						Namespace: "xata-clusters",
 					},
 					Type: corev1.SecretTypeBasicAuth,
@@ -1572,13 +1703,17 @@ func TestRotatePostgresClusterCredentials(t *testing.T) {
 			require.Equal(t, tt.expectedStatusCode, st.Code())
 
 			if tt.expectedStatusCode == codes.OK {
-				// Verify the secret was deleted
+				// Verify the secret was updated in place with a new password
 				secret := &corev1.Secret{}
 				err := k8sClient.Get(ctx, client.ObjectKey{
-					Name:      branchToUpdate.Name + "-" + tt.secretName,
+					Name:      secretName,
 					Namespace: "xata-clusters",
 				}, secret)
-				require.True(t, errors.IsNotFound(err))
+				require.NoError(t, err)
+				require.Equal(t, corev1.SecretTypeBasicAuth, secret.Type)
+				require.Equal(t, "user", string(secret.Data[corev1.BasicAuthUsernameKey]))
+				require.NotEqual(t, "pass", string(secret.Data[corev1.BasicAuthPasswordKey]))
+				require.Len(t, string(secret.Data[corev1.BasicAuthPasswordKey]), 64)
 			}
 		})
 	}

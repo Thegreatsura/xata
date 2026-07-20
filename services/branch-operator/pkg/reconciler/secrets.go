@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sethvargo/go-password/password"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	"xata/internal/passwords"
 	"xata/services/branch-operator/api/v1alpha1"
 )
 
@@ -63,7 +63,7 @@ func (r *BranchReconciler) reconcileSecret(ctx context.Context,
 		}
 
 		// Generate the password using the logic as CNPG (1.28)
-		pw, err := password.Generate(64, 10, 0, false, true)
+		pw, err := passwords.Generate()
 		if err != nil {
 			return fmt.Errorf("generate password: %w", err)
 		}

@@ -24,8 +24,10 @@ rules:
     resources:
       - secrets
     verbs:
+      - create
       - delete
       - get
+      - update
   - apiGroups:
       - barmancloud.cnpg.io
     resources:
