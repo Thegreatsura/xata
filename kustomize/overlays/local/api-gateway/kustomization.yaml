@@ -10,3 +10,16 @@ helmCharts:
 
 helmGlobals:
   chartHome: ../../../../charts
+
+# Give the gateway's Envoy Service a stable name so the in-cluster MCP server can
+# reach the REST API at envoy-api.envoy-gateway-system.svc.cluster.local.
+patches:
+  - target:
+      group: gateway.envoyproxy.io
+      version: v1alpha1
+      kind: EnvoyProxy
+      name: eg-custom-proxy-config
+    patch: |
+      - op: add
+        path: /spec/provider/kubernetes/envoyService/name
+        value: envoy-api
