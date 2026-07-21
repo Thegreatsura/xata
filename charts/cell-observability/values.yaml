@@ -23,9 +23,6 @@ victoria-metrics:
       runAsUser: 1000
       fsGroup: 1000
     tolerations:
-      - key: xata.io/workload
-        value: dataplane
-        effect: NoSchedule
       - key: kubernetes.io/arch
         operator: Equal
         value: arm64
@@ -46,9 +43,6 @@ victoria-logs:
       runAsUser: 1000
       fsGroup: 1000
     tolerations:
-      - key: xata.io/workload
-        value: dataplane
-        effect: NoSchedule
       - key: kubernetes.io/arch
         operator: Equal
         value: arm64
@@ -68,9 +62,6 @@ vmagent:
     runAsUser: 1000
 
   tolerations:
-    - key: xata.io/workload
-      value: dataplane
-      effect: NoSchedule
     - key: kubernetes.io/arch
       operator: Equal
       value: arm64
@@ -183,9 +174,6 @@ vector:
     runAsGroup: 0
 
   tolerations:
-    - key: xata.io/workload
-      value: dataplane
-      effect: NoSchedule
     - key: kubernetes.io/arch
       operator: Equal
       value: arm64

@@ -66,9 +66,6 @@ affinity:
           topologyKey: kubernetes.io/hostname
 
 tolerations:
-  - key: "xata.io/workload"
-    value: "controlplane"
-    effect: "NoSchedule"
   - key: "kubernetes.io/arch"
     operator: "Equal"
     value: "arm64"
