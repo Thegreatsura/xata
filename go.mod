@@ -33,6 +33,8 @@ require (
 	github.com/jxskiss/base62 v1.1.0
 	github.com/kubernetes-csi/external-snapshotter/client/v6 v6.3.0
 	github.com/labstack/echo/v4 v4.15.2
+	github.com/lestrrat-go/httprc/v3 v3.0.1
+	github.com/lestrrat-go/jwx/v3 v3.0.11
 	github.com/lib/pq v1.12.3
 	github.com/mattn/go-isatty v0.0.22
 	github.com/modelcontextprotocol/go-sdk v1.6.1
@@ -169,8 +171,6 @@ require (
 	github.com/lestrrat-go/dsig v1.0.0 // indirect
 	github.com/lestrrat-go/dsig-secp256k1 v1.0.0 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
-	github.com/lestrrat-go/httprc/v3 v3.0.1 // indirect
-	github.com/lestrrat-go/jwx/v3 v3.0.11 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
