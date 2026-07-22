@@ -22,6 +22,47 @@ func (_m *KeyCloak) EXPECT() *KeyCloak_Expecter {
 	return &KeyCloak_Expecter{mock: &_m.Mock}
 }
 
+// AddGroupMember provides a mock function with given fields: ctx, realm, organizationID, groupID, userID
+func (_m *KeyCloak) AddGroupMember(ctx context.Context, realm string, organizationID string, groupID string, userID string) error {
+	ret := _m.Called(ctx, realm, organizationID, groupID, userID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) error); ok {
+		r0 = rf(ctx, realm, organizationID, groupID, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// KeyCloak_AddGroupMember_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddGroupMember'
+type KeyCloak_AddGroupMember_Call struct {
+	*mock.Call
+}
+
+// AddGroupMember is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+//   - groupID string
+//   - userID string
+func (_e *KeyCloak_Expecter) AddGroupMember(ctx interface{}, realm interface{}, organizationID interface{}, groupID interface{}, userID interface{}) *KeyCloak_AddGroupMember_Call {
+	return &KeyCloak_AddGroupMember_Call{Call: _e.mock.On("AddGroupMember", ctx, realm, organizationID, groupID, userID)}
+}
+
+func (_c *KeyCloak_AddGroupMember_Call) Run(run func(ctx context.Context, realm string, organizationID string, groupID string, userID string)) *KeyCloak_AddGroupMember_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_AddGroupMember_Call) Return(_a0 error) *KeyCloak_AddGroupMember_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
 // AddMember provides a mock function with given fields: c, realm, organizationID, userID
 func (_m *KeyCloak) AddMember(c context.Context, realm string, organizationID string, userID string) error {
 	ret := _m.Called(c, realm, organizationID, userID)
@@ -59,6 +100,53 @@ func (_c *KeyCloak_AddMember_Call) Run(run func(c context.Context, realm string,
 
 func (_c *KeyCloak_AddMember_Call) Return(_a0 error) *KeyCloak_AddMember_Call {
 	_c.Call.Return(_a0)
+	return _c
+}
+
+// CreateGroup provides a mock function with given fields: ctx, realm, organizationID, name
+func (_m *KeyCloak) CreateGroup(ctx context.Context, realm string, organizationID string, name string) (keycloak.Group, error) {
+	ret := _m.Called(ctx, realm, organizationID, name)
+
+	var r0 keycloak.Group
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) keycloak.Group); ok {
+		r0 = rf(ctx, realm, organizationID, name)
+	} else {
+		r0 = ret.Get(0).(keycloak.Group)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, realm, organizationID, name)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// KeyCloak_CreateGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateGroup'
+type KeyCloak_CreateGroup_Call struct {
+	*mock.Call
+}
+
+// CreateGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+//   - name string
+func (_e *KeyCloak_Expecter) CreateGroup(ctx interface{}, realm interface{}, organizationID interface{}, name interface{}) *KeyCloak_CreateGroup_Call {
+	return &KeyCloak_CreateGroup_Call{Call: _e.mock.On("CreateGroup", ctx, realm, organizationID, name)}
+}
+
+func (_c *KeyCloak_CreateGroup_Call) Run(run func(ctx context.Context, realm string, organizationID string, name string)) *KeyCloak_CreateGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_CreateGroup_Call) Return(_a0 keycloak.Group, _a1 error) *KeyCloak_CreateGroup_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
@@ -148,6 +236,46 @@ func (_c *KeyCloak_CreateOrganization_Call) Return(_a0 keycloak.Organization, _a
 	return _c
 }
 
+// DeleteGroup provides a mock function with given fields: ctx, realm, organizationID, groupID
+func (_m *KeyCloak) DeleteGroup(ctx context.Context, realm string, organizationID string, groupID string) error {
+	ret := _m.Called(ctx, realm, organizationID, groupID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
+		r0 = rf(ctx, realm, organizationID, groupID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// KeyCloak_DeleteGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteGroup'
+type KeyCloak_DeleteGroup_Call struct {
+	*mock.Call
+}
+
+// DeleteGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+//   - groupID string
+func (_e *KeyCloak_Expecter) DeleteGroup(ctx interface{}, realm interface{}, organizationID interface{}, groupID interface{}) *KeyCloak_DeleteGroup_Call {
+	return &KeyCloak_DeleteGroup_Call{Call: _e.mock.On("DeleteGroup", ctx, realm, organizationID, groupID)}
+}
+
+func (_c *KeyCloak_DeleteGroup_Call) Run(run func(ctx context.Context, realm string, organizationID string, groupID string)) *KeyCloak_DeleteGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_DeleteGroup_Call) Return(_a0 error) *KeyCloak_DeleteGroup_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
 // DeleteInvitation provides a mock function with given fields: c, realm, organizationID, invitationID
 func (_m *KeyCloak) DeleteInvitation(c context.Context, realm string, organizationID string, invitationID string) error {
 	ret := _m.Called(c, realm, organizationID, invitationID)
@@ -224,6 +352,53 @@ func (_c *KeyCloak_DeleteOrganization_Call) Run(run func(ctx context.Context, re
 
 func (_c *KeyCloak_DeleteOrganization_Call) Return(_a0 error) *KeyCloak_DeleteOrganization_Call {
 	_c.Call.Return(_a0)
+	return _c
+}
+
+// GetGroup provides a mock function with given fields: ctx, realm, organizationID, groupID
+func (_m *KeyCloak) GetGroup(ctx context.Context, realm string, organizationID string, groupID string) (keycloak.Group, error) {
+	ret := _m.Called(ctx, realm, organizationID, groupID)
+
+	var r0 keycloak.Group
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) keycloak.Group); ok {
+		r0 = rf(ctx, realm, organizationID, groupID)
+	} else {
+		r0 = ret.Get(0).(keycloak.Group)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, realm, organizationID, groupID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// KeyCloak_GetGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGroup'
+type KeyCloak_GetGroup_Call struct {
+	*mock.Call
+}
+
+// GetGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+//   - groupID string
+func (_e *KeyCloak_Expecter) GetGroup(ctx interface{}, realm interface{}, organizationID interface{}, groupID interface{}) *KeyCloak_GetGroup_Call {
+	return &KeyCloak_GetGroup_Call{Call: _e.mock.On("GetGroup", ctx, realm, organizationID, groupID)}
+}
+
+func (_c *KeyCloak_GetGroup_Call) Run(run func(ctx context.Context, realm string, organizationID string, groupID string)) *KeyCloak_GetGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_GetGroup_Call) Return(_a0 keycloak.Group, _a1 error) *KeyCloak_GetGroup_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
@@ -461,6 +636,103 @@ func (_c *KeyCloak_ListDisabledOrganizations_Call) Return(_a0 []keycloak.Organiz
 	return _c
 }
 
+// ListGroupMembers provides a mock function with given fields: ctx, realm, organizationID, groupID
+func (_m *KeyCloak) ListGroupMembers(ctx context.Context, realm string, organizationID string, groupID string) ([]keycloak.OrganizationMember, error) {
+	ret := _m.Called(ctx, realm, organizationID, groupID)
+
+	var r0 []keycloak.OrganizationMember
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) []keycloak.OrganizationMember); ok {
+		r0 = rf(ctx, realm, organizationID, groupID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]keycloak.OrganizationMember)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, realm, organizationID, groupID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// KeyCloak_ListGroupMembers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListGroupMembers'
+type KeyCloak_ListGroupMembers_Call struct {
+	*mock.Call
+}
+
+// ListGroupMembers is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+//   - groupID string
+func (_e *KeyCloak_Expecter) ListGroupMembers(ctx interface{}, realm interface{}, organizationID interface{}, groupID interface{}) *KeyCloak_ListGroupMembers_Call {
+	return &KeyCloak_ListGroupMembers_Call{Call: _e.mock.On("ListGroupMembers", ctx, realm, organizationID, groupID)}
+}
+
+func (_c *KeyCloak_ListGroupMembers_Call) Run(run func(ctx context.Context, realm string, organizationID string, groupID string)) *KeyCloak_ListGroupMembers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_ListGroupMembers_Call) Return(_a0 []keycloak.OrganizationMember, _a1 error) *KeyCloak_ListGroupMembers_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// ListGroups provides a mock function with given fields: ctx, realm, organizationID
+func (_m *KeyCloak) ListGroups(ctx context.Context, realm string, organizationID string) ([]keycloak.Group, error) {
+	ret := _m.Called(ctx, realm, organizationID)
+
+	var r0 []keycloak.Group
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) []keycloak.Group); ok {
+		r0 = rf(ctx, realm, organizationID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]keycloak.Group)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, realm, organizationID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// KeyCloak_ListGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListGroups'
+type KeyCloak_ListGroups_Call struct {
+	*mock.Call
+}
+
+// ListGroups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+func (_e *KeyCloak_Expecter) ListGroups(ctx interface{}, realm interface{}, organizationID interface{}) *KeyCloak_ListGroups_Call {
+	return &KeyCloak_ListGroups_Call{Call: _e.mock.On("ListGroups", ctx, realm, organizationID)}
+}
+
+func (_c *KeyCloak_ListGroups_Call) Run(run func(ctx context.Context, realm string, organizationID string)) *KeyCloak_ListGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_ListGroups_Call) Return(_a0 []keycloak.Group, _a1 error) *KeyCloak_ListGroups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // ListInvitations provides a mock function with given fields: c, realm, organizationID, params
 func (_m *KeyCloak) ListInvitations(c context.Context, realm string, organizationID string, params keycloak.ListInvitationsParams) ([]keycloak.OrganizationInvitation, error) {
 	ret := _m.Called(c, realm, organizationID, params)
@@ -606,6 +878,47 @@ func (_c *KeyCloak_ListOrganizations_Call) Return(_a0 []keycloak.Organization, _
 	return _c
 }
 
+// RemoveGroupMember provides a mock function with given fields: ctx, realm, organizationID, groupID, userID
+func (_m *KeyCloak) RemoveGroupMember(ctx context.Context, realm string, organizationID string, groupID string, userID string) error {
+	ret := _m.Called(ctx, realm, organizationID, groupID, userID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) error); ok {
+		r0 = rf(ctx, realm, organizationID, groupID, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// KeyCloak_RemoveGroupMember_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveGroupMember'
+type KeyCloak_RemoveGroupMember_Call struct {
+	*mock.Call
+}
+
+// RemoveGroupMember is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+//   - groupID string
+//   - userID string
+func (_e *KeyCloak_Expecter) RemoveGroupMember(ctx interface{}, realm interface{}, organizationID interface{}, groupID interface{}, userID interface{}) *KeyCloak_RemoveGroupMember_Call {
+	return &KeyCloak_RemoveGroupMember_Call{Call: _e.mock.On("RemoveGroupMember", ctx, realm, organizationID, groupID, userID)}
+}
+
+func (_c *KeyCloak_RemoveGroupMember_Call) Run(run func(ctx context.Context, realm string, organizationID string, groupID string, userID string)) *KeyCloak_RemoveGroupMember_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_RemoveGroupMember_Call) Return(_a0 error) *KeyCloak_RemoveGroupMember_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
 // RemoveMember provides a mock function with given fields: c, realm, organizationID, userID
 func (_m *KeyCloak) RemoveMember(c context.Context, realm string, organizationID string, userID string) error {
 	ret := _m.Called(c, realm, organizationID, userID)
@@ -683,6 +996,54 @@ func (_c *KeyCloak_ResendInvitation_Call) Run(run func(c context.Context, realm 
 
 func (_c *KeyCloak_ResendInvitation_Call) Return(_a0 error) *KeyCloak_ResendInvitation_Call {
 	_c.Call.Return(_a0)
+	return _c
+}
+
+// UpdateGroup provides a mock function with given fields: ctx, realm, organizationID, groupID, name
+func (_m *KeyCloak) UpdateGroup(ctx context.Context, realm string, organizationID string, groupID string, name string) (keycloak.Group, error) {
+	ret := _m.Called(ctx, realm, organizationID, groupID, name)
+
+	var r0 keycloak.Group
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) keycloak.Group); ok {
+		r0 = rf(ctx, realm, organizationID, groupID, name)
+	} else {
+		r0 = ret.Get(0).(keycloak.Group)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, string) error); ok {
+		r1 = rf(ctx, realm, organizationID, groupID, name)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// KeyCloak_UpdateGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateGroup'
+type KeyCloak_UpdateGroup_Call struct {
+	*mock.Call
+}
+
+// UpdateGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+//   - groupID string
+//   - name string
+func (_e *KeyCloak_Expecter) UpdateGroup(ctx interface{}, realm interface{}, organizationID interface{}, groupID interface{}, name interface{}) *KeyCloak_UpdateGroup_Call {
+	return &KeyCloak_UpdateGroup_Call{Call: _e.mock.On("UpdateGroup", ctx, realm, organizationID, groupID, name)}
+}
+
+func (_c *KeyCloak_UpdateGroup_Call) Run(run func(ctx context.Context, realm string, organizationID string, groupID string, name string)) *KeyCloak_UpdateGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_UpdateGroup_Call) Return(_a0 keycloak.Group, _a1 error) *KeyCloak_UpdateGroup_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 

@@ -29,6 +29,30 @@ func (e ErrOrganizationAlreadyExists) StatusCode() int {
 	return http.StatusConflict
 }
 
+type ErrGroupNotFound struct {
+	ID string
+}
+
+func (e ErrGroupNotFound) Error() string {
+	return fmt.Sprintf("group %s not found", e.ID)
+}
+
+func (e ErrGroupNotFound) StatusCode() int {
+	return http.StatusNotFound
+}
+
+type ErrGroupAlreadyExists struct {
+	Name string
+}
+
+func (e ErrGroupAlreadyExists) Error() string {
+	return fmt.Sprintf("group %s already exists", e.Name)
+}
+
+func (e ErrGroupAlreadyExists) StatusCode() int {
+	return http.StatusConflict
+}
+
 type ErrUnableToAddMember struct {
 	ID             string
 	OrganizationID string

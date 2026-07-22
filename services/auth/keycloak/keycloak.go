@@ -44,4 +44,20 @@ type KeyCloak interface {
 	// GitHub user access token) stored in Keycloak for the user identified by userToken.
 	// The userToken must be a valid Keycloak access token with the broker read-token role.
 	GetIdentityProviderToken(ctx context.Context, realm, provider, userToken string) (string, error)
+	// ListGroups lists the groups of an organization.
+	ListGroups(ctx context.Context, realm, organizationID string) ([]Group, error)
+	// GetGroup returns a single organization group by its id.
+	GetGroup(ctx context.Context, realm, organizationID, groupID string) (Group, error)
+	// CreateGroup creates a new group in an organization.
+	CreateGroup(ctx context.Context, realm, organizationID, name string) (Group, error)
+	// UpdateGroup renames an organization group.
+	UpdateGroup(ctx context.Context, realm, organizationID, groupID, name string) (Group, error)
+	// DeleteGroup deletes an organization group.
+	DeleteGroup(ctx context.Context, realm, organizationID, groupID string) error
+	// ListGroupMembers lists the members of an organization group.
+	ListGroupMembers(ctx context.Context, realm, organizationID, groupID string) ([]OrganizationMember, error)
+	// AddGroupMember adds an existing organization member to a group.
+	AddGroupMember(ctx context.Context, realm, organizationID, groupID, userID string) error
+	// RemoveGroupMember removes a member from an organization group.
+	RemoveGroupMember(ctx context.Context, realm, organizationID, groupID, userID string) error
 }
