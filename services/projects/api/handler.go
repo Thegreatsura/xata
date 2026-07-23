@@ -911,8 +911,8 @@ func (s *handler) prepareCreateClusterFromConfiguration(ctx context.Context, org
 		return ClusterServicePayload{}, err
 	}
 
-	// extract the vcpu and memory from the instance type, enforcing the org's compute limit
-	vcpuRequest, vcpuLimit, memory, err := s.getResourcesByInstanceType(ctx, organizationID, payload.Configuration.Region, payload.Configuration.InstanceType, orgLimits.MaxAllowedInstanceType)
+	// look up the instance type, enforcing the org's compute limit
+	it, err := s.getInstanceTypeByName(ctx, organizationID, payload.Configuration.Region, payload.Configuration.InstanceType, orgLimits.MaxAllowedInstanceType)
 	if err != nil {
 		return ClusterServicePayload{}, ErrorInvalidParam{BranchName: branchName, Param: "instanceType", Message: err.Error()}
 	}
@@ -969,9 +969,9 @@ func (s *handler) prepareCreateClusterFromConfiguration(ctx context.Context, org
 		Configuration: clustersv1.ClusterConfiguration{
 			NumInstances:                    numInstances,
 			ImageName:                       validImageFormat,
-			VcpuRequest:                     vcpuRequest,
-			VcpuLimit:                       vcpuLimit,
-			Memory:                          memory,
+			VcpuRequest:                     it.CPURequest(),
+			VcpuLimit:                       it.CPULimit(),
+			Memory:                          it.Memory(),
 			PostgresConfigurationParameters: postgresParameters,
 			PreloadLibraries:                preloadLibraries,
 		},
@@ -990,21 +990,21 @@ func parseCPUResource(cpuSpec string) (int, error) {
 	return int(quantity.MilliValue()), nil
 }
 
-// returns the vcpu and memory for the given instance type, enforcing maxAllowedInstanceType.
-func (s *handler) getResourcesByInstanceType(ctx context.Context, organizationID spec.OrganizationID, region string, name string, maxAllowedInstanceType int) (cpuRequest string, cpuLimit string, memory string, err error) {
+// returns the instance type with the given name, enforcing maxAllowedInstanceType.
+func (s *handler) getInstanceTypeByName(ctx context.Context, organizationID spec.OrganizationID, region string, name string, maxAllowedInstanceType int) (store.InstanceType, error) {
 	instanceTypes, err := s.store.ListInstanceTypes(ctx, organizationID, region)
 	if err != nil {
-		return "", "", "", err
+		return store.InstanceType{}, err
 	}
 	for _, instance := range instanceTypes {
 		if instance.Name == name {
 			if maxAllowedInstanceType != 0 && instance.VCPUsRequest > maxAllowedInstanceType {
-				return "", "", "", fmt.Errorf("instance type %s is not available on your current plan; please add a payment method in your billing settings or contact support to enable larger instances", name)
+				return store.InstanceType{}, fmt.Errorf("instance type %s is not available on your current plan; please add a payment method in your billing settings or contact support to enable larger instances", name)
 			}
-			return instance.CPURequest(), instance.CPULimit(), instance.Memory(), nil
+			return instance, nil
 		}
 	}
-	return "", "", "", fmt.Errorf("instance type %s is not found", name)
+	return store.InstanceType{}, fmt.Errorf("instance type %s is not found", name)
 }
 
 // returns the instance type for the pair vcpu, memory
@@ -1439,13 +1439,13 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 			}
 			// if the UI sends custom back we don't try to decode vcpu and memory
 			if body.InstanceType != nil && *body.InstanceType != FallbackInstanceType {
-				vcpuRequest, vcpuLimit, memory, err := s.getResourcesByInstanceType(c.Request().Context(), organizationID, branch.Region, *body.InstanceType, orgLimits.MaxAllowedInstanceType)
+				it, err := s.getInstanceTypeByName(c.Request().Context(), organizationID, branch.Region, *body.InstanceType, orgLimits.MaxAllowedInstanceType)
 				if err != nil {
 					return ErrorInvalidParam{BranchName: branchID, Param: "configuration", Message: fmt.Sprintf("branch [%s]: %s", branchID, err.Error())}
 				}
-				config.VcpuRequest = &vcpuRequest
-				config.VcpuLimit = &vcpuLimit
-				config.Memory = &memory
+				config.VcpuRequest = new(it.CPURequest())
+				config.VcpuLimit = new(it.CPULimit())
+				config.Memory = new(it.Memory())
 			}
 
 			client, err := s.cells.GetCellConnection(c.Request().Context(), organizationID, branch.CellID)

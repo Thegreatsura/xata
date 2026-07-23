@@ -6079,7 +6079,7 @@ func TestGetBranchPostgresConfig(t *testing.T) {
 	}
 }
 
-func TestGetResourcesByInstanceType(t *testing.T) {
+func TestGetInstanceTypeByName(t *testing.T) {
 	t.Parallel()
 
 	// Limit is meant to apply to VCPUsRequest (what we show users on the
@@ -6094,18 +6094,14 @@ func TestGetResourcesByInstanceType(t *testing.T) {
 	tests := map[string]struct {
 		name                   string
 		maxAllowedInstanceType int
-		wantCPURequest         string
-		wantCPULimit           string
-		wantMemory             string
+		want                   store.InstanceType
 		wantErr                bool
 		wantErrContains        string
 	}{
 		"request at the limit is allowed": {
 			name:                   "xata.large",
 			maxAllowedInstanceType: 2000,
-			wantCPURequest:         "2",
-			wantCPULimit:           "4",
-			wantMemory:             "8Gi",
+			want:                   store.InstanceType{Name: "xata.large", VCPUsRequest: 2000, VCPUsLimit: 4000, RAM: 8, Region: "us-east-1"},
 		},
 		"request above the limit is rejected": {
 			name:                   "xata.xlarge",
@@ -6117,16 +6113,12 @@ func TestGetResourcesByInstanceType(t *testing.T) {
 			// xata.large has VCPUsLimit 4000 > 4000? no, and request 2000 < 4000.
 			name:                   "xata.large",
 			maxAllowedInstanceType: 4000,
-			wantCPURequest:         "2",
-			wantCPULimit:           "4",
-			wantMemory:             "8Gi",
+			want:                   store.InstanceType{Name: "xata.large", VCPUsRequest: 2000, VCPUsLimit: 4000, RAM: 8, Region: "us-east-1"},
 		},
 		"zero ceiling disables enforcement": {
 			name:                   "xata.xlarge",
 			maxAllowedInstanceType: 0,
-			wantCPURequest:         "4",
-			wantCPULimit:           "8",
-			wantMemory:             "16Gi",
+			want:                   store.InstanceType{Name: "xata.xlarge", VCPUsRequest: 4000, VCPUsLimit: 8000, RAM: 16, Region: "us-east-1"},
 		},
 		"unknown instance type errors": {
 			name:                   "xata.unknown",
@@ -6144,7 +6136,7 @@ func TestGetResourcesByInstanceType(t *testing.T) {
 			mockStore.EXPECT().ListInstanceTypes(mock.Anything, apitest.TestOrganization, "us-east-1").Return(instanceTypes, nil)
 			h := &handler{store: mockStore}
 
-			cpuRequest, cpuLimit, memory, err := h.getResourcesByInstanceType(context.Background(), apitest.TestOrganization, "us-east-1", tc.name, tc.maxAllowedInstanceType)
+			got, err := h.getInstanceTypeByName(context.Background(), apitest.TestOrganization, "us-east-1", tc.name, tc.maxAllowedInstanceType)
 			if tc.wantErr {
 				require.Error(t, err)
 				if tc.wantErrContains != "" {
@@ -6153,9 +6145,7 @@ func TestGetResourcesByInstanceType(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, tc.wantCPURequest, cpuRequest)
-			require.Equal(t, tc.wantCPULimit, cpuLimit)
-			require.Equal(t, tc.wantMemory, memory)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }
