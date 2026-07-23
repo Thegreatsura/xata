@@ -37,6 +37,13 @@ const (
 	StatusTerminated = "terminated"
 )
 
+const (
+	maxOpenConns    = 25
+	maxIdleConns    = 10
+	connMaxLifetime = 30 * time.Minute
+	connMaxIdleTime = 5 * time.Minute
+)
+
 // check if sqlProjectStore implements the ProjectStore interface
 var _ store.ProjectsStore = (*sqlProjectStore)(nil)
 
@@ -62,6 +69,10 @@ func NewSQLProjectStore(ctx context.Context, cfg Config, maxBranchTreeDepth int3
 	if err != nil {
 		return nil, err
 	}
+	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxIdleConns(maxIdleConns)
+	db.SetConnMaxLifetime(connMaxLifetime)
+	db.SetConnMaxIdleTime(connMaxIdleTime)
 
 	return &sqlProjectStore{
 		sql:      db,

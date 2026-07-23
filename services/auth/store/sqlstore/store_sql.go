@@ -30,6 +30,13 @@ const (
 	UniqueConstraintKeyName = "unique_api_key_name"
 )
 
+const (
+	maxOpenConns    = 25
+	maxIdleConns    = 10
+	connMaxLifetime = 30 * time.Minute
+	connMaxIdleTime = 5 * time.Minute
+)
+
 type sqlAuthStore struct {
 	config Config
 	sql    *sql.DB
@@ -49,6 +56,10 @@ func NewSQLAuthStore(ctx context.Context, cfg Config) (*sqlAuthStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
+	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxIdleConns(maxIdleConns)
+	db.SetConnMaxLifetime(connMaxLifetime)
+	db.SetConnMaxIdleTime(connMaxIdleTime)
 
 	return &sqlAuthStore{
 		sql:    db,
