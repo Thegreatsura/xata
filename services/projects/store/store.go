@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"xata/internal/storageqos"
 )
 
 const (
@@ -305,6 +307,7 @@ type InstanceType struct {
 	RAM                int     `json:"ram"`           // in GB
 	HourlyRate         float64 `json:"hourlyRate"`
 	StorageMonthlyRate float64 `json:"storageMonthlyRate"`
+	StorageQoSClass    string  `json:"storageQoSClass"`
 
 	// for now we have the same instance types in all regions, but this may not always be the case
 	Region string `json:"region"`
@@ -336,14 +339,78 @@ func formatCPUResource(milliCPUs int) string {
 // InstanceTypes hardcoded for now, they will live in our metadata CP DB
 // Source: https://www.notion.so/xata/Instance-sizes-23fe9e30407180258c5fcaa349deb2e0
 var InstanceTypes = []InstanceType{
-	{Name: "xata.micro", VCPUsRequest: 250, VCPUsLimit: 2000, RAM: 1, HourlyRate: 0.012, StorageMonthlyRate: 0.28},
-	{Name: "xata.small", VCPUsRequest: 500, VCPUsLimit: 2000, RAM: 2, HourlyRate: 0.024, StorageMonthlyRate: 0.28},
-	{Name: "xata.medium", VCPUsRequest: 1000, VCPUsLimit: 2000, RAM: 4, HourlyRate: 0.048, StorageMonthlyRate: 0.28},
-	{Name: "xata.large", VCPUsRequest: 2000, VCPUsLimit: 4000, RAM: 8, HourlyRate: 0.096, StorageMonthlyRate: 0.28},
-	{Name: "xata.xlarge", VCPUsRequest: 4000, VCPUsLimit: 8000, RAM: 16, HourlyRate: 0.192, StorageMonthlyRate: 0.28},
-	{Name: "xata.2xlarge", VCPUsRequest: 8000, VCPUsLimit: 12000, RAM: 32, HourlyRate: 0.384, StorageMonthlyRate: 0.28},
-	{Name: "xata.4xlarge", VCPUsRequest: 16000, VCPUsLimit: 24000, RAM: 64, HourlyRate: 0.768, StorageMonthlyRate: 0.28},
-	{Name: "xata.8xlarge", VCPUsRequest: 32000, VCPUsLimit: 48000, RAM: 128, HourlyRate: 1.536, StorageMonthlyRate: 0.28},
+	{
+		Name:               "xata.micro",
+		VCPUsRequest:       250,
+		VCPUsLimit:         2000,
+		RAM:                1,
+		HourlyRate:         0.012,
+		StorageMonthlyRate: 0.28,
+		StorageQoSClass:    storageqos.ClassMicro,
+	},
+	{
+		Name:               "xata.small",
+		VCPUsRequest:       500,
+		VCPUsLimit:         2000,
+		RAM:                2,
+		HourlyRate:         0.024,
+		StorageMonthlyRate: 0.28,
+		StorageQoSClass:    storageqos.ClassSmall,
+	},
+	{
+		Name:               "xata.medium",
+		VCPUsRequest:       1000,
+		VCPUsLimit:         2000,
+		RAM:                4,
+		HourlyRate:         0.048,
+		StorageMonthlyRate: 0.28,
+		StorageQoSClass:    storageqos.ClassMedium,
+	},
+	{
+		Name:               "xata.large",
+		VCPUsRequest:       2000,
+		VCPUsLimit:         4000,
+		RAM:                8,
+		HourlyRate:         0.096,
+		StorageMonthlyRate: 0.28,
+		StorageQoSClass:    storageqos.ClassLarge,
+	},
+	{
+		Name:               "xata.xlarge",
+		VCPUsRequest:       4000,
+		VCPUsLimit:         8000,
+		RAM:                16,
+		HourlyRate:         0.192,
+		StorageMonthlyRate: 0.28,
+		StorageQoSClass:    storageqos.ClassXLarge,
+	},
+	{
+		Name:               "xata.2xlarge",
+		VCPUsRequest:       8000,
+		VCPUsLimit:         12000,
+		RAM:                32,
+		HourlyRate:         0.384,
+		StorageMonthlyRate: 0.28,
+		StorageQoSClass:    storageqos.Class2XLarge,
+	},
+	{
+		Name:               "xata.4xlarge",
+		VCPUsRequest:       16000,
+		VCPUsLimit:         24000,
+		RAM:                64,
+		HourlyRate:         0.768,
+		StorageMonthlyRate: 0.28,
+		StorageQoSClass:    storageqos.Class4XLarge,
+	},
+	{
+		Name:               "xata.8xlarge",
+		VCPUsRequest:       32000,
+		VCPUsLimit:         48000,
+		RAM:                128,
+		HourlyRate:         1.536,
+		StorageMonthlyRate: 0.28,
+		StorageQoSClass:    storageqos.Class8XLarge,
+	},
 }
 
 var RegionMultiplier = map[string]float64{

@@ -23,6 +23,7 @@ import (
 	"xata/internal/openfeature"
 	"xata/internal/postgrescfg"
 	"xata/internal/postgresversions"
+	"xata/internal/storageqos"
 	"xata/internal/token"
 	"xata/internal/xvalidator"
 	"xata/services/clusters"
@@ -920,7 +921,7 @@ func TestCreateBranch(t *testing.T) {
 				mockImageProvider.EXPECT().GetAllImageNames().Return([]string{"postgres:17.5"}).Once()
 				mockImageProvider.EXPECT().BuildImageURL("postgres:17.5").Return("ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5").Once()
 				mockStore.EXPECT().ListCells(mock.Anything, apitest.TestOrganization, "region-id-1").Return([]store.Cell{{ID: "cell_id", RegionID: "region-id-1", Primary: true}}, nil).Once()
-				mockStore.EXPECT().ListInstanceTypes(mock.Anything, apitest.TestOrganization, "region-id-1").Return([]store.InstanceType{{Name: "xata.micro", VCPUsRequest: 250, VCPUsLimit: 2000, RAM: 1}}, nil).Once()
+				mockStore.EXPECT().ListInstanceTypes(mock.Anything, apitest.TestOrganization, "region-id-1").Return([]store.InstanceType{{Name: "xata.micro", VCPUsRequest: 250, VCPUsLimit: 2000, RAM: 1, StorageQoSClass: storageqos.ClassMicro}}, nil).Once()
 				mockPostgresConfig.EXPECT().GetDefaultPostgresParameters("xata.micro", mock.AnythingOfType("int"), mock.AnythingOfType("string"), mock.Anything).Return(map[string]string{
 					"max_connections": "50",
 					"shared_buffers":  "256MB",
@@ -953,6 +954,7 @@ func TestCreateBranch(t *testing.T) {
 				require.True(t, payload.BackupsEnabled, "BackupsEnabled should be true")
 				require.NotNil(t, payload.BackupConfig, "BackupConfiguration should be present")
 				require.NotEmpty(t, payload.BackupConfig.BackupSchedule, "BackupSchedule should not be empty")
+				require.Equal(t, new(storageqos.ClassMicro), payload.Configuration.StorageQosClass)
 
 				// Validate cron format
 				parts := strings.Split(payload.BackupConfig.BackupSchedule, " ")
@@ -1005,6 +1007,7 @@ func TestCreateBranch(t *testing.T) {
 				require.True(t, payload.BackupsEnabled, "BackupsEnabled should be true")
 				require.NotNil(t, payload.BackupConfig, "BackupConfiguration should be present")
 				require.NotEmpty(t, payload.BackupConfig.BackupSchedule, "BackupSchedule should not be empty")
+				require.Nil(t, payload.Configuration.StorageQosClass, "StorageQosClass should be nil when the instance type has no storage QoS class")
 
 				// Validate cron format
 				parts := strings.Split(payload.BackupConfig.BackupSchedule, " ")
@@ -4146,8 +4149,8 @@ func TestUpdateBranch(t *testing.T) {
 					},
 				}, nil).Once()
 				mockStore.EXPECT().ListInstanceTypes(mock.Anything, apitest.TestOrganization, "region-id-1").Return([]store.InstanceType{
-					{Name: "xata.small", VCPUsRequest: 500, VCPUsLimit: 1000, RAM: 2},
-					{Name: "xata.medium", VCPUsRequest: 1000, VCPUsLimit: 2000, RAM: 4},
+					{Name: "xata.small", VCPUsRequest: 500, VCPUsLimit: 1000, RAM: 2, StorageQoSClass: storageqos.ClassSmall},
+					{Name: "xata.medium", VCPUsRequest: 1000, VCPUsLimit: 2000, RAM: 4, StorageQoSClass: storageqos.ClassMedium},
 				}, nil).Twice()
 				mockPostgresConfig.EXPECT().GetParametersSpec("xata.small", mock.AnythingOfType("int"), mock.AnythingOfType("string"), mock.Anything).Return(postgrescfg.ParametersMap{
 					"shared_buffers": postgrescfg.PostgresParameterSpec{
@@ -4168,9 +4171,10 @@ func TestUpdateBranch(t *testing.T) {
 				mockClusters.EXPECT().UpdatePostgresCluster(mock.Anything, &clustersv1.UpdatePostgresClusterRequest{
 					Id: "123",
 					UpdateConfiguration: &clustersv1.UpdateClusterConfiguration{
-						VcpuRequest: new("1"),
-						VcpuLimit:   new("2"),
-						Memory:      new("4Gi"),
+						VcpuRequest:     new("1"),
+						VcpuLimit:       new("2"),
+						Memory:          new("4Gi"),
+						StorageQosClass: new(storageqos.ClassMedium),
 						PostgresConfigurationParameters: map[string]string{
 							"shared_buffers": "256MB",
 						},

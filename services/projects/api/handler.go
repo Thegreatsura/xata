@@ -962,6 +962,12 @@ func (s *handler) prepareCreateClusterFromConfiguration(ctx context.Context, org
 
 	numInstances := payload.Configuration.Replicas + 1 // the primary is always created
 
+	// storage QoS class is optional, so only set it if it's not empty
+	var storageQoSClass *string
+	if it.StorageQoSClass != "" {
+		storageQoSClass = new(it.StorageQoSClass)
+	}
+
 	// TODO storage size: we are currently not using the storage size sent from the API.
 	// when/if we change that, we need to add it to this payload and to the created event below
 	return ClusterServicePayload{
@@ -974,6 +980,7 @@ func (s *handler) prepareCreateClusterFromConfiguration(ctx context.Context, org
 			Memory:                          it.Memory(),
 			PostgresConfigurationParameters: postgresParameters,
 			PreloadLibraries:                preloadLibraries,
+			StorageQosClass:                 storageQoSClass,
 		},
 		CellID:         cellID,
 		Region:         payload.Configuration.Region,
@@ -1446,6 +1453,11 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 				config.VcpuRequest = new(it.CPURequest())
 				config.VcpuLimit = new(it.CPULimit())
 				config.Memory = new(it.Memory())
+
+				// storage QoS class is optional, so only set it if it's not empty
+				if it.StorageQoSClass != "" {
+					config.StorageQosClass = new(it.StorageQoSClass)
+				}
 			}
 
 			client, err := s.cells.GetCellConnection(c.Request().Context(), organizationID, branch.CellID)
