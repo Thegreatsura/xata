@@ -310,6 +310,29 @@ type InstanceType struct {
 	Region string `json:"region"`
 }
 
+// CPURequest returns the CPU request as a K8s resource spec
+func (it InstanceType) CPURequest() string {
+	return formatCPUResource(it.VCPUsRequest)
+}
+
+// CPULimit returns the CPU limit as a K8s resource spec
+func (it InstanceType) CPULimit() string {
+	return formatCPUResource(it.VCPUsLimit)
+}
+
+// Memory returns the RAM as a K8s resource spec
+func (it InstanceType) Memory() string {
+	return fmt.Sprintf("%dGi", it.RAM)
+}
+
+// formatCPUResource formats milliCPUs (millicores) into K8s resource spec
+func formatCPUResource(milliCPUs int) string {
+	if milliCPUs < 1000 {
+		return fmt.Sprintf("%dm", milliCPUs)
+	}
+	return fmt.Sprintf("%d", milliCPUs/1000)
+}
+
 // InstanceTypes hardcoded for now, they will live in our metadata CP DB
 // Source: https://www.notion.so/xata/Instance-sizes-23fe9e30407180258c5fcaa349deb2e0
 var InstanceTypes = []InstanceType{

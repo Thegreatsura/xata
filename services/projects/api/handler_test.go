@@ -5785,57 +5785,6 @@ func mustParseTime(s string) time.Time {
 	return t
 }
 
-func TestFormatCPUResource(t *testing.T) {
-	tests := []struct {
-		name      string
-		milliCPUs int
-		expected  string
-	}{
-		{
-			name:      "250 millicores",
-			milliCPUs: 250,
-			expected:  "250m",
-		},
-		{
-			name:      "500 millicores",
-			milliCPUs: 500,
-			expected:  "500m",
-		},
-		{
-			name:      "999 millicores",
-			milliCPUs: 999,
-			expected:  "999m",
-		},
-		{
-			name:      "1000 millicores (1 core)",
-			milliCPUs: 1000,
-			expected:  "1",
-		},
-		{
-			name:      "2000 millicores (2 cores)",
-			milliCPUs: 2000,
-			expected:  "2",
-		},
-		{
-			name:      "3500 millicores (3.5 cores)",
-			milliCPUs: 3500,
-			expected:  "3",
-		},
-		{
-			name:      "zero millicores",
-			milliCPUs: 0,
-			expected:  "0m",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatCPUResource(tt.milliCPUs)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 func TestParseCPUResource(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -5904,7 +5853,7 @@ func TestCPUResourceRoundTrip(t *testing.T) {
 
 	for _, milliCPUs := range testCases {
 		t.Run(fmt.Sprintf("%d_millicores", milliCPUs), func(t *testing.T) {
-			formatted := formatCPUResource(milliCPUs)
+			formatted := store.InstanceType{VCPUsRequest: milliCPUs}.CPURequest()
 			parsed, err := parseCPUResource(formatted)
 			assert.NoError(t, err)
 

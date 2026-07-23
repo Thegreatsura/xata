@@ -981,14 +981,6 @@ func (s *handler) prepareCreateClusterFromConfiguration(ctx context.Context, org
 	}, nil
 }
 
-// formatCPUresource formats milliCPUs (millicores) into K8s resource spec
-func formatCPUResource(milliCPUs int) string {
-	if milliCPUs < 1000 {
-		return fmt.Sprintf("%dm", milliCPUs)
-	}
-	return fmt.Sprintf("%d", milliCPUs/1000)
-}
-
 // parseCPUResource parses k8s cpu spec into milliCPUs
 func parseCPUResource(cpuSpec string) (int, error) {
 	quantity, err := resource.ParseQuantity(cpuSpec)
@@ -1009,7 +1001,7 @@ func (s *handler) getResourcesByInstanceType(ctx context.Context, organizationID
 			if maxAllowedInstanceType != 0 && instance.VCPUsRequest > maxAllowedInstanceType {
 				return "", "", "", fmt.Errorf("instance type %s is not available on your current plan; please add a payment method in your billing settings or contact support to enable larger instances", name)
 			}
-			return formatCPUResource(instance.VCPUsRequest), formatCPUResource(instance.VCPUsLimit), fmt.Sprintf("%dGi", instance.RAM), nil
+			return instance.CPURequest(), instance.CPULimit(), instance.Memory(), nil
 		}
 	}
 	return "", "", "", fmt.Errorf("instance type %s is not found", name)
