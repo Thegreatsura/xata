@@ -88,24 +88,8 @@ func SetGlobalLogger(logger *zerolog.Logger) {
 // NewLogger create a new logger writing to out.
 // The logger will emit a timestamp, the caller's filename, and optionally
 // emit the stacktrace for errors that carry a stack trace.
-//
-// The Debug and Trace level are samples.
-// We allow up to 100 trace logs per minutes. Additional trace logs will be filtered out.
-// Debug logs are sampled. Every 5th log will be filtered out once the limit of 1000 debug logs
-// per minute is reached.
 func NewLogger(out io.Writer, config *Config) zerolog.Logger {
 	logger := zerolog.New(out).
-		Sample(zerolog.LevelSampler{
-			TraceSampler: &zerolog.BurstSampler{
-				Burst:  100,
-				Period: 1 * time.Minute,
-			},
-			DebugSampler: &zerolog.BurstSampler{
-				Burst:       1000,
-				Period:      1 * time.Minute,
-				NextSampler: &zerolog.BasicSampler{N: 5},
-			},
-		}).
 		With().
 		Timestamp().
 		Caller().
