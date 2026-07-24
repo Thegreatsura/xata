@@ -1127,3 +1127,73 @@ func TestNewServerlessConfig(t *testing.T) {
 		require.Equal(t, uint16(5432), cfg.Port)
 	})
 }
+
+// TestQueryResultRawRowsWireCompatible asserts that storing rows as
+// pre-marshaled json.RawMessage produces byte-identical output to storing them
+// as the original decoded values, matching the encoder echo uses to serialize
+// responses.
+func TestQueryResultRawRowsWireCompatible(t *testing.T) {
+	encode := func(v any) []byte {
+		var buf strings.Builder
+		enc := json.NewEncoder(&buf)
+		require.NoError(t, enc.Encode(v))
+		return []byte(buf.String())
+	}
+
+	fields := []spec.FieldDefinition{
+		{Name: "id", Format: "text"},
+		{Name: "name", Format: "text"},
+		{Name: "meta", Format: "text"},
+	}
+	rowCount := 2
+
+	cases := map[string]struct {
+		entries    []any
+		rowAsArray bool
+	}{
+		"object rows": {
+			entries: []any{
+				map[string]any{"id": 1, "name": "a<b>&c", "meta": json.RawMessage(`{"k":"v"}`)},
+				map[string]any{"id": 2, "name": nil, "meta": json.RawMessage(`[1,2,3]`)},
+			},
+		},
+		"array rows": {
+			entries: []any{
+				[]any{1, "a<b>&c", json.RawMessage(`{"k":"v"}`)},
+				[]any{2, nil, json.RawMessage(`[1,2,3]`)},
+			},
+			rowAsArray: true,
+		},
+		"empty rows": {entries: []any{}},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			rawRows := make([]json.RawMessage, 0, len(tc.entries))
+			for _, e := range tc.entries {
+				encoded, err := json.Marshal(e)
+				require.NoError(t, err)
+				rawRows = append(rawRows, encoded)
+			}
+
+			legacy := spec.QueryResult{
+				Command:    "SELECT",
+				Fields:     fields,
+				RowAsArray: tc.rowAsArray,
+				RowCount:   &rowCount,
+				Rows:       tc.entries,
+			}
+			streamed := spec.QueryResult{
+				Command:    "SELECT",
+				Fields:     fields,
+				RowAsArray: tc.rowAsArray,
+				RowCount:   &rowCount,
+				Rows:       rawRows,
+			}
+
+			want := string(encode(legacy))
+			got := string(encode(streamed))
+			require.Equal(t, want, got)
+		})
+	}
+}

@@ -426,7 +426,7 @@ func processRows(rows pgx.Rows, opts queryOptions) (*spec.QueryResult, error) {
 		}
 	}
 
-	resultRows := make([]any, 0)
+	resultRows := make([]json.RawMessage, 0)
 	responseSize := 0
 	for rows.Next() {
 		rawValues := rows.RawValues()
@@ -453,11 +453,14 @@ func processRows(rows pgx.Rows, opts queryOptions) (*spec.QueryResult, error) {
 			}
 			entry = row
 		}
-		resultRows = append(resultRows, entry)
 
-		if rowData, err := json.Marshal(entry); err == nil {
-			responseSize += len(rowData)
+		encoded, err := json.Marshal(entry)
+		if err != nil {
+			return nil, fmt.Errorf("marshal row: %w", err)
 		}
+		resultRows = append(resultRows, encoded)
+
+		responseSize += len(encoded)
 		if responseSize > maxResponseSizeBytes {
 			return nil, ErrResponseTooLarge
 		}
