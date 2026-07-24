@@ -306,17 +306,29 @@ func parseRequest(body io.Reader) (*spec.SQLRequest, error) {
 	// Check if it's an array (batch as array format per serverless driver spec)
 	if data[0] == '[' {
 		var queries []spec.QueryItem
-		if err := json.Unmarshal(data, &queries); err != nil {
+		if err := decodeRequestJSON(data, &queries); err != nil {
 			return nil, ErrInvalidRequest
 		}
 		return &spec.SQLRequest{Queries: &queries}, nil
 	}
 
 	var req spec.SQLRequest
-	if err := json.Unmarshal(data, &req); err != nil {
+	if err := decodeRequestJSON(data, &req); err != nil {
 		return nil, ErrInvalidRequest
 	}
 	return &req, nil
+}
+
+func decodeRequestJSON(data []byte, target any) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return fmt.Errorf("unexpected trailing JSON data")
+	}
+	return nil
 }
 
 func isBatch(r *spec.SQLRequest) bool { return r.Queries != nil }

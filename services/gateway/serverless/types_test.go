@@ -268,9 +268,25 @@ func TestConvertParams(t *testing.T) {
 			input: []any{nil, "hello", float64(42), true},
 			want:  []any{nil, "hello", float64(42), true},
 		},
+		"JSON integer converted without losing precision": {
+			input: []any{json.Number("9007199254740993")},
+			want:  []any{int64(9007199254740993)},
+		},
+		"JSON integer above int64 keeps its exact digits": {
+			input: []any{json.Number("9223372036854775809")},
+			want:  []any{json.Number("9223372036854775809")},
+		},
+		"JSON decimal converted to float": {
+			input: []any{json.Number("3.14")},
+			want:  []any{float64(3.14)},
+		},
 		"array converted": {
 			input: []any{[]any{float64(1), float64(2), float64(3)}},
 			want:  []any{"{1,2,3}"},
+		},
+		"JSON integer in array keeps its exact digits": {
+			input: []any{[]any{json.Number("9007199254740993")}},
+			want:  []any{"{9007199254740993}"},
 		},
 		"object converted to JSON": {
 			input: []any{map[string]any{"key": "value"}},

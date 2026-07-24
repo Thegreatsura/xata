@@ -200,6 +200,18 @@ func convertParams(params []any) []any {
 	out := make([]any, len(params))
 	for i, p := range params {
 		switch v := p.(type) {
+		case json.Number:
+			if strings.ContainsAny(string(v), ".eE") {
+				if n, err := v.Float64(); err == nil {
+					out[i] = n
+				} else {
+					out[i] = v
+				}
+			} else if n, err := v.Int64(); err == nil {
+				out[i] = n
+			} else {
+				out[i] = v
+			}
 		case []any:
 			out[i] = formatPgArray(v)
 		case map[string]any:

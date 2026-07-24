@@ -99,7 +99,11 @@ func TestParseRequest(t *testing.T) {
 		},
 		"single query with params": {
 			input: `{"query": "SELECT $1", "params": [42]}`,
-			want:  &spec.SQLRequest{Query: new("SELECT $1"), Params: new([]any{float64(42)})},
+			want:  &spec.SQLRequest{Query: new("SELECT $1"), Params: new([]any{json.Number("42")})},
+		},
+		"single query preserves large integer params": {
+			input: `{"query": "SELECT $1::bigint", "params": [9007199254740993]}`,
+			want:  &spec.SQLRequest{Query: new("SELECT $1::bigint"), Params: new([]any{json.Number("9007199254740993")})},
 		},
 		"single query with arrayMode true": {
 			input: `{"query": "SELECT 1", "arrayMode": true}`,
@@ -127,7 +131,7 @@ func TestParseRequest(t *testing.T) {
 			want: &spec.SQLRequest{
 				Queries: new([]spec.QueryItem{
 					{Query: "SELECT 1"},
-					{Query: "SELECT 2", Params: new([]any{float64(1)})},
+					{Query: "SELECT 2", Params: new([]any{json.Number("1")})},
 				}),
 			},
 		},
