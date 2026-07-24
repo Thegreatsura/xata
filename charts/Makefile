@@ -33,15 +33,15 @@ build-deps: # Build helm charts dependencies
 list-charts: # Print chart names, one per line
 	@printf '%s\n' $(CHARTS)
 
-# Inject tag for image into chart values.yaml files
-# Usage: make inject-tags IMAGE=ghcr.io/xataio/xata/auth TAG=1234567-abc
+# Inject an image repository and digest into a chart values file.
+# Usage: make inject-digest IMAGE=ghcr.io/xataio/xata/auth DIGEST=sha256:...
 # Note: Silently skips if chart directory doesn't exist or has no image section
-inject-tags:
+inject-digest:
 	@SERVICE=$$(basename "$(IMAGE)"); \
 	if [ -d "$$SERVICE" ]; then \
 		if yq eval 'has("image")' "$$SERVICE/values.yaml" 2>/dev/null | grep -q true; then \
-			echo "Injecting image $(IMAGE):$(TAG) for $$SERVICE chart"; \
-			yq eval '.image.repository = "$(IMAGE)" | .image.tag = "$(TAG)"' -i "$$SERVICE/values.yaml"; \
+			echo "Injecting image $(IMAGE)@$(DIGEST) for $$SERVICE chart"; \
+			yq eval '.image.repository = "$(IMAGE)" | .image.digest = "$(DIGEST)"' -i "$$SERVICE/values.yaml"; \
 		fi; \
 	fi
 

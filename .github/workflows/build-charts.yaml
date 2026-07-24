@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       image_specs:
-        description: "Newline-separated IMAGE=xxx TAG=yyy pairs"
+        description: "Newline-separated IMAGE=xxx DIGEST=sha256:yyy pairs"
         required: true
         type: string
       ref:
@@ -32,16 +32,10 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Inject image tags into charts
-        working-directory: charts
-        run: |
-          echo '${{ inputs.image_specs }}' | while IFS= read -r line; do
-            if [[ -n "$line" ]]; then
-              eval "$line"
-              make inject-tags IMAGE="$IMAGE" TAG="$TAG"
-            fi
-          done
+      - name: Inject image digests into charts
+        env:
+          IMAGE_SPECS: ${{ inputs.image_specs }}
+        run: make inject-chart-digests
 
       - name: Package and push charts
-        working-directory: charts
-        run: make push-charts CHART_REGISTRY=${{ env.CHART_REGISTRY }} CHARTS="${{ env.CHARTS }}"
+        run: make publish-charts

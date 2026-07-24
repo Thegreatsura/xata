@@ -1,0 +1,16 @@
+**
+!Dockerfile
+!go.mod
+!go.sum
+!internal
+!internal/**
+!gen
+!gen/**
+!proto
+!proto/**
+!services
+!services/**
+!saas-services
+!saas-services/**
+!openapi
+!openapi/**

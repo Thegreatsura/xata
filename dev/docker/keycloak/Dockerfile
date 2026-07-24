@@ -6,23 +6,22 @@ RUN mvn clean package -DskipTests
 
 # Stage 2: Download theme
 FROM registry.access.redhat.com/ubi9 AS theme-download
-# TODO GIT_TOKEN should use build secrets
-ARG GIT_TOKEN
 ARG NO_THEME
 
 # Get theme file
 ADD RELEASE ./RELEASE
 COPY . /build-context/
-RUN if [ ! -z "$NO_THEME" ]; then \
+RUN --mount=type=secret,id=GIT_TOKEN \
+    if [ ! -z "$NO_THEME" ]; then \
         echo "Skipping theme download"; \
     elif [ -f "/build-context/xata-theme.jar" ]; then \
         echo "Using local xata-theme.jar file"; \
         cp /build-context/xata-theme.jar /xata-theme.jar; \
-    elif [ ! -z "$GIT_TOKEN" ]; then \
+    elif [ -f "/run/secrets/GIT_TOKEN" ]; then \
         echo "Local xata-theme.jar not found, downloading from GitHub"; \
         source ./RELEASE && \
             curl -f -L \
-            -H "Authorization: Bearer $GIT_TOKEN" \
+            -H "Authorization: Bearer $(cat /run/secrets/GIT_TOKEN)" \
             -H "Accept: application/octet-stream" \
             -o /xata-theme.jar \
             $AUTH_THEME_ASSET_URL; \
@@ -47,6 +46,8 @@ ARG JAVA_TOOL_OPTIONS
 
 WORKDIR /opt/keycloak
 
+# TODO: Make clean Keycloak builds reproducible. A cache miss can otherwise
+# change the image digest and redeploy Keycloak without source changes.
 RUN /opt/keycloak/bin/kc.sh build --features=docker,authorization --verbose
 
 # Stage 4: Runtime image

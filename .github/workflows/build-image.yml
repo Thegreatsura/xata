@@ -3,13 +3,8 @@ name: Build and Push Docker Image
 on:
   workflow_call:
     inputs:
-      service_path:
-        description: "Path to the service source dir (overrides Dockerfile default of services/<service_name>)"
-        required: false
-        default: ""
-        type: string
-      service_name:
-        description: "Service to build and push"
+      target:
+        description: "Docker Bake target to build and push"
         required: true
         type: string
       git_ref:
@@ -21,42 +16,18 @@ on:
         required: false
         default: false
         type: boolean
-      path:
-        description: "Parent directory of the Dockerfile"
-        required: false
-        default: "."
-        type: string
-      dockerfile:
-        description: "Path to Dockerfile"
-        required: false
-        default: "Dockerfile"
-        type: string
-      extra_build_args:
-        description: "Extra build args"
-        required: false
-        default: ""
-        type: string
-      force_build:
-        description: "Skip manifest cache check and always build"
-        required: false
-        default: false
-        type: boolean
-      paths:
-        description: "Newline-separated list of paths for content hash"
-        required: true
-        type: string
       destinations:
-        description: "Whitespace-separated list of registry paths to publish the image to"
+        description: "Comma-separated list of registry paths to publish the image to"
         required: false
         default: "ghcr.io/xataio/xata"
         type: string
     outputs:
       image:
-        description: "Docker image name"
+        description: "Docker image repository"
         value: ${{ jobs.docker.outputs.image }}
-      tag:
-        description: "Docker image tag"
-        value: ${{ jobs.docker.outputs.tag }}
+      digest:
+        description: "Docker image manifest digest"
+        value: ${{ jobs.docker.outputs.digest }}
 
 permissions:
   contents: read
@@ -72,10 +43,9 @@ jobs:
     timeout-minutes: 30
     outputs:
       image: ${{ steps.build-image.outputs.image }}
-      tag: ${{ steps.build-image.outputs.tag }}
+      digest: ${{ steps.build-image.outputs.digest }}
     steps:
       - name: Checkout code
-        id: checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.git_ref }}
@@ -96,27 +66,7 @@ jobs:
       - name: Build and push image
         id: build-image
         env:
-          IMAGE: ${{ inputs.service_name }}
+          TARGET: ${{ inputs.target }}
           DESTINATIONS: ${{ inputs.destinations }}
-          PATHS: ${{ inputs.paths }}
-          DOCKERFILE: ${{ inputs.dockerfile }}
-          BUILD_PATH: ${{ inputs.path }}
-          SERVICE_NAME: ${{ inputs.service_name }}
-          SERVICE_PATH: ${{ inputs.service_path }}
           TAG_AS_LATEST: ${{ inputs.latest }}
-          EXTRA_BUILD_ARGS: ${{ inputs.extra_build_args }}
-          FORCE_BUILD: ${{ inputs.force_build }}
-        run: |
-          reference=$(make push-image \
-            IMAGE="$IMAGE" \
-            DESTINATIONS="$DESTINATIONS" \
-            PATHS="$PATHS" \
-            DOCKERFILE="$DOCKERFILE" \
-            BUILD_PATH="$BUILD_PATH" \
-            SERVICE_NAME="$SERVICE_NAME" \
-            SERVICE_PATH="$SERVICE_PATH" \
-            TAG_AS_LATEST="$TAG_AS_LATEST" \
-            EXTRA_BUILD_ARGS="$EXTRA_BUILD_ARGS" \
-            FORCE_BUILD="$FORCE_BUILD")
-          echo "image=${reference%:*}" >> "$GITHUB_OUTPUT"
-          echo "tag=${reference#*:}" >> "$GITHUB_OUTPUT"
+        run: make push-image OUTPUT_FILE="$GITHUB_OUTPUT"
