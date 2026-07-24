@@ -7,7 +7,7 @@ GOMPLATE := $(GO) run github.com/hairyhenderson/gomplate/v4/cmd/gomplate@latest
 DOCKER_FLAGS=--rm --user $(shell id -u):$(shell id -g)
 DOCKER_OPA := docker run $(DOCKER_FLAGS) -v $(PWD)/internal/opa:/policy openpolicyagent/opa:latest
 DOCKER_JQ := docker run $(DOCKER_FLAGS) -v $(PWD):/data -w /data jq-tools
-GIT_COMMIT_FULL := $(shell git rev-parse HEAD)
+GIT_COMMIT_SHORT := $(shell git rev-parse --short=7 HEAD)
 SOURCE_URL := $(or $(GITHUB_SERVER_URL),https://github.com)/$(or $(GITHUB_REPOSITORY),xataio/maki)
 WORKFLOW_FILES := $(wildcard .github/workflows/* oss/.github/workflows/*)
 BAKE_OVERRIDES := docker-bake.override.hcl $(wildcard oss/docker-bake.override.hcl)
@@ -166,7 +166,7 @@ push-image: ## Build and push a Bake target. Requires TARGET and comma-separated
 	fi; \
 	metadata=$$(mktemp); \
 	trap 'rm -f "$$metadata"' EXIT; \
-	DESTINATIONS="$(DESTINATIONS)" TAG="$(GIT_COMMIT_FULL)" LATEST="$(or $(TAG_AS_LATEST),false)" \
+	DESTINATIONS="$(DESTINATIONS)" TAG="$(GIT_COMMIT_SHORT)" LATEST="$(or $(TAG_AS_LATEST),false)" \
 		docker buildx bake "$(TARGET)" --push --provenance=false --progress=plain --metadata-file "$$metadata"; \
 	digest=$$(jq -r --arg target "$(TARGET)" '.[$$target]["containerimage.digest"]' "$$metadata"); \
 	destinations="$(DESTINATIONS)"; \
