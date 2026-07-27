@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net"
 	"net/http"
 	"regexp"
 	"slices"
@@ -1261,6 +1262,55 @@ func (s *handler) DescribeBranch(c echo.Context, organizationID spec.Organizatio
 	})
 }
 
+// branchDatabaseName is the database managed users connect to on every branch.
+const branchDatabaseName = "xata"
+
+// defaultPostgresPort is omitted from connection strings, clients assume it.
+const defaultPostgresPort = 5432
+
+// formatConnectionString assembles the branch DSN from its parts. It carries
+// no sslmode parameter, clients choose their own TLS settings.
+func formatConnectionString(username, password, hostname string, port int) string {
+	hostPort := hostname
+	if port != defaultPostgresPort {
+		hostPort = fmt.Sprintf("%s:%d", hostname, port)
+	}
+	return fmt.Sprintf("postgresql://%s:%s@%s/%s",
+		username, password, hostPort, branchDatabaseName)
+}
+
+// resolveGatewayHostPort returns the region's gateway host:port, falling back to
+// the handler default when the region does not override it.
+func (s *handler) resolveGatewayHostPort(region *store.Region) string {
+	if region.GatewayHostPort != "" {
+		return region.GatewayHostPort
+	}
+	return s.defaultGatewayHostPort
+}
+
+// branchEndpoint returns the hostname and port clients use to reach a branch
+// through the region's gateway.
+func (s *handler) branchEndpoint(region *store.Region, branchID string) (string, int, error) {
+	hostPort := s.resolveGatewayHostPort(region)
+	if hostPort == "" {
+		return "", 0, errors.New("no gateway host:port configured")
+	}
+	// Regions may register a host-only gateway address (ie us-east-1.xata.tech),
+	// in that case connections use the default postgres port.
+	if !strings.Contains(hostPort, ":") {
+		return branchID + "." + hostPort, defaultPostgresPort, nil
+	}
+	host, portStr, err := net.SplitHostPort(hostPort)
+	if err != nil {
+		return "", 0, fmt.Errorf("parse gateway host:port [%s]: %w", hostPort, err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return "", 0, fmt.Errorf("parse gateway port [%s]: %w", portStr, err)
+	}
+	return branchID + "." + host, port, nil
+}
+
 func (s *handler) getConnectionString(c echo.Context, organizationID string, branch *store.Branch) (string, error) {
 	// TODO I believe eventually this must be its own API call (ie, we may support several managed users in the future)
 	client, err := s.cells.GetCellConnection(c.Request().Context(), organizationID, branch.CellID)
@@ -1273,11 +1323,6 @@ func (s *handler) getConnectionString(c echo.Context, organizationID string, bra
 	region, err := s.store.GetRegion(c.Request().Context(), organizationID, branch.Region)
 	if err != nil {
 		return "", err
-	}
-
-	hostPort := s.defaultGatewayHostPort
-	if region.GatewayHostPort != "" {
-		hostPort = region.GatewayHostPort
 	}
 
 	username := "app"
@@ -1293,11 +1338,14 @@ func (s *handler) getConnectionString(c echo.Context, organizationID string, bra
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("postgresql://%s:%s@%s.%s/xata?sslmode=require",
-		creds.GetUsername(),
-		creds.GetPassword(),
-		branch.ID,
-		hostPort), nil
+
+	hostname, port, err := s.branchEndpoint(region, branch.ID)
+	if err != nil {
+		return "", err
+	}
+	// The deprecated branch connectionString keeps sslmode for backwards
+	// compatibility.
+	return formatConnectionString(creds.GetUsername(), creds.GetPassword(), hostname, port) + "?sslmode=require", nil
 }
 
 // Get branch credentials
@@ -1330,9 +1378,23 @@ func (s *handler) GetBranchCredentials(c echo.Context, organizationID spec.Organ
 			return err
 		}
 
+		region, err := s.store.GetRegion(c.Request().Context(), organizationID, branch.Region)
+		if err != nil {
+			return err
+		}
+
+		hostname, port, err := s.branchEndpoint(region, branch.ID)
+		if err != nil {
+			return err
+		}
+
 		return c.JSON(http.StatusOK, spec.BranchCredentials{
-			Username: creds.GetUsername(),
-			Password: creds.GetPassword(),
+			Username:         creds.GetUsername(),
+			Password:         creds.GetPassword(),
+			Hostname:         hostname,
+			Port:             port,
+			Dbname:           branchDatabaseName,
+			ConnectionString: formatConnectionString(creds.GetUsername(), creds.GetPassword(), hostname, port),
 		})
 	})
 }

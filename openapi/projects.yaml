@@ -1833,8 +1833,9 @@ components:
           type: string
           nullable: true
         connectionString:
-          description: Database connection string for accessing this branch
+          description: 'Deprecated: retrieve the connection string from the branch credentials endpoint (GET .../branches/{branchID}/credentials) instead.'
           type: string
+          deprecated: true
           nullable: true
         region:
           description: Geographic region where the branch is deployed
@@ -1922,8 +1923,9 @@ components:
         status:
           $ref: '#/components/schemas/BranchStatus'
         connectionString:
-          description: Database connection string for accessing this branch
+          description: 'Deprecated: retrieve the connection string from the branch credentials endpoint (GET .../branches/{branchID}/credentials) instead.'
           type: string
+          deprecated: true
           nullable: true
         publicAccess:
           description: Whether the branch allows public access without authentication
@@ -1975,7 +1977,7 @@ components:
         - branchID
         - description
     BranchCredentials:
-      description: 'Credentials for accessing a branch, username and password'
+      description: Credentials and connection details for accessing a branch
       type: object
       properties:
         username:
@@ -1984,10 +1986,25 @@ components:
         password:
           description: Password for accessing the branch database
           type: string
+        hostname:
+          description: Hostname for accessing the branch database
+          type: string
+        port:
+          description: Port for accessing the branch database
+          type: integer
+        dbname:
+          description: Name of the database to connect to
+          type: string
+        connectionString:
+          description: 'Database connection string for accessing this branch. It carries no sslmode parameter, clients choose their own TLS settings.'
+          type: string
       required:
         - username
         - password
-      x-internal: true
+        - hostname
+        - port
+        - dbname
+        - connectionString
     RotateCredentialsRequest:
       description: Request to rotate credentials for a branch database user
       type: object

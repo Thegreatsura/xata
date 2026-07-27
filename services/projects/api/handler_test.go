@@ -832,7 +832,7 @@ func TestCreateBranch(t *testing.T) {
 	feat := openfeaturetest.NewClient(nil)
 	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
 	mockAnalytics := analyticsmocks.NewClient(t)
-	handler := NewAPIHandler(feat, mockStore, mockCells, "", nil, sched, mockAnalytics, mockPostgresConfig, mockImageProvider, mockProvisioner)
+	handler := NewAPIHandler(feat, mockStore, mockCells, "testdomain:5432", nil, sched, mockAnalytics, mockPostgresConfig, mockImageProvider, mockProvisioner)
 	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
 
 	branch := store.Branch{
@@ -881,7 +881,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch succeeds",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123./xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": branch.Name, "mode": "custom", "configuration": map[string]any{"image": configuration.Image, "replicas": configuration.Replicas, "region": configuration.Region, "instanceType": configuration.InstanceType}, "backupConfiguration": map[string]any{"retentionPeriod": 2, "backupTime": "2:23:23"}},
 			configuration:    configuration,
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
@@ -913,7 +913,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch succeeds with missing backup settings",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123./xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": branch.Name, "mode": "custom", "configuration": map[string]any{"image": configuration.Image, "replicas": configuration.Replicas, "region": configuration.Region, "instanceType": configuration.InstanceType}},
 			configuration:    configuration,
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
@@ -966,7 +966,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch succeeds with incomplete backup settings",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123./xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": branch.Name, "mode": "custom", "configuration": map[string]any{"image": configuration.Image, "replicas": configuration.Replicas, "region": configuration.Region, "instanceType": configuration.InstanceType}, "backupConfiguration": map[string]any{"backupTime": "*:23:23"}},
 			configuration:    configuration,
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
@@ -1019,7 +1019,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch succeeds with daily backup settings",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123./xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": branch.Name, "mode": "custom", "configuration": map[string]any{"image": configuration.Image, "replicas": configuration.Replicas, "region": configuration.Region, "instanceType": configuration.InstanceType}, "backupConfiguration": map[string]any{"retentionPeriod": 2, "backupTime": "*:23:23"}},
 			configuration:    configuration,
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
@@ -1071,7 +1071,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a child branch succeeds",
 			projectID:        "project_id",
 			branch:           childBranch,
-			connectionString: new("postgresql://user:pass@1234./xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@1234.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": childBranch.Name, "mode": "inherit", "parentID": *childBranch.ParentID, "backupConfiguration": map[string]any{"retentionPeriod": 2, "backupTime": "2:23:23"}},
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
 				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
@@ -1093,7 +1093,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a child branch fails for unhealthy parent",
 			projectID:        "project_id",
 			branch:           childBranch,
-			connectionString: new("postgresql://user:pass@1234./xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@1234.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": childBranch.Name, "mode": "inherit", "parentID": *childBranch.ParentID, "backupConfiguration": map[string]any{"retentionPeriod": 2, "backupTime": "2:23:23"}},
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
 				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
@@ -1275,7 +1275,7 @@ func TestCreateBranch(t *testing.T) {
 		{
 			name:             "create a branch with correct description succeeds",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123./xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": branch.Name, "description": correctDescription, "mode": "custom", "configuration": map[string]any{"image": configuration.Image, "replicas": configuration.Replicas, "storage": configuration.Storage, "region": configuration.Region, "instanceType": configuration.InstanceType}, "backupConfiguration": map[string]any{"retentionPeriod": 2, "backupTime": "2:23:23"}},
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
 				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
@@ -1465,7 +1465,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch with custom preload libraries succeeds",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123./xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
 			jsonBody: map[string]any{
 				"name": branch.Name,
 				"mode": "custom",
@@ -1519,7 +1519,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch with custom postgres configuration parameters succeeds",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123./xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
 			jsonBody: map[string]any{
 				"name": branch.Name,
 				"mode": "custom",
@@ -1578,7 +1578,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch with both custom preload libraries and postgres parameters succeeds",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123./xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
 			jsonBody: map[string]any{
 				"name": branch.Name,
 				"mode": "custom",
@@ -3854,8 +3854,28 @@ func TestGetBranchCredentials(t *testing.T) {
 				mockClusters.EXPECT().
 					GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).
 					Return(credentials, nil).Once()
+				mockStore.EXPECT().
+					GetRegion(mock.Anything, apitest.TestOrganization, branch.Region).
+					Return(&store.Region{GatewayHostPort: ""}, nil).Once()
 			},
 			wantError: false,
+		},
+		{
+			name:        "get credentials when secret not found returns not found",
+			projectID:   projectID,
+			branchID:    branchID,
+			reqUsername: new("xata"),
+			setupMocks: func() {
+				branch := store.Branch{ID: branchID}
+				mockStore.EXPECT().
+					DescribeBranch(mock.Anything, apitest.TestOrganization, projectID, branchID).
+					Return(&branch, nil).Once()
+				mockClusters.EXPECT().
+					GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).
+					Return(nil, clusters.SecretNotFoundForIDError(branchID)).Once()
+			},
+			wantError:     true,
+			expectedError: ErrorCredentialsForBranchNotFound{BranchID: branchID, Username: "xata"},
 		},
 		{
 			name:          "get credentials without username fails",
@@ -3901,11 +3921,62 @@ func TestGetBranchCredentials(t *testing.T) {
 				assert.NoError(t, err)
 				rec.MustCode(http.StatusOK)
 
-				var resp clustersv1.GetPostgresClusterCredentialsResponse
+				var resp spec.BranchCredentials
 				rec.ReadBody(&resp)
 				assert.Equal(t, credentials.Username, resp.Username)
 				assert.Equal(t, credentials.Password, resp.Password)
+				assert.Equal(t, "branchID.testdomain", resp.Hostname)
+				assert.Equal(t, 5432, resp.Port)
+				assert.Equal(t, "xata", resp.Dbname)
+				assert.Equal(t, "postgresql://user:pass@branchID.testdomain/xata", resp.ConnectionString)
 			}
+		})
+	}
+}
+
+func TestBranchEndpoint(t *testing.T) {
+	tests := map[string]struct {
+		regionHostPort  string
+		defaultHostPort string
+		wantHostname    string
+		wantPort        int
+		wantError       bool
+	}{
+		"region host:port": {
+			regionHostPort: "eu-central-1.xata.tech:7654",
+			wantHostname:   "br-1.eu-central-1.xata.tech",
+			wantPort:       7654,
+		},
+		"host-only region uses the default postgres port": {
+			regionHostPort: "us-east-1.xata.tech",
+			wantHostname:   "br-1.us-east-1.xata.tech",
+			wantPort:       5432,
+		},
+		"empty region falls back to the handler default": {
+			defaultHostPort: "testdomain:5432",
+			wantHostname:    "br-1.testdomain",
+			wantPort:        5432,
+		},
+		"no gateway configured at all fails": {
+			wantError: true,
+		},
+		"non-numeric port fails": {
+			regionHostPort: "us-east-1.xata.tech:sql",
+			wantError:      true,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			h := &handler{defaultGatewayHostPort: tt.defaultHostPort}
+			gotHostname, gotPort, err := h.branchEndpoint(&store.Region{GatewayHostPort: tt.regionHostPort}, "br-1")
+			if tt.wantError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantHostname, gotHostname)
+			require.Equal(t, tt.wantPort, gotPort)
 		})
 	}
 }
@@ -5393,7 +5464,7 @@ func TestUpdateBranch(t *testing.T) {
 				rec.MustCode(http.StatusOK)
 				rec.ReadBody(&gotBranch)
 				assert.Equal(t, tt.branchID, gotBranch.Id)
-				assert.Equal(t, new("postgresql://user:pass@123.testdomain:5432/xata?sslmode=require"), gotBranch.ConnectionString)
+				assert.Equal(t, new("postgresql://user:pass@123.testdomain/xata?sslmode=require"), gotBranch.ConnectionString)
 			} else {
 				assert.Error(t, err)
 				assert.Equal(t, tt.expectedError, err)
