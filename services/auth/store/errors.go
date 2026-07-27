@@ -19,6 +19,66 @@ func (e ErrAPIKeyNotFound) StatusCode() int {
 	return http.StatusNotFound
 }
 
+// ErrVercelInstallationNotFound is returned when a Vercel installation cannot be found
+type ErrVercelInstallationNotFound struct {
+	InstallationID string
+}
+
+func (e ErrVercelInstallationNotFound) Error() string {
+	return fmt.Sprintf("vercel installation [%s] not found", e.InstallationID)
+}
+
+func (e ErrVercelInstallationNotFound) StatusCode() int {
+	return http.StatusNotFound
+}
+
+// ErrVercelInstallationNotActive is returned when an upsert conflicts with an
+// installation that is no longer active (deleting or deleted). The store refuses
+// to silently resurrect it — the caller must decide how to handle a re-install
+// (e.g. provision a fresh org) explicitly.
+type ErrVercelInstallationNotActive struct {
+	InstallationID string
+}
+
+func (e ErrVercelInstallationNotActive) Error() string {
+	return fmt.Sprintf("vercel installation [%s] is not active (deleting or deleted)", e.InstallationID)
+}
+
+func (e ErrVercelInstallationNotActive) StatusCode() int {
+	return http.StatusConflict
+}
+
+// ErrVercelInstallationAlreadyDeleting is returned when deletion is triggered on
+// an installation whose deletion is already in progress. Callers should treat a
+// duplicate uninstall as idempotent (not re-run teardown), not as a hard failure.
+type ErrVercelInstallationAlreadyDeleting struct {
+	InstallationID string
+}
+
+func (e ErrVercelInstallationAlreadyDeleting) Error() string {
+	return fmt.Sprintf("vercel installation [%s] is already deleting", e.InstallationID)
+}
+
+func (e ErrVercelInstallationAlreadyDeleting) StatusCode() int {
+	return http.StatusConflict
+}
+
+// ErrVercelAccountAlreadyLinked is returned when a Vercel account already has a
+// non-deleted installation. A Vercel team maps to at most one active
+// installation, enforced by a partial unique index.
+type ErrVercelAccountAlreadyLinked struct {
+	InstallationID  string
+	VercelAccountID string
+}
+
+func (e ErrVercelAccountAlreadyLinked) Error() string {
+	return fmt.Sprintf("vercel account [%s] already has an active installation", e.VercelAccountID)
+}
+
+func (e ErrVercelAccountAlreadyLinked) StatusCode() int {
+	return http.StatusConflict
+}
+
 // ErrInvalidAPIKey is returned when an API key is invalid
 type ErrInvalidAPIKey struct{}
 

@@ -28,6 +28,8 @@ var _ store.AuthStore = (*sqlAuthStore)(nil)
 const (
 	// Unique constraint name for API keys
 	UniqueConstraintKeyName = "unique_api_key_name"
+	// Partial unique index enforcing one active installation per Vercel account
+	UniqueConstraintVercelInstallationAccount = "unique_active_vercel_installation_account"
 )
 
 const (
@@ -450,4 +452,168 @@ func (s *sqlAuthStore) DeleteOrgLimit(ctx context.Context, orgID string, key sto
 		return fmt.Errorf("delete org limit: %w", err)
 	}
 	return nil
+}
+
+// UpsertVercelInstallation inserts or updates a Vercel installation. The access
+// token is persisted verbatim; the caller is responsible for encrypting it.
+//
+// On conflict only mutable fields (access_token, scopes, accepted_policies) are
+// refreshed, and only while the existing row is active. The identity link
+// (vercel_account_id, xata_organization_id) and created_at are write-once, and
+// the lifecycle (status, deleted_at) is never touched here — those transitions
+// go through TriggerVercelInstallationDeletion — so a re-sent Upsert can neither
+// re-point an installation nor change its status. If the existing row is
+// deleting or deleted the update is refused with ErrVercelInstallationNotActive
+// rather than silently resurrecting the uninstall — a re-install must be handled
+// explicitly by the caller.
+func (s *sqlAuthStore) UpsertVercelInstallation(ctx context.Context, installation *store.VercelInstallation) error {
+	scopes := installation.Scopes
+	if scopes == nil {
+		scopes = []string{}
+	}
+	policies := installation.AcceptedPolicies
+	if policies == nil {
+		policies = map[string]time.Time{}
+	}
+	status := installation.Status
+	if status == "" {
+		status = store.VercelInstallationActive
+	}
+	policiesJSON, err := json.Marshal(policies)
+	if err != nil {
+		return fmt.Errorf("marshal accepted policies: %w", err)
+	}
+	err = s.sql.QueryRowContext(ctx, `
+		INSERT INTO vercel_installations (
+			installation_id, vercel_account_id, xata_organization_id, access_token,
+			scopes, accepted_policies, status, deleted_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8)
+		ON CONFLICT (installation_id) DO UPDATE SET
+			access_token      = EXCLUDED.access_token,
+			scopes            = EXCLUDED.scopes,
+			accepted_policies = EXCLUDED.accepted_policies,
+			updated_at        = now()
+		WHERE vercel_installations.status = $9
+		RETURNING status, created_at, updated_at
+	`,
+		installation.InstallationID,
+		installation.VercelAccountID,
+		installation.XataOrganizationID,
+		installation.AccessToken,
+		pq.Array(scopes),
+		string(policiesJSON),
+		status,
+		installation.DeletedAt,
+		store.VercelInstallationActive,
+	).Scan(&installation.Status, &installation.CreatedAt, &installation.UpdatedAt)
+	// No row returned on conflict means the DO UPDATE was skipped by the WHERE:
+	// the installation exists but is not active, so we refuse to resurrect it.
+	if errors.Is(err, sql.ErrNoRows) {
+		return store.ErrVercelInstallationNotActive{InstallationID: installation.InstallationID}
+	}
+	if IsConstraintError(err, UniqueConstraintVercelInstallationAccount) {
+		return store.ErrVercelAccountAlreadyLinked{
+			InstallationID:  installation.InstallationID,
+			VercelAccountID: installation.VercelAccountID,
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("upsert vercel installation: %w", err)
+	}
+	// Reflect the coalesced defaults back so callers don't observe nil values
+	// after a successful upsert (Status and the timestamps come from RETURNING).
+	installation.Scopes = scopes
+	installation.AcceptedPolicies = policies
+	return nil
+}
+
+// GetVercelInstallation returns active and deleting installations; the
+// deleting row is kept visible so billing can finalize after uninstall.
+// Callers must still inspect Status, since a returned installation may
+// be deleting rather than active.
+func (s *sqlAuthStore) GetVercelInstallation(ctx context.Context, installationID string) (*store.VercelInstallation, error) {
+	var (
+		inst         store.VercelInstallation
+		policiesJSON []byte
+		deletedAt    sql.NullTime
+	)
+	err := s.sql.QueryRowContext(ctx, `
+		SELECT installation_id, vercel_account_id, xata_organization_id, access_token,
+			scopes, accepted_policies, status, created_at, updated_at, deleted_at
+		FROM vercel_installations
+		WHERE installation_id = $1 AND status != $2
+	`, installationID, store.VercelInstallationDeleted).Scan(
+		&inst.InstallationID,
+		&inst.VercelAccountID,
+		&inst.XataOrganizationID,
+		&inst.AccessToken,
+		pq.Array(&inst.Scopes),
+		&policiesJSON,
+		&inst.Status,
+		&inst.CreatedAt,
+		&inst.UpdatedAt,
+		&deletedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, store.ErrVercelInstallationNotFound{InstallationID: installationID}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get vercel installation: %w", err)
+	}
+	if len(policiesJSON) > 0 {
+		if err := json.Unmarshal(policiesJSON, &inst.AcceptedPolicies); err != nil {
+			return nil, fmt.Errorf("unmarshal accepted policies: %w", err)
+		}
+	}
+	if deletedAt.Valid {
+		inst.DeletedAt = &deletedAt.Time
+	}
+	return &inst, nil
+}
+
+// TriggerVercelInstallationDeletion moves an active installation into the
+// deleting state, the visible window in which billing can finalize after an
+// uninstall. It does not stamp deleted_at — that belongs to the terminal deleted
+// transition, which a later PR will add once the teardown requirements are
+// settled. It is strict about the source state:
+//   - active               -> transitions to deleting
+//   - already deleting      -> ErrVercelInstallationAlreadyDeleting (idempotent
+//     to the caller, but signalled so teardown is not re-run)
+//   - deleted / missing     -> ErrVercelInstallationNotFound (deleted rows are
+//     treated as absent, matching GetVercelInstallation)
+func (s *sqlAuthStore) TriggerVercelInstallationDeletion(ctx context.Context, installationID string) error {
+	res, err := s.sql.ExecContext(ctx, `
+		UPDATE vercel_installations
+		SET status = $2, updated_at = now()
+		WHERE installation_id = $1 AND status = $3
+	`, installationID, store.VercelInstallationDeleting, store.VercelInstallationActive)
+	if err != nil {
+		return fmt.Errorf("trigger vercel installation deletion: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if affected > 0 {
+		return nil // transitioned active -> deleting
+	}
+
+	// No active row matched: disambiguate why so the caller gets a precise
+	// signal (already deleting vs. absent).
+	var current store.VercelInstallationStatus
+	err = s.sql.QueryRowContext(ctx, `
+		SELECT status FROM vercel_installations WHERE installation_id = $1
+	`, installationID).Scan(&current)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return store.ErrVercelInstallationNotFound{InstallationID: installationID}
+	case err != nil:
+		return fmt.Errorf("get vercel installation status: %w", err)
+	case current == store.VercelInstallationDeleting:
+		return store.ErrVercelInstallationAlreadyDeleting{InstallationID: installationID}
+	default:
+		// Deleted (or any other non-active state) is treated as absent.
+		return store.ErrVercelInstallationNotFound{InstallationID: installationID}
+	}
 }

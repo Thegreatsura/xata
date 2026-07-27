@@ -290,6 +290,53 @@ func (_c *AuthStore_GetOrgLimits_Call) Return(_a0 map[store.OrgLimitKey]interfac
 	return _c
 }
 
+// GetVercelInstallation provides a mock function with given fields: ctx, installationID
+func (_m *AuthStore) GetVercelInstallation(ctx context.Context, installationID string) (*store.VercelInstallation, error) {
+	ret := _m.Called(ctx, installationID)
+
+	var r0 *store.VercelInstallation
+	if rf, ok := ret.Get(0).(func(context.Context, string) *store.VercelInstallation); ok {
+		r0 = rf(ctx, installationID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*store.VercelInstallation)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, installationID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AuthStore_GetVercelInstallation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVercelInstallation'
+type AuthStore_GetVercelInstallation_Call struct {
+	*mock.Call
+}
+
+// GetVercelInstallation is a helper method to define mock.On call
+//   - ctx context.Context
+//   - installationID string
+func (_e *AuthStore_Expecter) GetVercelInstallation(ctx interface{}, installationID interface{}) *AuthStore_GetVercelInstallation_Call {
+	return &AuthStore_GetVercelInstallation_Call{Call: _e.mock.On("GetVercelInstallation", ctx, installationID)}
+}
+
+func (_c *AuthStore_GetVercelInstallation_Call) Run(run func(ctx context.Context, installationID string)) *AuthStore_GetVercelInstallation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *AuthStore_GetVercelInstallation_Call) Return(_a0 *store.VercelInstallation, _a1 error) *AuthStore_GetVercelInstallation_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // ListAPIKeys provides a mock function with given fields: ctx, targetType, targetID
 func (_m *AuthStore) ListAPIKeys(ctx context.Context, targetType store.KeyTargetType, targetID string) ([]store.APIKey, error) {
 	ret := _m.Called(ctx, targetType, targetID)
@@ -411,6 +458,82 @@ func (_c *AuthStore_Setup_Call) Run(run func(ctx context.Context)) *AuthStore_Se
 }
 
 func (_c *AuthStore_Setup_Call) Return(_a0 error) *AuthStore_Setup_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+// TriggerVercelInstallationDeletion provides a mock function with given fields: ctx, installationID
+func (_m *AuthStore) TriggerVercelInstallationDeletion(ctx context.Context, installationID string) error {
+	ret := _m.Called(ctx, installationID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, installationID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// AuthStore_TriggerVercelInstallationDeletion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TriggerVercelInstallationDeletion'
+type AuthStore_TriggerVercelInstallationDeletion_Call struct {
+	*mock.Call
+}
+
+// TriggerVercelInstallationDeletion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - installationID string
+func (_e *AuthStore_Expecter) TriggerVercelInstallationDeletion(ctx interface{}, installationID interface{}) *AuthStore_TriggerVercelInstallationDeletion_Call {
+	return &AuthStore_TriggerVercelInstallationDeletion_Call{Call: _e.mock.On("TriggerVercelInstallationDeletion", ctx, installationID)}
+}
+
+func (_c *AuthStore_TriggerVercelInstallationDeletion_Call) Run(run func(ctx context.Context, installationID string)) *AuthStore_TriggerVercelInstallationDeletion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *AuthStore_TriggerVercelInstallationDeletion_Call) Return(_a0 error) *AuthStore_TriggerVercelInstallationDeletion_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+// UpsertVercelInstallation provides a mock function with given fields: ctx, installation
+func (_m *AuthStore) UpsertVercelInstallation(ctx context.Context, installation *store.VercelInstallation) error {
+	ret := _m.Called(ctx, installation)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *store.VercelInstallation) error); ok {
+		r0 = rf(ctx, installation)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// AuthStore_UpsertVercelInstallation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertVercelInstallation'
+type AuthStore_UpsertVercelInstallation_Call struct {
+	*mock.Call
+}
+
+// UpsertVercelInstallation is a helper method to define mock.On call
+//   - ctx context.Context
+//   - installation *store.VercelInstallation
+func (_e *AuthStore_Expecter) UpsertVercelInstallation(ctx interface{}, installation interface{}) *AuthStore_UpsertVercelInstallation_Call {
+	return &AuthStore_UpsertVercelInstallation_Call{Call: _e.mock.On("UpsertVercelInstallation", ctx, installation)}
+}
+
+func (_c *AuthStore_UpsertVercelInstallation_Call) Run(run func(ctx context.Context, installation *store.VercelInstallation)) *AuthStore_UpsertVercelInstallation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*store.VercelInstallation))
+	})
+	return _c
+}
+
+func (_c *AuthStore_UpsertVercelInstallation_Call) Return(_a0 error) *AuthStore_UpsertVercelInstallation_Call {
 	_c.Call.Return(_a0)
 	return _c
 }

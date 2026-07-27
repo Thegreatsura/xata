@@ -328,6 +328,313 @@ func TestSQLAuthStore(t *testing.T) {
 			require.Error(t, err)
 		})
 	})
+
+	t.Run("vercel_installations", func(t *testing.T) {
+		t.Run("get missing returns not found", func(t *testing.T) {
+			_, err := sqlStore.GetVercelInstallation(ctx, "icfg_missing")
+			var notFound store.ErrVercelInstallationNotFound
+			require.ErrorAs(t, err, &notFound)
+		})
+
+		t.Run("upsert then get round-trips all fields", func(t *testing.T) {
+			accepted := time.Now().UTC().Truncate(time.Second)
+			install := &store.VercelInstallation{
+				InstallationID:     "icfg_roundtrip",
+				VercelAccountID:    "acct_1",
+				XataOrganizationID: "org_1",
+				AccessToken:        "encrypted-token",
+				Scopes:             []string{"read", "write"},
+				AcceptedPolicies:   map[string]time.Time{"toc": accepted},
+				Status:             store.VercelInstallationActive,
+			}
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, install))
+			// Upsert populates the DB-managed timestamps.
+			require.False(t, install.CreatedAt.IsZero())
+			require.False(t, install.UpdatedAt.IsZero())
+
+			got, err := sqlStore.GetVercelInstallation(ctx, "icfg_roundtrip")
+			require.NoError(t, err)
+			require.Equal(t, install.InstallationID, got.InstallationID)
+			require.Equal(t, install.VercelAccountID, got.VercelAccountID)
+			require.Equal(t, install.XataOrganizationID, got.XataOrganizationID)
+			require.Equal(t, install.AccessToken, got.AccessToken)
+			require.Equal(t, install.Scopes, got.Scopes)
+			require.Equal(t, store.VercelInstallationActive, got.Status)
+			require.Nil(t, got.DeletedAt)
+			require.True(t, accepted.Equal(got.AcceptedPolicies["toc"]))
+		})
+
+		t.Run("zero-value scopes, policies and status coalesce to defaults", func(t *testing.T) {
+			// Status left as its zero value ("") to exercise the coalesce.
+			install := &store.VercelInstallation{
+				InstallationID:     "icfg_empty",
+				VercelAccountID:    "acct_e",
+				XataOrganizationID: "org_e",
+				AccessToken:        "token",
+				Scopes:             nil,
+				AcceptedPolicies:   nil,
+			}
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, install))
+
+			// The coalesced defaults are written back to the struct, so callers
+			// don't observe nil/zero after a successful upsert.
+			require.Equal(t, []string{}, install.Scopes)
+			require.NotNil(t, install.AcceptedPolicies)
+			require.Empty(t, install.AcceptedPolicies)
+			require.Equal(t, store.VercelInstallationActive, install.Status)
+
+			got, err := sqlStore.GetVercelInstallation(ctx, "icfg_empty")
+			require.NoError(t, err)
+			require.Equal(t, []string{}, got.Scopes)
+			require.Empty(t, got.AcceptedPolicies)
+			require.Equal(t, store.VercelInstallationActive, got.Status)
+		})
+
+		t.Run("a vercel account can have only one active installation", func(t *testing.T) {
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     "icfg_acct_a",
+				VercelAccountID:    "acct_shared",
+				XataOrganizationID: "org_a",
+				AccessToken:        "token",
+				Status:             store.VercelInstallationActive,
+			}))
+
+			// A second active installation for the same Vercel account is rejected.
+			err := sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     "icfg_acct_b",
+				VercelAccountID:    "acct_shared",
+				XataOrganizationID: "org_b",
+				AccessToken:        "token",
+				Status:             store.VercelInstallationActive,
+			})
+			var alreadyLinked store.ErrVercelAccountAlreadyLinked
+			require.ErrorAs(t, err, &alreadyLinked)
+			require.Equal(t, "acct_shared", alreadyLinked.VercelAccountID)
+			require.Equal(t, "icfg_acct_b", alreadyLinked.InstallationID)
+		})
+
+		t.Run("a deleted installation's account can host a new installation", func(t *testing.T) {
+			// The index is partial (status != deleted), so a torn-down installation
+			// must not permanently reserve its Vercel account — reinstall works.
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     "icfg_reacct_old",
+				VercelAccountID:    "acct_reuse",
+				XataOrganizationID: "org_old",
+				AccessToken:        "token",
+				Status:             store.VercelInstallationDeleted,
+			}))
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     "icfg_reacct_new",
+				VercelAccountID:    "acct_reuse",
+				XataOrganizationID: "org_new",
+				AccessToken:        "token",
+				Status:             store.VercelInstallationActive,
+			}))
+		})
+
+		t.Run("upsert does not change the status of an existing installation", func(t *testing.T) {
+			const id = "icfg_status_guard"
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     id,
+				VercelAccountID:    "acct",
+				XataOrganizationID: "org_sg",
+				AccessToken:        "token",
+				Status:             store.VercelInstallationActive,
+			}))
+
+			// A re-send that (mis)sets a non-active status must not flip the row —
+			// lifecycle transitions only go through TriggerVercelInstallationDeletion.
+			second := &store.VercelInstallation{
+				InstallationID:     id,
+				VercelAccountID:    "acct",
+				XataOrganizationID: "org_sg",
+				AccessToken:        "token-v2",
+				Status:             store.VercelInstallationDeleting,
+			}
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, second))
+			require.Equal(t, store.VercelInstallationActive, second.Status, "write-back reflects the unchanged stored status")
+
+			got, err := sqlStore.GetVercelInstallation(ctx, id)
+			require.NoError(t, err)
+			require.Equal(t, store.VercelInstallationActive, got.Status)
+			require.Equal(t, "token-v2", got.AccessToken) // mutable fields still refreshed
+		})
+
+		t.Run("upsert on conflict updates mutable fields but preserves identity", func(t *testing.T) {
+			const id = "icfg_conflict"
+			first := &store.VercelInstallation{
+				InstallationID:     id,
+				VercelAccountID:    "acct_old",
+				XataOrganizationID: "org_old",
+				AccessToken:        "token-v1",
+				Scopes:             []string{"read"},
+				Status:             store.VercelInstallationActive,
+			}
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, first))
+			createdAt := first.CreatedAt
+
+			// Re-send with different identity values: they must be ignored so an
+			// installation can't be re-pointed to another account/org.
+			second := &store.VercelInstallation{
+				InstallationID:     id,
+				VercelAccountID:    "acct_new",
+				XataOrganizationID: "org_new",
+				AccessToken:        "token-v2",
+				Scopes:             []string{"read", "write"},
+				Status:             store.VercelInstallationActive,
+			}
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, second))
+
+			got, err := sqlStore.GetVercelInstallation(ctx, id)
+			require.NoError(t, err)
+			// Identity is write-once: preserved from the first insert.
+			require.Equal(t, "acct_old", got.VercelAccountID)
+			require.Equal(t, "org_old", got.XataOrganizationID)
+			require.True(t, createdAt.Equal(got.CreatedAt), "created_at should be preserved across upserts")
+			// Mutable fields are refreshed.
+			require.Equal(t, "token-v2", got.AccessToken)
+			require.Equal(t, []string{"read", "write"}, got.Scopes)
+		})
+
+		t.Run("trigger deletion flags status and keeps it retrievable", func(t *testing.T) {
+			const id = "icfg_deleting"
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     id,
+				VercelAccountID:    "acct_d",
+				XataOrganizationID: "org_d",
+				AccessToken:        "token",
+				Status:             store.VercelInstallationActive,
+			}))
+
+			require.NoError(t, sqlStore.TriggerVercelInstallationDeletion(ctx, id))
+
+			// Deleting installations stay visible so billing can finalize, and
+			// deleted_at is not stamped yet (that's the terminal transition).
+			got, err := sqlStore.GetVercelInstallation(ctx, id)
+			require.NoError(t, err)
+			require.Equal(t, store.VercelInstallationDeleting, got.Status)
+			require.Nil(t, got.DeletedAt)
+		})
+
+		t.Run("deleted installations are hidden", func(t *testing.T) {
+			const id = "icfg_deleted"
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     id,
+				VercelAccountID:    "acct_x",
+				XataOrganizationID: "org_x",
+				AccessToken:        "token",
+				Status:             store.VercelInstallationDeleted,
+			}))
+
+			_, err := sqlStore.GetVercelInstallation(ctx, id)
+			var notFound store.ErrVercelInstallationNotFound
+			require.ErrorAs(t, err, &notFound)
+		})
+
+		t.Run("trigger deletion missing returns not found", func(t *testing.T) {
+			err := sqlStore.TriggerVercelInstallationDeletion(ctx, "icfg_absent")
+			var notFound store.ErrVercelInstallationNotFound
+			require.ErrorAs(t, err, &notFound)
+		})
+
+		t.Run("trigger deletion on an already-deleting installation is rejected", func(t *testing.T) {
+			const id = "icfg_double_delete"
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     id,
+				VercelAccountID:    "acct_dd",
+				XataOrganizationID: "org_dd",
+				AccessToken:        "token",
+				Status:             store.VercelInstallationActive,
+			}))
+			require.NoError(t, sqlStore.TriggerVercelInstallationDeletion(ctx, id))
+
+			// A second trigger must be rejected distinctly, not a silent success.
+			err := sqlStore.TriggerVercelInstallationDeletion(ctx, id)
+			var alreadyDeleting store.ErrVercelInstallationAlreadyDeleting
+			require.ErrorAs(t, err, &alreadyDeleting)
+
+			// Still retrievable and still deleting.
+			got, err := sqlStore.GetVercelInstallation(ctx, id)
+			require.NoError(t, err)
+			require.Equal(t, store.VercelInstallationDeleting, got.Status)
+		})
+
+		t.Run("trigger deletion on a deleted installation returns not found", func(t *testing.T) {
+			const id = "icfg_trigger_deleted"
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     id,
+				VercelAccountID:    "acct_td",
+				XataOrganizationID: "org_td",
+				AccessToken:        "token",
+				Status:             store.VercelInstallationDeleted,
+			}))
+
+			// Consistent with Get, which hides deleted rows: it must not
+			// resurrect the row to deleting.
+			err := sqlStore.TriggerVercelInstallationDeletion(ctx, id)
+			var notFound store.ErrVercelInstallationNotFound
+			require.ErrorAs(t, err, &notFound)
+
+			_, err = sqlStore.GetVercelInstallation(ctx, id)
+			require.ErrorAs(t, err, &notFound)
+		})
+
+		t.Run("upsert refuses to resurrect a deleting installation", func(t *testing.T) {
+			const id = "icfg_resurrect_deleting"
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     id,
+				VercelAccountID:    "acct_r",
+				XataOrganizationID: "org_r",
+				AccessToken:        "token",
+				Status:             store.VercelInstallationActive,
+			}))
+			require.NoError(t, sqlStore.TriggerVercelInstallationDeletion(ctx, id))
+
+			// A retried/late Upsert must not flip it back to active.
+			err := sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     id,
+				VercelAccountID:    "acct_r",
+				XataOrganizationID: "org_r",
+				AccessToken:        "token-v2",
+				Status:             store.VercelInstallationActive,
+			})
+			var notActive store.ErrVercelInstallationNotActive
+			require.ErrorAs(t, err, &notActive)
+
+			// The row is unchanged: still deleting, original token.
+			got, err := sqlStore.GetVercelInstallation(ctx, id)
+			require.NoError(t, err)
+			require.Equal(t, store.VercelInstallationDeleting, got.Status)
+			require.Equal(t, "token", got.AccessToken)
+		})
+
+		t.Run("upsert refuses to reuse a deleted installation", func(t *testing.T) {
+			const id = "icfg_reuse_deleted"
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     id,
+				VercelAccountID:    "acct_z",
+				XataOrganizationID: "org_z",
+				AccessToken:        "token",
+				Status:             store.VercelInstallationDeleted,
+			}))
+
+			// A re-install onto a deleted id is refused, not silently reused with
+			// the old (torn-down) org — the caller must handle it explicitly.
+			err := sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     id,
+				VercelAccountID:    "acct_z",
+				XataOrganizationID: "org_new",
+				AccessToken:        "token-v2",
+				Status:             store.VercelInstallationActive,
+			})
+			var notActive store.ErrVercelInstallationNotActive
+			require.ErrorAs(t, err, &notActive)
+
+			_, err = sqlStore.GetVercelInstallation(ctx, id)
+			var notFound store.ErrVercelInstallationNotFound
+			require.ErrorAs(t, err, &notFound)
+		})
+	})
 }
 
 func jsonNumberToInt(v any) any {

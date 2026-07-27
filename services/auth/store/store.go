@@ -30,6 +30,18 @@ type AuthStore interface {
 	GetOrgLimits(ctx context.Context, orgID string) (map[OrgLimitKey]any, error)
 	SetOrgLimit(ctx context.Context, orgID string, key OrgLimitKey, value any) error
 	DeleteOrgLimit(ctx context.Context, orgID string, key OrgLimitKey) error
+
+	// UpsertVercelInstallation inserts or updates an installation by id;
+	// AccessToken is stored as-is (already encrypted by the caller).
+	UpsertVercelInstallation(ctx context.Context, installation *VercelInstallation) error
+	// GetVercelInstallation returns active and deleting installations; the
+	// deleting row is kept visible so billing can finalize after uninstall.
+	// Callers must still inspect Status, since a returned installation may
+	// be deleting rather than active.
+	GetVercelInstallation(ctx context.Context, installationID string) (*VercelInstallation, error)
+	// TriggerVercelInstallationDeletion flags an installation as deleting on
+	// uninstall. It stays retrievable in this state so billing can finalize
+	TriggerVercelInstallationDeletion(ctx context.Context, installationID string) error
 }
 
 // OrgLimitKey identifies an organization-level limit stored in the auth service.

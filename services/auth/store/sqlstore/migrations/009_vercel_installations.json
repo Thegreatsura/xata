@@ -1,0 +1,85 @@
+{
+    "operations": [
+        {
+            "create_table": {
+                "name": "vercel_installations",
+                "columns": [
+                    {
+                        "name": "installation_id",
+                        "type": "text",
+                        "pk": true,
+                        "comment": "Vercel installation id (icfg_...)"
+                    },
+                    {
+                        "name": "vercel_account_id",
+                        "type": "text",
+                        "nullable": false,
+                        "comment": "Vercel account/team id from the signed token claim"
+                    },
+                    {
+                        "name": "xata_organization_id",
+                        "type": "text",
+                        "nullable": false,
+                        "comment": "Linked Xata marketplace organization"
+                    },
+                    {
+                        "name": "access_token",
+                        "type": "text",
+                        "nullable": false,
+                        "comment": "Installation access token, encrypted at rest (see saas-services/auth/vercel.TokenCipher)"
+                    },
+                    {
+                        "name": "scopes",
+                        "type": "text[]",
+                        "nullable": false,
+                        "default": "'{}'",
+                        "comment": "Scopes granted to the installation"
+                    },
+                    {
+                        "name": "accepted_policies",
+                        "type": "jsonb",
+                        "nullable": false,
+                        "default": "'{}'",
+                        "comment": "Map of policy id to acceptance timestamp from the Upsert payload"
+                    },
+                    {
+                        "name": "status",
+                        "type": "text",
+                        "nullable": false,
+                        "default": "'active'",
+                        "comment": "active, deleting, or deleted"
+                    },
+                    {
+                        "name": "created_at",
+                        "type": "timestamp",
+                        "nullable": false,
+                        "default": "now()"
+                    },
+                    {
+                        "name": "updated_at",
+                        "type": "timestamp",
+                        "nullable": false,
+                        "default": "now()"
+                    },
+                    {
+                        "name": "deleted_at",
+                        "type": "timestamp",
+                        "nullable": true,
+                        "comment": "Set when the installation is soft-deleted on uninstall"
+                    }
+                ]
+            }
+        },
+        {
+            "create_index": {
+                "table": "vercel_installations",
+                "name": "unique_active_vercel_installation_account",
+                "columns": [
+                    { "column": "vercel_account_id" }
+                ],
+                "unique": true,
+                "predicate": "status != 'deleted'"
+            }
+        }
+    ]
+}
