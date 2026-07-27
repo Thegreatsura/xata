@@ -4,10 +4,10 @@
       "create_index": {
         "table": "branches",
         "name": "unique_project_branch_name",
-        "columns": {
-          "project_id": {},
-          "name": {}
-        },
+        "columns": [
+          { "column": "project_id" },
+          { "column": "name" }
+        ],
         "unique": true
       }
     }

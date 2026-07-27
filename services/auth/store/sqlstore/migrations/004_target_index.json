@@ -4,10 +4,10 @@
       "create_index": {
         "name": "api_keys_target_type_target_id_idx",
         "table": "api_keys",
-        "columns": {
-          "target_type": {},
-          "target_id": {}
-        }
+        "columns": [
+          { "column": "target_type" },
+          { "column": "target_id" }
+        ]
       }
     }
   ]

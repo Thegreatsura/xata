@@ -4,11 +4,11 @@
       "create_index": {
         "table": "api_keys",
         "name": "unique_api_key_name",
-        "columns": {
-          "target_type": {},
-          "target_id": {},
-          "name": {}
-        },
+        "columns": [
+          { "column": "target_type" },
+          { "column": "target_id" },
+          { "column": "name" }
+        ],
         "unique": true
       }
     }

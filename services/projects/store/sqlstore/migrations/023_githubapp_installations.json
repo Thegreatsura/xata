@@ -38,10 +38,10 @@
 			"create_index": {
 				"name": "github_installations_unique_org_installation",
 				"table": "github_installations",
-				"columns": {
-					"organization": {},
-					"installation_id": {}
-				},
+				"columns": [
+					{ "column": "organization" },
+					{ "column": "installation_id" }
+				],
 				"unique": true
 			}
 		},
@@ -49,9 +49,9 @@
 			"create_index": {
 				"name": "idx_github_installations_org",
 				"table": "github_installations",
-				"columns": {
-					"organization": {}
-				}
+				"columns": [
+					{ "column": "organization" }
+				]
 			}
 		}
 	]

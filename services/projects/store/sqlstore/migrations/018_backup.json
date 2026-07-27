@@ -73,18 +73,18 @@
       "create_index": {
         "name": "idx_backups_project_id",
         "table": "backups",
-        "columns": {
-          "project_id": {}
-        }
+        "columns": [
+          { "column": "project_id" }
+        ]
       }
     },
     {
       "create_index": {
         "name": "idx_backups_branch_id",
         "table": "backups",
-        "columns": {
-          "branch_id": {}
-        }
+        "columns": [
+          { "column": "branch_id" }
+        ]
       }
     }
   ]

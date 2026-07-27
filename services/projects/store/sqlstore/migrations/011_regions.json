@@ -31,9 +31,9 @@
       "create_index": {
         "name": "idx_regions_organization_id",
         "table": "regions",
-        "columns": {
-          "organization_id": {}
-        }
+        "columns": [
+          { "column": "organization_id" }
+        ]
       }
     },
     {
@@ -73,9 +73,9 @@
       "create_index": {
         "name": "idx_cells_region_id",
         "table": "cells",
-        "columns": {
-          "region_id": {}
-        }
+        "columns": [
+          { "column": "region_id" }
+        ]
       }
     },
     {

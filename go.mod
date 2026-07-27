@@ -56,7 +56,7 @@ require (
 	github.com/stripe/stripe-go/v84 v84.4.1
 	github.com/testcontainers/testcontainers-go v0.43.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0
-	github.com/xataio/pgroll v0.14.1
+	github.com/xataio/pgroll v0.16.2
 	github.com/xataio/xata-cnpg v1.28.1-0.20260612130714-f6428e7adb6e
 	github.com/ziflex/lecho/v3 v3.11.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.67.0

@@ -4,10 +4,10 @@
             "create_index": {
                 "table": "projects",
                 "name": "unique_org_project",
-                "columns": {
-                    "organization_id": {},
-                    "name": {}
-                },
+                "columns": [
+                    { "column": "organization_id" },
+                    { "column": "name" }
+                ],
                 "unique": true
             }
         }

@@ -1202,6 +1202,8 @@ github.com/xataio/pg_query_go/v6 v6.0.0-20250425105130-ed1845ee2d75 h1:KSyU4gD9t
 github.com/xataio/pg_query_go/v6 v6.0.0-20250425105130-ed1845ee2d75/go.mod h1:GK6bpfAhPtZb7wG/IccqvnH+cz3cmvvRTkC+MosESGo=
 github.com/xataio/pgroll v0.14.1 h1:E5hcDP8G5R2CPVIktiDGXOux2GnWOwc2iaF4AOpMlNU=
 github.com/xataio/pgroll v0.14.1/go.mod h1:EYGNgUgxdr1Yisvn9aKoFTYvIt692T+mEOkW30lsSAg=
+github.com/xataio/pgroll v0.16.2 h1:cAbmQw9IJ9wWuKiyo9z7xX3p6xBgMsYDGF+cV6mmaSI=
+github.com/xataio/pgroll v0.16.2/go.mod h1:PDrUmqBtknOUCIqKnX7UV6ofjKrktbmR8I1obeDWetk=
 github.com/xataio/xata-cnpg v1.28.1-0.20260612130714-f6428e7adb6e h1:yIQZnhDecdrBGnD24NGejeuqmzAKQbYhpcrPxEA2hUg=
 github.com/xataio/xata-cnpg v1.28.1-0.20260612130714-f6428e7adb6e/go.mod h1:CugLIt044hW5PSzFwwWiippp6yWthu9BwJedIdoVEa4=
 github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb h1:zGWFAtiMcyryUHoUjUJX0/lt1H2+i2Ka2n+D3DImSNo=
@@ -1487,6 +1489,7 @@ google.golang.org/protobuf v1.21.0/go.mod h1:47Nbq4nVaFHyn7ilMalzfO3qCViNmqZ2kzi
 google.golang.org/protobuf v1.23.0/go.mod h1:EGpADcykh3NcUnDUJcl1+ZksZNG86OlYog2l/sGQquU=
 google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp09yW+WbY/TyQbw=
 google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
+google.golang.org/protobuf v1.31.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
 google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=

@@ -4,9 +4,9 @@
 			"create_index": {
 				"name": "github_installations_unique_installation_id",
 				"table": "github_installations",
-				"columns": {
-					"installation_id": {}
-				},
+				"columns": [
+					{ "column": "installation_id" }
+				],
 				"unique": true
 			}
 		}

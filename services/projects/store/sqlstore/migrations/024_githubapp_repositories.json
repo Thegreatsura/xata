@@ -55,9 +55,9 @@
 			"create_index": {
 				"name": "github_repositories_unique_project_id",
 				"table": "github_repositories",
-				"columns": {
-					"project_id": {}
-				},
+				"columns": [
+					{ "column": "project_id" }
+				],
 				"unique": true
 			}
 		},
@@ -65,9 +65,9 @@
 			"create_index": {
 				"name": "github_repositories_unique_repo_id",
 				"table": "github_repositories",
-				"columns": {
-					"github_repository_id": {}
-				},
+				"columns": [
+					{ "column": "github_repository_id" }
+				],
 				"unique": true
 			}
 		}
