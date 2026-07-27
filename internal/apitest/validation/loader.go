@@ -44,7 +44,11 @@ func LoadSpec(specPath string) (*openapi3.T, error) {
 	}
 
 	// Validate the spec itself
-	if err := spec.Validate(loader.Context); err != nil {
+	ctx := openapi3.WithValidationOptions(
+		loader.Context,
+		openapi3.AllowExtraSiblingFields("description", "nullable"),
+	)
+	if err := spec.Validate(ctx); err != nil {
 		return nil, fmt.Errorf("validate spec %s: %w", specPath, err)
 	}
 
