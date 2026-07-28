@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
 )
 
@@ -96,7 +95,7 @@ type SchemaInitializer struct {
 }
 
 // EnsureSchema executes InitSQL. The DDL must be idempotent.
-func (s *SchemaInitializer) EnsureSchema(ctx context.Context, conn *pgxpool.Conn) error {
+func (s *SchemaInitializer) EnsureSchema(ctx context.Context, conn *pgx.Conn) error {
 	log.Ctx(ctx).Info().Msg("ensuring schema")
 	if _, err := conn.Exec(ctx, s.InitSQL); err != nil {
 		return fmt.Errorf("ensure schema: %w", err)
