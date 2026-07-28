@@ -170,7 +170,7 @@ func (s *AuthService) RegisterGRPCHandlers(o *o11y.O, server *grpc.Server) {
 	kcRest := keycloak.NewRestKC(client, s.config.AuthConfig)
 	projectsClient := projectsv1.NewProjectsServiceClient(s.projectsConn)
 	orgs := orgs.NewOrganizations(s.config.AuthConfig.Realm, kcRest, projectsClient)
-	authv1.RegisterAuthServiceServer(server, rpc.NewAuthService(s.store, client, kcRest, projectsClient, orgs, s.config.AuthConfig.Realm, s.config.DefaultOrgID))
+	authv1.RegisterAuthServiceServer(server, rpc.NewAuthService(s.store, client, kcRest, projectsClient, orgs, s.config.AuthConfig.Realm, s.config.DefaultOrgID, s.config.AuthConfig.TrustTokenClaims))
 }
 
 func (s *AuthService) createBillingClient() (billing.Client, error) {

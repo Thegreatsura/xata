@@ -75,7 +75,7 @@ func (r *restKC) CreateOrganization(ctx context.Context, realm string, params Or
 func (r *restKC) buildCreateOrganizationPayload(id string, params OrganizationCreate) KeycloakOrganization {
 	now := time.Now().UTC().Format(time.RFC3339)
 	attrs := map[string][]string{
-		"displayName":                  {params.Name},
+		OrganizationDisplayNameKey:     {params.Name},
 		OrganizationDisabledByAdminKey: {"false"},
 		OrganizationBillingStatusKey:   {string(params.BillingStatus)},
 		OrganizationBillingReasonKey:   {params.BillingReason},
@@ -100,7 +100,7 @@ func (r *restKC) GetOrganization(ctx context.Context, realm, alias string) (Orga
 		return Organization{}, fmt.Errorf("failed to get organization: %w", err)
 	}
 
-	if _, ok := firstAttr(organization.Attributes, OrganizationDeletedAtKey); ok {
+	if _, ok := FirstAttr(organization.Attributes, OrganizationDeletedAtKey); ok {
 		return Organization{}, ErrOrganizationNotFound{ID: alias}
 	}
 
@@ -138,7 +138,7 @@ func (r *restKC) ListOrganizations(ctx context.Context, realm, userID string) ([
 
 	orgs := make([]Organization, 0, len(keycloakOrganizations))
 	for _, org := range keycloakOrganizations {
-		if _, ok := firstAttr(org.Attributes, OrganizationDeletedAtKey); ok {
+		if _, ok := FirstAttr(org.Attributes, OrganizationDeletedAtKey); ok {
 			continue
 		}
 		orgs = append(orgs, r.convertToOrganization(org))
@@ -411,7 +411,7 @@ func (r *restKC) UpdateOrganization(
 	updates := make(map[string][]string)
 
 	if update.Name != nil {
-		updates["displayName"] = []string{*update.Name}
+		updates[OrganizationDisplayNameKey] = []string{*update.Name}
 	}
 	if update.DisabledByAdmin != nil {
 		updates[OrganizationDisabledByAdminKey] = []string{fmt.Sprintf("%t", *update.DisabledByAdmin)}
@@ -485,7 +485,7 @@ func (r *restKC) DeleteOrganization(ctx context.Context, realm, organizationID s
 		organization.Attributes = make(map[string][]string)
 	}
 
-	if _, ok := firstAttr(organization.Attributes, OrganizationDeletedAtKey); ok {
+	if _, ok := FirstAttr(organization.Attributes, OrganizationDeletedAtKey); ok {
 		return nil
 	}
 
@@ -556,11 +556,11 @@ func (r *restKC) ListDisabledOrganizations(ctx context.Context, realm string, re
 					continue
 				}
 				seen[org.Alias] = struct{}{}
-				if _, ok := firstAttr(org.Attributes, OrganizationDeletedAtKey); ok {
+				if _, ok := FirstAttr(org.Attributes, OrganizationDeletedAtKey); ok {
 					continue
 				}
 				if !returnCleanedUpOrgs {
-					if _, ok := firstAttr(org.Attributes, OrganizationResourcesCleanedAtKey); ok {
+					if _, ok := FirstAttr(org.Attributes, OrganizationResourcesCleanedAtKey); ok {
 						continue
 					}
 				}
@@ -600,16 +600,16 @@ func (r *restKC) GetUserRepresentation(ctx context.Context, realm string, userID
 }
 
 func parseUserAttributes(user *User) {
-	if v, ok := firstAttr(user.Attributes, "marketplace"); ok {
+	if v, ok := FirstAttr(user.Attributes, "marketplace"); ok {
 		user.Marketplace = v
 	}
-	if v, ok := firstAttr(user.Attributes, "awsCustomerId"); ok {
+	if v, ok := FirstAttr(user.Attributes, "awsCustomerId"); ok {
 		user.AWSCustomerID = v
 	}
-	if v, ok := firstAttr(user.Attributes, "awsProductId"); ok {
+	if v, ok := FirstAttr(user.Attributes, "awsProductId"); ok {
 		user.AWSProductID = v
 	}
-	if v, ok := firstAttr(user.Attributes, "awsAccountId"); ok {
+	if v, ok := FirstAttr(user.Attributes, "awsAccountId"); ok {
 		user.AWSAccountID = v
 	}
 }
@@ -865,40 +865,47 @@ func (r *restKC) isSuccessStatus(actual int, expected ...int) bool {
 	return slices.Contains(expected, actual)
 }
 
-func (r *restKC) extractDisplayName(org KeycloakOrganization) string {
-	if org.Attributes != nil {
-		if displayName, ok := org.Attributes["displayName"]; ok && len(displayName) > 0 {
-			return displayName[0]
-		}
+func displayName(name string, attributes map[string][]string) string {
+	if v, ok := attributes[OrganizationDisplayNameKey]; ok && len(v) > 0 {
+		return v[0]
 	}
-	return org.Name
+	return name
 }
 
 func (r *restKC) convertToOrganization(org KeycloakOrganization) Organization {
+	result := OrganizationFromAttributes(org.Alias, org.Attributes)
+	result.Name = displayName(org.Name, org.Attributes)
+	return result
+}
+
+// OrganizationFromAttributes derives an organization from its Keycloak
+// attributes. Exported so callers that read the same attributes from an access
+// token claim cannot drift from what the Admin REST API returns. Name is not
+// derivable from attributes alone and is left to the caller.
+func OrganizationFromAttributes(alias string, attributes map[string][]string) Organization {
 	result := Organization{
-		ID:     org.Alias,
-		Name:   r.extractDisplayName(org),
-		Status: r.extractStatus(org.Attributes),
+		ID:     alias,
+		Status: extractStatus(attributes),
 	}
-	if v, ok := firstAttr(org.Attributes, OrganizationMarketplaceKey); ok && v != "" {
+	if v, ok := FirstAttr(attributes, OrganizationMarketplaceKey); ok && v != "" {
 		marketplace := OrganizationMarketplaceProvider(v)
 		result.Marketplace = &marketplace
 		if marketplace == OrganizationMarketplaceProviderAWS {
-			awsMarketplace := AWSMarketplaceFromKeycloakAttributes(org.Attributes)
+			awsMarketplace := AWSMarketplaceFromKeycloakAttributes(attributes)
 			result.AWSMarketplace = &awsMarketplace
 		}
 	}
 	return result
 }
 
-func (r *restKC) extractStatus(attributes map[string][]string) OrganizationStatus {
+func extractStatus(attributes map[string][]string) OrganizationStatus {
 	// This default apply for organizations with no status in Keycloak (created before org status was introduced)
 	status := OrganizationStatus{
 		DisabledByAdmin: false,
 		BillingStatus:   OrganizationBillingStatusOK,
 	}
 
-	if v, ok := firstAttr(attributes, OrganizationDisabledByAdminKey); ok {
+	if v, ok := FirstAttr(attributes, OrganizationDisabledByAdminKey); ok {
 		switch strings.ToLower(v) {
 		case "true":
 			status.DisabledByAdmin = true
@@ -909,7 +916,7 @@ func (r *restKC) extractStatus(attributes map[string][]string) OrganizationStatu
 
 	// Billing status default is `ok` for organizations created before billing integration
 	status.BillingStatus = OrganizationBillingStatusOK
-	if v, ok := firstAttr(attributes, OrganizationBillingStatusKey); ok {
+	if v, ok := FirstAttr(attributes, OrganizationBillingStatusKey); ok {
 		billingStatus := OrganizationBillingStatus(v)
 		switch billingStatus {
 		case OrganizationBillingStatusOK,
@@ -923,14 +930,14 @@ func (r *restKC) extractStatus(attributes map[string][]string) OrganizationStatu
 		}
 	}
 
-	if v, ok := firstAttr(attributes, OrganizationAdminReasonKey); ok {
+	if v, ok := FirstAttr(attributes, OrganizationAdminReasonKey); ok {
 		status.AdminReason = &v
 	}
-	if v, ok := firstAttr(attributes, OrganizationBillingReasonKey); ok {
+	if v, ok := FirstAttr(attributes, OrganizationBillingReasonKey); ok {
 		status.BillingReason = &v
 	}
 
-	if v, ok := firstAttr(attributes, OrganizationLastUpdatedKey); ok {
+	if v, ok := FirstAttr(attributes, OrganizationLastUpdatedKey); ok {
 		if t, err := time.Parse(time.RFC3339, v); err == nil {
 			status.LastUpdated = t.UTC()
 		}
@@ -939,7 +946,7 @@ func (r *restKC) extractStatus(attributes map[string][]string) OrganizationStatu
 		status.LastUpdated = time.Unix(0, 0).UTC()
 	}
 
-	if v, ok := firstAttr(attributes, OrganizationCreatedAtKey); ok {
+	if v, ok := FirstAttr(attributes, OrganizationCreatedAtKey); ok {
 		if t, err := time.Parse(time.RFC3339, v); err == nil {
 			createdAt := t.UTC()
 			status.CreatedAt = &createdAt
@@ -947,14 +954,16 @@ func (r *restKC) extractStatus(attributes map[string][]string) OrganizationStatu
 	}
 
 	status.UsageTier = OrganizationUsageTierT1
-	if v, ok := firstAttr(attributes, OrganizationUsageTierKey); ok && OrganizationUsageTier(v) == OrganizationUsageTierT2 {
+	if v, ok := FirstAttr(attributes, OrganizationUsageTierKey); ok && OrganizationUsageTier(v) == OrganizationUsageTierT2 {
 		status.UsageTier = OrganizationUsageTierT2
 	}
 
 	return status
 }
 
-func firstAttr(attrs map[string][]string, key string) (string, bool) {
+// FirstAttr reads a multi-valued Keycloak attribute. An empty or blank
+// value reports absent, so callers cannot mistake it for a real setting.
+func FirstAttr(attrs map[string][]string, key string) (string, bool) {
 	if attrs == nil {
 		return "", false
 	}

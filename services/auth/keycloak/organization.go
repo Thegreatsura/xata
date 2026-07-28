@@ -3,6 +3,7 @@ package keycloak
 import "time"
 
 const (
+	OrganizationDisplayNameKey        = "displayName"
 	OrganizationDisabledByAdminKey    = "disabledByAdmin"
 	OrganizationBillingStatusKey      = "billingStatus"
 	OrganizationAdminReasonKey        = "adminReason"

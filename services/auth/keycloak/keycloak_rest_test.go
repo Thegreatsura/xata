@@ -195,7 +195,7 @@ func TestFirstAttr(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, ok := firstAttr(tc.attrs, tc.key)
+			got, ok := FirstAttr(tc.attrs, tc.key)
 			assert.Equal(t, tc.wantOK, ok)
 			assert.Equal(t, tc.wantVal, got)
 		})
@@ -301,8 +301,6 @@ func TestUserAttributesDeserialization(t *testing.T) {
 }
 
 func TestExtractStatus(t *testing.T) {
-	r := &restKC{}
-
 	ts := time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC) // RFC3339-friendly
 
 	cases := []struct {
@@ -463,7 +461,7 @@ func TestExtractStatus(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := r.extractStatus(tc.attrs)
+			got := extractStatus(tc.attrs)
 			assert.Equal(t, tc.expect, got)
 		})
 	}

@@ -39,13 +39,13 @@ func (a AWSMarketplace) BuildKeycloakAttributes() map[string][]string {
 
 func AWSMarketplaceFromKeycloakAttributes(attributes map[string][]string) AWSMarketplace {
 	marketplace := AWSMarketplace{}
-	if v, ok := firstAttr(attributes, OrganizationAWSCustomerIDKey); ok {
+	if v, ok := FirstAttr(attributes, OrganizationAWSCustomerIDKey); ok {
 		marketplace.CustomerID = v
 	}
-	if v, ok := firstAttr(attributes, OrganizationAWSProductIDKey); ok {
+	if v, ok := FirstAttr(attributes, OrganizationAWSProductIDKey); ok {
 		marketplace.ProductID = v
 	}
-	if v, ok := firstAttr(attributes, OrganizationAWSAccountIDKey); ok {
+	if v, ok := FirstAttr(attributes, OrganizationAWSAccountIDKey); ok {
 		marketplace.AccountID = v
 	}
 	return marketplace

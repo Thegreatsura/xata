@@ -57,6 +57,7 @@
         "acr",
         "basic",
         "email",
+        "organization",
         "organization:*",
         "profile",
         "roles",
@@ -85,11 +86,14 @@
           "consentRequired": false,
           "config": {
             "access.token.claim": "true",
+            "addOrganizationAttributes": "true",
+            "addOrganizationId": "false",
             "claim.name": "organization",
             "id.token.claim": "true",
             "introspection.token.claim": "true",
-            "jsonType.label": "String",
-            "multivalued": "true"
+            "jsonType.label": "JSON",
+            "multivalued": "true",
+            "userinfo.token.claim": "true"
           }
         }
       ]
@@ -101,33 +105,14 @@
       "attributes": {
         "display.on.consent.screen": "false",
         "include.in.token.scope": "true"
-      },
-      "protocolMappers": [
-        {
-          "name": "organization",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-organization-membership-mapper",
-          "consentRequired": false,
-          "config": {
-            "access.token.claim": "true",
-            "addOrganizationAttributes": "true",
-            "addOrganizationId": "false",
-            "claim.name": "organization",
-            "id.token.claim": "true",
-            "introspection.token.claim": "true",
-            "jsonType.label": "JSON",
-            "lightweight.claim": "true",
-            "multivalued": "true",
-            "userinfo.token.claim": "true"
-          }
-        }
-      ]
+      }
     }
   ],
   "defaultDefaultClientScopes": [
     "acr",
     "basic",
     "email",
+    "organization",
     "organization:*",
     "profile",
     "roles",

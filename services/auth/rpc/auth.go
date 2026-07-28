@@ -18,11 +18,13 @@ import (
 	"xata/services/auth/store"
 
 	"github.com/Nerzal/gocloak/v13"
+	"github.com/golang-jwt/jwt/v5"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"k8s.io/utils/ptr"
 )
 
 // githubIdentityProvider is the alias of the GitHub identity provider in Keycloak.
@@ -43,10 +45,15 @@ type AuthService struct {
 	projectsClient projectsv1.ProjectsServiceClient
 	orgs           orgs.Organizations
 	defaultOrgID   string
+
+	// trustTokenClaims builds claims from the access token instead of calling
+	// Keycloak. Turning it off restores the pre-token behaviour without a
+	// Keycloak or realm change.
+	trustTokenClaims bool
 }
 
 // NewAuthService creates a new AuthService.
-func NewAuthService(store store.AuthStore, kcClient *gocloak.GoCloak, kcRest keycloak.KeyCloak, projectsClient projectsv1.ProjectsServiceClient, orgs orgs.Organizations, realm, defaultOrgID string) *AuthService {
+func NewAuthService(store store.AuthStore, kcClient *gocloak.GoCloak, kcRest keycloak.KeyCloak, projectsClient projectsv1.ProjectsServiceClient, orgs orgs.Organizations, realm, defaultOrgID string, trustTokenClaims bool) *AuthService {
 	policy, err := opa.NewPolicy(context.Background())
 	if err != nil {
 		log.Fatalf("failed to prepare OPA policy: %v", err)
@@ -61,11 +68,14 @@ func NewAuthService(store store.AuthStore, kcClient *gocloak.GoCloak, kcRest key
 		projectsClient: projectsClient,
 		orgs:           orgs,
 		defaultOrgID:   defaultOrgID,
+
+		trustTokenClaims: trustTokenClaims,
 	}
 }
 
-// validateJWT checks if the provided string is a valid JWT token and returns the user claims.
-func (a *AuthService) validateJWT(ctx context.Context, tokenStr string) (*token.Claims, error) {
+// validateJWT checks the token and returns the user claims. organizationID is
+// the organization the request targets, if any.
+func (a *AuthService) validateJWT(ctx context.Context, tokenStr, organizationID string) (*token.Claims, error) {
 	jwt, claims, err := a.kc.DecodeAccessToken(ctx, tokenStr, a.realm)
 	if err != nil {
 		return nil, &store.ErrFailedToDecodeJWT{Err: err}
@@ -80,7 +90,37 @@ func (a *AuthService) validateJWT(ctx context.Context, tokenStr string) (*token.
 		return nil, fmt.Errorf("failed to get user ID from JWT claims: %w", err)
 	}
 
+	tokenClaims, fromToken := a.trustedClaims(userID, organizationID, *claims)
+	trace.SpanFromContext(ctx).SetAttributes(attribute.Bool("xata.auth.claims_from_token", fromToken))
+	if fromToken {
+		return tokenClaims, nil
+	}
 	return a.buildUserClaims(ctx, userID)
+}
+
+// trustedClaims reports whether the request can be authorized from the access
+// token alone. organizationID is the organization the request targets, if any.
+func (a *AuthService) trustedClaims(userID, organizationID string, mc jwt.MapClaims) (*token.Claims, bool) {
+	if !a.trustTokenClaims {
+		return nil, false
+	}
+
+	claims, ok := claimsFromAccessToken(userID, mc)
+	if !ok {
+		return nil, false
+	}
+	addDefaultOrganization(claims.Organizations, a.defaultOrgID)
+
+	// A membership granted after the token was issued is not in it yet, so a
+	// request for an organization the token does not know about is revalidated
+	// against Keycloak rather than denied. Without this, creating an organization
+	// or accepting an invitation returns 403 until the token expires.
+	if organizationID != "" {
+		if _, member := claims.Organizations[organizationID]; !member {
+			return nil, false
+		}
+	}
+	return claims, true
 }
 
 // ValidateAccess checks if the given token can call the specified endpoint
@@ -92,7 +132,7 @@ func (a *AuthService) ValidateAccess(ctx context.Context, req *authv1.ValidateAc
 	k := key.Key(tokenStr)
 	if !k.IsValid() {
 		// Not a valid API key, run JWT validation
-		claims, err = a.validateJWT(ctx, tokenStr)
+		claims, err = a.validateJWT(ctx, tokenStr, req.GetOrganizationId())
 		if err != nil {
 			return nil, err
 		}
@@ -270,26 +310,10 @@ func (a *AuthService) buildUserClaims(ctx context.Context, userID string) (*toke
 
 	organizations := make(map[string]token.Organization, len(orgList))
 	for _, org := range orgList {
-		tokenOrg := token.Organization{
-			ID:          org.ID,
-			Status:      string(org.Status.EffectiveState()),
-			UsageTier:   string(org.Status.UsageTier),
-			Marketplace: string(ptr.Deref(org.Marketplace, "")),
-		}
-		if org.Status.CreatedAt != nil {
-			tokenOrg.CreatedAt = *org.Status.CreatedAt
-		}
-		organizations[org.ID] = tokenOrg
+		organizations[org.ID] = tokenOrganization(org)
 	}
 
-	if a.defaultOrgID != "" {
-		if _, exists := organizations[a.defaultOrgID]; !exists {
-			organizations[a.defaultOrgID] = token.Organization{
-				ID:     a.defaultOrgID,
-				Status: token.OrgEnabledStatus,
-			}
-		}
-	}
+	addDefaultOrganization(organizations, a.defaultOrgID)
 
 	return &token.Claims{
 		ID:            user.ID,
@@ -311,21 +335,12 @@ func (a *AuthService) buildOrgClaims(ctx context.Context, orgID string) (*token.
 		return nil, fmt.Errorf("failed to get organization [%s] from Keycloak: %w", orgID, err)
 	}
 
-	organizations := make(map[string]token.Organization, 1)
-	tokenOrg := token.Organization{
-		ID:          organization.ID,
-		Status:      string(organization.Status.EffectiveState()),
-		UsageTier:   string(organization.Status.UsageTier),
-		Marketplace: string(ptr.Deref(organization.Marketplace, "")),
-	}
-	if organization.Status.CreatedAt != nil {
-		tokenOrg.CreatedAt = *organization.Status.CreatedAt
-	}
-	organizations[organization.ID] = tokenOrg
 	return &token.Claims{
-		Organizations: organizations,
-		Scopes:        []string{"*"},
-		Projects:      []string{"*"},
-		Branches:      []string{"*"},
+		Organizations: map[string]token.Organization{
+			organization.ID: tokenOrganization(organization),
+		},
+		Scopes:   []string{"*"},
+		Projects: []string{"*"},
+		Branches: []string{"*"},
 	}, nil
 }
