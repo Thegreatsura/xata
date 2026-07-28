@@ -3279,10 +3279,11 @@
           {
             "name": "username",
             "in": "query",
-            "description": "Username that the credentials requested for",
+            "description": "Username that the credentials requested for, defaults to `xata`",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "default": "xata"
             }
           }
         ],

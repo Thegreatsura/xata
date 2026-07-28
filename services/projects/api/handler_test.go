@@ -3878,13 +3878,23 @@ func TestGetBranchCredentials(t *testing.T) {
 			expectedError: ErrorCredentialsForBranchNotFound{BranchID: branchID, Username: "xata"},
 		},
 		{
-			name:          "get credentials without username fails",
-			projectID:     projectID,
-			branchID:      branchID,
-			reqUsername:   nil,
-			setupMocks:    func() {},
-			wantError:     true,
-			expectedError: ErrorInvalidParam{BranchName: branchID, Param: "username", Message: "only the xata user credentials can be retrieved"},
+			name:        "get credentials without username defaults to xata",
+			projectID:   projectID,
+			branchID:    branchID,
+			reqUsername: nil,
+			setupMocks: func() {
+				branch := store.Branch{ID: branchID}
+				mockStore.EXPECT().
+					DescribeBranch(mock.Anything, apitest.TestOrganization, projectID, branchID).
+					Return(&branch, nil).Once()
+				mockClusters.EXPECT().
+					GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).
+					Return(credentials, nil).Once()
+				mockStore.EXPECT().
+					GetRegion(mock.Anything, apitest.TestOrganization, branch.Region).
+					Return(&store.Region{GatewayHostPort: ""}, nil).Once()
+			},
+			wantError: false,
 		},
 		{
 			name:          "get credentials with invalid username fails",

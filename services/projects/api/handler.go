@@ -1352,7 +1352,7 @@ func (s *handler) getConnectionString(c echo.Context, organizationID string, bra
 // (GET /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/credentials)
 func (s *handler) GetBranchCredentials(c echo.Context, organizationID spec.OrganizationID, projectID, branchID string, params spec.GetBranchCredentialsParams) error {
 	return s.withOrganizationAccess(c, organizationID, All, func() error {
-		if params.Username == nil || *params.Username != "xata" {
+		if params.Username != nil && *params.Username != "xata" {
 			return ErrorInvalidParam{BranchName: branchID, Param: "username", Message: "only the xata user credentials can be retrieved"}
 		}
 

@@ -933,10 +933,11 @@ paths:
             type: string
         - name: username
           in: query
-          description: Username that the credentials requested for
+          description: Username that the credentials requested for, defaults to `xata`
           required: false
           schema:
             type: string
+            default: xata
       responses:
         '200':
           description: Credentials for the branch retrieved successfully
