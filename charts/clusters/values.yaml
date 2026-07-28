@@ -20,6 +20,7 @@ config:
     volumeSnapshotClass: ""
     cloudProvider: aws
     xatastor: { enabled: false }
+    useStorageQoSClasses: false
   observability:
     victoriaMetricsURL: "http://victoria-metrics.xata-observability.svc.cluster.local:8428"
     victoriaLogsURL: "http://victoria-logs.xata-observability.svc.cluster.local:9428"
