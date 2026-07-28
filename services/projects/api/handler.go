@@ -1325,15 +1325,9 @@ func (s *handler) getConnectionString(c echo.Context, organizationID string, bra
 		return "", err
 	}
 
-	username := "app"
-	// Admin kill-switch: disabling the flag falls back to the superuser DSN.
-	if !s.feat.BoolValue(c.Request().Context(), flags.XataUser) {
-		username = "superuser"
-	}
-
 	creds, err := client.GetPostgresClusterCredentials(c.Request().Context(), &clustersv1.GetPostgresClusterCredentialsRequest{
 		Id:       branch.ID,
-		Username: username,
+		Username: "app",
 	})
 	if err != nil {
 		return "", err

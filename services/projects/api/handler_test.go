@@ -2962,7 +2962,7 @@ func TestDescribeBranchXataUser(t *testing.T) {
 	mockCells := cellsmock.NewCellsMock(t, mockClusters)
 	mockPostgresConfig := postgrescfgmocks.NewPostgresConfigProvider(t)
 
-	feat := openfeaturetest.NewClient(map[openfeature.FeatureFlag]bool{flags.XataUser: true})
+	feat := openfeaturetest.NewClient(nil)
 	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
 	mockAnalytics := analyticsmocks.NewClient(t)
 	mockAnalytics.EXPECT().Track(mock.Anything, events.NewBranchDescribedEvent(apitest.TestOrganization, "project_id", "branchID")).Return().Once()

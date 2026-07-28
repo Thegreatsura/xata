@@ -3,12 +3,6 @@ package flags
 import "xata/internal/openfeature"
 
 var (
-	// XataUser controls whether branch connection strings use the 'app' user (safe default).
-	// Kill-switch: set to false to fall back to the superuser DSN.
-	XataUser = openfeature.FeatureFlag{
-		Name:           "xataUser",
-		DefaultEnabled: true,
-	}
 	OrgAutoWindDown = openfeature.FeatureFlag{
 		Name:           "orgAutoWindDown",
 		DefaultEnabled: true,
