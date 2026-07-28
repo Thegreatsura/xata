@@ -90,10 +90,10 @@
             "addOrganizationId": "false",
             "claim.name": "organization",
             "id.token.claim": "true",
-            "introspection.token.claim": "true",
+            "introspection.token.claim": "false",
             "jsonType.label": "JSON",
             "multivalued": "true",
-            "userinfo.token.claim": "true"
+            "userinfo.token.claim": "false"
           }
         }
       ]
@@ -105,7 +105,26 @@
       "attributes": {
         "display.on.consent.screen": "false",
         "include.in.token.scope": "true"
-      }
+      },
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "false",
+            "addOrganizationAttributes": "true",
+            "addOrganizationId": "false",
+            "claim.name": "organization",
+            "id.token.claim": "false",
+            "introspection.token.claim": "false",
+            "jsonType.label": "JSON",
+            "multivalued": "true",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "organization",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-organization-membership-mapper"
+        }
+      ]
     }
   ],
   "defaultDefaultClientScopes": [
