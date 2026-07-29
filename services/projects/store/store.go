@@ -508,8 +508,8 @@ type ProjectsStore interface {
 	// GetProject returns a project from the organization
 	GetProject(ctx context.Context, organizationID, projectID string) (*Project, error)
 
-	// UpdateProject updates the project configuration in the sql store
-	UpdateProject(ctx context.Context, organizationID, projectID string, config *UpdateProjectConfiguration) (*Project, error)
+	// UpdateProject updates the project configuration in the sql store. updateFn is called during the update transaction.
+	UpdateProject(ctx context.Context, organizationID, projectID string, config *UpdateProjectConfiguration, updateFn func(project *Project) error) (*Project, error)
 
 	// CreateBranch creates a new branch in the project. provisionFn is called during the create transaction
 	// and should be used to provision the branch in the underlying system

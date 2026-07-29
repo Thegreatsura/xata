@@ -1946,13 +1946,13 @@ func (_c *ProjectsStore_UpdateGithubRepoMapping_Call) Return(_a0 *store.GithubRe
 	return _c
 }
 
-// UpdateProject provides a mock function with given fields: ctx, organizationID, projectID, config
-func (_m *ProjectsStore) UpdateProject(ctx context.Context, organizationID string, projectID string, config *store.UpdateProjectConfiguration) (*store.Project, error) {
-	ret := _m.Called(ctx, organizationID, projectID, config)
+// UpdateProject provides a mock function with given fields: ctx, organizationID, projectID, config, updateFn
+func (_m *ProjectsStore) UpdateProject(ctx context.Context, organizationID string, projectID string, config *store.UpdateProjectConfiguration, updateFn func(*store.Project) error) (*store.Project, error) {
+	ret := _m.Called(ctx, organizationID, projectID, config, updateFn)
 
 	var r0 *store.Project
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, *store.UpdateProjectConfiguration) *store.Project); ok {
-		r0 = rf(ctx, organizationID, projectID, config)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *store.UpdateProjectConfiguration, func(*store.Project) error) *store.Project); ok {
+		r0 = rf(ctx, organizationID, projectID, config, updateFn)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*store.Project)
@@ -1960,8 +1960,8 @@ func (_m *ProjectsStore) UpdateProject(ctx context.Context, organizationID strin
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, *store.UpdateProjectConfiguration) error); ok {
-		r1 = rf(ctx, organizationID, projectID, config)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, *store.UpdateProjectConfiguration, func(*store.Project) error) error); ok {
+		r1 = rf(ctx, organizationID, projectID, config, updateFn)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1979,13 +1979,14 @@ type ProjectsStore_UpdateProject_Call struct {
 //   - organizationID string
 //   - projectID string
 //   - config *store.UpdateProjectConfiguration
-func (_e *ProjectsStore_Expecter) UpdateProject(ctx interface{}, organizationID interface{}, projectID interface{}, config interface{}) *ProjectsStore_UpdateProject_Call {
-	return &ProjectsStore_UpdateProject_Call{Call: _e.mock.On("UpdateProject", ctx, organizationID, projectID, config)}
+//   - updateFn func(*store.Project) error
+func (_e *ProjectsStore_Expecter) UpdateProject(ctx interface{}, organizationID interface{}, projectID interface{}, config interface{}, updateFn interface{}) *ProjectsStore_UpdateProject_Call {
+	return &ProjectsStore_UpdateProject_Call{Call: _e.mock.On("UpdateProject", ctx, organizationID, projectID, config, updateFn)}
 }
 
-func (_c *ProjectsStore_UpdateProject_Call) Run(run func(ctx context.Context, organizationID string, projectID string, config *store.UpdateProjectConfiguration)) *ProjectsStore_UpdateProject_Call {
+func (_c *ProjectsStore_UpdateProject_Call) Run(run func(ctx context.Context, organizationID string, projectID string, config *store.UpdateProjectConfiguration, updateFn func(*store.Project) error)) *ProjectsStore_UpdateProject_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(*store.UpdateProjectConfiguration))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(*store.UpdateProjectConfiguration), args[4].(func(*store.Project) error))
 	})
 	return _c
 }

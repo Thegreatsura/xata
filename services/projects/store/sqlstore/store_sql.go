@@ -568,9 +568,15 @@ func (s *sqlProjectStore) ListProjects(ctx context.Context, organizationID strin
 	return projects, rows.Err()
 }
 
-func (s *sqlProjectStore) UpdateProject(ctx context.Context, organizationID, projectID string, config *store.UpdateProjectConfiguration) (*store.Project, error) {
+func (s *sqlProjectStore) UpdateProject(ctx context.Context, organizationID, projectID string, config *store.UpdateProjectConfiguration, updateFn func(project *store.Project) error) (*store.Project, error) {
+	tx, err := s.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
 	// check project exists in the organization used for authorization to block unauthorized access to branch
-	if _, err := s.getProject(ctx, nil, organizationID, projectID); err != nil {
+	if _, err := s.getProject(ctx, tx, organizationID, projectID); err != nil {
 		return nil, err
 	}
 
@@ -633,11 +639,11 @@ func (s *sqlProjectStore) UpdateProject(ctx context.Context, organizationID, pro
 		args = []any{projectID}
 	}
 
-	row := s.sql.QueryRowContext(ctx, query, args...)
+	row := tx.QueryRowContext(ctx, query, args...)
 
 	var project store.Project
 	var cidrsRaw []byte
-	err := row.Scan(
+	err = row.Scan(
 		&project.ID,
 		&project.Name,
 		&project.CreatedAt,
@@ -660,6 +666,16 @@ func (s *sqlProjectStore) UpdateProject(ctx context.Context, organizationID, pro
 
 	if err := json.Unmarshal(cidrsRaw, &project.IPFiltering.CIDRs); err != nil {
 		return nil, fmt.Errorf("unmarshal cidrs: %w", err)
+	}
+
+	if updateFn != nil {
+		if err := updateFn(&project); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 
 	return &project, nil

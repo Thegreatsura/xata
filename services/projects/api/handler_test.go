@@ -622,7 +622,7 @@ func TestUpdateProject(t *testing.T) {
 			name:     "update a project name succeeds",
 			jsonBody: map[string]string{"name": "test"},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
-				mockStore.EXPECT().UpdateProject(mock.Anything, apitest.TestOrganization, "123", updateProjectConfig(new("test"), nil, nil)).Return(&project, nil)
+				mockStore.EXPECT().UpdateProject(mock.Anything, apitest.TestOrganization, "123", updateProjectConfig(new("test"), nil, nil), mock.Anything).Return(&project, nil)
 			},
 		},
 		{
@@ -631,7 +631,7 @@ func TestUpdateProject(t *testing.T) {
 				"configuration": map[string]any{"scaleToZero": scaleToZeroJSON},
 			},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
-				mockStore.EXPECT().UpdateProject(mock.Anything, apitest.TestOrganization, "123", updateProjectConfig(nil, scaleToZeroStore, nil)).Return(&project, nil)
+				mockStore.EXPECT().UpdateProject(mock.Anything, apitest.TestOrganization, "123", updateProjectConfig(nil, scaleToZeroStore, nil), mock.Anything).Return(&project, nil)
 			},
 		},
 		{
@@ -646,7 +646,9 @@ func TestUpdateProject(t *testing.T) {
 				mockStore.EXPECT().UpdateProject(mock.Anything, apitest.TestOrganization, "123", updateProjectConfig(nil, nil, &store.IPFiltering{
 					Enabled: true,
 					CIDRs:   []store.CIDREntry{{CIDR: "10.0.0.0/8"}},
-				})).Return(&project, nil)
+				}), mock.Anything).Run(func(_ context.Context, _, _ string, _ *store.UpdateProjectConfiguration, updateFn func(*store.Project) error) {
+					require.NoError(t, updateFn(&project))
+				}).Return(&project, nil)
 			},
 		},
 		{
@@ -662,7 +664,9 @@ func TestUpdateProject(t *testing.T) {
 				mockStore.EXPECT().UpdateProject(mock.Anything, apitest.TestOrganization, "123", updateProjectConfig(nil, scaleToZeroStore, &store.IPFiltering{
 					Enabled: true,
 					CIDRs:   []store.CIDREntry{{CIDR: "192.168.1.0/24"}},
-				})).Return(&project, nil)
+				}), mock.Anything).Run(func(_ context.Context, _, _ string, _ *store.UpdateProjectConfiguration, updateFn func(*store.Project) error) {
+					require.NoError(t, updateFn(&project))
+				}).Return(&project, nil)
 			},
 		},
 		{
@@ -672,7 +676,7 @@ func TestUpdateProject(t *testing.T) {
 				"configuration": map[string]any{"scaleToZero": scaleToZeroJSON},
 			},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
-				mockStore.EXPECT().UpdateProject(mock.Anything, apitest.TestOrganization, "123", updateProjectConfig(new("test"), scaleToZeroStore, nil)).Return(&project, nil)
+				mockStore.EXPECT().UpdateProject(mock.Anything, apitest.TestOrganization, "123", updateProjectConfig(new("test"), scaleToZeroStore, nil), mock.Anything).Return(&project, nil)
 			},
 		},
 		{
@@ -687,10 +691,28 @@ func TestUpdateProject(t *testing.T) {
 			},
 		},
 		{
+			name: "database failure does not apply ipFiltering",
+			jsonBody: map[string]any{
+				"name": "existing-project",
+				"configuration": map[string]any{
+					"ipFiltering": map[string]any{"enabled": false, "cidr": []map[string]any{}},
+				},
+			},
+			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().AcquireProjectLock(mock.Anything, "123").Return(func() error { return nil }, nil)
+				mockStore.EXPECT().UpdateProject(mock.Anything, apitest.TestOrganization, "123", updateProjectConfig(new("existing-project"), nil, &store.IPFiltering{
+					Enabled: false,
+					CIDRs:   []store.CIDREntry{},
+				}), mock.Anything).Return(nil, &store.ErrProjectAlreadyExists{Name: "existing-project"})
+			},
+			wantError:     true,
+			expectedError: &store.ErrProjectAlreadyExists{Name: "existing-project"},
+		},
+		{
 			name:     "update a project with invalid name fails",
 			jsonBody: map[string]string{"name": ""},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
-				mockStore.EXPECT().UpdateProject(mock.Anything, apitest.TestOrganization, "123", updateProjectConfig(new(""), nil, nil)).Return(nil, &store.ErrInvalidProjectName{})
+				mockStore.EXPECT().UpdateProject(mock.Anything, apitest.TestOrganization, "123", updateProjectConfig(new(""), nil, nil), mock.Anything).Return(nil, &store.ErrInvalidProjectName{})
 			},
 			wantError:     true,
 			expectedError: &store.ErrInvalidProjectName{Name: ""},

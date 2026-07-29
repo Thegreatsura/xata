@@ -477,20 +477,21 @@ func (s *handler) UpdateProject(c echo.Context, organizationID spec.Organization
 		updateConfig := apiToStoreUpdateProjectConfig(body)
 
 		// If IP filtering is being updated, acquire project lock to prevent race conditions
-		// with branch creation, then apply changes to primary cells before saving to DB
+		// with branch creation.
 		if updateConfig.IPFiltering != nil {
 			releaseLock, err := s.store.AcquireProjectLock(ctx, projectID)
 			if err != nil {
 				return fmt.Errorf("failed to acquire project lock: %w", err)
 			}
 			defer releaseLock()
-
-			if err := s.applyIPFilteringToPrimaryCells(ctx, organizationID, projectID, updateConfig.IPFiltering); err != nil {
-				return err
-			}
 		}
 
-		project, err := s.store.UpdateProject(ctx, organizationID, projectID, updateConfig)
+		project, err := s.store.UpdateProject(ctx, organizationID, projectID, updateConfig, func(_ *store.Project) error {
+			if updateConfig.IPFiltering == nil {
+				return nil
+			}
+			return s.applyIPFilteringToPrimaryCells(ctx, organizationID, projectID, updateConfig.IPFiltering)
+		})
 		if err != nil {
 			return err
 		}

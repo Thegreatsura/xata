@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -94,13 +95,13 @@ func TestSQLStore(t *testing.T) {
 		require.Equal(t, err, store.ErrProjectNotFound{ID: "unknownProjectID"})
 
 		// update project no changes
-		newP, err = sqlStore.UpdateProject(ctx, "organizationID", project.ID, updateProjectConfig(nil, nil))
+		newP, err = sqlStore.UpdateProject(ctx, "organizationID", project.ID, updateProjectConfig(nil, nil), nil)
 		require.NoError(t, err)
 		require.Equal(t, "projectName", newP.Name)
 		require.True(t, project.UpdatedAt.Equal(newP.UpdatedAt))
 
 		// update project name
-		newP, err = sqlStore.UpdateProject(ctx, "organizationID", project.ID, updateProjectConfig(new("newProjectName"), nil))
+		newP, err = sqlStore.UpdateProject(ctx, "organizationID", project.ID, updateProjectConfig(new("newProjectName"), nil), nil)
 		require.NoError(t, err)
 		require.Equal(t, "newProjectName", newP.Name)
 		require.True(t, project.UpdatedAt.Before(newP.UpdatedAt))
@@ -112,7 +113,7 @@ func TestSQLStore(t *testing.T) {
 				Enabled:          true,
 				InactivityPeriod: store.InactivityPeriod(time.Minute * 15),
 			},
-		}))
+		}), nil)
 		require.NoError(t, err)
 		require.Equal(t, store.ProjectScaleToZero{
 			BaseBranches: defaultScaleToZeroConfig(),
@@ -126,9 +127,27 @@ func TestSQLStore(t *testing.T) {
 		// update project to already existing name
 		sameNamePrj, err := sqlStore.CreateProject(ctx, "organizationID", createProjectConfig("updatedName", nil))
 		require.NoError(t, err)
-		_, err = sqlStore.UpdateProject(ctx, "organizationID", project.ID, updateProjectConfig(new("updatedName"), nil))
+		// Constraints must be checked before applying changes outside the database.
+		callbackCalled := false
+		_, err = sqlStore.UpdateProject(ctx, "organizationID", project.ID, updateProjectConfig(new("updatedName"), nil), func(*store.Project) error {
+			callbackCalled = true
+			return nil
+		})
 		require.Error(t, err)
 		require.Equal(t, err, store.ErrProjectAlreadyExists{Name: "updatedName"})
+		require.False(t, callbackCalled)
+
+		// A failed external update must leave the persisted project unchanged.
+		callbackErr := errors.New("update live configuration")
+		nameBeforeFailedUpdate := newP.Name
+		_, err = sqlStore.UpdateProject(ctx, "organizationID", project.ID, updateProjectConfig(new("rolledBackName"), nil), func(updated *store.Project) error {
+			require.Equal(t, "rolledBackName", updated.Name)
+			return callbackErr
+		})
+		require.ErrorIs(t, err, callbackErr)
+		newP, err = sqlStore.GetProject(ctx, "organizationID", project.ID)
+		require.NoError(t, err)
+		require.Equal(t, nameBeforeFailedUpdate, newP.Name)
 
 		// delete projects
 		err = sqlStore.DeleteProject(ctx, "organizationID", sameNamePrj.ID)
