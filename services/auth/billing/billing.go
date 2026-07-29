@@ -153,10 +153,8 @@ type StripePaymentMethodCard struct {
 type Client interface {
 	// CreateCustomer creates a new customer in the billing system
 	CreateCustomer(ctx context.Context, name, email, externalCustomerID string, organizationsCount int, metadata OrbCustomerMetadata) (CreateCustomerResult, error)
-	CustomerExists(ctx context.Context, externalCustomerID string) (bool, error)
-	// FetchCustomer retrieves a customer record from the billing system.
-	// The customerID parameter should be the Orb internal customer ID (not the external customer ID).
-	FetchCustomer(ctx context.Context, customerID string) (*Customer, error)
+	// FetchOrbCustomer retrieves a customer using its Orb internal customer ID.
+	FetchOrbCustomer(ctx context.Context, customerID string) (*Customer, error)
 	// FetchCustomerByExternalID retrieves a customer record by the external customer ID.
 	FetchCustomerByExternalID(ctx context.Context, externalCustomerID string) (*Customer, error)
 	// FetchBillingCustomerWithDefaultPaymentMethod retrieves a customer with their default payment method details.
@@ -207,11 +205,7 @@ func (n *NoopBilling) CreateCustomer(ctx context.Context, name, email, externalC
 	return CreateCustomerResult{}, nil
 }
 
-func (n *NoopBilling) CustomerExists(ctx context.Context, customerID string) (bool, error) {
-	return false, nil
-}
-
-func (n *NoopBilling) FetchCustomer(ctx context.Context, externalCustomerID string) (*Customer, error) {
+func (n *NoopBilling) FetchOrbCustomer(ctx context.Context, customerID string) (*Customer, error) {
 	return nil, nil
 }
 

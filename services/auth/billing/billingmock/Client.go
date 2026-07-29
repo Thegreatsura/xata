@@ -212,51 +212,6 @@ func (_c *Client_CreateStripePaymentMethodSession_Call) Return(_a0 *billing.Paym
 	return _c
 }
 
-// CustomerExists provides a mock function with given fields: ctx, externalCustomerID
-func (_m *Client) CustomerExists(ctx context.Context, externalCustomerID string) (bool, error) {
-	ret := _m.Called(ctx, externalCustomerID)
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(context.Context, string) bool); ok {
-		r0 = rf(ctx, externalCustomerID)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, externalCustomerID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Client_CustomerExists_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CustomerExists'
-type Client_CustomerExists_Call struct {
-	*mock.Call
-}
-
-// CustomerExists is a helper method to define mock.On call
-//   - ctx context.Context
-//   - externalCustomerID string
-func (_e *Client_Expecter) CustomerExists(ctx interface{}, externalCustomerID interface{}) *Client_CustomerExists_Call {
-	return &Client_CustomerExists_Call{Call: _e.mock.On("CustomerExists", ctx, externalCustomerID)}
-}
-
-func (_c *Client_CustomerExists_Call) Run(run func(ctx context.Context, externalCustomerID string)) *Client_CustomerExists_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
-	})
-	return _c
-}
-
-func (_c *Client_CustomerExists_Call) Return(_a0 bool, _a1 error) *Client_CustomerExists_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
 // DeletePaymentMethod provides a mock function with given fields: ctx, externalCustomerID
 func (_m *Client) DeletePaymentMethod(ctx context.Context, externalCustomerID string) error {
 	ret := _m.Called(ctx, externalCustomerID)
@@ -381,53 +336,6 @@ func (_c *Client_FetchBillingCustomerWithDefaultPaymentMethod_Call) Return(_a0 *
 	return _c
 }
 
-// FetchCustomer provides a mock function with given fields: ctx, customerID
-func (_m *Client) FetchCustomer(ctx context.Context, customerID string) (*billing.Customer, error) {
-	ret := _m.Called(ctx, customerID)
-
-	var r0 *billing.Customer
-	if rf, ok := ret.Get(0).(func(context.Context, string) *billing.Customer); ok {
-		r0 = rf(ctx, customerID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*billing.Customer)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, customerID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Client_FetchCustomer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FetchCustomer'
-type Client_FetchCustomer_Call struct {
-	*mock.Call
-}
-
-// FetchCustomer is a helper method to define mock.On call
-//   - ctx context.Context
-//   - customerID string
-func (_e *Client_Expecter) FetchCustomer(ctx interface{}, customerID interface{}) *Client_FetchCustomer_Call {
-	return &Client_FetchCustomer_Call{Call: _e.mock.On("FetchCustomer", ctx, customerID)}
-}
-
-func (_c *Client_FetchCustomer_Call) Run(run func(ctx context.Context, customerID string)) *Client_FetchCustomer_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
-	})
-	return _c
-}
-
-func (_c *Client_FetchCustomer_Call) Return(_a0 *billing.Customer, _a1 error) *Client_FetchCustomer_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
 // FetchCustomerByExternalID provides a mock function with given fields: ctx, externalCustomerID
 func (_m *Client) FetchCustomerByExternalID(ctx context.Context, externalCustomerID string) (*billing.Customer, error) {
 	ret := _m.Called(ctx, externalCustomerID)
@@ -518,6 +426,53 @@ func (_c *Client_FetchInvoice_Call) Run(run func(ctx context.Context, invoiceID 
 }
 
 func (_c *Client_FetchInvoice_Call) Return(_a0 *billing.Invoice, _a1 error) *Client_FetchInvoice_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// FetchOrbCustomer provides a mock function with given fields: ctx, customerID
+func (_m *Client) FetchOrbCustomer(ctx context.Context, customerID string) (*billing.Customer, error) {
+	ret := _m.Called(ctx, customerID)
+
+	var r0 *billing.Customer
+	if rf, ok := ret.Get(0).(func(context.Context, string) *billing.Customer); ok {
+		r0 = rf(ctx, customerID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*billing.Customer)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, customerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Client_FetchOrbCustomer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FetchOrbCustomer'
+type Client_FetchOrbCustomer_Call struct {
+	*mock.Call
+}
+
+// FetchOrbCustomer is a helper method to define mock.On call
+//   - ctx context.Context
+//   - customerID string
+func (_e *Client_Expecter) FetchOrbCustomer(ctx interface{}, customerID interface{}) *Client_FetchOrbCustomer_Call {
+	return &Client_FetchOrbCustomer_Call{Call: _e.mock.On("FetchOrbCustomer", ctx, customerID)}
+}
+
+func (_c *Client_FetchOrbCustomer_Call) Run(run func(ctx context.Context, customerID string)) *Client_FetchOrbCustomer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *Client_FetchOrbCustomer_Call) Return(_a0 *billing.Customer, _a1 error) *Client_FetchOrbCustomer_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
