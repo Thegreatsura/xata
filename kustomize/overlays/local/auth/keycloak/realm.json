@@ -57,14 +57,14 @@
         "acr",
         "basic",
         "email",
-        "organization",
         "organization:*",
         "profile",
         "roles",
         "web-origins"
       ],
       "optionalClientScopes": [
-        "offline_access"
+        "offline_access",
+        "organization"
       ]
     }
   ],
@@ -85,11 +85,11 @@
           "protocolMapper": "oidc-organization-membership-mapper",
           "consentRequired": false,
           "config": {
-            "access.token.claim": "true",
+            "access.token.claim": "false",
             "addOrganizationAttributes": "true",
             "addOrganizationId": "false",
             "claim.name": "organization",
-            "id.token.claim": "true",
+            "id.token.claim": "false",
             "introspection.token.claim": "false",
             "jsonType.label": "JSON",
             "multivalued": "true",
@@ -109,11 +109,11 @@
       "protocolMappers": [
         {
           "config": {
-            "access.token.claim": "false",
+            "access.token.claim": "true",
             "addOrganizationAttributes": "true",
             "addOrganizationId": "false",
             "claim.name": "organization",
-            "id.token.claim": "false",
+            "id.token.claim": "true",
             "introspection.token.claim": "false",
             "jsonType.label": "JSON",
             "multivalued": "true",
@@ -131,7 +131,6 @@
     "acr",
     "basic",
     "email",
-    "organization",
     "organization:*",
     "profile",
     "roles",
@@ -140,6 +139,7 @@
   "defaultOptionalClientScopes": [
     "address",
     "offline_access",
+    "organization",
     "phone"
   ],
   "defaultRole": {
