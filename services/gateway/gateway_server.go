@@ -100,6 +100,9 @@ func (s *server) runWithListener(ctx context.Context, baseListener net.Listener)
 			return
 		}
 
+		log.Info().Msgf("draining %d active connections, waiting up to %s",
+			s.drainer.GetCount(), s.drainer.drainingTimeout)
+
 		// Wait on a fresh context: the shutdown context is already cancelled.
 		if err := s.drainer.Wait(context.Background()); err != nil {
 			log.Info().Msgf("draining period completed, closing %v active connections after draining period",
