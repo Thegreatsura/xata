@@ -115,7 +115,9 @@ func (g *GatewayService) Run(ctx context.Context, o *o11y.O) error {
 		session.WithInstrumentation(gwMetrics),
 	)
 
-	gwServer, err := g.newServer(gwMetrics, tracer, dialer)
+	// The incoming ctx is only cancelled on a shutdown signal, unlike the
+	// errgroup ctx below, which is also cancelled when a sibling fails.
+	gwServer, err := g.newServer(ctx, gwMetrics, tracer, dialer)
 	if err != nil {
 		return err
 	}
@@ -139,7 +141,7 @@ func (g *GatewayService) Run(ctx context.Context, o *o11y.O) error {
 	return eg.Wait()
 }
 
-func (g *GatewayService) newServer(gwMetrics *metrics.GatewayMetrics, tracer trace.Tracer, dialer *session.ClusterDialer) (Server, error) {
+func (g *GatewayService) newServer(shutdownSignal context.Context, gwMetrics *metrics.GatewayMetrics, tracer trace.Tracer, dialer *session.ClusterDialer) (Server, error) {
 	proxy := session.NewProxy(tracer, g.resolver, dialer.Dial, g.ipFilter)
 	sessionInitiator, err := initiator.New(tracer, proxy, g.certificate)
 	if err != nil {
@@ -147,8 +149,9 @@ func (g *GatewayService) newServer(gwMetrics *metrics.GatewayMetrics, tracer tra
 	}
 
 	return NewServer(sessionInitiator, ServerConfig{
-		Listen:       g.config.ListenAddress,
-		DrainingTime: g.config.DrainingTime,
+		Listen:         g.config.ListenAddress,
+		DrainingTime:   g.config.DrainingTime,
+		ShutdownSignal: shutdownSignal,
 	}, gwMetrics), nil
 }
 

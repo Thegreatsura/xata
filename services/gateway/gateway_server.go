@@ -27,10 +27,11 @@ type Server interface {
 // Server implements the SQL wire protocol server. The server uses the
 // `Initiator` to accept and configure a new `Session` when a client connects.
 type server struct {
-	initiator sessionInitiator
-	drainer   *timedWaitGroup
-	listenURL string
-	metrics   *metrics.GatewayMetrics
+	initiator      sessionInitiator
+	drainer        *timedWaitGroup
+	listenURL      string
+	metrics        *metrics.GatewayMetrics
+	shutdownSignal context.Context
 }
 
 // Initiator creates and configures a new session. The Initiator should handle
@@ -48,22 +49,28 @@ func NewServer(si sessionInitiator, cfg ServerConfig, m *metrics.GatewayMetrics)
 	}
 
 	return &server{
-		listenURL: cfg.Listen,
-		drainer:   newTimedWaitGroup(cfg.DrainingTime),
-		initiator: si,
-		metrics:   m,
+		listenURL:      cfg.Listen,
+		drainer:        newTimedWaitGroup(cfg.DrainingTime),
+		initiator:      si,
+		metrics:        m,
+		shutdownSignal: cfg.ShutdownSignal,
 	}
 }
 
 func (s *server) Run(ctx context.Context) error {
-	var ac ctxtool.AutoCancel
-	defer ac.Cancel()
-
 	lc := net.ListenConfig{}
 	baseListener, err := lc.Listen(ctx, "tcp", s.listenURL)
 	if err != nil {
 		return err
 	}
+	return s.runWithListener(ctx, baseListener)
+}
+
+// runWithListener runs the server on an already bound listener and takes
+// ownership of it.
+func (s *server) runWithListener(ctx context.Context, baseListener net.Listener) error {
+	var ac ctxtool.AutoCancel
+	defer ac.Cancel()
 
 	// Wrap the listener with PROXY protocol support
 	// This enables automatic detection and parsing of PROXY protocol v1 and v2 headers
@@ -75,25 +82,55 @@ func (s *server) Run(ctx context.Context) error {
 			return proxyproto.USE, nil
 		},
 	}
-	log.Info().Msgf("listening on %s with PROXY protocol support...", s.listenURL)
+	log.Info().Msgf("listening on %s with PROXY protocol support...", baseListener.Addr())
 
-	// Close listener and give connections time to finish
-	ctx = ac.With(ctxtool.WithFunc(ctx, func() {
+	// On shutdown: close the listener, then give connections time to finish.
+	// The drainer.Wait call must run inside this hook: ctx.Done() does not
+	// fire until the hook returns, which is what keeps session contexts (and
+	// their client connections) alive during the draining period.
+	drainDone := make(chan struct{})
+	serveCtx := ac.With(ctxtool.WithFunc(ctx, func() {
+		defer close(drainDone)
+		// Stop accepting connections right away
 		proxyListener.Close()
 
+		if !s.shuttingDown(ctx) {
+			// Not a graceful shutdown (e.g. sibling failure): skip draining
+			// so session contexts are released promptly.
+			return
+		}
+
+		// Wait on a fresh context: the shutdown context is already cancelled.
 		if err := s.drainer.Wait(context.Background()); err != nil {
-			// Check if it was a timeout by looking at the error type
-			if ctx.Err() == nil {
-				// It was a draining timeout, not context cancellation
-				log.Info().Msgf("draining period completed, closing %v active connections after draining period",
-					s.drainer.GetCount())
-			}
+			log.Info().Msgf("draining period completed, closing %v active connections after draining period",
+				s.drainer.GetCount())
 		} else {
 			log.Info().Msg("no active connections left")
 		}
 	}))
 
-	return s.serve(ctx, proxyListener)
+	err := s.serve(serveCtx, proxyListener)
+	if !s.shuttingDown(ctx) {
+		// serve failed on its own, not via a graceful shutdown: fail fast
+		// instead of draining.
+		return err
+	}
+
+	// Shutting down: serve returned because the hook above closed the
+	// listener. Block until draining completes so active connections are not
+	// killed by process exit.
+	<-drainDone
+	return nil
+}
+
+// shuttingDown reports whether a graceful shutdown was requested. The
+// dedicated shutdown signal takes precedence over the run context, which can
+// also be cancelled by sibling failures (see ServerConfig.ShutdownSignal).
+func (s *server) shuttingDown(ctx context.Context) bool {
+	if s.shutdownSignal != nil {
+		return s.shutdownSignal.Err() != nil
+	}
+	return ctx.Err() != nil
 }
 
 func (s *server) serve(ctx context.Context, l net.Listener) error {

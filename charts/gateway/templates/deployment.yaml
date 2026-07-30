@@ -18,6 +18,9 @@ spec:
     spec:
       serviceAccountName: gateway
       enableServiceLinks: false
+      # Must exceed XATA_SQL_GW_DRAINING_TIME (3500s) so connections can
+      # drain before kubelet sends SIGKILL.
+      terminationGracePeriodSeconds: 3600
       {{- with .Values.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}

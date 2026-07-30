@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"context"
 	"fmt"
 	"time"
 )
@@ -34,6 +35,11 @@ func (c *Config) Validate() error {
 	if c.ListenAddress == "" {
 		return fmt.Errorf("listen address is required")
 	}
+	if c.DrainingTime < 0 {
+		// A negative value makes the shutdown drain wait indefinitely for
+		// active connections, holding the pod in Terminating until SIGKILL.
+		return fmt.Errorf("draining time must not be negative, got %s", c.DrainingTime)
+	}
 	return nil
 }
 
@@ -42,7 +48,15 @@ type ServerConfig struct {
 	// The format of the address is "host:port".
 	Listen string
 	// DrainingTime is the time to wait for connections to drain before shutting down. After receiving a SIGTERM, the server will stop accepting new connections and wait for existing connections to drain.
+	// Zero skips draining; a negative value drains indefinitely, blocking
+	// shutdown until every connection ends (Config.Validate rejects it).
 	DrainingTime time.Duration
+	// ShutdownSignal, when set, identifies a graceful shutdown: the server
+	// only waits for connections to drain when this context is cancelled.
+	// This distinguishes a shutdown signal from a sibling failure cancelling
+	// the run context (e.g. via an errgroup), where the server should fail
+	// fast instead of draining. When nil, the run context is used.
+	ShutdownSignal context.Context
 }
 
 type CLIConfig struct {

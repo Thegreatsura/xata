@@ -19,6 +19,7 @@ type timedWaitGroup struct {
 	closed          bool          // indicate that the drainer is closed.
 	connectionCount atomic.Int64  // Protected by atomic operations
 	completeChan    chan struct{} // Closed when all connections are done
+	completeOnce    sync.Once     // Guards closing completeChan
 	drainingTimeout time.Duration
 }
 
@@ -107,13 +108,9 @@ func (d *timedWaitGroup) Wait(ctx context.Context) error {
 }
 
 // signalCompletion safely closes the completeChan to signal that all tasks are done.
+// It may be called concurrently from Wait (outside the mutex) and Done.
 func (d *timedWaitGroup) signalCompletion() {
-	select {
-	case <-d.completeChan:
-		// Already closed
-	default:
-		close(d.completeChan)
-	}
+	d.completeOnce.Do(func() { close(d.completeChan) })
 }
 
 // GetCount returns the current value of the counter.
