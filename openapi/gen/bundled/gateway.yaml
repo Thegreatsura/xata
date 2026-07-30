@@ -202,6 +202,7 @@ paths:
         - branchConnectionString: []
       tags:
         - Gateway
+      x-operation-kind: destructive
   /v2:
     servers:
       - url: https://{branch}.{region}.xata.tech
@@ -231,6 +232,7 @@ paths:
           description: Bad request — unable to upgrade connection
       tags:
         - Gateway
+      x-operation-kind: read
 components:
   schemas:
     EndpointType:

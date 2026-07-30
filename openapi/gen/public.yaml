@@ -98,6 +98,7 @@ paths:
             - org:read
       tags:
         - Organizations
+      x-operation-kind: read
     post:
       operationId: createOrganization
       summary: Create a new organization
@@ -127,6 +128,7 @@ paths:
             - org:write
       tags:
         - Organizations
+      x-operation-kind: write
   /organizations/{organizationID}:
     summary: Organization Operations
     description: This endpoint provides operations for a specific organization, allowing retrieval, updating, and deletion of an organization by its unique identifier.
@@ -158,6 +160,7 @@ paths:
             - org:read
       tags:
         - Organizations
+      x-operation-kind: read
     put:
       operationId: updateOrganization
       summary: Update organization details
@@ -195,6 +198,7 @@ paths:
             - org:write
       tags:
         - Organizations
+      x-operation-kind: write
     delete:
       operationId: deleteOrganization
       summary: Delete an organization
@@ -217,6 +221,7 @@ paths:
             - org:write
       tags:
         - Organizations
+      x-operation-kind: destructive
   /organizations/{organizationID}/api-keys:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -254,6 +259,7 @@ paths:
             - keys:read
       tags:
         - API Keys
+      x-operation-kind: read
     post:
       operationId: createOrganizationAPIKey
       summary: Create an Organization API Key
@@ -283,6 +289,7 @@ paths:
             - keys:write
       tags:
         - API Keys
+      x-operation-kind: write
     delete:
       operationId: deleteOrganizationAPIKeys
       summary: Bulk delete API Keys for an organization
@@ -316,6 +323,7 @@ paths:
             - keys:write
       tags:
         - API Keys
+      x-operation-kind: destructive
   /organizations/{organizationID}/members:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -341,6 +349,7 @@ paths:
             - org:read
       tags:
         - Organizations
+      x-operation-kind: read
   /organizations/{organizationID}/members/{userID}:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -356,6 +365,7 @@ paths:
             - org:write
       tags:
         - Organizations
+      x-operation-kind: destructive
   /organizations/{organizationID}/invitations:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -436,6 +446,7 @@ paths:
             - invite:read
       tags:
         - Organizations
+      x-operation-kind: read
     post:
       operationId: createOrganizationInvitation
       summary: Send an invitation to join an organization
@@ -466,6 +477,7 @@ paths:
             - invite:write
       tags:
         - Organizations
+      x-operation-kind: write
   /organizations/{organizationID}/invitations/{invitationID}:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -496,6 +508,7 @@ paths:
             - invite:read
       tags:
         - Organizations
+      x-operation-kind: read
     delete:
       operationId: deleteOrganizationInvitation
       summary: Delete an invitation
@@ -518,6 +531,7 @@ paths:
             - invite:write
       tags:
         - Organizations
+      x-operation-kind: destructive
   /organizations/{organizationID}/invitations/{invitationID}/resend:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -544,6 +558,7 @@ paths:
             - invite:write
       tags:
         - Organizations
+      x-operation-kind: write
   /organizations/{organizationID}/deletion-request:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -572,6 +587,7 @@ paths:
             - org:write
       tags:
         - Organizations
+      x-operation-kind: destructive
   /organizations/{organizationID}/membership-limits:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -597,6 +613,7 @@ paths:
             - org:read
       tags:
         - Organizations
+      x-operation-kind: read
   /organizations/{organizationID}/billing/checkout-session:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -625,6 +642,7 @@ paths:
       tags:
         - Billing
       x-excluded: true
+      x-operation-kind: write
   /organizations/{organizationID}/billing/payment-method-session:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -653,6 +671,7 @@ paths:
       tags:
         - Billing
       x-excluded: true
+      x-operation-kind: write
   /organizations/{organizationID}/billing/customer:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -681,6 +700,7 @@ paths:
       tags:
         - Billing
       x-excluded: true
+      x-operation-kind: read
     patch:
       operationId: updateBillingCustomer
       summary: Update billing customer details
@@ -714,6 +734,7 @@ paths:
       tags:
         - Billing
       x-excluded: true
+      x-operation-kind: write
   /organizations/{organizationID}/billing/invoices:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -758,6 +779,7 @@ paths:
       tags:
         - Billing
       x-excluded: true
+      x-operation-kind: read
   /organizations/{organizationID}/billing/invoices/upcoming:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -786,6 +808,7 @@ paths:
       tags:
         - Billing
       x-excluded: true
+      x-operation-kind: read
   /marketplace/register:
     post:
       operationId: registerMarketplace
@@ -823,6 +846,7 @@ paths:
       tags:
         - Marketplace
       x-excluded: true
+      x-operation-kind: write
   /api-keys:
     get:
       operationId: listUserAPIKeys
@@ -854,6 +878,7 @@ paths:
             - keys:read
       tags:
         - API Keys
+      x-operation-kind: read
     post:
       operationId: createUserAPIKey
       summary: Create a User API Key
@@ -887,6 +912,7 @@ paths:
             - keys:write
       tags:
         - API Keys
+      x-operation-kind: write
     delete:
       operationId: deleteUserAPIKeys
       summary: Bulk delete API Keys for the authenticated user
@@ -922,6 +948,7 @@ paths:
             - keys:write
       tags:
         - API Keys
+      x-operation-kind: destructive
   /sql:
     servers:
       - url: https://{branch}.{region}.xata.tech
@@ -1110,6 +1137,7 @@ paths:
         - branchConnectionString: []
       tags:
         - Gateway
+      x-operation-kind: destructive
   /v2:
     servers:
       - url: https://{branch}.{region}.xata.tech
@@ -1139,6 +1167,7 @@ paths:
           description: Bad request — unable to upgrade connection
       tags:
         - Gateway
+      x-operation-kind: read
   /webhooks/github:
     post:
       operationId: githubWebhook
@@ -1165,6 +1194,7 @@ paths:
       tags:
         - Projects Webhooks
       x-excluded: true
+      x-operation-kind: write
   /organizations/{organizationID}/regions:
     summary: Region Operations
     description: Endpoints for retrieving available regions for deploying projects within an organization.
@@ -1234,6 +1264,7 @@ paths:
             - project:read
       tags:
         - Projects
+      x-operation-kind: read
   /organizations/{organizationID}/instanceTypes:
     summary: Instance Types Operations
     description: Endpoints for retrieving available instance types for creating branches within an organization.
@@ -1310,6 +1341,7 @@ paths:
             - org:read
       tags:
         - Projects
+      x-operation-kind: read
   /organizations/{organizationID}/images:
     summary: Images Operations
     description: Endpoints for retrieving available images for creating branches within an organization.
@@ -1357,6 +1389,7 @@ paths:
             - org:read
       tags:
         - Projects
+      x-operation-kind: read
   /organizations/{organizationID}/extensions:
     summary: Extensions Operations
     description: Endpoints for retrieving available extensions of images used for creating branches within an organization.
@@ -1412,6 +1445,7 @@ paths:
         - Projects
       x-excluded: true
       x-internal: true
+      x-operation-kind: read
   /organizations/{organizationID}/limits:
     summary: Organization Limits
     description: Endpoint for retrieving the effective resource limits for an organization. Call this before creating a project or branch to know what constraints apply.
@@ -1444,6 +1478,7 @@ paths:
             - org:read
       tags:
         - Projects
+      x-operation-kind: read
   /organizations/{organizationID}/projects/limits:
     summary: Project Limits
     description: Endpoint for retrieving the default resource limits for projects within an organization.
@@ -1470,6 +1505,7 @@ paths:
             - project:read
       tags:
         - Projects
+      x-operation-kind: read
   /organizations/{organizationID}/projects:
     summary: Projects Management
     description: Endpoints for listing and creating projects within an organization.
@@ -1512,6 +1548,7 @@ paths:
             - project:read
       tags:
         - Projects
+      x-operation-kind: read
     post:
       operationId: createProject
       summary: Create a new project
@@ -1557,6 +1594,7 @@ paths:
             - project:write
       tags:
         - Projects
+      x-operation-kind: write
   /organizations/{organizationID}/projects/{projectID}:
     summary: Project Operations
     description: Endpoints for retrieving, updating, and deleting a specific project by ID.
@@ -1599,6 +1637,7 @@ paths:
             - project:read
       tags:
         - Projects
+      x-operation-kind: read
     patch:
       operationId: updateProject
       summary: Update project details
@@ -1650,6 +1689,7 @@ paths:
             - project:write
       tags:
         - Projects
+      x-operation-kind: write
     delete:
       operationId: deleteProject
       summary: Delete a project
@@ -1685,6 +1725,7 @@ paths:
             - project:write
       tags:
         - Projects
+      x-operation-kind: destructive
   /organizations/{organizationID}/projects/{projectID}/limits:
     summary: Project Limits
     description: Endpoint for retrieving the effective resource limits for a specific project.
@@ -1723,6 +1764,7 @@ paths:
             - project:read
       tags:
         - Projects
+      x-operation-kind: read
   /organizations/{organizationID}/projects/{projectID}/backups:
     summary: Backups Operations
     description: Endpoints for managing project backups.
@@ -1775,6 +1817,7 @@ paths:
         - Projects
       x-excluded: true
       x-internal: true
+      x-operation-kind: read
   /organizations/{organizationID}/projects/{projectID}/backups/{backupID}:
     summary: Backup Operations
     description: Endpoints for getting project backup.
@@ -1825,6 +1868,7 @@ paths:
         - Projects
       x-excluded: true
       x-internal: true
+      x-operation-kind: read
   /organizations/{organizationID}/projects/{projectID}/branches:
     summary: Branch Management
     description: Endpoints for listing and creating branches within a project.
@@ -1875,6 +1919,7 @@ paths:
             - branch:read
       tags:
         - Branches
+      x-operation-kind: read
     post:
       operationId: createBranch
       summary: Create a new branch
@@ -1922,6 +1967,7 @@ paths:
             - branch:write
       tags:
         - Branches
+      x-operation-kind: write
   /organizations/{organizationID}/projects/{projectID}/branches/{branchID}:
     summary: Branch Operations
     description: Endpoints for retrieving, updating, and deleting a specific branch by ID.
@@ -1970,6 +2016,7 @@ paths:
             - branch:read
       tags:
         - Branches
+      x-operation-kind: read
     patch:
       operationId: updateBranch
       summary: Update branch details
@@ -2021,6 +2068,7 @@ paths:
             - branch:write
       tags:
         - Branches
+      x-operation-kind: write
     delete:
       operationId: deleteBranch
       summary: Delete a branch
@@ -2062,6 +2110,7 @@ paths:
             - branch:write
       tags:
         - Branches
+      x-operation-kind: destructive
   /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/credentials:
     get:
       operationId: getBranchCredentials
@@ -2111,6 +2160,7 @@ paths:
             - credentials:read
       tags:
         - Branches
+      x-operation-kind: read
   /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/credentials/rotate:
     post:
       operationId: rotateBranchCredentials
@@ -2156,6 +2206,7 @@ paths:
             - credentials:write
       tags:
         - Branches
+      x-operation-kind: destructive
   /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/metrics:
     post:
       operationId: branchMetrics
@@ -2206,6 +2257,7 @@ paths:
       tags:
         - Branches
         - Metrics
+      x-operation-kind: read
   /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/restore:
     summary: Restore from backup
     description: Endpoint for restoring from a backup.
@@ -2262,6 +2314,7 @@ paths:
         - Branches
       x-excluded: true
       x-internal: true
+      x-operation-kind: destructive
   /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/logs:
     post:
       operationId: branchLogs
@@ -2311,6 +2364,7 @@ paths:
       tags:
         - Branches
         - Logs
+      x-operation-kind: read
   /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/postgres-config:
     get:
       operationId: getBranchPostgresConfig
@@ -2357,6 +2411,7 @@ paths:
             - branch:read
       tags:
         - Branches
+      x-operation-kind: read
   /organizations/{organizationID}/githubapp/installations:
     summary: GitHub App Installation Operations (organization-scoped)
     description: Manage GitHub App installations for an organization.
@@ -2400,6 +2455,7 @@ paths:
       tags:
         - GitHub App
       x-excluded: true
+      x-operation-kind: read
     post:
       operationId: createGithubAppInstallation
       summary: Create GitHub App installation
@@ -2440,6 +2496,7 @@ paths:
       tags:
         - GitHub App
       x-excluded: true
+      x-operation-kind: write
   /organizations/{organizationID}/githubapp/installations/{githubInstallationID}:
     summary: GitHub App Installation Operations by ID
     description: Manage a specific GitHub App installation.
@@ -2491,6 +2548,7 @@ paths:
       tags:
         - GitHub App
       x-excluded: true
+      x-operation-kind: write
   /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/githubapp/repository:
     summary: GitHub App Repository Operations
     description: Manage GitHub repository to Xata branch mappings.
@@ -2545,6 +2603,7 @@ paths:
       tags:
         - GitHub App
       x-excluded: true
+      x-operation-kind: read
     post:
       operationId: createGithubRepository
       summary: Create GitHub repository mapping
@@ -2597,6 +2656,7 @@ paths:
       tags:
         - GitHub App
       x-excluded: true
+      x-operation-kind: write
     put:
       operationId: updateGithubRepository
       summary: Update GitHub repository mapping
@@ -2649,6 +2709,7 @@ paths:
       tags:
         - GitHub App
       x-excluded: true
+      x-operation-kind: write
     delete:
       operationId: deleteGithubRepository
       summary: Delete GitHub repository mapping
@@ -2691,6 +2752,7 @@ paths:
       tags:
         - GitHub App
       x-excluded: true
+      x-operation-kind: destructive
   /webhooks/orb:
     post:
       operationId: orbWebhook
@@ -2717,6 +2779,7 @@ paths:
       tags:
         - Webhooks
       x-excluded: true
+      x-operation-kind: write
   /webhooks/stripe:
     post:
       operationId: stripeWebhook
@@ -2743,6 +2806,7 @@ paths:
       tags:
         - Webhooks
       x-excluded: true
+      x-operation-kind: write
 components:
   securitySchemes:
     oidc:

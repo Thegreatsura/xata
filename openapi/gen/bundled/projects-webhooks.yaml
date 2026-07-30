@@ -31,4 +31,5 @@ paths:
       tags:
         - Projects Webhooks
       x-excluded: true
+      x-operation-kind: write
 components: {}

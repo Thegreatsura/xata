@@ -54,6 +54,7 @@ paths:
             - 'org:read'
       tags:
         - Organizations
+      x-operation-kind: read
     post:
       operationId: createOrganization
       summary: Create a new organization
@@ -83,6 +84,7 @@ paths:
             - 'org:write'
       tags:
         - Organizations
+      x-operation-kind: write
   '/organizations/{organizationID}':
     summary: Organization Operations
     description: 'This endpoint provides operations for a specific organization, allowing retrieval, updating, and deletion of an organization by its unique identifier.'
@@ -114,6 +116,7 @@ paths:
             - 'org:read'
       tags:
         - Organizations
+      x-operation-kind: read
     put:
       operationId: updateOrganization
       summary: Update organization details
@@ -151,6 +154,7 @@ paths:
             - 'org:write'
       tags:
         - Organizations
+      x-operation-kind: write
     delete:
       operationId: deleteOrganization
       summary: Delete an organization
@@ -173,6 +177,7 @@ paths:
             - 'org:write'
       tags:
         - Organizations
+      x-operation-kind: destructive
   '/organizations/{organizationID}/api-keys':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -210,6 +215,7 @@ paths:
             - 'keys:read'
       tags:
         - API Keys
+      x-operation-kind: read
     post:
       operationId: createOrganizationAPIKey
       summary: Create an Organization API Key
@@ -239,6 +245,7 @@ paths:
             - 'keys:write'
       tags:
         - API Keys
+      x-operation-kind: write
     delete:
       operationId: deleteOrganizationAPIKeys
       summary: Bulk delete API Keys for an organization
@@ -272,6 +279,7 @@ paths:
             - 'keys:write'
       tags:
         - API Keys
+      x-operation-kind: destructive
   '/organizations/{organizationID}/members':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -297,6 +305,7 @@ paths:
             - 'org:read'
       tags:
         - Organizations
+      x-operation-kind: read
   '/organizations/{organizationID}/members/{userID}':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -312,6 +321,7 @@ paths:
             - 'org:write'
       tags:
         - Organizations
+      x-operation-kind: destructive
   '/organizations/{organizationID}/invitations':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -392,6 +402,7 @@ paths:
             - 'invite:read'
       tags:
         - Organizations
+      x-operation-kind: read
     post:
       operationId: createOrganizationInvitation
       summary: Send an invitation to join an organization
@@ -422,6 +433,7 @@ paths:
             - 'invite:write'
       tags:
         - Organizations
+      x-operation-kind: write
   '/organizations/{organizationID}/invitations/{invitationID}':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -452,6 +464,7 @@ paths:
             - 'invite:read'
       tags:
         - Organizations
+      x-operation-kind: read
     delete:
       operationId: deleteOrganizationInvitation
       summary: Delete an invitation
@@ -474,6 +487,7 @@ paths:
             - 'invite:write'
       tags:
         - Organizations
+      x-operation-kind: destructive
   '/organizations/{organizationID}/invitations/{invitationID}/resend':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -500,6 +514,7 @@ paths:
             - 'invite:write'
       tags:
         - Organizations
+      x-operation-kind: write
   '/organizations/{organizationID}/deletion-request':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -528,6 +543,7 @@ paths:
             - 'org:write'
       tags:
         - Organizations
+      x-operation-kind: destructive
   '/organizations/{organizationID}/membership-limits':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -553,6 +569,7 @@ paths:
             - 'org:read'
       tags:
         - Organizations
+      x-operation-kind: read
   '/organizations/{organizationID}/billing/checkout-session':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -581,6 +598,7 @@ paths:
       tags:
         - Billing
       x-excluded: true
+      x-operation-kind: write
   '/organizations/{organizationID}/billing/payment-method-session':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -609,6 +627,7 @@ paths:
       tags:
         - Billing
       x-excluded: true
+      x-operation-kind: write
   '/organizations/{organizationID}/billing/customer':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -637,6 +656,7 @@ paths:
       tags:
         - Billing
       x-excluded: true
+      x-operation-kind: read
     patch:
       operationId: updateBillingCustomer
       summary: Update billing customer details
@@ -670,6 +690,7 @@ paths:
       tags:
         - Billing
       x-excluded: true
+      x-operation-kind: write
   '/organizations/{organizationID}/billing/invoices':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -714,6 +735,7 @@ paths:
       tags:
         - Billing
       x-excluded: true
+      x-operation-kind: read
   '/organizations/{organizationID}/billing/invoices/upcoming':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -742,6 +764,7 @@ paths:
       tags:
         - Billing
       x-excluded: true
+      x-operation-kind: read
   /marketplace/register:
     post:
       operationId: registerMarketplace
@@ -779,6 +802,7 @@ paths:
       tags:
         - Marketplace
       x-excluded: true
+      x-operation-kind: write
   /api-keys:
     get:
       operationId: listUserAPIKeys
@@ -810,6 +834,7 @@ paths:
             - 'keys:read'
       tags:
         - API Keys
+      x-operation-kind: read
     post:
       operationId: createUserAPIKey
       summary: Create a User API Key
@@ -843,6 +868,7 @@ paths:
             - 'keys:write'
       tags:
         - API Keys
+      x-operation-kind: write
     delete:
       operationId: deleteUserAPIKeys
       summary: Bulk delete API Keys for the authenticated user
@@ -878,6 +904,7 @@ paths:
             - 'keys:write'
       tags:
         - API Keys
+      x-operation-kind: destructive
 components:
   parameters:
     InvitationIDParam:

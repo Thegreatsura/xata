@@ -8,6 +8,7 @@ rules:
   operation-4xx-response: off
   xata/has-at-least-one-xata-scope: error
   xata/verify-reserved-path-parameters: error
+  xata/verify-operation-kind: error
 
 decorators:
   xata/add-public-servers: on

@@ -154,7 +154,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "read"
       },
       "post": {
         "operationId": "createOrganization",
@@ -202,7 +203,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "write"
       }
     },
     "/organizations/{organizationID}": {
@@ -253,7 +255,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "read"
       },
       "put": {
         "operationId": "updateOrganization",
@@ -313,7 +316,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "write"
       },
       "delete": {
         "operationId": "deleteOrganization",
@@ -348,7 +352,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "destructive"
       }
     },
     "/organizations/{organizationID}/api-keys": {
@@ -409,7 +414,8 @@
         ],
         "tags": [
           "API Keys"
-        ]
+        ],
+        "x-operation-kind": "read"
       },
       "post": {
         "operationId": "createOrganizationAPIKey",
@@ -457,7 +463,8 @@
         ],
         "tags": [
           "API Keys"
-        ]
+        ],
+        "x-operation-kind": "write"
       },
       "delete": {
         "operationId": "deleteOrganizationAPIKeys",
@@ -509,7 +516,8 @@
         ],
         "tags": [
           "API Keys"
-        ]
+        ],
+        "x-operation-kind": "destructive"
       }
     },
     "/organizations/{organizationID}/members": {
@@ -553,7 +561,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/members/{userID}": {
@@ -582,7 +591,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "destructive"
       }
     },
     "/organizations/{organizationID}/invitations": {
@@ -709,7 +719,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "read"
       },
       "post": {
         "operationId": "createOrganizationInvitation",
@@ -757,7 +768,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "write"
       }
     },
     "/organizations/{organizationID}/invitations/{invitationID}": {
@@ -809,7 +821,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "read"
       },
       "delete": {
         "operationId": "deleteOrganizationInvitation",
@@ -844,7 +857,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "destructive"
       }
     },
     "/organizations/{organizationID}/invitations/{invitationID}/resend": {
@@ -889,7 +903,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "write"
       }
     },
     "/organizations/{organizationID}/deletion-request": {
@@ -931,7 +946,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "destructive"
       }
     },
     "/organizations/{organizationID}/membership-limits": {
@@ -974,7 +990,8 @@
         ],
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/billing/checkout-session": {
@@ -1021,7 +1038,8 @@
         "tags": [
           "Billing"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "write"
       }
     },
     "/organizations/{organizationID}/billing/payment-method-session": {
@@ -1068,7 +1086,8 @@
         "tags": [
           "Billing"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "write"
       }
     },
     "/organizations/{organizationID}/billing/customer": {
@@ -1115,7 +1134,8 @@
         "tags": [
           "Billing"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "read"
       },
       "patch": {
         "operationId": "updateBillingCustomer",
@@ -1168,7 +1188,8 @@
         "tags": [
           "Billing"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "write"
       }
     },
     "/organizations/{organizationID}/billing/invoices": {
@@ -1239,7 +1260,8 @@
         "tags": [
           "Billing"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/billing/invoices/upcoming": {
@@ -1286,7 +1308,8 @@
         "tags": [
           "Billing"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "read"
       }
     },
     "/marketplace/register": {
@@ -1346,7 +1369,8 @@
         "tags": [
           "Marketplace"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "write"
       }
     },
     "/api-keys": {
@@ -1396,7 +1420,8 @@
         ],
         "tags": [
           "API Keys"
-        ]
+        ],
+        "x-operation-kind": "read"
       },
       "post": {
         "operationId": "createUserAPIKey",
@@ -1450,7 +1475,8 @@
         ],
         "tags": [
           "API Keys"
-        ]
+        ],
+        "x-operation-kind": "write"
       },
       "delete": {
         "operationId": "deleteUserAPIKeys",
@@ -1505,7 +1531,8 @@
         ],
         "tags": [
           "API Keys"
-        ]
+        ],
+        "x-operation-kind": "destructive"
       }
     },
     "/sql": {
@@ -1782,7 +1809,8 @@
         ],
         "tags": [
           "Gateway"
-        ]
+        ],
+        "x-operation-kind": "destructive"
       }
     },
     "/v2": {
@@ -1816,7 +1844,8 @@
         },
         "tags": [
           "Gateway"
-        ]
+        ],
+        "x-operation-kind": "read"
       }
     },
     "/webhooks/github": {
@@ -1850,7 +1879,8 @@
         "tags": [
           "Projects Webhooks"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "write"
       }
     },
     "/organizations/{organizationID}/regions": {
@@ -1951,7 +1981,8 @@
         ],
         "tags": [
           "Projects"
-        ]
+        ],
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/instanceTypes": {
@@ -2062,7 +2093,8 @@
         ],
         "tags": [
           "Projects"
-        ]
+        ],
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/images": {
@@ -2136,7 +2168,8 @@
         ],
         "tags": [
           "Projects"
-        ]
+        ],
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/extensions": {
@@ -2221,7 +2254,8 @@
           "Projects"
         ],
         "x-excluded": true,
-        "x-internal": true
+        "x-internal": true,
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/limits": {
@@ -2272,7 +2306,8 @@
         ],
         "tags": [
           "Projects"
-        ]
+        ],
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/projects/limits": {
@@ -2314,7 +2349,8 @@
         ],
         "tags": [
           "Projects"
-        ]
+        ],
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/projects": {
@@ -2380,7 +2416,8 @@
         ],
         "tags": [
           "Projects"
-        ]
+        ],
+        "x-operation-kind": "read"
       },
       "post": {
         "operationId": "createProject",
@@ -2452,7 +2489,8 @@
         ],
         "tags": [
           "Projects"
-        ]
+        ],
+        "x-operation-kind": "write"
       }
     },
     "/organizations/{organizationID}/projects/{projectID}": {
@@ -2518,7 +2556,8 @@
         ],
         "tags": [
           "Projects"
-        ]
+        ],
+        "x-operation-kind": "read"
       },
       "patch": {
         "operationId": "updateProject",
@@ -2599,7 +2638,8 @@
         ],
         "tags": [
           "Projects"
-        ]
+        ],
+        "x-operation-kind": "write"
       },
       "delete": {
         "operationId": "deleteProject",
@@ -2654,7 +2694,8 @@
         ],
         "tags": [
           "Projects"
-        ]
+        ],
+        "x-operation-kind": "destructive"
       }
     },
     "/organizations/{organizationID}/projects/{projectID}/limits": {
@@ -2714,7 +2755,8 @@
         ],
         "tags": [
           "Projects"
-        ]
+        ],
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/projects/{projectID}/backups": {
@@ -2794,7 +2836,8 @@
           "Projects"
         ],
         "x-excluded": true,
-        "x-internal": true
+        "x-internal": true,
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/projects/{projectID}/backups/{backupID}": {
@@ -2871,7 +2914,8 @@
           "Projects"
         ],
         "x-excluded": true,
-        "x-internal": true
+        "x-internal": true,
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/projects/{projectID}/branches": {
@@ -2949,7 +2993,8 @@
         ],
         "tags": [
           "Branches"
-        ]
+        ],
+        "x-operation-kind": "read"
       },
       "post": {
         "operationId": "createBranch",
@@ -3024,7 +3069,8 @@
         ],
         "tags": [
           "Branches"
-        ]
+        ],
+        "x-operation-kind": "write"
       }
     },
     "/organizations/{organizationID}/projects/{projectID}/branches/{branchID}": {
@@ -3099,7 +3145,8 @@
         ],
         "tags": [
           "Branches"
-        ]
+        ],
+        "x-operation-kind": "read"
       },
       "patch": {
         "operationId": "updateBranch",
@@ -3180,7 +3227,8 @@
         ],
         "tags": [
           "Branches"
-        ]
+        ],
+        "x-operation-kind": "write"
       },
       "delete": {
         "operationId": "deleteBranch",
@@ -3244,7 +3292,8 @@
         ],
         "tags": [
           "Branches"
-        ]
+        ],
+        "x-operation-kind": "destructive"
       }
     },
     "/organizations/{organizationID}/projects/{projectID}/branches/{branchID}/credentials": {
@@ -3323,7 +3372,8 @@
         ],
         "tags": [
           "Branches"
-        ]
+        ],
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/projects/{projectID}/branches/{branchID}/credentials/rotate": {
@@ -3396,7 +3446,8 @@
         ],
         "tags": [
           "Branches"
-        ]
+        ],
+        "x-operation-kind": "destructive"
       }
     },
     "/organizations/{organizationID}/projects/{projectID}/branches/{branchID}/metrics": {
@@ -3477,7 +3528,8 @@
         "tags": [
           "Branches",
           "Metrics"
-        ]
+        ],
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/projects/{projectID}/branches/{branchID}/restore": {
@@ -3564,7 +3616,8 @@
           "Branches"
         ],
         "x-excluded": true,
-        "x-internal": true
+        "x-internal": true,
+        "x-operation-kind": "destructive"
       }
     },
     "/organizations/{organizationID}/projects/{projectID}/branches/{branchID}/logs": {
@@ -3644,7 +3697,8 @@
         "tags": [
           "Branches",
           "Logs"
-        ]
+        ],
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/projects/{projectID}/branches/{branchID}/postgres-config": {
@@ -3717,7 +3771,8 @@
         ],
         "tags": [
           "Branches"
-        ]
+        ],
+        "x-operation-kind": "read"
       }
     },
     "/organizations/{organizationID}/githubapp/installations": {
@@ -3784,7 +3839,8 @@
         "tags": [
           "GitHub App"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "read"
       },
       "post": {
         "operationId": "createGithubAppInstallation",
@@ -3848,7 +3904,8 @@
         "tags": [
           "GitHub App"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "write"
       }
     },
     "/organizations/{organizationID}/githubapp/installations/{githubInstallationID}": {
@@ -3928,7 +3985,8 @@
         "tags": [
           "GitHub App"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "write"
       }
     },
     "/organizations/{organizationID}/projects/{projectID}/branches/{branchID}/githubapp/repository": {
@@ -4011,7 +4069,8 @@
         "tags": [
           "GitHub App"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "read"
       },
       "post": {
         "operationId": "createGithubRepository",
@@ -4093,7 +4152,8 @@
         "tags": [
           "GitHub App"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "write"
       },
       "put": {
         "operationId": "updateGithubRepository",
@@ -4175,7 +4235,8 @@
         "tags": [
           "GitHub App"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "write"
       },
       "delete": {
         "operationId": "deleteGithubRepository",
@@ -4240,7 +4301,8 @@
         "tags": [
           "GitHub App"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "destructive"
       }
     },
     "/webhooks/orb": {
@@ -4274,7 +4336,8 @@
         "tags": [
           "Webhooks"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "write"
       }
     },
     "/webhooks/stripe": {
@@ -4308,7 +4371,8 @@
         "tags": [
           "Webhooks"
         ],
-        "x-excluded": true
+        "x-excluded": true,
+        "x-operation-kind": "write"
       }
     }
   },

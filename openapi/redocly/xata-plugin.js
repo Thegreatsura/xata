@@ -41,6 +41,43 @@ function verifyReservedPathParameters() {
     };
 }
 
+const OPERATION_KINDS = ['read', 'write', 'destructive'];
+
+// x-operation-kind says what calling an operation does. The MCP server serves each
+// kind from a separate tool and reads nothing but this label, so every operation
+// must carry one: an HTTP method cannot tell a POST that queries apart from one
+// that wipes data, and a missing label leaves the operation gated as destructive.
+function verifyOperationKind() {
+    return {
+        Operation: {
+            leave(operation, { report, location, key }) {
+                const kind = operation['x-operation-kind'];
+                const method = String(key).toLowerCase();
+
+                if (kind === undefined) {
+                    report({
+                        message: `x-operation-kind is required; use one of: ${OPERATION_KINDS.join(', ')}.`,
+                    });
+                    return;
+                }
+                if (!OPERATION_KINDS.includes(kind)) {
+                    report({
+                        message: `x-operation-kind must be one of: ${OPERATION_KINDS.join(', ')}.`,
+                        location: location.child('x-operation-kind'),
+                    });
+                    return;
+                }
+                if (method === 'delete' && kind !== 'destructive') {
+                    report({
+                        message: 'a DELETE operation must be x-operation-kind: destructive.',
+                        location: location.child('x-operation-kind'),
+                    });
+                }
+            },
+        },
+    };
+}
+
 function addPublicServers() {
     return {
         Root: {
@@ -66,7 +103,8 @@ export default function () {
         rules: {
             oas3: {
                 "has-at-least-one-xata-scope": hasAtLeastOneXataScope,
-                "verify-reserved-path-parameters": verifyReservedPathParameters
+                "verify-reserved-path-parameters": verifyReservedPathParameters,
+                "verify-operation-kind": verifyOperationKind
             }
         },
         decorators: {
