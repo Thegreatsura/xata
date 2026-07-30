@@ -42,6 +42,30 @@ func TestResolve(t *testing.T) {
 			wantAddr:   "branch-branch1-r.test-namespace.svc.cluster.local:5432",
 			wantBranch: "branch1",
 		},
+		"deprecated marker": {
+			serverName: "branch1-deprecated.example.com",
+			fallback:   session.EndpointRW,
+			wantAddr:   "branch-branch1-rw.test-namespace.svc.cluster.local:5432",
+			wantBranch: "branch1",
+		},
+		"deprecated marker before endpoint": {
+			serverName: "branch1-deprecated-ro.example.com",
+			fallback:   session.EndpointRW,
+			wantAddr:   "branch-branch1-ro.test-namespace.svc.cluster.local:5432",
+			wantBranch: "branch1",
+		},
+		"deprecated marker after endpoint": {
+			serverName: "branch1-ro-deprecated.example.com",
+			fallback:   session.EndpointRW,
+			wantAddr:   "branch-branch1-ro.test-namespace.svc.cluster.local:5432",
+			wantBranch: "branch1",
+		},
+		"branch named deprecated": {
+			serverName: "deprecated.example.com",
+			fallback:   session.EndpointRW,
+			wantAddr:   "branch-deprecated-rw.test-namespace.svc.cluster.local:5432",
+			wantBranch: "deprecated",
+		},
 	}
 
 	for name, test := range tests {
@@ -107,6 +131,12 @@ func TestResolve_PoolerEnabled(t *testing.T) {
 			wantAddr:   "branch-branch1-ro.test-namespace.svc.cluster.local:5432",
 			wantBranch: "branch1",
 		},
+		"deprecated marker after pooler endpoint": {
+			serverName: "branch1-pooler-deprecated.example.com",
+			fallback:   session.EndpointRW,
+			wantAddr:   "branch-branch1-pooler.test-namespace.svc.cluster.local:5432",
+			wantBranch: "branch1",
+		},
 	}
 
 	for name, test := range tests {
@@ -165,6 +195,15 @@ func TestResolve_Error(t *testing.T) {
 		},
 		"invalid_empty_with_suffix_and_domain": {
 			serverName: "-ro.example.com",
+		},
+		"invalid_deprecated_like_suffix": {
+			serverName: "branch1-deprecatedx.example.com",
+		},
+		"invalid_double_deprecated": {
+			serverName: "branch1-deprecated-deprecated.example.com",
+		},
+		"invalid_empty_with_deprecated": {
+			serverName: "-deprecated.example.com",
 		},
 	}
 
