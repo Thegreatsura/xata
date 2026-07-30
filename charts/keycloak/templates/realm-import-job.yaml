@@ -8,6 +8,10 @@ metadata:
 spec:
   ttlSecondsAfterFinished: {{ .Values.realmImport.ttlSecondsAfterFinished }}
   template:
+    metadata:
+      annotations:
+        # Recreates the Job on every realm.json change so the import re-runs.
+        xata.tech/realm-checksum: {{ .Files.Get "files/realm.json" | sha256sum }}
     spec:
       enableServiceLinks: false
       containers:
