@@ -48,6 +48,48 @@ func TestRouterCORS(t *testing.T) {
 	assert.Equal(t, []string{"7200"}, rec.Header()["Access-Control-Max-Age"])
 }
 
+func TestRouterAdditionalAllowHeaders(t *testing.T) {
+	const defaults = "Origin,Content-Length,Content-Type,Authorization,User-Agent,X-Xata-Client-ID,X-Xata-Session-ID,X-Xata-Agent,X-Features,Timing-Allow-Origin"
+
+	tests := map[string]struct {
+		opts []Option
+		want string
+	}{
+		"no option leaves the defaults alone": {
+			want: defaults,
+		},
+		"single header": {
+			opts: []Option{WithAdditionalAllowHeaders("MCP-Protocol-Version")},
+			want: defaults + ",MCP-Protocol-Version",
+		},
+		"several headers": {
+			opts: []Option{WithAdditionalAllowHeaders("MCP-Protocol-Version", "Mcp-Method", "Mcp-Name")},
+			want: defaults + ",MCP-Protocol-Version,Mcp-Method,Mcp-Name",
+		},
+		"repeated options accumulate": {
+			opts: []Option{WithAdditionalAllowHeaders("Mcp-Method"), WithAdditionalAllowHeaders("Mcp-Name")},
+			want: defaults + ",Mcp-Method,Mcp-Name",
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			o := o11y.NewTestService(t)
+			e := SetupRouter(&o, tt.opts...)
+
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodOptions, "/anything", nil)
+			req.Header.Set("Origin", "https://foo.example")
+			req.Header.Set("Access-Control-Request-Method", "POST")
+			req.Header.Set("Access-Control-Request-Headers", "Content-Type")
+			e.ServeHTTP(rec, req)
+
+			got := rec.Header()["Access-Control-Allow-Headers"]
+			assert.Equal(t, []string{tt.want}, got)
+		})
+	}
+}
+
 func TestOpenAPISpecHandlers(t *testing.T) {
 	o := o11y.NewTestService(t)
 	e := SetupRouter(&o)

@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -17,8 +18,9 @@ type Option interface {
 }
 
 type options struct {
-	withRecovery bool
-	corsConfig   *middleware.CORSConfig
+	withRecovery      bool
+	corsConfig        *middleware.CORSConfig
+	extraAllowHeaders []string
 }
 
 type optionFunc func(*options)
@@ -34,6 +36,13 @@ func WithRecovery(b bool) Option {
 func WithCORS(cfg middleware.CORSConfig) Option {
 	return optionFunc(func(opts *options) {
 		opts.corsConfig = &cfg
+	})
+}
+
+// WithAdditionalAllowHeaders allows extra CORS request headers on top of the defaults.
+func WithAdditionalAllowHeaders(headers ...string) Option {
+	return optionFunc(func(opts *options) {
+		opts.extraAllowHeaders = append(opts.extraAllowHeaders, headers...)
 	})
 }
 
@@ -78,14 +87,14 @@ func SetupRouter(o *o11y.O, with ...Option) *echo.Echo {
 	e.Use(o11y.TracingMiddleware(o))
 	e.Use(xataEchoMiddleware(o))
 
+	corsConfig := middleware.DefaultCORSConfig
+	corsConfig.AllowHeaders = DefaultAllowHeaders
+	corsConfig.MaxAge = 7200 // 2 hours
 	if opts.corsConfig != nil {
-		e.Use(middleware.CORSWithConfig(*opts.corsConfig))
-	} else {
-		corsConfig := middleware.DefaultCORSConfig
-		corsConfig.AllowHeaders = DefaultAllowHeaders
-		corsConfig.MaxAge = 7200 // 2 hours
-		e.Use(middleware.CORSWithConfig(corsConfig))
+		corsConfig = *opts.corsConfig
 	}
+	corsConfig.AllowHeaders = append(slices.Clone(corsConfig.AllowHeaders), opts.extraAllowHeaders...)
+	e.Use(middleware.CORSWithConfig(corsConfig))
 
 	grp := e.Group("")
 	grp.Use(o11y.MetricsMiddleware(o))

@@ -14,7 +14,14 @@ import (
 // RunHTTPService runs the given HTTPServices
 // It will start the HTTP server and block until the context is cancelled
 func RunHTTPService(ctx context.Context, o *o11y.O, svc ...HTTPService) error {
-	router := api.SetupRouter(o)
+	var opts []api.Option
+	for _, s := range svc {
+		if c, ok := s.(CORSHeadersService); ok {
+			opts = append(opts, api.WithAdditionalAllowHeaders(c.AllowedCORSHeaders()...))
+		}
+	}
+
+	router := api.SetupRouter(o, opts...)
 	logger := o.Logger()
 	for _, s := range svc {
 		if err := s.RegisterHTTPHandlers(o, router.Group("")); err != nil {

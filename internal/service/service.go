@@ -38,6 +38,13 @@ type HTTPService interface {
 	RegisterHTTPHandlers(o *o11y.O, group *echo.Group) error
 }
 
+// CORSHeadersService should be implemented by services whose clients send request
+// headers the default allow-list does not cover. Preflights are answered before
+// any route handler runs, so they cannot be declared alongside the routes.
+type CORSHeadersService interface {
+	AllowedCORSHeaders() []string
+}
+
 // GRPCService should be implemented by services that offer a gRPC API
 type GRPCService interface {
 	RegisterGRPCHandlers(o *o11y.O, server *grpc.Server)
