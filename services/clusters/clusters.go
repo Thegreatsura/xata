@@ -378,12 +378,6 @@ func validatePgBackRestConfigured(pgb *branchv1alpha1.PgBackRestSpec) error {
 
 // UpdatePostgresCluster updates an existing Branch CR spec.
 func (c *ClustersService) UpdatePostgresCluster(ctx context.Context, req *clustersv1.UpdatePostgresClusterRequest) (*clustersv1.UpdatePostgresClusterResponse, error) {
-	// Get the Branch CR to be updated
-	branch, err := c.getBranch(ctx, req.GetId())
-	if err != nil {
-		return nil, k8sErrorToGRPCError(err)
-	}
-
 	if req.GetUpdateConfiguration().StorageSize != nil {
 		requestedSize := req.GetUpdateConfiguration().GetStorageSize()
 		if requestedSize > MaxStorageSizeGi {
@@ -391,16 +385,23 @@ func (c *ClustersService) UpdatePostgresCluster(ctx context.Context, req *cluste
 		}
 	}
 
-	// Build the updated Branch Custom Resource
-	branch = NewBranchBuilder().
-		FromExistingBranch(branch).
-		WithUpdatesFrom(req, c.config.UseStorageQoSClasses).
-		WithXataUtilsPreloadLibrary().
-		WithMandatoryPostgresParameters().
-		Build()
+	var branch *branchv1alpha1.Branch
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		existing, err := c.getBranch(ctx, req.GetId())
+		if err != nil {
+			return err
+		}
 
-	// Update the Branch CR
-	if err := c.kubeClient.Update(ctx, branch); err != nil {
+		branch = NewBranchBuilder().
+			FromExistingBranch(existing).
+			WithUpdatesFrom(req, c.config.UseStorageQoSClasses).
+			WithXataUtilsPreloadLibrary().
+			WithMandatoryPostgresParameters().
+			Build()
+
+		return c.kubeClient.Update(ctx, branch)
+	})
+	if err != nil {
 		return nil, k8sErrorToGRPCError(err)
 	}
 
