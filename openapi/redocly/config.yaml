@@ -44,3 +44,10 @@ apis:
       xata/add-public-servers: off
     rules:
       xata/has-at-least-one-xata-scope: off
+
+  mcp:
+    root: ../mcp.yaml
+    decorators:
+      xata/add-public-servers: off
+    rules:
+      xata/has-at-least-one-xata-scope: off

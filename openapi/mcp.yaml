@@ -1,0 +1,204 @@
+openapi: 3.0.0
+info:
+  title: MCP API
+  version: '1.0'
+  contact:
+    name: support@xata.io
+  description: |
+    Xata's [Model Context Protocol](https://modelcontextprotocol.io) server exposes the Xata
+    platform to MCP-capable clients (agents, editors, and assistants) over a single Streamable
+    HTTP endpoint at `https://api.xata.tech/mcp`.
+
+    Most users should point their MCP client at that URL rather than call the endpoint directly:
+    the payloads below are JSON-RPC 2.0 messages that MCP client libraries build and parse for you.
+
+    **Authentication:** send a Xata API key or an OAuth 2.1 access token as a Bearer token.
+    Clients that do not have a credential yet discover the authorization server from the
+    protected resource metadata advertised on a `401` response (RFC 9728).
+paths:
+  /mcp:
+    post:
+      operationId: sendMcpRequest
+      summary: Send an MCP message
+      description: |
+        Handle a single JSON-RPC 2.0 message from an MCP client, per the MCP
+        [Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports).
+
+        The server is stateless: every request is self-contained and carries the caller's
+        credential, so there is no session to establish or resume. `GET` and `DELETE` on this
+        path return `405 Method Not Allowed`.
+
+        **Requests** (messages with an `id`) are answered with the JSON-RPC response, either as
+        `application/json` or as a `text/event-stream` carrying the response and any notifications
+        emitted while it runs. Requests must accept both. **Notifications and responses**
+        (messages without an `id`) are answered with `202 Accepted` and an empty body.
+      parameters:
+        - name: Accept
+          in: header
+          description: Must list both `application/json` and `text/event-stream`.
+          required: true
+          schema:
+            type: string
+            default: 'application/json, text/event-stream'
+        - name: MCP-Protocol-Version
+          in: header
+          description: |
+            Protocol revision negotiated during `initialize`, echoed on every subsequent request.
+            Omitted on the `initialize` request itself.
+          required: false
+          schema:
+            type: string
+            example: '2025-06-18'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JSONRPCMessage'
+            examples:
+              initialize:
+                summary: Start a session and learn the server's capabilities
+                value:
+                  jsonrpc: '2.0'
+                  id: 1
+                  method: initialize
+                  params:
+                    protocolVersion: '2025-06-18'
+                    capabilities: {}
+                    clientInfo:
+                      name: my-client
+                      version: 1.0.0
+              toolsList:
+                summary: List the available tools
+                value:
+                  jsonrpc: '2.0'
+                  id: 2
+                  method: tools/list
+              toolsCall:
+                summary: Call a tool
+                value:
+                  jsonrpc: '2.0'
+                  id: 3
+                  method: tools/call
+                  params:
+                    name: user_info
+                    arguments: {}
+      responses:
+        '200':
+          description: JSON-RPC response to the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JSONRPCResponse'
+              examples:
+                toolsCall:
+                  summary: Result of the tool call above
+                  value:
+                    jsonrpc: '2.0'
+                    id: 3
+                    result:
+                      content:
+                        - text: '{"email":"user@example.com"}'
+                          type: text
+                      isError: false
+            text/event-stream:
+              schema:
+                description: 'Server-sent events, each `data` field holding one JSON-RPC message.'
+                type: string
+              example: |
+                event: message
+                data: {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\"email\":\"user@example.com\"}"}],"isError":false}}
+        '202':
+          description: Notification or response accepted; no body is returned
+        '400':
+          description: 'Malformed message, unsupported `MCP-Protocol-Version`, or an `Accept` header missing one of the required media types'
+        '401':
+          description: Missing or invalid credentials
+          headers:
+            WWW-Authenticate:
+              description: 'Bearer challenge pointing at the protected resource metadata, per RFC 9728.'
+              schema:
+                type: string
+                example: 'Bearer resource_metadata="https://api.xata.tech/.well-known/oauth-protected-resource/mcp"'
+        '413':
+          description: Request body larger than 4 MiB
+        '415':
+          description: '`Content-Type` is not `application/json`'
+        '500':
+          description: Internal server error
+      security:
+        - apiKey: []
+        - oidc: []
+      tags:
+        - MCP
+      x-operation-kind: write
+components:
+  schemas:
+    JSONRPCMessage:
+      description: |
+        A JSON-RPC 2.0 message. A request carries `id` and `method` and is answered with a
+        response; a notification carries `method` without `id` and is not. The `method` and
+        `params` values are defined by the MCP specification.
+      type: object
+      properties:
+        jsonrpc:
+          description: JSON-RPC protocol version. Always `2.0`.
+          type: string
+          enum:
+            - '2.0'
+        id:
+          description: 'Request identifier, echoed on the response. Omitted for notifications.'
+          oneOf:
+            - type: string
+            - type: integer
+        method:
+          description: 'MCP method, such as `initialize`, `tools/list`, or `tools/call`.'
+          type: string
+        params:
+          description: Method parameters as defined by the MCP specification.
+          type: object
+          additionalProperties: true
+      required:
+        - jsonrpc
+        - method
+    JSONRPCResponse:
+      description: A JSON-RPC 2.0 response. Exactly one of `result` or `error` is present.
+      type: object
+      properties:
+        jsonrpc:
+          description: JSON-RPC protocol version. Always `2.0`.
+          type: string
+          enum:
+            - '2.0'
+        id:
+          description: Identifier of the request this responds to.
+          oneOf:
+            - type: string
+            - type: integer
+        result:
+          description: Method result as defined by the MCP specification.
+          type: object
+          additionalProperties: true
+        error:
+          $ref: '#/components/schemas/JSONRPCError'
+      required:
+        - jsonrpc
+        - id
+    JSONRPCError:
+      description: 'A JSON-RPC 2.0 error. Failures inside a tool are reported in the tool result with `isError`, not here.'
+      type: object
+      properties:
+        code:
+          description: JSON-RPC error code.
+          type: integer
+        message:
+          description: Short description of the error.
+          type: string
+        data:
+          description: Additional error detail.
+      required:
+        - code
+        - message
+tags:
+  - name: MCP
+    description: Model Context Protocol endpoint.
