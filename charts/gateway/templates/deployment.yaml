@@ -18,9 +18,10 @@ spec:
     spec:
       serviceAccountName: gateway
       enableServiceLinks: false
-      # Must exceed XATA_SQL_GW_DRAINING_TIME (3500s) so connections can
-      # drain before kubelet sends SIGKILL.
-      terminationGracePeriodSeconds: 3600
+      # Must exceed drainingTime so the gateway can close the connections that
+      # are still open when the draining period ends, before kubelet sends
+      # SIGKILL.
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       {{- with .Values.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
@@ -52,7 +53,7 @@ spec:
             - name: XATA_SQL_GW_HEALTH_CHECK_PORT
               value: "8089"
             - name: XATA_SQL_GW_DRAINING_TIME
-              value: "3500s"
+              value: {{ .Values.drainingTime | quote }}
             - name: GATEWAY_TARGET_PORT
               value: "5432"
             - name: OTEL_SERVICE_NAME

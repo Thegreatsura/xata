@@ -21,6 +21,14 @@ http:
 
 clustersNamespace: xata-clusters
 
+# After SIGTERM the gateway stops accepting connections and waits this long for
+# the existing ones to finish, then closes whatever is left.
+drainingTime: 3500s
+
+# Must exceed drainingTime, so the gateway has time to close the remaining
+# connections before kubelet sends SIGKILL.
+terminationGracePeriodSeconds: 3600
+
 resources:
   limits:
     cpu: 8000m
