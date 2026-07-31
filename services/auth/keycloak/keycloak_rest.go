@@ -890,9 +890,13 @@ func OrganizationFromAttributes(alias string, attributes map[string][]string) Or
 	if v, ok := FirstAttr(attributes, OrganizationMarketplaceKey); ok && v != "" {
 		marketplace := OrganizationMarketplaceProvider(v)
 		result.Marketplace = &marketplace
-		if marketplace == OrganizationMarketplaceProviderAWS {
+		switch marketplace {
+		case OrganizationMarketplaceProviderAWS:
 			awsMarketplace := AWSMarketplaceFromKeycloakAttributes(attributes)
 			result.AWSMarketplace = &awsMarketplace
+		case OrganizationMarketplaceProviderVercel:
+			vercelMarketplace := VercelMarketplaceFromKeycloakAttributes(attributes)
+			result.VercelMarketplace = &vercelMarketplace
 		}
 	}
 	return result

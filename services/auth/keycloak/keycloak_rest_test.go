@@ -542,6 +542,41 @@ func TestConvertToOrganization_AWSMarketplace(t *testing.T) {
 	assert.Equal(t, OrganizationStateEnabled, converted.Status.EffectiveState())
 }
 
+func TestConvertToOrganization_VercelMarketplace(t *testing.T) {
+	t.Parallel()
+
+	r := &restKC{}
+	org := r.buildCreateOrganizationPayload("org_456", OrganizationCreate{
+		Name:          "Acme",
+		UsageTier:     OrganizationUsageTierT2,
+		BillingStatus: OrganizationBillingStatusOK,
+		BillingReason: "Organization enabled with marketplace billing",
+		Marketplace: VercelMarketplace{
+			InstallationID: "icfg_1",
+			AccountID:      "acc_1",
+			Email:          "ops@acme.example",
+		},
+	})
+
+	// The attribute keys are the on-the-wire contract with Keycloak; assert
+	// them explicitly so a rename can't silently break round-tripping.
+	assert.Equal(t, VercelMarketplaceProviderName, org.Attributes[OrganizationMarketplaceKey][0])
+	assert.Equal(t, "icfg_1", org.Attributes[OrganizationVercelInstallationIDKey][0])
+	assert.Equal(t, "acc_1", org.Attributes[OrganizationVercelAccountIDKey][0])
+	assert.Equal(t, "ops@acme.example", org.Attributes[OrganizationVercelAccountEmailKey][0])
+
+	converted := r.convertToOrganization(org)
+
+	require.NotNil(t, converted.Marketplace)
+	require.NotNil(t, converted.VercelMarketplace)
+	assert.Equal(t, OrganizationMarketplaceProviderVercel, *converted.Marketplace)
+	assert.Equal(t, "icfg_1", converted.VercelMarketplace.InstallationID)
+	assert.Equal(t, "acc_1", converted.VercelMarketplace.AccountID)
+	assert.Equal(t, "ops@acme.example", converted.VercelMarketplace.Email)
+	assert.Equal(t, OrganizationBillingStatusOK, converted.Status.BillingStatus)
+	assert.Equal(t, OrganizationStateEnabled, converted.Status.EffectiveState())
+}
+
 func TestBuildCreateOrganizationPayload_BillingStatus(t *testing.T) {
 	t.Parallel()
 

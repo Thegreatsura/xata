@@ -142,3 +142,55 @@ func TestAWSMarketplace_BuildKeycloakAttributes(t *testing.T) {
 		})
 	}
 }
+
+func TestVercelMarketplaceFromKeycloakAttributes(t *testing.T) {
+	t.Parallel()
+
+	got := VercelMarketplaceFromKeycloakAttributes(map[string][]string{
+		OrganizationVercelInstallationIDKey: {"icfg_1"},
+		OrganizationVercelAccountIDKey:      {"acc_1"},
+		OrganizationVercelAccountEmailKey:   {"dev@example.com"},
+	})
+
+	assert.Equal(t, VercelMarketplace{
+		InstallationID: "icfg_1",
+		AccountID:      "acc_1",
+		Email:          "dev@example.com",
+	}, got)
+}
+
+func TestVercelMarketplace_BuildKeycloakAttributes(t *testing.T) {
+	t.Parallel()
+
+	got := VercelMarketplace{InstallationID: "icfg_1", AccountID: "acc_1", Email: "dev@example.com"}.BuildKeycloakAttributes()
+	assert.Equal(t, map[string][]string{
+		OrganizationMarketplaceKey:          {"vercel"},
+		OrganizationVercelInstallationIDKey: {"icfg_1"},
+		OrganizationVercelAccountIDKey:      {"acc_1"},
+		OrganizationVercelAccountEmailKey:   {"dev@example.com"},
+	}, got)
+}
+
+func TestVercelMarketplace_Validate(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		marketplace VercelMarketplace
+		wantErr     bool
+	}{
+		"valid":                {VercelMarketplace{InstallationID: "icfg_1", AccountID: "acc_1"}, false},
+		"missing installation": {VercelMarketplace{AccountID: "acc_1"}, true},
+		"missing account":      {VercelMarketplace{InstallationID: "icfg_1"}, true},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			err := tc.marketplace.Validate()
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}

@@ -484,6 +484,9 @@ func TestSQLAuthStore(t *testing.T) {
 				Status:             store.VercelInstallationActive,
 			}
 			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, second))
+			// Upsert writes the actually-stored org back onto the struct, so the
+			// caller can see it lost the race (org_old, not the passed org_new).
+			require.Equal(t, "org_old", second.XataOrganizationID)
 
 			got, err := sqlStore.GetVercelInstallation(ctx, id)
 			require.NoError(t, err)

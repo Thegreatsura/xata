@@ -466,6 +466,10 @@ func (s *sqlAuthStore) DeleteOrgLimit(ctx context.Context, orgID string, key sto
 // deleting or deleted the update is refused with ErrVercelInstallationNotActive
 // rather than silently resurrecting the uninstall — a re-install must be handled
 // explicitly by the caller.
+//
+// On success the actually-stored xata_organization_id is written back onto the
+// struct. It differs from the passed value when a concurrent first install won
+// the row first, letting the caller detect that its own org is now orphaned.
 func (s *sqlAuthStore) UpsertVercelInstallation(ctx context.Context, installation *store.VercelInstallation) error {
 	scopes := installation.Scopes
 	if scopes == nil {
@@ -495,7 +499,7 @@ func (s *sqlAuthStore) UpsertVercelInstallation(ctx context.Context, installatio
 			accepted_policies = EXCLUDED.accepted_policies,
 			updated_at        = now()
 		WHERE vercel_installations.status = $9
-		RETURNING status, created_at, updated_at
+		RETURNING xata_organization_id, status, created_at, updated_at
 	`,
 		installation.InstallationID,
 		installation.VercelAccountID,
@@ -506,7 +510,7 @@ func (s *sqlAuthStore) UpsertVercelInstallation(ctx context.Context, installatio
 		status,
 		installation.DeletedAt,
 		store.VercelInstallationActive,
-	).Scan(&installation.Status, &installation.CreatedAt, &installation.UpdatedAt)
+	).Scan(&installation.XataOrganizationID, &installation.Status, &installation.CreatedAt, &installation.UpdatedAt)
 	// No row returned on conflict means the DO UPDATE was skipped by the WHERE:
 	// the installation exists but is not active, so we refuse to resurrect it.
 	if errors.Is(err, sql.ErrNoRows) {

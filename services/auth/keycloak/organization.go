@@ -20,6 +20,10 @@ const (
 	OrganizationAWSCustomerIDKey = "awsCustomerId"
 	OrganizationAWSProductIDKey  = "awsProductId"
 	OrganizationAWSAccountIDKey  = "awsAccountId"
+
+	OrganizationVercelInstallationIDKey = "vercelInstallationId"
+	OrganizationVercelAccountIDKey      = "vercelAccountId"
+	OrganizationVercelAccountEmailKey   = "vercelAccountEmail"
 )
 
 const (
@@ -35,7 +39,10 @@ const (
 	OrganizationUsageTierT2 OrganizationUsageTier = "t2"
 )
 
-const OrganizationMarketplaceProviderAWS OrganizationMarketplaceProvider = "aws"
+const (
+	OrganizationMarketplaceProviderAWS    OrganizationMarketplaceProvider = "aws"
+	OrganizationMarketplaceProviderVercel OrganizationMarketplaceProvider = "vercel"
+)
 
 const (
 	OrganizationStateEnabled  OrganizationState = "enabled"
@@ -114,11 +121,12 @@ type OrganizationMarketplaceProvider string
 type OrganizationState string
 
 type Organization struct {
-	ID             string
-	Name           string
-	Marketplace    *OrganizationMarketplaceProvider
-	AWSMarketplace *AWSMarketplace
-	Status         OrganizationStatus
+	ID                string
+	Name              string
+	Marketplace       *OrganizationMarketplaceProvider
+	AWSMarketplace    *AWSMarketplace
+	VercelMarketplace *VercelMarketplace
+	Status            OrganizationStatus
 }
 
 type OrganizationStatus struct {
