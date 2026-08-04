@@ -25,7 +25,6 @@ func findPoolCluster(ctx context.Context, kubeClient client.Client, clusterReade
 		return "", nil, fmt.Errorf("list cluster pools: %w", err)
 	}
 
-	requestedVersion := postgresversions.ExtractVersionFromImageName(image)
 	requestedCPU := resource.MustParse(cpuRequest)
 	requestedMemory := resource.MustParse(memory)
 
@@ -41,7 +40,7 @@ func findPoolCluster(ctx context.Context, kubeClient client.Client, clusterReade
 			continue
 		}
 
-		if postgresversions.ExtractVersionFromImageName(spec.ImageName) != requestedVersion {
+		if postgresversions.ShortImageName(spec.ImageName) != postgresversions.ShortImageName(image) {
 			continue
 		}
 

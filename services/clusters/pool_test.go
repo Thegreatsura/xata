@@ -115,6 +115,13 @@ func TestFindPoolCluster(t *testing.T) {
 			cpuRequest:   "2",
 			memory:       "4Gi",
 		},
+		"no matching pool - different image offering": {
+			objects:      []client.Object{matchingPool, availableCluster},
+			storageClass: "default-storage-class",
+			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-analytics:17.5",
+			cpuRequest:   "2",
+			memory:       "4Gi",
+		},
 		"no matching pool - different cpu": {
 			objects:      []client.Object{matchingPool, availableCluster},
 			storageClass: "default-storage-class",
