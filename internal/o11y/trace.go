@@ -98,6 +98,7 @@ func GRPCLoggingUnaryClientInterceptor(logger *zerolog.Logger) grpc.UnaryClientI
 		}
 
 		evt.
+			Str("grpc.target", cc.Target()).
 			Dur("duration", endTime.Sub(startTime)).
 			Msg("finished grpc call")
 		return err
@@ -119,6 +120,7 @@ func GRPCLoggingStreamClientInterceptor(logger *zerolog.Logger) grpc.StreamClien
 		evt := grpcLogEvent(logger, err, logger.Debug)
 		if evt.Enabled() {
 			evt.
+				Str("grpc.target", cc.Target()).
 				Dur("duration", endTime.Sub(startTime)).
 				Msg("finished client streaming call")
 		}

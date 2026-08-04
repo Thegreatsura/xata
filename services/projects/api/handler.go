@@ -426,6 +426,7 @@ func (s *handler) GetBackup(c echo.Context, organizationID spec.OrganizationID, 
 			}
 			return err
 		}
+		setRegionReqAttribute(c, branch.Region)
 		client, err := s.cells.GetCellConnection(c.Request().Context(), organizationID, branch.CellID)
 		if err != nil {
 			return err
@@ -775,6 +776,8 @@ func (s *handler) CreateBranch(c echo.Context, organizationID spec.OrganizationI
 			return fmt.Errorf("unsupported branch creation mode: %T", payload)
 
 		}
+		setRegionReqAttribute(c, createClusterPayload.Region)
+		ctx = c.Request().Context()
 
 		if !createClusterPayload.BackupsEnabled && body.BackupConfiguration != nil {
 			return ErrorInvalidParam{BranchName: body.Name, Param: "backupConfiguration", Message: "backup configuration cannot be specified when backups are disabled in the selected region"}
@@ -1212,6 +1215,7 @@ func (s *handler) DescribeBranch(c echo.Context, organizationID spec.Organizatio
 		if err != nil {
 			return err
 		}
+		setRegionReqAttribute(c, branch.Region)
 
 		client, err := s.cells.GetCellConnection(c.Request().Context(), organizationID, branch.CellID)
 		if err != nil {
@@ -1358,6 +1362,7 @@ func (s *handler) GetBranchCredentials(c echo.Context, organizationID spec.Organ
 			}
 			return err
 		}
+		setRegionReqAttribute(c, branch.Region)
 
 		client, err := s.cells.GetCellConnection(c.Request().Context(), organizationID, branch.CellID)
 		if err != nil {
@@ -1414,6 +1419,7 @@ func (s *handler) RotateBranchCredentials(c echo.Context, organizationID spec.Or
 			}
 			return err
 		}
+		setRegionReqAttribute(c, branch.Region)
 
 		client, err := s.cells.GetCellConnection(c.Request().Context(), organizationID, branch.CellID)
 		if err != nil {
@@ -1484,6 +1490,7 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 		}
 
 		branch, err := s.store.UpdateBranch(c.Request().Context(), organizationID, projectID, branchID, apiToStoreUpdateBranchConfig(body), func(branch *store.Branch) error {
+			setRegionReqAttribute(c, branch.Region)
 			if !hasClusterConfigChanged(&body) {
 				return nil
 			}
@@ -1943,6 +1950,7 @@ func (s *handler) BranchMetrics(c echo.Context, organizationID spec.Organization
 		if err != nil {
 			return err
 		}
+		setRegionReqAttribute(c, branch.Region)
 
 		instances := ptr.Deref(req.Instances, nil)
 		if err := s.validateBranchInstances(c.Request().Context(), organizationID, branch, instances); err != nil {
@@ -1999,6 +2007,7 @@ func (s *handler) BranchLogs(c echo.Context, organizationID spec.OrganizationID,
 		if err != nil {
 			return err
 		}
+		setRegionReqAttribute(c, branch.Region)
 
 		logs, err := s.metricsClient.GetLogs(
 			c.Request().Context(),
@@ -2066,6 +2075,8 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 			}
 			return err
 		}
+		setRegionReqAttribute(c, sourceBranch.Region)
+		ctx = c.Request().Context()
 
 		if body.Configuration == nil {
 			// Inherit configuration from source branch
@@ -2328,6 +2339,12 @@ func (s *handler) withProject(c echo.Context, organizationID spec.OrganizationID
 	return fn(project)
 }
 
+func setRegionReqAttribute(c echo.Context, region string) {
+	if region != "" {
+		o11y.SetReqAttribute(c, "region", region)
+	}
+}
+
 // GetBranchPostgresConfig retrieves detailed information about PostgreSQL configuration parameters for a branch
 // (GET /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/postgres-config)
 func (s *handler) GetBranchPostgresConfig(c echo.Context, organizationID spec.OrganizationID, projectID string, branchID string) error {
@@ -2336,6 +2353,7 @@ func (s *handler) GetBranchPostgresConfig(c echo.Context, organizationID spec.Or
 		if err != nil {
 			return err
 		}
+		setRegionReqAttribute(c, branch.Region)
 
 		client, err := s.cells.GetCellConnection(c.Request().Context(), organizationID, branch.CellID)
 		if err != nil {
