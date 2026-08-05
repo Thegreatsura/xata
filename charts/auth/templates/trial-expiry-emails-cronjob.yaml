@@ -43,6 +43,8 @@ spec:
                   value: {{ .Values.config.frontendURL | quote }}
                 - name: BILLING_REQUIRED
                   value: {{ .Values.config.billingRequired | quote }}
+                - name: AUTH_GRPC_URL
+                  value: {{ .Values.dependencies.authGrpcUrl | quote }}
                 - name: ORB_API_KEY
                   valueFrom:
                     secretKeyRef:

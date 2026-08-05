@@ -3,6 +3,8 @@ package billing
 import (
 	"context"
 	"time"
+
+	authv1 "xata/gen/proto/auth/v1"
 )
 
 //go:generate go run github.com/vektra/mockery/v3 --output billingmock --outpkg billingmock --with-expecter --name Client
@@ -31,6 +33,16 @@ func (c *Credit) IsExpired() bool {
 	return !c.ExpiryDate.IsZero() && time.Now().After(c.ExpiryDate)
 }
 
+func (c Credit) IsActive(now time.Time) bool {
+	if c.Status != CreditStatusActive || c.Amount <= 0 {
+		return false
+	}
+	if !c.EffectiveDate.IsZero() && c.EffectiveDate.After(now) {
+		return false
+	}
+	return c.ExpiryDate.IsZero() || c.ExpiryDate.After(now)
+}
+
 type PaymentMethodCard struct {
 	Brand       string
 	Last4       string
@@ -53,6 +65,7 @@ type Customer struct {
 	Credits               []Credit
 	DefaultPaymentMethod  *PaymentMethod
 	HasValidPaymentMethod bool
+	Organization          *authv1.Organization
 }
 
 func (c *Customer) CurrentActiveCredit() float64 {
@@ -72,6 +85,81 @@ func (c *Customer) TotalLifetimeCredits() float64 {
 		total += credit.MaximumInitialBalance
 	}
 	return total
+}
+
+func (c *Customer) ActiveCredits(now time.Time) []Credit {
+	if c == nil {
+		return nil
+	}
+
+	active := make([]Credit, 0, len(c.Credits))
+	for _, credit := range c.Credits {
+		if credit.IsActive(now) {
+			active = append(active, credit)
+		}
+	}
+	return active
+}
+
+func (c *Customer) TotalActiveCredits(now time.Time) float64 {
+	if c == nil {
+		return 0
+	}
+
+	var total float64
+	for _, credit := range c.Credits {
+		if credit.IsActive(now) {
+			total += credit.Amount
+		}
+	}
+	return total
+}
+
+func (c *Customer) LastExpiry() *time.Time {
+	if c == nil {
+		return nil
+	}
+
+	var last *time.Time
+	for _, credit := range c.Credits {
+		last = laterExpiry(last, credit.ExpiryDate)
+	}
+	return last
+}
+
+func (c *Customer) LastExpiryWithBalance() *time.Time {
+	if c == nil {
+		return nil
+	}
+
+	var last *time.Time
+	for _, credit := range c.Credits {
+		if credit.Amount > 0 {
+			last = laterExpiry(last, credit.ExpiryDate)
+		}
+	}
+	return last
+}
+
+func (c *Customer) LastActiveCreditExpiry(now time.Time) *time.Time {
+	if c == nil {
+		return nil
+	}
+
+	var last *time.Time
+	for _, credit := range c.Credits {
+		if credit.IsActive(now) {
+			last = laterExpiry(last, credit.ExpiryDate)
+		}
+	}
+	return last
+}
+
+func laterExpiry(current *time.Time, candidate time.Time) *time.Time {
+	if candidate.IsZero() || (current != nil && !candidate.After(*current)) {
+		return current
+	}
+	return &candidate
 }
 
 type InvoiceAutoCollection struct {

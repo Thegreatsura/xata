@@ -2,6 +2,7 @@ package billing
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -24,6 +25,89 @@ func TestOrbCustomerMetadataValues(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			got := tc.metadata.Values()
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestCustomerCreditCalculations(t *testing.T) {
+	now := time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC)
+	activeExpiry := now.Add(time.Hour)
+	lastExpiryWithBalance := now.Add(4 * time.Hour)
+	lastExpiry := now.Add(5 * time.Hour)
+	credits := []Credit{
+		{ID: "active", Amount: 10, Status: CreditStatusActive, EffectiveDate: now.Add(-time.Hour), ExpiryDate: activeExpiry},
+		{ID: "active without expiry", Amount: 5, Status: CreditStatusActive},
+		{ID: "pending", Amount: 20, Status: CreditStatusPendingPayment, ExpiryDate: lastExpiryWithBalance},
+		{ID: "future", Amount: 30, Status: CreditStatusActive, EffectiveDate: now.Add(time.Hour), ExpiryDate: now.Add(3 * time.Hour)},
+		{ID: "expired", Amount: 40, Status: CreditStatusActive, ExpiryDate: now.Add(-time.Hour)},
+		{ID: "empty balance", Status: CreditStatusActive, ExpiryDate: lastExpiry},
+	}
+
+	tests := map[string]struct {
+		customer                  *Customer
+		wantActive                []Credit
+		wantTotalActive           float64
+		wantLastExpiry            *time.Time
+		wantLastExpiryWithBalance *time.Time
+	}{
+		"calculates credit details": {
+			customer:                  &Customer{Credits: credits},
+			wantActive:                []Credit{credits[0], credits[1]},
+			wantTotalActive:           15,
+			wantLastExpiry:            &lastExpiry,
+			wantLastExpiryWithBalance: &lastExpiryWithBalance,
+		},
+		"empty credits": {
+			customer:   &Customer{},
+			wantActive: []Credit{},
+		},
+		"nil customer": {},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			require.Equal(t, tc.wantActive, tc.customer.ActiveCredits(now))
+			require.Equal(t, tc.wantTotalActive, tc.customer.TotalActiveCredits(now))
+			require.Equal(t, tc.wantLastExpiry, tc.customer.LastExpiry())
+			require.Equal(t, tc.wantLastExpiryWithBalance, tc.customer.LastExpiryWithBalance())
+		})
+	}
+}
+
+func TestLastActiveCreditExpiry(t *testing.T) {
+	now := time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC)
+	earlierExpiry := now.Add(time.Hour)
+	laterExpiry := now.Add(2 * time.Hour)
+
+	tests := map[string]struct {
+		customer *Customer
+		want     *time.Time
+	}{
+		"returns latest active expiry": {
+			customer: &Customer{Credits: []Credit{
+				{Amount: 10, Status: CreditStatusActive, EffectiveDate: now.Add(-time.Hour), ExpiryDate: earlierExpiry},
+				{Amount: 20, Status: CreditStatusActive, EffectiveDate: now, ExpiryDate: laterExpiry},
+			}},
+			want: &laterExpiry,
+		},
+		"ignores credits that are not strictly active": {
+			customer: &Customer{Credits: []Credit{
+				{Amount: 10, Status: CreditStatusPendingPayment, ExpiryDate: laterExpiry},
+				{Amount: 0, Status: CreditStatusActive, ExpiryDate: laterExpiry},
+				{Amount: 10, Status: CreditStatusActive, EffectiveDate: now.Add(time.Hour), ExpiryDate: laterExpiry},
+				{Amount: 10, Status: CreditStatusActive, ExpiryDate: now},
+			}},
+		},
+		"ignores active credit without expiry": {
+			customer: &Customer{Credits: []Credit{{Amount: 10, Status: CreditStatusActive}}},
+		},
+		"nil customer": {},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := tc.customer.LastActiveCreditExpiry(now)
 			require.Equal(t, tc.want, got)
 		})
 	}
