@@ -184,10 +184,16 @@ func TestBuildUserClaims(t *testing.T) {
 func TestGetOrganization(t *testing.T) {
 	tests := map[string]struct {
 		includeDeleted bool
+		err            error
+		wantCode       codes.Code
 	}{
 		"gets active organization": {},
 		"includes deleted organization": {
 			includeDeleted: true,
+		},
+		"maps missing organization to not found": {
+			err:      keycloak.ErrOrganizationNotFound{ID: "org-1"},
+			wantCode: codes.NotFound,
 		},
 	}
 
@@ -195,7 +201,7 @@ func TestGetOrganization(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			keyCloak := keycloakMocks.NewKeyCloak(t)
 			organization := keycloak.Organization{ID: "org-1"}
-			keyCloak.EXPECT().GetOrganization(mock.Anything, "realm", "org-1", keycloak.GetOrganizationOptions{IncludeDeleted: tc.includeDeleted}).Return(organization, nil).Once()
+			keyCloak.EXPECT().GetOrganization(mock.Anything, "realm", "org-1", keycloak.GetOrganizationOptions{IncludeDeleted: tc.includeDeleted}).Return(organization, tc.err).Once()
 			service := &AuthService{kcRest: keyCloak, realm: "realm"}
 
 			got, err := service.GetOrganization(context.Background(), &authv1.GetOrganizationRequest{
@@ -203,6 +209,10 @@ func TestGetOrganization(t *testing.T) {
 				IncludeDeleted: tc.includeDeleted,
 			})
 
+			if tc.wantCode != codes.OK {
+				require.Equal(t, tc.wantCode, status.Code(err))
+				return
+			}
 			require.NoError(t, err)
 			require.Equal(t, "org-1", got.Organization.Id)
 		})

@@ -3,15 +3,6 @@ package auth
 import (
 	"context"
 
-	"xata/services/auth/orgs"
-
-	"xata/services/auth/rpc"
-
-	"xata/services/auth/billing"
-	"xata/services/auth/keycloak"
-	"xata/services/auth/store"
-	"xata/services/auth/store/sqlstore"
-
 	authv1 "xata/gen/proto/auth/v1"
 	projectsv1 "xata/gen/proto/projects/v1"
 	"xata/internal/analytics"
@@ -23,6 +14,12 @@ import (
 	"xata/internal/service"
 	"xata/services/auth/api"
 	"xata/services/auth/api/spec"
+	"xata/services/auth/billing"
+	"xata/services/auth/keycloak"
+	"xata/services/auth/orgs"
+	"xata/services/auth/rpc"
+	"xata/services/auth/store"
+	"xata/services/auth/store/sqlstore"
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/labstack/echo/v4"
@@ -39,6 +36,7 @@ type AuthService struct {
 	analytics    analytics.Client
 	authConn     *internalgrpc.ClientConnection
 	projectsConn *internalgrpc.ClientConnection
+	rpcService   *rpc.AuthService
 }
 
 func NewAuthService() *AuthService {
@@ -127,11 +125,21 @@ func (s *AuthService) Init(ctx context.Context) error {
 		return err
 	}
 
+	client := gocloak.NewClient(s.config.AuthConfig.KeycloakURL)
+	kcRest := keycloak.NewRestKC(client, s.config.AuthConfig)
+	projectsClient := projectsv1.NewProjectsServiceClient(s.projectsConn)
+	organizations := orgs.NewOrganizations(s.config.AuthConfig.Realm, kcRest, projectsClient)
+	s.rpcService = rpc.NewAuthService(s.store, client, kcRest, projectsClient, organizations, s.config.AuthConfig.Realm, s.config.DefaultOrgID, s.config.AuthConfig.TrustTokenClaims)
+
 	return nil
 }
 
 func (s *AuthService) Store() store.AuthStore {
 	return s.store
+}
+
+func (s *AuthService) RPCService() *rpc.AuthService {
+	return s.rpcService
 }
 
 func (s *AuthService) SetFeat(feat openfeature.Client) {
@@ -166,11 +174,7 @@ func (s *AuthService) RegisterHTTPHandlers(o *o11y.O, router *echo.Group) error 
 
 // RegisterGRPCHandlers implements service.GRPCService.
 func (s *AuthService) RegisterGRPCHandlers(o *o11y.O, server *grpc.Server) {
-	client := gocloak.NewClient(s.config.AuthConfig.KeycloakURL)
-	kcRest := keycloak.NewRestKC(client, s.config.AuthConfig)
-	projectsClient := projectsv1.NewProjectsServiceClient(s.projectsConn)
-	orgs := orgs.NewOrganizations(s.config.AuthConfig.Realm, kcRest, projectsClient)
-	authv1.RegisterAuthServiceServer(server, rpc.NewAuthService(s.store, client, kcRest, projectsClient, orgs, s.config.AuthConfig.Realm, s.config.DefaultOrgID, s.config.AuthConfig.TrustTokenClaims))
+	authv1.RegisterAuthServiceServer(server, s.RPCService())
 }
 
 func (s *AuthService) createBillingClient() (billing.Client, error) {

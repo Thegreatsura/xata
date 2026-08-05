@@ -257,6 +257,9 @@ func (a *AuthService) GetGithubIdentityProviderToken(ctx context.Context, req *a
 func (a *AuthService) GetOrganization(ctx context.Context, req *authv1.GetOrganizationRequest) (*authv1.GetOrganizationResponse, error) {
 	org, err := a.kcRest.GetOrganization(ctx, a.realm, req.GetOrganizationId(), keycloak.GetOrganizationOptions{IncludeDeleted: req.GetIncludeDeleted()})
 	if err != nil {
+		if _, ok := errors.AsType[keycloak.ErrOrganizationNotFound](err); ok {
+			return nil, status.Errorf(codes.NotFound, "organization %s not found", req.GetOrganizationId())
+		}
 		return nil, fmt.Errorf("get organization: %w", err)
 	}
 	return &authv1.GetOrganizationResponse{Organization: keycloakOrganizationToProto(org)}, nil
