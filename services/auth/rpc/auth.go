@@ -255,7 +255,7 @@ func (a *AuthService) GetGithubIdentityProviderToken(ctx context.Context, req *a
 }
 
 func (a *AuthService) GetOrganization(ctx context.Context, req *authv1.GetOrganizationRequest) (*authv1.GetOrganizationResponse, error) {
-	org, err := a.kcRest.GetOrganization(ctx, a.realm, req.GetOrganizationId())
+	org, err := a.kcRest.GetOrganization(ctx, a.realm, req.GetOrganizationId(), keycloak.GetOrganizationOptions{IncludeDeleted: req.GetIncludeDeleted()})
 	if err != nil {
 		return nil, fmt.Errorf("get organization: %w", err)
 	}
@@ -330,7 +330,7 @@ func (a *AuthService) buildOrgClaims(ctx context.Context, orgID string) (*token.
 		return nil, fmt.Errorf("organization ID cannot be empty")
 	}
 
-	organization, err := a.kcRest.GetOrganization(ctx, a.realm, orgID)
+	organization, err := a.kcRest.GetOrganization(ctx, a.realm, orgID, keycloak.GetOrganizationOptions{IncludeDeleted: false})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get organization [%s] from Keycloak: %w", orgID, err)
 	}

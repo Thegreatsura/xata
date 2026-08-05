@@ -181,6 +181,34 @@ func TestBuildUserClaims(t *testing.T) {
 	}
 }
 
+func TestGetOrganization(t *testing.T) {
+	tests := map[string]struct {
+		includeDeleted bool
+	}{
+		"gets active organization": {},
+		"includes deleted organization": {
+			includeDeleted: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			keyCloak := keycloakMocks.NewKeyCloak(t)
+			organization := keycloak.Organization{ID: "org-1"}
+			keyCloak.EXPECT().GetOrganization(mock.Anything, "realm", "org-1", keycloak.GetOrganizationOptions{IncludeDeleted: tc.includeDeleted}).Return(organization, nil).Once()
+			service := &AuthService{kcRest: keyCloak, realm: "realm"}
+
+			got, err := service.GetOrganization(context.Background(), &authv1.GetOrganizationRequest{
+				OrganizationId: "org-1",
+				IncludeDeleted: tc.includeDeleted,
+			})
+
+			require.NoError(t, err)
+			require.Equal(t, "org-1", got.Organization.Id)
+		})
+	}
+}
+
 func TestGetGithubIdentityProviderTokenRejectsWithoutKeycloak(t *testing.T) {
 	apiKey, err := key.NewUserKey()
 	require.NoError(t, err)

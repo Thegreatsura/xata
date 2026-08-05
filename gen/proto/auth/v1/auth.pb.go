@@ -225,6 +225,7 @@ type Organization struct {
 	CreatedAt             *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UsageTier             string                 `protobuf:"bytes,8,opt,name=usage_tier,json=usageTier,proto3" json:"usage_tier,omitempty"`
 	Marketplace           string                 `protobuf:"bytes,9,opt,name=marketplace,proto3" json:"marketplace,omitempty"`
+	DeletedAt             *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -322,9 +323,17 @@ func (x *Organization) GetMarketplace() string {
 	return ""
 }
 
+func (x *Organization) GetDeletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DeletedAt
+	}
+	return nil
+}
+
 type GetOrganizationRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	OrganizationId string                 `protobuf:"bytes,1,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
+	IncludeDeleted bool                   `protobuf:"varint,2,opt,name=include_deleted,json=includeDeleted,proto3" json:"include_deleted,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -364,6 +373,13 @@ func (x *GetOrganizationRequest) GetOrganizationId() string {
 		return x.OrganizationId
 	}
 	return ""
+}
+
+func (x *GetOrganizationRequest) GetIncludeDeleted() bool {
+	if x != nil {
+		return x.IncludeDeleted
+	}
+	return false
 }
 
 type GetOrganizationResponse struct {
@@ -632,7 +648,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"api_key_id\x18\t \x01(\tR\bapiKeyId\x1aW\n" +
 	"\x12OrganizationsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.auth.v1.OrganizationR\x05value:\x028\x01J\x04\b\x05\x10\x06\"\x9f\x03\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.auth.v1.OrganizationR\x05value:\x028\x01J\x04\b\x05\x10\x06\"\xda\x03\n" +
 	"\fOrganization\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12*\n" +
@@ -644,11 +660,15 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
 	"\n" +
 	"usage_tier\x18\b \x01(\tR\tusageTier\x12 \n" +
-	"\vmarketplace\x18\t \x01(\tR\vmarketplaceB\x1b\n" +
+	"\vmarketplace\x18\t \x01(\tR\vmarketplace\x129\n" +
+	"\n" +
+	"deleted_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAtB\x1b\n" +
 	"\x19_disabled_by_admin_reasonB\x11\n" +
-	"\x0f_billing_reason\"A\n" +
+	"\x0f_billing_reason\"j\n" +
 	"\x16GetOrganizationRequest\x12'\n" +
-	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\"T\n" +
+	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\x12'\n" +
+	"\x0finclude_deleted\x18\x02 \x01(\bR\x0eincludeDeleted\"T\n" +
 	"\x17GetOrganizationResponse\x129\n" +
 	"\forganization\x18\x01 \x01(\v2\x15.auth.v1.OrganizationR\forganization\"\xcb\x01\n" +
 	"\x19UpdateOrganizationRequest\x12'\n" +
@@ -698,22 +718,23 @@ var file_auth_v1_auth_proto_goTypes = []any{
 var file_auth_v1_auth_proto_depIdxs = []int32{
 	9,  // 0: auth.v1.ValidateAccessResponse.organizations:type_name -> auth.v1.ValidateAccessResponse.OrganizationsEntry
 	10, // 1: auth.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
-	2,  // 2: auth.v1.GetOrganizationResponse.organization:type_name -> auth.v1.Organization
-	2,  // 3: auth.v1.UpdateOrganizationResponse.organization:type_name -> auth.v1.Organization
-	2,  // 4: auth.v1.ValidateAccessResponse.OrganizationsEntry.value:type_name -> auth.v1.Organization
-	0,  // 5: auth.v1.AuthService.ValidateAccess:input_type -> auth.v1.ValidateAccessRequest
-	3,  // 6: auth.v1.AuthService.GetOrganization:input_type -> auth.v1.GetOrganizationRequest
-	5,  // 7: auth.v1.AuthService.UpdateOrganization:input_type -> auth.v1.UpdateOrganizationRequest
-	7,  // 8: auth.v1.AuthService.GetGithubIdentityProviderToken:input_type -> auth.v1.GetGithubIdentityProviderTokenRequest
-	1,  // 9: auth.v1.AuthService.ValidateAccess:output_type -> auth.v1.ValidateAccessResponse
-	4,  // 10: auth.v1.AuthService.GetOrganization:output_type -> auth.v1.GetOrganizationResponse
-	6,  // 11: auth.v1.AuthService.UpdateOrganization:output_type -> auth.v1.UpdateOrganizationResponse
-	8,  // 12: auth.v1.AuthService.GetGithubIdentityProviderToken:output_type -> auth.v1.GetGithubIdentityProviderTokenResponse
-	9,  // [9:13] is the sub-list for method output_type
-	5,  // [5:9] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	10, // 2: auth.v1.Organization.deleted_at:type_name -> google.protobuf.Timestamp
+	2,  // 3: auth.v1.GetOrganizationResponse.organization:type_name -> auth.v1.Organization
+	2,  // 4: auth.v1.UpdateOrganizationResponse.organization:type_name -> auth.v1.Organization
+	2,  // 5: auth.v1.ValidateAccessResponse.OrganizationsEntry.value:type_name -> auth.v1.Organization
+	0,  // 6: auth.v1.AuthService.ValidateAccess:input_type -> auth.v1.ValidateAccessRequest
+	3,  // 7: auth.v1.AuthService.GetOrganization:input_type -> auth.v1.GetOrganizationRequest
+	5,  // 8: auth.v1.AuthService.UpdateOrganization:input_type -> auth.v1.UpdateOrganizationRequest
+	7,  // 9: auth.v1.AuthService.GetGithubIdentityProviderToken:input_type -> auth.v1.GetGithubIdentityProviderTokenRequest
+	1,  // 10: auth.v1.AuthService.ValidateAccess:output_type -> auth.v1.ValidateAccessResponse
+	4,  // 11: auth.v1.AuthService.GetOrganization:output_type -> auth.v1.GetOrganizationResponse
+	6,  // 12: auth.v1.AuthService.UpdateOrganization:output_type -> auth.v1.UpdateOrganizationResponse
+	8,  // 13: auth.v1.AuthService.GetGithubIdentityProviderToken:output_type -> auth.v1.GetGithubIdentityProviderTokenResponse
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_auth_proto_init() }

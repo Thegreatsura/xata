@@ -23,5 +23,8 @@ func keycloakOrganizationToProto(org keycloak.Organization) *authv1.Organization
 	if org.Status.CreatedAt != nil {
 		resp.CreatedAt = timestamppb.New(*org.Status.CreatedAt)
 	}
+	if org.Status.DeletedAt != nil {
+		resp.DeletedAt = timestamppb.New(*org.Status.DeletedAt)
+	}
 	return resp
 }

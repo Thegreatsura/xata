@@ -94,17 +94,21 @@ func (r *restKC) buildCreateOrganizationPayload(id string, params OrganizationCr
 	}
 }
 
-func (r *restKC) GetOrganization(ctx context.Context, realm, alias string) (Organization, error) {
-	organization, err := r.searchOrganization(ctx, realm, alias)
+func (r *restKC) GetOrganization(ctx context.Context, realm, alias string, options GetOrganizationOptions) (Organization, error) {
+	keycloakOrganization, err := r.searchOrganization(ctx, realm, alias)
 	if err != nil {
 		return Organization{}, fmt.Errorf("failed to get organization: %w", err)
 	}
-
-	if _, ok := FirstAttr(organization.Attributes, OrganizationDeletedAtKey); ok {
+	deletedAt, deleted := FirstAttr(keycloakOrganization.Attributes, OrganizationDeletedAtKey)
+	if deleted && !options.IncludeDeleted {
 		return Organization{}, ErrOrganizationNotFound{ID: alias}
 	}
-
-	return r.convertToOrganization(organization), nil
+	organization := r.convertToOrganization(keycloakOrganization)
+	if deleted && organization.Status.DeletedAt == nil {
+		_, err := time.Parse(time.RFC3339, deletedAt)
+		return Organization{}, fmt.Errorf("parse deletedAt for organization %s: %w", alias, err)
+	}
+	return organization, nil
 }
 
 func (r *restKC) ListOrganizations(ctx context.Context, realm, userID string) ([]Organization, error) {
@@ -438,7 +442,7 @@ func (r *restKC) UpdateOrganization(
 	}
 
 	if len(updates) == 0 && !deleteResourcesCleanedAt {
-		return r.GetOrganization(ctx, realm, organizationID)
+		return r.GetOrganization(ctx, realm, organizationID, GetOrganizationOptions{IncludeDeleted: false})
 	}
 
 	// Apply updates
@@ -472,7 +476,7 @@ func (r *restKC) UpdateOrganization(
 		)
 	}
 
-	return r.GetOrganization(ctx, realm, organizationID)
+	return r.GetOrganization(ctx, realm, organizationID, GetOrganizationOptions{IncludeDeleted: false})
 }
 
 func (r *restKC) DeleteOrganization(ctx context.Context, realm, organizationID string) error {
@@ -954,6 +958,14 @@ func extractStatus(attributes map[string][]string) OrganizationStatus {
 		if t, err := time.Parse(time.RFC3339, v); err == nil {
 			createdAt := t.UTC()
 			status.CreatedAt = &createdAt
+		}
+	}
+
+	// GetOrganization validates this timestamp before returning included deleted organizations.
+	if v, ok := FirstAttr(attributes, OrganizationDeletedAtKey); ok {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			deletedAt := t.UTC()
+			status.DeletedAt = &deletedAt
 		}
 	}
 

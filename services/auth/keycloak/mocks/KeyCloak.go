@@ -496,20 +496,20 @@ func (_c *KeyCloak_GetInvitation_Call) Return(_a0 keycloak.OrganizationInvitatio
 	return _c
 }
 
-// GetOrganization provides a mock function with given fields: c, realm, name
-func (_m *KeyCloak) GetOrganization(c context.Context, realm string, name string) (keycloak.Organization, error) {
-	ret := _m.Called(c, realm, name)
+// GetOrganization provides a mock function with given fields: c, realm, alias, options
+func (_m *KeyCloak) GetOrganization(c context.Context, realm string, alias string, options keycloak.GetOrganizationOptions) (keycloak.Organization, error) {
+	ret := _m.Called(c, realm, alias, options)
 
 	var r0 keycloak.Organization
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) keycloak.Organization); ok {
-		r0 = rf(c, realm, name)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, keycloak.GetOrganizationOptions) keycloak.Organization); ok {
+		r0 = rf(c, realm, alias, options)
 	} else {
 		r0 = ret.Get(0).(keycloak.Organization)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(c, realm, name)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, keycloak.GetOrganizationOptions) error); ok {
+		r1 = rf(c, realm, alias, options)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -525,14 +525,15 @@ type KeyCloak_GetOrganization_Call struct {
 // GetOrganization is a helper method to define mock.On call
 //   - c context.Context
 //   - realm string
-//   - name string
-func (_e *KeyCloak_Expecter) GetOrganization(c interface{}, realm interface{}, name interface{}) *KeyCloak_GetOrganization_Call {
-	return &KeyCloak_GetOrganization_Call{Call: _e.mock.On("GetOrganization", c, realm, name)}
+//   - alias string
+//   - options keycloak.GetOrganizationOptions
+func (_e *KeyCloak_Expecter) GetOrganization(c interface{}, realm interface{}, alias interface{}, options interface{}) *KeyCloak_GetOrganization_Call {
+	return &KeyCloak_GetOrganization_Call{Call: _e.mock.On("GetOrganization", c, realm, alias, options)}
 }
 
-func (_c *KeyCloak_GetOrganization_Call) Run(run func(c context.Context, realm string, name string)) *KeyCloak_GetOrganization_Call {
+func (_c *KeyCloak_GetOrganization_Call) Run(run func(c context.Context, realm string, alias string, options keycloak.GetOrganizationOptions)) *KeyCloak_GetOrganization_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(keycloak.GetOrganizationOptions))
 	})
 	return _c
 }

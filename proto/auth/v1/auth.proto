@@ -40,10 +40,12 @@ message Organization {
   google.protobuf.Timestamp created_at = 7;
   string usage_tier = 8;
   string marketplace = 9;
+  google.protobuf.Timestamp deleted_at = 10;
 }
 
 message GetOrganizationRequest {
   string organization_id = 1;
+  bool include_deleted = 2;
 }
 
 message GetOrganizationResponse {

@@ -32,6 +32,65 @@ func newTestRestKC(baseURL string) *restKC {
 
 const tokenEndpointSuffix = "/protocol/openid-connect/token"
 
+func TestGetOrganizationOptions(t *testing.T) {
+	deletedAt := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
+	tests := map[string]struct {
+		value          string
+		includeDeleted bool
+		wantDeletedAt  *time.Time
+		wantNotFound   bool
+		wantErr        string
+	}{
+		"includes deleted organization": {
+			value:          deletedAt.Format(time.RFC3339),
+			includeDeleted: true,
+			wantDeletedAt:  &deletedAt,
+		},
+		"hides deleted organization": {
+			value:        deletedAt.Format(time.RFC3339),
+			wantNotFound: true,
+		},
+		"malformed deletion remains hidden": {
+			value:        "invalid",
+			wantNotFound: true,
+		},
+		"malformed included deletion returns error": {
+			value:          "invalid",
+			includeDeleted: true,
+			wantErr:        "parse deletedAt for organization org-deleted",
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if strings.HasSuffix(req.URL.Path, tokenEndpointSuffix) {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`{"access_token":"test-token","expires_in":300,"token_type":"Bearer"}`))
+					return
+				}
+				_, _ = w.Write([]byte(`[{"id":"keycloak-id","name":"org-deleted","alias":"org-deleted","attributes":{"deletedAt":["` + tc.value + `"]}}]`))
+			}))
+			defer srv.Close()
+			r := newTestRestKC(srv.URL)
+
+			organization, err := r.GetOrganization(context.Background(), "realm", "org-deleted", GetOrganizationOptions{IncludeDeleted: tc.includeDeleted})
+
+			if tc.wantNotFound {
+				var notFound ErrOrganizationNotFound
+				require.ErrorAs(t, err, &notFound)
+				return
+			}
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.wantDeletedAt, organization.Status.DeletedAt)
+		})
+	}
+}
+
 func TestGetTokenCachesAdminLogin(t *testing.T) {
 	var loginCount, userCount atomic.Int32
 

@@ -54,7 +54,7 @@ func (o *orgsService) UpdateOrganization(
 	req UpdateOrganizationOptions,
 ) (*keycloak.Organization, error) {
 	// Ensure the organization exists
-	organization, err := o.kcRest.GetOrganization(ctx, o.realm, organizationID)
+	organization, err := o.kcRest.GetOrganization(ctx, o.realm, organizationID, keycloak.GetOrganizationOptions{IncludeDeleted: false})
 	if err != nil {
 		return nil, api.ErrorNoOrganizationAccess{OrganizationID: organizationID}
 	}

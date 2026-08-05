@@ -136,6 +136,7 @@ type OrganizationStatus struct {
 	BillingReason   *string
 	LastUpdated     time.Time
 	CreatedAt       *time.Time
+	DeletedAt       *time.Time
 	UsageTier       OrganizationUsageTier
 }
 

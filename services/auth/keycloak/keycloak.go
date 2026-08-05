@@ -4,13 +4,17 @@ import "context"
 
 //go:generate go run github.com/vektra/mockery/v3 --with-expecter --name KeyCloak
 
+type GetOrganizationOptions struct {
+	IncludeDeleted bool
+}
+
 // KeyCloak is the interface for interacting with the KeyCloak service.
 // You can keep Keycloak decoupled from the OpenAPI spec by defining models in models/*.go
 type KeyCloak interface {
 	// CreateOrganization creates a new organization in the given realm.
 	CreateOrganization(c context.Context, realm string, params OrganizationCreate) (Organization, error)
-	// GetOrganization returns the organization by name in the given realm.
-	GetOrganization(c context.Context, realm, name string) (Organization, error)
+	// GetOrganization returns the organization by alias in the given realm.
+	GetOrganization(c context.Context, realm, alias string, options GetOrganizationOptions) (Organization, error)
 	// ListOrganizations returns a list of organizations the user is a member of in the given realm.
 	ListOrganizations(c context.Context, realm, userID string) ([]Organization, error)
 	// AddMember adds a user to the organization in the given realm.
