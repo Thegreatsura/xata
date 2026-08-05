@@ -7,6 +7,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLogLevelMapping(t *testing.T) {
@@ -35,4 +36,16 @@ func TestLogLevelMapping(t *testing.T) {
 		err := envcfg.Read(&conf)
 		assert.True(t, err != nil)
 	})
+}
+
+func TestStructConfigMapping(t *testing.T) {
+	t.Setenv("XATA_CONT_PROFILING", "pyroscope")
+	t.Setenv("XATA_CONT_PROFILING_TYPES", "cpu,memory")
+	t.Setenv("XATA_OTEL_ID_STYLE", "datadog")
+
+	conf := Config{}
+	require.NoError(t, envcfg.Read(&conf))
+	require.IsType(t, &pyroscopeProfiling{}, conf.Profiling.GetValue())
+	require.Equal(t, []profileType{profileTypeCPU, profileTypeMemory}, conf.ProfileTypes.list)
+	require.Equal(t, DatadogIDStyle, conf.IDStyle.style)
 }

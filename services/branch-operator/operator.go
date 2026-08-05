@@ -58,10 +58,7 @@ func (s *BranchOperatorService) Name() string {
 
 // ReadConfig implements service.Service.
 func (s *BranchOperatorService) ReadConfig(ctx context.Context) error {
-	if err := envcfg.Read(&s.config); err != nil {
-		return err
-	}
-	return s.config.ParseTolerations()
+	return envcfg.Read(&s.config)
 }
 
 // Init implements service.Service.
@@ -171,7 +168,7 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 		CloudProvider:                        s.config.CloudProvider,
 		BarmanRegionSecretName:               s.config.BarmanRegionSecretName,
 		BarmanRegionSecretKey:                s.config.BarmanRegionSecretKey,
-		Tolerations:                          s.config.Tolerations,
+		Tolerations:                          s.config.Tolerations.Value,
 		EnforceZone:                          s.config.EnforceZone,
 		ImagePullSecrets:                     s.config.ImagePullSecrets,
 		MaxConcurrentReconciles:              s.config.BranchMaxConcurrent,

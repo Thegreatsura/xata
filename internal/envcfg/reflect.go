@@ -1,6 +1,10 @@
 package envcfg
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/ilyakaznacheev/cleanenv"
+)
 
 type ifcConfig struct {
 	t    reflect.Type
@@ -22,6 +26,9 @@ func walkIfcCall(pred func(rv reflect.Value) bool, fn func(v any) error, rv refl
 
 	switch rv.Kind() {
 	case reflect.Struct:
+		if implementsSetter(rv) {
+			break
+		}
 		n := rv.NumField()
 		for i := range n {
 			if !rv.Type().Field(i).IsExported() {
@@ -54,4 +61,17 @@ func walkIfcCall(pred func(rv reflect.Value) bool, fn func(v any) error, rv refl
 		return fn(rv.Addr().Interface())
 	}
 	return nil
+}
+
+func implementsSetter(rv reflect.Value) bool {
+	if rv.CanInterface() {
+		if _, ok := rv.Interface().(cleanenv.Setter); ok {
+			return true
+		}
+	}
+	if rv.CanAddr() && rv.Addr().CanInterface() {
+		_, ok := rv.Addr().Interface().(cleanenv.Setter)
+		return ok
+	}
+	return false
 }

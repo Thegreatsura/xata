@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/dustin/go-humanize"
 	"github.com/golang-jwt/jwt/v5"
@@ -282,31 +281,19 @@ func isPEMString(s string) bool {
 	return strings.HasPrefix(trimmedStr, "-") || strings.HasPrefix(trimmedStr, "Bag Attributes")
 }
 
-type QuantityField struct {
-	Value resource.Quantity
-}
-
-func (q *QuantityField) SetValue(in string) error {
-	parsed, err := resource.ParseQuantity(in)
-	if err != nil {
-		return fmt.Errorf("invalid quantity %q: %w", in, err)
-	}
-	q.Value = parsed
-	return nil
-}
-
-func (q QuantityField) String() string {
-	return q.Value.String()
-}
-
 type TolerationListField struct {
 	Value []v1.Toleration
 }
 
-func (tl *TolerationListField) SetValue(raw []string) error {
-	list := make([]v1.Toleration, 0, len(raw))
+func (tl *TolerationListField) SetValue(raw string) error {
+	if raw == "" {
+		return fmt.Errorf("tolerations are required but not set")
+	}
 
-	for _, entry := range raw {
+	entries := strings.Split(raw, ",")
+	list := make([]v1.Toleration, 0, len(entries))
+
+	for _, entry := range entries {
 		// Format: key=value:effect
 		parts := strings.SplitN(entry, ":", 2)
 		if len(parts) != 2 {
