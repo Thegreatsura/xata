@@ -3,7 +3,15 @@
 #
 # show_only_latest hides all minors of a major except `latest` by default;
 # hidden minors remain available behind the legacyPgVersions feature flag.
-# The update workflow must preserve this field.
+#
+# hidden hides a whole major version by default; its minors remain available
+# behind the per-major feature flag (pgMajor<major>).
+#
+# The two are independent and compose: an image of a major that is both hidden
+# and show_only_latest needs pgMajor<major>, and additionally legacyPgVersions
+# if it is not the latest minor.
+#
+# The update workflow must preserve both fields.
 
 last_updated: "2026-05-20T03:10:59Z"
 updated_by: workflow
@@ -17,12 +25,14 @@ sources:
         latest: "14.23"
         supported: true
         show_only_latest: true
+        hidden: true
       "15":
         # PostgreSQL 15.x versions
         versions: ["15.15", "15.17", "15.18"]
         latest: "15.18"
         supported: true
         show_only_latest: true
+        hidden: true
       "16":
         # PostgreSQL 16.x versions
         versions: ["16.11", "16.13", "16.14"]
@@ -34,11 +44,13 @@ sources:
         versions: ["17.5", "17.6", "17.7", "17.9", "17.10"]
         latest: "17.10"
         supported: true
+        show_only_latest: true
       "18":
         # PostgreSQL 18.x versions
         versions: ["18.0", "18.1", "18.3", "18.4"]
         latest: "18.4"
         supported: true
+        show_only_latest: true
   - source: ghcr.io/xataio/postgres-images/experimental
     package_url: https://github.com/xataio/postgres-images/pkgs/container/postgres-images%2Fexperimental
     major_versions:

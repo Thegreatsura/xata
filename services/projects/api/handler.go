@@ -216,6 +216,27 @@ func (s *handler) ListImages(c echo.Context, organizationID spec.OrganizationID,
 			images = filtered
 		}
 
+		// Filter out major versions hidden by default, unless the organization
+		// has the flag for that major enabled
+		if hiddenMajors := postgresversions.HiddenMajorImages(); len(hiddenMajors) > 0 {
+			enabled := make(map[string]bool)
+			filtered := make([]string, 0, len(images))
+			for _, img := range images {
+				major, hidden := hiddenMajors[img]
+				if !hidden {
+					filtered = append(filtered, img)
+					continue
+				}
+				if _, ok := enabled[major]; !ok {
+					enabled[major] = s.majorVersionEnabled(c.Request().Context(), major)
+				}
+				if enabled[major] {
+					filtered = append(filtered, img)
+				}
+			}
+			images = filtered
+		}
+
 		imagesResp := make([]spec.Image, len(images))
 		for i, it := range images {
 			version := s.imageProvider.ExtractVersionFromImageName(it)
@@ -1127,6 +1148,19 @@ func validateRegionForMarketplace(marketplace string, region store.Region) error
 	return ErrorInvalidRegion{Message: fmt.Sprintf("provider %s is not available for %s marketplace organizations", region.Provider, marketplace)}
 }
 
+// majorVersionEnabled reports whether a PostgreSQL major version hidden by
+// default is available to the organization in ctx. A major marked hidden in
+// versions.yaml without a flag in flags.PgMajorFlags stays hidden for everyone.
+func (s *handler) majorVersionEnabled(ctx context.Context, major string) bool {
+	flag, ok := flags.PgMajorFlags[major]
+	if !ok {
+		return false
+	}
+	return s.feat.BoolValue(ctx, flag)
+}
+
+// validateImage resolves an image for a new branch, rejecting images that are
+// not available to the organization.
 func (s *handler) validateImage(ctx context.Context, organizationID spec.OrganizationID, image string) (string, error) {
 	// Reject experimental images if the feature flag is not enabled
 	if strings.HasPrefix(image, "experimental:") && !s.feat.BoolValue(ctx, flags.ExperimentalImages) {
@@ -1138,11 +1172,23 @@ func (s *handler) validateImage(ctx context.Context, organizationID spec.Organiz
 		return "", fmt.Errorf("image %s is not available", image)
 	}
 
+	// Reject major versions hidden by default if the flag for that major is not
+	// enabled
+	if major, hidden := postgresversions.HiddenMajorImages()[image]; hidden && !s.majorVersionEnabled(ctx, major) {
+		return "", fmt.Errorf("image %s is not available", image)
+	}
+
 	// Reject older minors hidden by default if the feature flag is not enabled
 	if slices.Contains(postgresversions.HiddenImageNames(), image) && !s.feat.BoolValue(ctx, flags.LegacyPgVersions) {
 		return "", fmt.Errorf("image %s is not available", image)
 	}
 
+	return s.resolveImage(ctx, organizationID, image)
+}
+
+// resolveImage checks that an image exists and returns its full registry URL,
+// without applying the availability rules enforced by validateImage.
+func (s *handler) resolveImage(ctx context.Context, organizationID spec.OrganizationID, image string) (string, error) {
 	allValidImages := s.imageProvider.GetAllImageNames()
 	// TODO once the UI starts sending valid responses, remove the validImages var
 	// this is only for backward compat
@@ -1157,8 +1203,11 @@ func (s *handler) validateImage(ctx context.Context, organizationID spec.Organiz
 }
 
 func (s *handler) validateImageUpgrade(ctx context.Context, organizationID spec.OrganizationID, newImage, currentImage string) (string, error) {
-	// if the new image a valid one?
-	newImageURL, err := s.validateImage(ctx, organizationID, newImage)
+	// Is the new image a valid one? This deliberately skips the availability
+	// rules of validateImage: the checks below constrain the upgrade to a newer
+	// minor of the offering and major the branch already runs, so a branch must
+	// stay patchable even when that offering or version is hidden by default.
+	newImageURL, err := s.resolveImage(ctx, organizationID, newImage)
 	if err != nil {
 		return "", err
 	}

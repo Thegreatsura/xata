@@ -233,13 +233,51 @@ func TestHiddenImageNames(t *testing.T) {
 		}
 	}
 
-	// Guard the current default-visibility policy: only the latest minor of
-	// PG 14, 15 and 16 is visible by default, all 17 and 18 minors are visible
+	// Guard the current default-visibility policy: for the postgres offering,
+	// only the latest minor of each major is visible by default
+	for _, source := range GetSources() {
+		if sourceDisplayName(source.Source) != Postgres {
+			continue
+		}
+		for majorName, major := range source.MajorVersions {
+			require.True(t, major.ShowOnlyLatest,
+				"source %s major %s: show_only_latest", source.Source, majorName)
+		}
+	}
+}
+
+func TestHiddenMajorImages(t *testing.T) {
+	hidden := HiddenMajorImages()
+
+	// Hidden images must still be valid images
+	allImageNames := GetAllImageNames()
+	for name := range hidden {
+		require.Contains(t, allImageNames, name, "hidden image %s not found in GetAllImageNames()", name)
+	}
+
+	// Every minor of a hidden major must be hidden, and nothing else
+	for _, source := range GetSources() {
+		imageName := getDisplayName(source.Source[strings.LastIndex(source.Source, "/")+1:])
+		for majorName, major := range source.MajorVersions {
+			for _, version := range major.Versions {
+				name := imageName + ":" + version
+				gotMajor, gotHidden := hidden[name]
+				wantHidden := major.Supported && major.Hidden
+				require.Equal(t, wantHidden, gotHidden,
+					"HiddenMajorImages(): image %s (major %s) hidden", name, majorName)
+				if wantHidden {
+					require.Equal(t, majorName, gotMajor, "HiddenMajorImages(): image %s major", name)
+				}
+			}
+		}
+	}
+
+	// Guard the current default-visibility policy: PG 14 and 15 are hidden
 	for _, source := range GetSources() {
 		for majorName, major := range source.MajorVersions {
-			wantShowOnlyLatest := majorName == "14" || majorName == "15" || majorName == "16"
-			require.Equal(t, wantShowOnlyLatest, major.ShowOnlyLatest,
-				"source %s major %s: show_only_latest", source.Source, majorName)
+			wantHidden := majorName == "14" || majorName == "15"
+			require.Equal(t, wantHidden, major.Hidden,
+				"source %s major %s: hidden", source.Source, majorName)
 		}
 	}
 }

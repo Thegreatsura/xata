@@ -72,6 +72,11 @@ type MajorVersion struct {
 	// ShowOnlyLatest hides all minors except Latest by default; the hidden
 	// minors remain available behind the legacyPgVersions feature flag
 	ShowOnlyLatest bool `yaml:"show_only_latest,omitempty"`
+	// Hidden hides the whole major version by default; its minors remain
+	// available behind the per-major feature flag (see flags.PgMajorFlags).
+	// Independent of ShowOnlyLatest: a major with both set needs the per-major
+	// flag for its latest minor, and legacyPgVersions on top for the rest.
+	Hidden bool `yaml:"hidden,omitempty"`
 }
 
 // ImageVersion represents a PostgreSQL image information (offering, major,
@@ -493,23 +498,48 @@ func GetAllImageNames() []string {
 	return allImageNames
 }
 
+// sourceDisplayName returns the display name of a source image, e.g.
+// "ghcr.io/xataio/postgres-images/cnpg-postgres-plus" -> "postgres"
+func sourceDisplayName(source string) string {
+	if lastSlashIndex := strings.LastIndex(source, "/"); lastSlashIndex != -1 {
+		source = source[lastSlashIndex+1:]
+	}
+	return getDisplayName(source)
+}
+
+// HiddenMajorImages returns the image names belonging to a major version marked
+// hidden, mapped to that major version. These images stay valid but require the
+// major version's feature flag (see flags.PgMajorFlags) to be listed or used.
+func HiddenMajorImages() map[string]string {
+	hidden := make(map[string]string)
+
+	for _, source := range postgresVersions.Sources {
+		imageName := sourceDisplayName(source.Source)
+
+		for majorName, major := range source.MajorVersions {
+			if !major.Supported || !major.Hidden {
+				continue
+			}
+			for _, version := range major.Versions {
+				hidden[fmt.Sprintf("%s:%s", imageName, version)] = majorName
+			}
+		}
+	}
+
+	return hidden
+}
+
 // HiddenImageNames returns the image names that are hidden by default: minors
 // of a major version marked show_only_latest that are not the latest minor.
 // These images stay valid but require the legacyPgVersions feature flag to be
-// listed or used.
+// listed or used. This is independent of HiddenMajorImages: an image listed by
+// both needs both flags.
 func HiddenImageNames() []string {
 	seen := make(map[string]bool)
 	var hidden []string
 
 	for _, source := range postgresVersions.Sources {
-		lastSlashIndex := strings.LastIndex(source.Source, "/")
-		var imageName string
-		if lastSlashIndex == -1 {
-			imageName = source.Source
-		} else {
-			imageName = source.Source[lastSlashIndex+1:]
-		}
-		imageName = getDisplayName(imageName)
+		imageName := sourceDisplayName(source.Source)
 
 		for _, major := range source.MajorVersions {
 			if !major.Supported || !major.ShowOnlyLatest {
