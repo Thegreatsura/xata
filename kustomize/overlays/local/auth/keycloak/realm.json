@@ -103,7 +103,8 @@
       "description": "Additional claims about the organization a subject belongs to",
       "protocol": "openid-connect",
       "attributes": {
-        "display.on.consent.screen": "false",
+        "consent.screen.text": "Full access to your Xata organizations, including their projects, databases, members, and API keys",
+        "display.on.consent.screen": "true",
         "include.in.token.scope": "true"
       },
       "protocolMappers": [
