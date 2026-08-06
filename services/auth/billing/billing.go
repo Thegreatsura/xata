@@ -175,6 +175,7 @@ type Invoice struct {
 	Total              float64
 	Currency           string
 	Status             string
+	WillAutoIssue      bool
 	InvoiceDate        time.Time
 	BillingPeriodStart time.Time
 	DueDate            time.Time
