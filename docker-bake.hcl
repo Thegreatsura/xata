@@ -98,6 +98,14 @@ target "keycloak" {
   context    = "dev/docker/keycloak"
   dockerfile = "Dockerfile"
   platforms  = ["linux/amd64", "linux/arm64"]
+
+  args = {
+    # Fixed Y2K epoch: image timestamps must not vary between builds.
+    SOURCE_DATE_EPOCH = "946684800"
+  }
+
+  output = ["type=image,rewrite-timestamp=true"]
+
   labels = {
     "org.opencontainers.image.source" = SOURCE_URL
   }

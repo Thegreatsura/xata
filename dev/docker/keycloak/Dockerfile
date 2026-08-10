@@ -43,12 +43,14 @@ COPY --from=turnstile-builder --chown=keycloak:keycloak --chmod=644 /build/targe
 # Configure a database vendor
 ENV KC_DB=postgres
 ARG JAVA_TOOL_OPTIONS
+ARG SOURCE_DATE_EPOCH=946684800
 
 WORKDIR /opt/keycloak
 
-# TODO: Make clean Keycloak builds reproducible. A cache miss can otherwise
-# change the image digest and redeploy Keycloak without source changes.
-RUN /opt/keycloak/bin/kc.sh build --features=docker,authorization --verbose
+# TODO: Upgrade Keycloak once it includes Quarkus 3.35+; 26.7.0 still
+# generates non-reproducible proxy IDs during augmentation (quarkusio/quarkus#53025).
+RUN touch -m --date="@${SOURCE_DATE_EPOCH}" /opt/keycloak/providers/* && \
+    /opt/keycloak/bin/kc.sh build --features=docker,authorization --verbose
 
 # Stage 4: Runtime image
 FROM quay.io/keycloak/keycloak:26.7.0
