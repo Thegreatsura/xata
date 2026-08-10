@@ -5,6 +5,9 @@ image:
 
 instances: 2
 
+update:
+  strategy: Auto
+
 hostname:
   hostname: ""
   strict: false

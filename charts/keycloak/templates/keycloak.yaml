@@ -6,6 +6,13 @@ metadata:
 spec:
   instances: {{ .Values.instances }}
   image: "{{ .Values.image.repository }}{{ if .Values.image.digest }}@{{ .Values.image.digest }}{{ else }}:{{ .Values.image.tag }}{{ end }}"
+  update:
+    strategy: {{ .Values.update.strategy }}
+    {{- with .Values.tolerations }}
+    scheduling:
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
   db:
     vendor: {{ .Values.db.vendor }}
     {{- if .Values.db.host }}
