@@ -75,7 +75,7 @@
       "protocol": "openid-connect",
       "attributes": {
         "consent.screen.text": "${organizationScopeConsentText}",
-        "display.on.consent.screen": "true",
+        "display.on.consent.screen": "false",
         "include.in.token.scope": "true"
       },
       "protocolMappers": [
