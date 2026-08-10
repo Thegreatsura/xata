@@ -27,7 +27,7 @@ patches:
     target:
       kind: ClusterRole
       name: cnpg-scale-to-zero-sidecar-role
-  # Add dataplane tolerations to CNPG deployments (same as base/dataplane applies to its resources)
+  # Add dataplane tolerations to CNPG deployments.
   - target:
       kind: Deployment
       namespace: cnpg-system
