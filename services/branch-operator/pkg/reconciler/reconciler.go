@@ -134,6 +134,13 @@ func (r *BranchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	// Adopt pgbackrest cipher Secrets created before the Branch.
+	_, err = r.reconcilePgBackRestSecrets(ctx, branch)
+	if err != nil {
+		log.Error(err, "reconciling pgbackrest cipher Secrets")
+		return ctrl.Result{}, err
+	}
+
 	// Reconcile the CNPG Cluster for the branch
 	err = r.reconcileCluster(ctx, branch)
 	if err != nil {
