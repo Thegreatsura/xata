@@ -882,6 +882,48 @@ func baseClusterConfig() resources.ClusterConfig {
 	}
 }
 
+func TestClusterSpecPgBackRestCipherReferences(t *testing.T) {
+	t.Parallel()
+
+	cfg := baseClusterConfig()
+	cfg.BackupSpec = &v1alpha1.BackupSpec{
+		Method: v1alpha1.BackupMethodPgBackRest,
+		PgBackRest: &v1alpha1.PgBackRestSpec{
+			S3: &v1alpha1.PgBackRestS3Spec{
+				Bucket:             "backup-bucket",
+				Region:             "eu-west-1",
+				InheritFromIAMRole: true,
+			},
+			CipherPassphraseSecretRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "branch-pgbackrest"},
+				Key:                  "cipher-passphrase",
+			},
+		},
+	}
+	cfg.RestoreSpec = &v1alpha1.RestoreSpec{
+		Type: v1alpha1.RestoreTypeObjectStore,
+		Name: "source-branch",
+		PgBackRestCipherPassphraseSecretRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{Name: "branch-pgbackrest"},
+			Key:                  "restore-cipher-passphrase",
+		},
+	}
+
+	spec := resources.ClusterSpec(testBranchName, testBranchName, cfg)
+	targetCipher := spec.Backup.PgBackRest.Repository.Cipher
+	require.NotNil(t, targetCipher)
+	require.Equal(t, new("aes-256-cbc"), targetCipher.Type)
+	require.Equal(t, "branch-pgbackrest", targetCipher.Passphrase.Name)
+	require.Equal(t, "cipher-passphrase", targetCipher.Passphrase.Key)
+
+	require.Len(t, spec.ExternalClusters, 1)
+	restoreCipher := spec.ExternalClusters[0].PgBackRest.Repository.Cipher
+	require.NotNil(t, restoreCipher)
+	require.Equal(t, new("aes-256-cbc"), restoreCipher.Type)
+	require.Equal(t, "branch-pgbackrest", restoreCipher.Passphrase.Name)
+	require.Equal(t, "restore-cipher-passphrase", restoreCipher.Passphrase.Key)
+}
+
 func TestGeneratePostInitSQL(t *testing.T) {
 	t.Parallel()
 

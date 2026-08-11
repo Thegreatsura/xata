@@ -327,7 +327,11 @@ func ExternalClusters(cfg ClusterConfig) []*apiv1ac.ExternalClusterApplyConfigur
 			apiv1ac.ExternalCluster().
 				WithName(cfg.RestoreSpec.Name).
 				WithPgBackRest(apiv1ac.PgBackRestExternalCluster().
-					WithRepository(pgbackrestRepository(pgb, cfg.BackupCredentials)).
+					WithRepository(pgbackrestRepository(
+						pgb,
+						cfg.BackupCredentials,
+						cfg.RestoreSpec.PgBackRestCipherPassphraseSecretRef,
+					)).
 					WithOptions(options)),
 		}
 	}
@@ -460,23 +464,44 @@ func backupConfiguration(branchName string, cfg ClusterConfig) *apiv1ac.BackupCo
 	return backup.
 		WithPgBackRest(apiv1ac.PgBackRestConfiguration().
 			WithStanzaName(stanza).
-			WithRepository(pgbackrestRepository(pgb, cfg.BackupCredentials)).
+			WithRepository(pgbackrestRepository(
+				pgb,
+				cfg.BackupCredentials,
+				pgb.CipherPassphraseSecretRef,
+			)).
 			WithOptions(options)).
 		WithTarget(apiv1.BackupTargetStandby)
 }
 
 // pgbackrestRepository selects the pgbackrest storage backend. Precedence is
 // gcs > s3 > the deprecated top-level S3 fields.
-func pgbackrestRepository(pgb *v1alpha1.PgBackRestSpec, creds BackupCredentials) *apiv1ac.PgBackRestRepositoryApplyConfiguration {
+func pgbackrestRepository(
+	pgb *v1alpha1.PgBackRestSpec,
+	creds BackupCredentials,
+	cipherPassphraseSecretRef *corev1.SecretKeySelector,
+) *apiv1ac.PgBackRestRepositoryApplyConfiguration {
 	repo := apiv1ac.PgBackRestRepository()
 	switch {
 	case pgb.GCS != nil:
-		return repo.WithGCS(pgbackrestGCS(pgb.GCS))
+		repo = repo.WithGCS(pgbackrestGCS(pgb.GCS))
 	case pgb.S3 != nil:
-		return repo.WithS3(pgbackrestS3(pgb.S3, creds))
+		repo = repo.WithS3(pgbackrestS3(pgb.S3, creds))
 	default:
-		return repo.WithS3(pgbackrestS3(legacyS3Spec(pgb), creds))
+		repo = repo.WithS3(pgbackrestS3(legacyS3Spec(pgb), creds))
 	}
+
+	if cipherPassphraseSecretRef != nil {
+		repo = repo.WithCipher(apiv1ac.PgBackRestCipher().
+			WithType("aes-256-cbc").
+			WithPassphrase(machineryapi.SecretKeySelector{
+				LocalObjectReference: machineryapi.LocalObjectReference{
+					Name: cipherPassphraseSecretRef.Name,
+				},
+				Key: cipherPassphraseSecretRef.Key,
+			}))
+	}
+
+	return repo
 }
 
 // legacyS3Spec adapts the deprecated top-level S3 fields to a PgBackRestS3Spec.
