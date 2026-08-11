@@ -5,6 +5,7 @@ package v1alpha1
 import (
 	apiv1alpha1 "xata/services/branch-operator/api/v1alpha1"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,6 +25,9 @@ type RestoreSpecApplyConfiguration struct {
 	// cluster plugin configuration. Only applicable when Type is ObjectStore.
 	// When empty, defaults to the restore name.
 	ServerName *string `json:"serverName,omitempty"`
+	// PgBackRestCipherPassphraseSecretRef references the passphrase for the
+	// pgbackrest repository used as the restore source.
+	PgBackRestCipherPassphraseSecretRef *corev1.SecretKeySelector `json:"pgbackrestCipherPassphraseSecretRef,omitempty"`
 }
 
 // RestoreSpecApplyConfiguration constructs a declarative configuration of the RestoreSpec type for use with
@@ -61,5 +65,13 @@ func (b *RestoreSpecApplyConfiguration) WithTimestamp(value v1.Time) *RestoreSpe
 // If called multiple times, the ServerName field is set to the value of the last call.
 func (b *RestoreSpecApplyConfiguration) WithServerName(value string) *RestoreSpecApplyConfiguration {
 	b.ServerName = &value
+	return b
+}
+
+// WithPgBackRestCipherPassphraseSecretRef sets the PgBackRestCipherPassphraseSecretRef field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the PgBackRestCipherPassphraseSecretRef field is set to the value of the last call.
+func (b *RestoreSpecApplyConfiguration) WithPgBackRestCipherPassphraseSecretRef(value corev1.SecretKeySelector) *RestoreSpecApplyConfiguration {
+	b.PgBackRestCipherPassphraseSecretRef = &value
 	return b
 }

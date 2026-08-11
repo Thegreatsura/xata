@@ -97,6 +97,36 @@ spec:
                           Deprecated: use s3.bucket. Honored as a fallback when neither s3 nor gcs
                           is set.
                         type: string
+                      cipherPassphraseSecretRef:
+                        description: |-
+                          CipherPassphraseSecretRef references the passphrase for client-side
+                          repository encryption. When unset, pgbackrest does not encrypt the
+                          repository.
+                        properties:
+                          key:
+                            description: The key of the secret to select from.  Must
+                              be a valid secret key.
+                            type: string
+                          name:
+                            default: ""
+                            description: |-
+                              Name of the referent.
+                              This field is effectively required, but due to backwards compatibility is
+                              allowed to be empty. Instances of this type with an empty value here are
+                              almost certainly wrong.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                            type: string
+                          optional:
+                            description: Specify whether the Secret or its key must
+                              be defined
+                            type: boolean
+                        required:
+                        - key
+                        type: object
+                        x-kubernetes-map-type: atomic
+                        x-kubernetes-validations:
+                        - message: pgbackrest.cipherPassphraseSecretRef is immutable
+                          rule: self == oldSelf
                       compressLevel:
                         description: CompressLevel sets the compression level (0-9).
                         maximum: 9
@@ -492,6 +522,35 @@ spec:
                     type: string
                     x-kubernetes-validations:
                     - message: restore.name is immutable
+                      rule: self == oldSelf
+                  pgbackrestCipherPassphraseSecretRef:
+                    description: |-
+                      PgBackRestCipherPassphraseSecretRef references the passphrase for the
+                      pgbackrest repository used as the restore source.
+                    properties:
+                      key:
+                        description: The key of the secret to select from.  Must be
+                          a valid secret key.
+                        type: string
+                      name:
+                        default: ""
+                        description: |-
+                          Name of the referent.
+                          This field is effectively required, but due to backwards compatibility is
+                          allowed to be empty. Instances of this type with an empty value here are
+                          almost certainly wrong.
+                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                        type: string
+                      optional:
+                        description: Specify whether the Secret or its key must be
+                          defined
+                        type: boolean
+                    required:
+                    - key
+                    type: object
+                    x-kubernetes-map-type: atomic
+                    x-kubernetes-validations:
+                    - message: restore.pgbackrestCipherPassphraseSecretRef is immutable
                       rule: self == oldSelf
                   serverName:
                     description: |-

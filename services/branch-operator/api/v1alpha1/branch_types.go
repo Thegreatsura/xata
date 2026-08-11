@@ -61,6 +61,12 @@ type RestoreSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="restore.serverName is immutable"
 	ServerName string `json:"serverName,omitempty"`
+
+	// PgBackRestCipherPassphraseSecretRef references the passphrase for the
+	// pgbackrest repository used as the restore source.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="restore.pgbackrestCipherPassphraseSecretRef is immutable"
+	PgBackRestCipherPassphraseSecretRef *corev1.SecretKeySelector `json:"pgbackrestCipherPassphraseSecretRef,omitempty"`
 }
 
 // RestoreType defines the type of restore source
@@ -452,6 +458,13 @@ type PgBackRestSpec struct {
 	// GCS configures a Google Cloud Storage backend (Workload Identity auth).
 	// +optional
 	GCS *PgBackRestGCSSpec `json:"gcs,omitempty"`
+
+	// CipherPassphraseSecretRef references the passphrase for client-side
+	// repository encryption. When unset, pgbackrest does not encrypt the
+	// repository.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="pgbackrest.cipherPassphraseSecretRef is immutable"
+	CipherPassphraseSecretRef *corev1.SecretKeySelector `json:"cipherPassphraseSecretRef,omitempty"`
 
 	// Bucket is the S3 bucket for backups and WAL archives.
 	//

@@ -5,7 +5,8 @@
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -156,7 +157,7 @@ func (in *BranchStatus) DeepCopyInto(out *BranchStatus) {
 	*out = *in
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]v1.Condition, len(*in))
+		*out = make([]metav1.Condition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -285,6 +286,11 @@ func (in *PgBackRestSpec) DeepCopyInto(out *PgBackRestSpec) {
 		*out = new(PgBackRestGCSSpec)
 		**out = **in
 	}
+	if in.CipherPassphraseSecretRef != nil {
+		in, out := &in.CipherPassphraseSecretRef, &out.CipherPassphraseSecretRef
+		*out = new(v1.SecretKeySelector)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.CompressLevel != nil {
 		in, out := &in.CompressLevel, &out.CompressLevel
 		*out = new(int)
@@ -363,6 +369,11 @@ func (in *RestoreSpec) DeepCopyInto(out *RestoreSpec) {
 	if in.Timestamp != nil {
 		in, out := &in.Timestamp, &out.Timestamp
 		*out = (*in).DeepCopy()
+	}
+	if in.PgBackRestCipherPassphraseSecretRef != nil {
+		in, out := &in.PgBackRestCipherPassphraseSecretRef, &out.PgBackRestCipherPassphraseSecretRef
+		*out = new(v1.SecretKeySelector)
+		(*in).DeepCopyInto(*out)
 	}
 }
 
@@ -520,7 +531,7 @@ func (in *WakeupRequestStatus) DeepCopyInto(out *WakeupRequestStatus) {
 	*out = *in
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]v1.Condition, len(*in))
+		*out = make([]metav1.Condition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
