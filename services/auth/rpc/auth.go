@@ -111,12 +111,11 @@ func (a *AuthService) trustedClaims(userID, organizationID string, mc jwt.MapCla
 	}
 	addDefaultOrganization(claims.Organizations, a.defaultOrgID)
 
-	// A membership granted after the token was issued is not in it yet, so a
-	// request for an organization the token does not know about is revalidated
-	// against Keycloak rather than denied. Without this, creating an organization
-	// or accepting an invitation returns 403 until the token expires.
+	// A membership or status change after the token was issued is not in it yet, so a denial the token alone would
+	// produce is revalidated against Keycloak: a new organization is disabled until its trial credits land.
 	if organizationID != "" {
-		if _, member := claims.Organizations[organizationID]; !member {
+		organization, member := claims.Organizations[organizationID]
+		if !member || organization.Status != token.OrgEnabledStatus {
 			return nil, false
 		}
 	}
