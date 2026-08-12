@@ -525,14 +525,21 @@ func pgbackrestS3(s3 *v1alpha1.PgBackRestS3Spec, creds BackupCredentials) *apiv1
 		WithInheritFromIAMRole(s3.InheritFromIAMRole)
 
 	if s3.Endpoint != "" {
+		// The branch-stamped Secret wins over the operator-wide default, so
+		// existing branches keep their store's credentials when the cell-wide
+		// default changes.
+		secretName := s3.CredentialsSecretName
+		if secretName == "" {
+			secretName = creds.SecretName
+		}
 		ac = ac.WithEndpoint(s3.Endpoint).
 			WithInheritFromIAMRole(false).
 			WithAccessKeyID(machineryapi.SecretKeySelector{
-				LocalObjectReference: machineryapi.LocalObjectReference{Name: creds.SecretName},
+				LocalObjectReference: machineryapi.LocalObjectReference{Name: secretName},
 				Key:                  creds.AccessKeyIDKey,
 			}).
 			WithSecretAccessKey(machineryapi.SecretKeySelector{
-				LocalObjectReference: machineryapi.LocalObjectReference{Name: creds.SecretName},
+				LocalObjectReference: machineryapi.LocalObjectReference{Name: secretName},
 				Key:                  creds.SecretAccessKeyKey,
 			})
 	}

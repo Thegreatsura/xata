@@ -197,6 +197,14 @@ spec:
                             description: Bucket is the S3 bucket for backups and WAL
                               archives.
                             type: string
+                          credentialsSecretName:
+                            description: |-
+                              CredentialsSecretName is the Secret (in the clusters namespace) holding
+                              the static credentials for this backend. When empty, the
+                              operator-configured credentials Secret is used. Stamped at branch
+                              creation so existing branches keep their store's credentials when the
+                              cell-wide default changes.
+                            type: string
                           endpoint:
                             description: |-
                               Endpoint overrides S3 endpoint discovery. Required for non-AWS

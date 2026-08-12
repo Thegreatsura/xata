@@ -563,6 +563,14 @@ type PgBackRestS3Spec struct {
 	// +optional
 	// +kubebuilder:default:=true
 	InheritFromIAMRole bool `json:"inheritFromIAMRole,omitempty"`
+
+	// CredentialsSecretName is the Secret (in the clusters namespace) holding
+	// the static credentials for this backend. When empty, the
+	// operator-configured credentials Secret is used. Stamped at branch
+	// creation so existing branches keep their store's credentials when the
+	// cell-wide default changes.
+	// +optional
+	CredentialsSecretName string `json:"credentialsSecretName,omitempty"`
 }
 
 // PgBackRestGCSSpec configures a Google Cloud Storage pgbackrest backend.

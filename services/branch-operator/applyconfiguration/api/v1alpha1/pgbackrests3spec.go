@@ -20,6 +20,12 @@ type PgBackRestS3SpecApplyConfiguration struct {
 	Endpoint *string `json:"endpoint,omitempty"`
 	// InheritFromIAMRole uses the pod's IAM role for S3 authentication.
 	InheritFromIAMRole *bool `json:"inheritFromIAMRole,omitempty"`
+	// CredentialsSecretName is the Secret (in the clusters namespace) holding
+	// the static credentials for this backend. When empty, the
+	// operator-configured credentials Secret is used. Stamped at branch
+	// creation so existing branches keep their store's credentials when the
+	// cell-wide default changes.
+	CredentialsSecretName *string `json:"credentialsSecretName,omitempty"`
 }
 
 // PgBackRestS3SpecApplyConfiguration constructs a declarative configuration of the PgBackRestS3Spec type for use with
@@ -57,5 +63,13 @@ func (b *PgBackRestS3SpecApplyConfiguration) WithEndpoint(value string) *PgBackR
 // If called multiple times, the InheritFromIAMRole field is set to the value of the last call.
 func (b *PgBackRestS3SpecApplyConfiguration) WithInheritFromIAMRole(value bool) *PgBackRestS3SpecApplyConfiguration {
 	b.InheritFromIAMRole = &value
+	return b
+}
+
+// WithCredentialsSecretName sets the CredentialsSecretName field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the CredentialsSecretName field is set to the value of the last call.
+func (b *PgBackRestS3SpecApplyConfiguration) WithCredentialsSecretName(value string) *PgBackRestS3SpecApplyConfiguration {
+	b.CredentialsSecretName = &value
 	return b
 }

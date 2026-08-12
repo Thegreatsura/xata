@@ -305,8 +305,10 @@ func (b *BranchBuilder) WithStorageQoSClass(useStorageQoSClasses bool, storageQo
 // s3 otherwise. Only applies when the backup method is pgbackrest. A non-empty
 // s3 endpoint targets a non-AWS S3-compatible store (MinIO, Cloudflare R2),
 // which makes the operator authenticate with static credentials instead of an
-// IAM role.
-func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, serviceAccount string) *BranchBuilder {
+// IAM role. credentialsSecretName pins the Secret holding those credentials to
+// the branch, so later cell-wide credential changes don't affect it; empty
+// falls back to the operator-configured Secret.
+func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, serviceAccount, credentialsSecretName string) *BranchBuilder {
 	if b.branch.Spec.BackupSpec == nil || !b.branch.Spec.BackupSpec.IsPgBackRest() {
 		return b
 	}
@@ -319,10 +321,11 @@ func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, servi
 		}
 	default:
 		b.branch.Spec.BackupSpec.PgBackRest.S3 = &v1alpha1.PgBackRestS3Spec{
-			Bucket:             bucket,
-			Region:             region,
-			Endpoint:           endpoint,
-			InheritFromIAMRole: true,
+			Bucket:                bucket,
+			Region:                region,
+			Endpoint:              endpoint,
+			InheritFromIAMRole:    true,
+			CredentialsSecretName: credentialsSecretName,
 		}
 	}
 
