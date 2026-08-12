@@ -23,6 +23,7 @@ data:
   XATA_XATASTOR_ENABLED: {{ .Values.config.clusters.xatastor.enabled | default false | quote }}
   XATA_CLOUD_PROVIDER: {{ .Values.config.clusters.cloudProvider | quote }}
   XATA_USE_STORAGE_QOS_CLASSES: {{ .Values.config.clusters.useStorageQoSClasses | default false | quote }}
+  XATA_PGBACKREST_ENCRYPTION_ENABLED: {{ .Values.config.clusters.pgbackrest.encryptionEnabled | default false | quote }}
   {{- if .Values.config.clusters.pgbackrest }}
   {{- if .Values.config.clusters.pgbackrest.bucket }}
   XATA_PGBACKREST_BUCKET: {{ .Values.config.clusters.pgbackrest.bucket | quote }}

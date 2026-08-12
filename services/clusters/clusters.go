@@ -234,23 +234,13 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		}
 	}
 
-	// Validate continuous backup source, if any
+	// Validate the continuous backup source ID before building the Branch. The
+	// backup-method-specific validation runs after all Branch overrides.
+	continuousBackupSource := ""
 	if cb, ok := req.GetDataSource().(*clustersv1.CreatePostgresClusterRequest_ContinuousBackup); ok {
-		clusterID := cb.ContinuousBackup.GetClusterId()
-		if clusterID == "" {
+		continuousBackupSource = cb.ContinuousBackup.GetClusterId()
+		if continuousBackupSource == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "continuous_backup.cluster_id is required")
-		}
-
-		// verify objectstore exists
-		objectStore, err := c.getObjectStore(ctx, clusterID)
-		if err != nil {
-			return nil, k8sErrorToGRPCError(err)
-		}
-
-		// Validate that the objectstore status has a recovery window with FirstRecoverabilityPoint set
-		recoveryWindow, hasRecoveryWindow := objectStore.Status.ServerRecoveryWindow[clusterID]
-		if !hasRecoveryWindow || recoveryWindow.FirstRecoverabilityPoint.IsZero() {
-			return nil, status.Errorf(codes.NotFound, "no continuous backup for source cluster %s", clusterID)
 		}
 	}
 
@@ -280,7 +270,7 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		WithXataUtilsPreloadLibrary().
 		WithMandatoryPostgresParameters()
 
-	// Fail fast if pgbackrest is requested but the cell isn't configured for it
+	// Fail fast if pgbackrest is requested but the cell isn't configured for it.
 	if branch := branchBuilder.Build(); branch.Spec.BackupSpec.IsPgBackRest() {
 		if err := validatePgBackRestConfigured(branch.Spec.BackupSpec.PgBackRest); err != nil {
 			return nil, err
@@ -324,6 +314,13 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		}
 	}
 
+	branch := branchBuilder.Build()
+	if continuousBackupSource != "" && !branch.Spec.BackupSpec.IsPgBackRest() {
+		if err := c.validateBarmanRecoverySource(ctx, continuousBackupSource); err != nil {
+			return nil, err
+		}
+	}
+
 	// Provision the <branchID>-app secret holding the xata role credentials
 	// before the Branch, so the operator never generates the password and
 	// never observes a Branch without its secret. For clusters adopted from
@@ -333,8 +330,18 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 	if err != nil {
 		return nil, err
 	}
-
-	branch := branchBuilder.Build()
+	createdPgBackRestSecret, err := c.createPgBackRestSecret(ctx, branch, c.config.PgBackRestEncryptionEnabled)
+	if err != nil {
+		// The Branch does not exist yet, so it cannot own the app Secret.
+		// Remove the app Secret only if this request created it.
+		if createdSecret != nil {
+			if delErr := c.kubeClient.Delete(ctx, createdSecret); delErr != nil {
+				log.Ctx(ctx).Warn().Err(delErr).Str("secret", createdSecret.Name).
+					Msg("clean up app secret after pgbackrest secret create failure")
+			}
+		}
+		return nil, err
+	}
 
 	// Create the Branch CR
 	if err := c.kubeClient.Create(ctx, branch); err != nil {
@@ -344,6 +351,12 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 			if delErr := c.kubeClient.Delete(ctx, createdSecret); delErr != nil {
 				log.Ctx(ctx).Warn().Err(delErr).Str("secret", createdSecret.Name).
 					Msg("clean up app secret after branch create failure")
+			}
+		}
+		if createdPgBackRestSecret != nil {
+			if delErr := c.kubeClient.Delete(ctx, createdPgBackRestSecret); delErr != nil {
+				log.Ctx(ctx).Warn().Err(delErr).Str("secret", createdPgBackRestSecret.Name).
+					Msg("clean up pgbackrest secret after branch create failure")
 			}
 		}
 		return nil, k8sErrorToGRPCError(err)
@@ -880,4 +893,17 @@ func (c *ClustersService) getObjectStore(ctx context.Context, id string) (*barma
 		return nil, err
 	}
 	return objectStore, nil
+}
+
+func (c *ClustersService) validateBarmanRecoverySource(ctx context.Context, sourceID string) error {
+	objectStore, err := c.getObjectStore(ctx, sourceID)
+	if err != nil {
+		return k8sErrorToGRPCError(err)
+	}
+
+	recoveryWindow, ok := objectStore.Status.ServerRecoveryWindow[sourceID]
+	if !ok || recoveryWindow.FirstRecoverabilityPoint.IsZero() {
+		return status.Errorf(codes.NotFound, "no continuous backup for source cluster %s", sourceID)
+	}
+	return nil
 }
