@@ -108,5 +108,9 @@ func addDefaultOrganization(organizations map[string]token.Organization, default
 	if _, exists := organizations[defaultOrgID]; exists {
 		return
 	}
-	organizations[defaultOrgID] = token.Organization{ID: defaultOrgID, Status: token.OrgEnabledStatus}
+	organizations[defaultOrgID] = token.Organization{
+		ID:        defaultOrgID,
+		Status:    token.OrgEnabledStatus,
+		UsageTier: string(keycloak.OrganizationUsageTierT2),
+	}
 }

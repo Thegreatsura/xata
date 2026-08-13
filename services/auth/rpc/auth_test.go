@@ -43,8 +43,9 @@ func TestBuildUserClaims(t *testing.T) {
 			kcOrgs:       []keycloak.Organization{},
 			want: map[string]token.Organization{
 				defaultOrgID: {
-					ID:     defaultOrgID,
-					Status: token.OrgEnabledStatus,
+					ID:        defaultOrgID,
+					Status:    token.OrgEnabledStatus,
+					UsageTier: string(keycloak.OrganizationUsageTierT2),
 				},
 			},
 		},
@@ -65,8 +66,9 @@ func TestBuildUserClaims(t *testing.T) {
 					Status: string(keycloak.OrganizationStateEnabled),
 				},
 				defaultOrgID: {
-					ID:     defaultOrgID,
-					Status: token.OrgEnabledStatus,
+					ID:        defaultOrgID,
+					Status:    token.OrgEnabledStatus,
+					UsageTier: string(keycloak.OrganizationUsageTierT2),
 				},
 			},
 		},
@@ -129,8 +131,9 @@ func TestBuildUserClaims(t *testing.T) {
 					CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 				},
 				defaultOrgID: {
-					ID:     defaultOrgID,
-					Status: token.OrgEnabledStatus,
+					ID:        defaultOrgID,
+					Status:    token.OrgEnabledStatus,
+					UsageTier: string(keycloak.OrganizationUsageTierT2),
 				},
 			},
 		},

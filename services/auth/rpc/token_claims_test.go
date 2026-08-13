@@ -194,6 +194,7 @@ func TestAddDefaultOrganization(t *testing.T) {
 			defaultOrgID: "default-org",
 			claims:       &token.Claims{Organizations: map[string]token.Organization{}},
 			wantOrgIDs:   []string{"default-org"},
+			wantOrg:      &token.Organization{ID: "default-org", Status: token.OrgEnabledStatus, UsageTier: "t2"},
 		},
 		"a real membership is never downgraded": {
 			defaultOrgID: "acme",
