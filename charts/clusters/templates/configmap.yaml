@@ -37,4 +37,7 @@ data:
   {{- if .Values.config.clusters.pgbackrest.gcsServiceAccount }}
   XATA_PGBACKREST_GCS_SERVICE_ACCOUNT: {{ .Values.config.clusters.pgbackrest.gcsServiceAccount | quote }}
   {{- end }}
+  {{- if .Values.config.clusters.pgbackrest.credentialsSecret }}
+  XATA_PGBACKREST_CREDENTIALS_SECRET: {{ .Values.config.clusters.pgbackrest.credentialsSecret | quote }}
+  {{- end }}
   {{- end }}
