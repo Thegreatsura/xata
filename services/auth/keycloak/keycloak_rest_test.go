@@ -33,6 +33,25 @@ func newTestRestKC(baseURL string) *restKC {
 
 const tokenEndpointSuffix = "/protocol/openid-connect/token"
 
+// orgAdminTestServer serves the admin token endpoint plus the organization alias
+// search that every organization scoped call resolves first, and delegates the
+// remaining requests to admin.
+func orgAdminTestServer(t *testing.T, admin http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch {
+		case strings.HasSuffix(req.URL.Path, tokenEndpointSuffix):
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"access_token":"test-token","expires_in":300,"token_type":"Bearer"}`))
+		case strings.HasSuffix(req.URL.Path, "/organizations") && req.URL.Query().Get("q") != "":
+			// searchOrganization resolves the alias to the internal Keycloak id.
+			_, _ = w.Write([]byte(`[{"id":"internal-1","alias":"org-alias"}]`))
+		default:
+			admin(w, req)
+		}
+	}))
+}
+
 func TestGetOrganizationOptions(t *testing.T) {
 	deletedAt := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
 	tests := map[string]struct {
@@ -910,6 +929,99 @@ func TestGetIdentityProviderToken(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tc.wantToken, got)
 			}
+		})
+	}
+}
+
+func TestInvitationOperations(t *testing.T) {
+	const invitationPath = "/admin/realms/test-realm/organizations/internal-1/invitations/"
+
+	tests := map[string]struct {
+		status     int
+		body       string
+		wantMethod string
+		wantPath   string
+		run        func(t *testing.T, kc KeyCloak)
+	}{
+		"get returns the invitation": {
+			status:     http.StatusOK,
+			body:       `{"id":"inv-1","organizationId":"internal-1","email":"a@b.com","status":"PENDING"}`,
+			wantMethod: http.MethodGet,
+			wantPath:   invitationPath + "inv-1",
+			run: func(t *testing.T, kc KeyCloak) {
+				invitation, err := kc.GetInvitation(context.Background(), "test-realm", "org-alias", "inv-1")
+				require.NoError(t, err)
+				assert.Equal(t, "inv-1", invitation.ID)
+				assert.Equal(t, "a@b.com", invitation.Email)
+			},
+		},
+		"get maps 404 to ErrInvitationNotFound": {
+			status:     http.StatusNotFound,
+			wantMethod: http.MethodGet,
+			wantPath:   invitationPath + "missing",
+			run: func(t *testing.T, kc KeyCloak) {
+				_, err := kc.GetInvitation(context.Background(), "test-realm", "org-alias", "missing")
+				require.ErrorIs(t, err, ErrInvitationNotFound{ID: "missing"})
+			},
+		},
+		"resend succeeds": {
+			status:     http.StatusNoContent,
+			wantMethod: http.MethodPost,
+			wantPath:   invitationPath + "inv-1/resend",
+			run: func(t *testing.T, kc KeyCloak) {
+				require.NoError(t, kc.ResendInvitation(context.Background(), "test-realm", "org-alias", "inv-1"))
+			},
+		},
+		"resend maps 404 to ErrInvitationNotFound": {
+			status:     http.StatusNotFound,
+			wantMethod: http.MethodPost,
+			wantPath:   invitationPath + "missing/resend",
+			run: func(t *testing.T, kc KeyCloak) {
+				err := kc.ResendInvitation(context.Background(), "test-realm", "org-alias", "missing")
+				require.ErrorIs(t, err, ErrInvitationNotFound{ID: "missing"})
+			},
+		},
+		"delete succeeds": {
+			status:     http.StatusNoContent,
+			wantMethod: http.MethodDelete,
+			wantPath:   invitationPath + "inv-1",
+			run: func(t *testing.T, kc KeyCloak) {
+				require.NoError(t, kc.DeleteInvitation(context.Background(), "test-realm", "org-alias", "inv-1"))
+			},
+		},
+		"delete is idempotent on 404": {
+			status:     http.StatusNotFound,
+			wantMethod: http.MethodDelete,
+			wantPath:   invitationPath + "already-deleted",
+			run: func(t *testing.T, kc KeyCloak) {
+				require.NoError(t, kc.DeleteInvitation(context.Background(), "test-realm", "org-alias", "already-deleted"))
+			},
+		},
+		"delete surfaces other errors": {
+			status:     http.StatusInternalServerError,
+			wantMethod: http.MethodDelete,
+			wantPath:   invitationPath + "inv-1",
+			run: func(t *testing.T, kc KeyCloak) {
+				err := kc.DeleteInvitation(context.Background(), "test-realm", "org-alias", "inv-1")
+				require.ErrorContains(t, err, "unexpected status code: 500")
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			var gotMethod, gotPath string
+			srv := orgAdminTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+				gotMethod, gotPath = req.Method, req.URL.Path
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			})
+			defer srv.Close()
+
+			tc.run(t, newTestRestKC(srv.URL))
+
+			assert.Equal(t, tc.wantMethod, gotMethod)
+			assert.Equal(t, tc.wantPath, gotPath)
 		})
 	}
 }

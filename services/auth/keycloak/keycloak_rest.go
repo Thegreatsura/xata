@@ -353,6 +353,9 @@ func (r *restKC) GetInvitation(ctx context.Context, realm string, organizationID
 		return OrganizationInvitation{}, fmt.Errorf("failed to get invitation: %w", err)
 	}
 
+	if resp.StatusCode() == http.StatusNotFound {
+		return OrganizationInvitation{}, ErrInvitationNotFound{ID: invitationID}
+	}
 	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK) {
 		return OrganizationInvitation{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 	}
@@ -381,6 +384,9 @@ func (r *restKC) ResendInvitation(ctx context.Context, realm string, organizatio
 		return fmt.Errorf("failed to resend invitation: %w", err)
 	}
 
+	if resp.StatusCode() == http.StatusNotFound {
+		return ErrInvitationNotFound{ID: invitationID}
+	}
 	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK, http.StatusNoContent) {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 	}
@@ -404,6 +410,11 @@ func (r *restKC) DeleteInvitation(ctx context.Context, realm string, organizatio
 		return fmt.Errorf("failed to delete invitation: %w", err)
 	}
 
+	// Deleting is idempotent: a 404 means the invitation is already gone, which
+	// is the end state the caller asked for.
+	if resp.StatusCode() == http.StatusNotFound {
+		return nil
+	}
 	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK, http.StatusNoContent) {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 	}

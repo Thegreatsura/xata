@@ -3,32 +3,12 @@ package keycloak
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// groupTestServer serves the admin token endpoint plus the organization alias
-// search that every group call resolves first, and delegates the remaining
-// requests to admin.
-func groupTestServer(t *testing.T, admin http.HandlerFunc) *httptest.Server {
-	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		switch {
-		case strings.HasSuffix(req.URL.Path, tokenEndpointSuffix):
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"access_token":"test-token","expires_in":300,"token_type":"Bearer"}`))
-		case strings.HasSuffix(req.URL.Path, "/organizations") && req.URL.Query().Get("q") != "":
-			// searchOrganization resolves the alias to the internal Keycloak id.
-			_, _ = w.Write([]byte(`[{"id":"internal-1","alias":"org-alias"}]`))
-		default:
-			admin(w, req)
-		}
-	}))
-}
 
 func TestGroupOperations(t *testing.T) {
 	tests := map[string]struct {
@@ -117,7 +97,7 @@ func TestGroupOperations(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			srv := groupTestServer(t, tt.admin)
+			srv := orgAdminTestServer(t, tt.admin)
 			defer srv.Close()
 			tt.run(t, newTestRestKC(srv.URL))
 		})

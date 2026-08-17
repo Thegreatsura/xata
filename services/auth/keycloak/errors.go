@@ -131,6 +131,18 @@ func (e ErrIdentityProviderTokenForbidden) StatusCode() int {
 	return http.StatusForbidden
 }
 
+type ErrInvitationNotFound struct {
+	ID string
+}
+
+func (e ErrInvitationNotFound) Error() string {
+	return fmt.Sprintf("invitation %s not found", e.ID)
+}
+
+func (e ErrInvitationNotFound) StatusCode() int {
+	return http.StatusNotFound
+}
+
 type ErrInvitationFailed struct {
 	Email string
 }
