@@ -3,14 +3,15 @@ package keycloak
 import "time"
 
 const (
-	OrganizationDisplayNameKey        = "displayName"
-	OrganizationDisabledByAdminKey    = "disabledByAdmin"
-	OrganizationBillingStatusKey      = "billingStatus"
-	OrganizationAdminReasonKey        = "adminReason"
-	OrganizationBillingReasonKey      = "billingReason"
-	OrganizationLastUpdatedKey        = "lastUpdated"
-	OrganizationCreatedAtKey          = "createdAt"
-	OrganizationResourcesCleanedAtKey = "resourcesCleanedAt"
+	OrganizationDisplayNameKey             = "displayName"
+	OrganizationDisabledByAdminKey         = "disabledByAdmin"
+	OrganizationBillingStatusKey           = "billingStatus"
+	OrganizationBillingCollectionMethodKey = "billingCollectionMethod"
+	OrganizationAdminReasonKey             = "adminReason"
+	OrganizationBillingReasonKey           = "billingReason"
+	OrganizationLastUpdatedKey             = "lastUpdated"
+	OrganizationCreatedAtKey               = "createdAt"
+	OrganizationResourcesCleanedAtKey      = "resourcesCleanedAt"
 
 	OrganizationDeletedAtKey = "deletedAt"
 
@@ -32,6 +33,12 @@ const (
 	OrganizationBillingStatusInvoiceOverdue    OrganizationBillingStatus = "invoice_overdue"
 	OrganizationBillingStatusDeletionRequested OrganizationBillingStatus = "deletion_requested"
 	OrganizationBillingStatusUnknown           OrganizationBillingStatus = "unknown"
+)
+
+const (
+	OrganizationBillingCollectionMethodUnknown             OrganizationBillingCollectionMethod = "unknown"
+	OrganizationBillingCollectionMethodStripePaymentMethod OrganizationBillingCollectionMethod = "stripe_payment_method"
+	OrganizationBillingCollectionMethodMarketplace         OrganizationBillingCollectionMethod = "marketplace"
 )
 
 const (
@@ -73,21 +80,23 @@ type OrganizationMember struct {
 }
 
 type OrganizationCreate struct {
-	Name          string
-	Marketplace   MarketplaceAttributes
-	UsageTier     OrganizationUsageTier
-	BillingStatus OrganizationBillingStatus
-	BillingReason string
+	Name                    string
+	Marketplace             MarketplaceAttributes
+	UsageTier               OrganizationUsageTier
+	BillingStatus           OrganizationBillingStatus
+	BillingReason           string
+	BillingCollectionMethod OrganizationBillingCollectionMethod
 }
 
 type OrganizationUpdate struct {
-	Name               *string                    `json:"name"`
-	BillingStatus      *OrganizationBillingStatus `json:"billingStatus,omitempty"`
-	BillingReason      *string                    `json:"billingReason,omitempty"`
-	AdminReason        *string                    `json:"adminReason,omitempty"`
-	DisabledByAdmin    *bool                      `json:"disabledByAdmin,omitempty"`
-	ResourcesCleanedAt *string                    `json:"resourcesCleanedAt,omitempty"`
-	UsageTier          *OrganizationUsageTier     `json:"usageTier,omitempty"`
+	Name                    *string                              `json:"name"`
+	BillingStatus           *OrganizationBillingStatus           `json:"billingStatus,omitempty"`
+	BillingReason           *string                              `json:"billingReason,omitempty"`
+	AdminReason             *string                              `json:"adminReason,omitempty"`
+	DisabledByAdmin         *bool                                `json:"disabledByAdmin,omitempty"`
+	ResourcesCleanedAt      *string                              `json:"resourcesCleanedAt,omitempty"`
+	UsageTier               *OrganizationUsageTier               `json:"usageTier,omitempty"`
+	BillingCollectionMethod *OrganizationBillingCollectionMethod `json:"billingCollectionMethod,omitempty"`
 }
 
 type OrganizationInvitation struct {
@@ -114,6 +123,13 @@ type ListInvitationsParams struct {
 
 type OrganizationBillingStatus string
 
+type OrganizationBillingCollectionMethod string
+
+func (m OrganizationBillingCollectionMethod) Valid() bool {
+	return m == OrganizationBillingCollectionMethodStripePaymentMethod ||
+		m == OrganizationBillingCollectionMethodMarketplace
+}
+
 type OrganizationUsageTier string
 
 type OrganizationMarketplaceProvider string
@@ -121,12 +137,13 @@ type OrganizationMarketplaceProvider string
 type OrganizationState string
 
 type Organization struct {
-	ID                string
-	Name              string
-	Marketplace       *OrganizationMarketplaceProvider
-	AWSMarketplace    *AWSMarketplace
-	VercelMarketplace *VercelMarketplace
-	Status            OrganizationStatus
+	ID                      string
+	Name                    string
+	BillingCollectionMethod OrganizationBillingCollectionMethod
+	Marketplace             *OrganizationMarketplaceProvider
+	AWSMarketplace          *AWSMarketplace
+	VercelMarketplace       *VercelMarketplace
+	Status                  OrganizationStatus
 }
 
 type OrganizationStatus struct {

@@ -41,6 +41,7 @@ message Organization {
   string usage_tier = 8;
   string marketplace = 9;
   google.protobuf.Timestamp deleted_at = 10;
+  string billing_collection_method = 11;
 }
 
 message GetOrganizationRequest {

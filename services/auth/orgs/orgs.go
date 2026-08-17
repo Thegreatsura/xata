@@ -41,11 +41,12 @@ func NewOrganizations(realm string, kcRest keycloak.KeyCloak, projectsClient pro
 }
 
 type UpdateOrganizationOptions struct {
-	DisabledByAdmin       *bool
-	DisabledByAdminReason *string
-	BillingStatus         *keycloak.OrganizationBillingStatus
-	BillingReason         *string
-	UsageTier             *keycloak.OrganizationUsageTier
+	DisabledByAdmin         *bool
+	DisabledByAdminReason   *string
+	BillingStatus           *keycloak.OrganizationBillingStatus
+	BillingReason           *string
+	UsageTier               *keycloak.OrganizationUsageTier
+	BillingCollectionMethod *keycloak.OrganizationBillingCollectionMethod
 }
 
 func (o *orgsService) UpdateOrganization(
@@ -53,6 +54,10 @@ func (o *orgsService) UpdateOrganization(
 	organizationID string,
 	req UpdateOrganizationOptions,
 ) (*keycloak.Organization, error) {
+	if req.BillingCollectionMethod != nil && !req.BillingCollectionMethod.Valid() {
+		return nil, fmt.Errorf("unsupported billing collection method %q", *req.BillingCollectionMethod)
+	}
+
 	// Ensure the organization exists
 	organization, err := o.kcRest.GetOrganization(ctx, o.realm, organizationID, keycloak.GetOrganizationOptions{IncludeDeleted: false})
 	if err != nil {
@@ -83,8 +88,12 @@ func (o *orgsService) UpdateOrganization(
 		update.UsageTier = req.UsageTier
 	}
 
+	if req.BillingCollectionMethod != nil && *req.BillingCollectionMethod != organization.BillingCollectionMethod {
+		update.BillingCollectionMethod = req.BillingCollectionMethod
+	}
+
 	// Only update if flags actually changed (reasons alone do nothing)
-	if update.DisabledByAdmin != nil || update.BillingStatus != nil || update.UsageTier != nil {
+	if update.DisabledByAdmin != nil || update.BillingStatus != nil || update.UsageTier != nil || update.BillingCollectionMethod != nil {
 		targetStatus := keycloak.OrganizationStatus{
 			DisabledByAdmin: shouldDisableByAdmin,
 			BillingStatus:   shouldBillingStatus,

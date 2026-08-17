@@ -46,6 +46,15 @@ func (r *restKC) CreateOrganization(ctx context.Context, realm string, params Or
 	if params.UsageTier == "" {
 		return Organization{}, fmt.Errorf("usage tier is required")
 	}
+	if params.BillingCollectionMethod == "" {
+		return Organization{}, fmt.Errorf("billing collection method is required")
+	}
+	if !params.BillingCollectionMethod.Valid() {
+		return Organization{}, fmt.Errorf("unsupported billing collection method %q", params.BillingCollectionMethod)
+	}
+	if params.BillingCollectionMethod == OrganizationBillingCollectionMethodMarketplace && params.Marketplace == nil {
+		return Organization{}, fmt.Errorf("marketplace billing collection method requires a marketplace organization")
+	}
 	if params.Marketplace != nil {
 		if err := params.Marketplace.Validate(); err != nil {
 			return Organization{}, fmt.Errorf("validate marketplace: %w", err)
@@ -75,13 +84,14 @@ func (r *restKC) CreateOrganization(ctx context.Context, realm string, params Or
 func (r *restKC) buildCreateOrganizationPayload(id string, params OrganizationCreate) KeycloakOrganization {
 	now := time.Now().UTC().Format(time.RFC3339)
 	attrs := map[string][]string{
-		OrganizationDisplayNameKey:     {params.Name},
-		OrganizationDisabledByAdminKey: {"false"},
-		OrganizationBillingStatusKey:   {string(params.BillingStatus)},
-		OrganizationBillingReasonKey:   {params.BillingReason},
-		OrganizationUsageTierKey:       {string(params.UsageTier)},
-		OrganizationLastUpdatedKey:     {now},
-		OrganizationCreatedAtKey:       {now},
+		OrganizationDisplayNameKey:             {params.Name},
+		OrganizationDisabledByAdminKey:         {"false"},
+		OrganizationBillingStatusKey:           {string(params.BillingStatus)},
+		OrganizationBillingReasonKey:           {params.BillingReason},
+		OrganizationUsageTierKey:               {string(params.UsageTier)},
+		OrganizationLastUpdatedKey:             {now},
+		OrganizationCreatedAtKey:               {now},
+		OrganizationBillingCollectionMethodKey: {string(params.BillingCollectionMethod)},
 	}
 	if params.Marketplace != nil {
 		maps.Copy(attrs, params.Marketplace.BuildKeycloakAttributes())
@@ -406,9 +416,20 @@ func (r *restKC) UpdateOrganization(
 	realm, organizationID string,
 	update OrganizationUpdate,
 ) (Organization, error) {
+	if update.BillingCollectionMethod != nil && !update.BillingCollectionMethod.Valid() {
+		return Organization{}, fmt.Errorf("unsupported billing collection method %q", *update.BillingCollectionMethod)
+	}
+
 	organization, err := r.searchOrganization(ctx, realm, organizationID)
 	if err != nil {
 		return Organization{}, fmt.Errorf("failed to get organization: %w", err)
+	}
+
+	if update.BillingCollectionMethod != nil && *update.BillingCollectionMethod == OrganizationBillingCollectionMethodMarketplace {
+		marketplace, _ := FirstAttr(organization.Attributes, OrganizationMarketplaceKey)
+		if marketplace == "" {
+			return Organization{}, fmt.Errorf("marketplace billing collection method requires a marketplace organization")
+		}
 	}
 
 	// Collect all attribute updates first
@@ -431,6 +452,9 @@ func (r *restKC) UpdateOrganization(
 	}
 	if update.UsageTier != nil {
 		updates[OrganizationUsageTierKey] = []string{string(*update.UsageTier)}
+	}
+	if update.BillingCollectionMethod != nil {
+		updates[OrganizationBillingCollectionMethodKey] = []string{string(*update.BillingCollectionMethod)}
 	}
 	var deleteResourcesCleanedAt bool
 	if update.ResourcesCleanedAt != nil {
@@ -888,8 +912,9 @@ func (r *restKC) convertToOrganization(org KeycloakOrganization) Organization {
 // derivable from attributes alone and is left to the caller.
 func OrganizationFromAttributes(alias string, attributes map[string][]string) Organization {
 	result := Organization{
-		ID:     alias,
-		Status: extractStatus(attributes),
+		ID:                      alias,
+		BillingCollectionMethod: extractBillingCollectionMethod(attributes),
+		Status:                  extractStatus(attributes),
 	}
 	if v, ok := FirstAttr(attributes, OrganizationMarketplaceKey); ok && v != "" {
 		marketplace := OrganizationMarketplaceProvider(v)
@@ -904,6 +929,15 @@ func OrganizationFromAttributes(alias string, attributes map[string][]string) Or
 		}
 	}
 	return result
+}
+
+func extractBillingCollectionMethod(attributes map[string][]string) OrganizationBillingCollectionMethod {
+	value, ok := FirstAttr(attributes, OrganizationBillingCollectionMethodKey)
+	method := OrganizationBillingCollectionMethod(value)
+	if !ok || !method.Valid() {
+		return OrganizationBillingCollectionMethodUnknown
+	}
+	return method
 }
 
 func extractStatus(attributes map[string][]string) OrganizationStatus {

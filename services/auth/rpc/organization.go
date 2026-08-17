@@ -11,14 +11,15 @@ import (
 
 func keycloakOrganizationToProto(org keycloak.Organization) *authv1.Organization {
 	resp := &authv1.Organization{
-		Id:                    org.ID,
-		Status:                string(org.Status.EffectiveState()),
-		DisabledByAdmin:       org.Status.DisabledByAdmin,
-		DisabledByAdminReason: org.Status.AdminReason,
-		BillingStatus:         string(org.Status.BillingStatus),
-		BillingReason:         org.Status.BillingReason,
-		UsageTier:             string(org.Status.UsageTier),
-		Marketplace:           string(ptr.Deref(org.Marketplace, "")),
+		Id:                      org.ID,
+		Status:                  string(org.Status.EffectiveState()),
+		DisabledByAdmin:         org.Status.DisabledByAdmin,
+		DisabledByAdminReason:   org.Status.AdminReason,
+		BillingStatus:           string(org.Status.BillingStatus),
+		BillingReason:           org.Status.BillingReason,
+		UsageTier:               string(org.Status.UsageTier),
+		BillingCollectionMethod: string(org.BillingCollectionMethod),
+		Marketplace:             string(ptr.Deref(org.Marketplace, "")),
 	}
 	if org.Status.CreatedAt != nil {
 		resp.CreatedAt = timestamppb.New(*org.Status.CreatedAt)

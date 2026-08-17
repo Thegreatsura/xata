@@ -215,19 +215,20 @@ func (x *ValidateAccessResponse) GetApiKeyId() string {
 }
 
 type Organization struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	Id                    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Status                string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
-	DisabledByAdmin       bool                   `protobuf:"varint,3,opt,name=disabled_by_admin,json=disabledByAdmin,proto3" json:"disabled_by_admin,omitempty"`
-	DisabledByAdminReason *string                `protobuf:"bytes,4,opt,name=disabled_by_admin_reason,json=disabledByAdminReason,proto3,oneof" json:"disabled_by_admin_reason,omitempty"`
-	BillingStatus         string                 `protobuf:"bytes,5,opt,name=billing_status,json=billingStatus,proto3" json:"billing_status,omitempty"`
-	BillingReason         *string                `protobuf:"bytes,6,opt,name=billing_reason,json=billingReason,proto3,oneof" json:"billing_reason,omitempty"`
-	CreatedAt             *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UsageTier             string                 `protobuf:"bytes,8,opt,name=usage_tier,json=usageTier,proto3" json:"usage_tier,omitempty"`
-	Marketplace           string                 `protobuf:"bytes,9,opt,name=marketplace,proto3" json:"marketplace,omitempty"`
-	DeletedAt             *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Id                      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Status                  string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	DisabledByAdmin         bool                   `protobuf:"varint,3,opt,name=disabled_by_admin,json=disabledByAdmin,proto3" json:"disabled_by_admin,omitempty"`
+	DisabledByAdminReason   *string                `protobuf:"bytes,4,opt,name=disabled_by_admin_reason,json=disabledByAdminReason,proto3,oneof" json:"disabled_by_admin_reason,omitempty"`
+	BillingStatus           string                 `protobuf:"bytes,5,opt,name=billing_status,json=billingStatus,proto3" json:"billing_status,omitempty"`
+	BillingReason           *string                `protobuf:"bytes,6,opt,name=billing_reason,json=billingReason,proto3,oneof" json:"billing_reason,omitempty"`
+	CreatedAt               *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UsageTier               string                 `protobuf:"bytes,8,opt,name=usage_tier,json=usageTier,proto3" json:"usage_tier,omitempty"`
+	Marketplace             string                 `protobuf:"bytes,9,opt,name=marketplace,proto3" json:"marketplace,omitempty"`
+	DeletedAt               *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
+	BillingCollectionMethod string                 `protobuf:"bytes,11,opt,name=billing_collection_method,json=billingCollectionMethod,proto3" json:"billing_collection_method,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *Organization) Reset() {
@@ -328,6 +329,13 @@ func (x *Organization) GetDeletedAt() *timestamppb.Timestamp {
 		return x.DeletedAt
 	}
 	return nil
+}
+
+func (x *Organization) GetBillingCollectionMethod() string {
+	if x != nil {
+		return x.BillingCollectionMethod
+	}
+	return ""
 }
 
 type GetOrganizationRequest struct {
@@ -648,7 +656,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"api_key_id\x18\t \x01(\tR\bapiKeyId\x1aW\n" +
 	"\x12OrganizationsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.auth.v1.OrganizationR\x05value:\x028\x01J\x04\b\x05\x10\x06\"\xda\x03\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.auth.v1.OrganizationR\x05value:\x028\x01J\x04\b\x05\x10\x06\"\x96\x04\n" +
 	"\fOrganization\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12*\n" +
@@ -663,7 +671,8 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\vmarketplace\x18\t \x01(\tR\vmarketplace\x129\n" +
 	"\n" +
 	"deleted_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAtB\x1b\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\x12:\n" +
+	"\x19billing_collection_method\x18\v \x01(\tR\x17billingCollectionMethodB\x1b\n" +
 	"\x19_disabled_by_admin_reasonB\x11\n" +
 	"\x0f_billing_reason\"j\n" +
 	"\x16GetOrganizationRequest\x12'\n" +

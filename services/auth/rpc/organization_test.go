@@ -25,8 +25,9 @@ func TestKeycloakOrganizationToProto(t *testing.T) {
 	}{
 		"enabled organization with optional fields": {
 			org: keycloak.Organization{
-				ID:          "org-enabled",
-				Marketplace: &marketplace,
+				ID:                      "org-enabled",
+				BillingCollectionMethod: keycloak.OrganizationBillingCollectionMethodMarketplace,
+				Marketplace:             &marketplace,
 				Status: keycloak.OrganizationStatus{
 					BillingStatus: keycloak.OrganizationBillingStatusOK,
 					CreatedAt:     &createdAt,
@@ -34,12 +35,13 @@ func TestKeycloakOrganizationToProto(t *testing.T) {
 				},
 			},
 			want: &authv1.Organization{
-				Id:            "org-enabled",
-				Status:        string(keycloak.OrganizationStateEnabled),
-				BillingStatus: string(keycloak.OrganizationBillingStatusOK),
-				CreatedAt:     timestamppb.New(createdAt),
-				UsageTier:     string(keycloak.OrganizationUsageTierT2),
-				Marketplace:   string(keycloak.OrganizationMarketplaceProviderAWS),
+				Id:                      "org-enabled",
+				Status:                  string(keycloak.OrganizationStateEnabled),
+				BillingStatus:           string(keycloak.OrganizationBillingStatusOK),
+				CreatedAt:               timestamppb.New(createdAt),
+				UsageTier:               string(keycloak.OrganizationUsageTierT2),
+				BillingCollectionMethod: string(keycloak.OrganizationBillingCollectionMethodMarketplace),
+				Marketplace:             string(keycloak.OrganizationMarketplaceProviderAWS),
 			},
 		},
 		"soft-deleted organization": {

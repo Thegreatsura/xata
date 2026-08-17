@@ -3,6 +3,7 @@ package keycloak
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -536,6 +537,43 @@ func TestCreateOrganizationRequiresUsageTier(t *testing.T) {
 	require.EqualError(t, err, "usage tier is required")
 }
 
+func TestCreateOrganizationValidatesBillingCollectionMethod(t *testing.T) {
+	t.Parallel()
+
+	testCases := map[string]struct {
+		method  OrganizationBillingCollectionMethod
+		wantErr string
+	}{
+		"missing": {
+			wantErr: "billing collection method is required",
+		},
+		"unknown": {
+			method:  OrganizationBillingCollectionMethodUnknown,
+			wantErr: `unsupported billing collection method "unknown"`,
+		},
+		"unsupported": {
+			method:  OrganizationBillingCollectionMethod("unsupported"),
+			wantErr: `unsupported billing collection method "unsupported"`,
+		},
+		"marketplace method without marketplace": {
+			method:  OrganizationBillingCollectionMethodMarketplace,
+			wantErr: "marketplace billing collection method requires a marketplace organization",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			r := &restKC{}
+			_, err := r.CreateOrganization(context.Background(), "xata", OrganizationCreate{
+				Name:                    "Acme",
+				UsageTier:               OrganizationUsageTierT1,
+				BillingCollectionMethod: tc.method,
+			})
+			require.EqualError(t, err, tc.wantErr)
+		})
+	}
+}
+
 func TestBuildCreateOrganizationPayload_UsageTier(t *testing.T) {
 	t.Parallel()
 
@@ -571,6 +609,103 @@ func TestBuildCreateOrganizationPayload_UsageTier(t *testing.T) {
 			require.Equal(t, string(tc.want), org.Attributes[OrganizationUsageTierKey][0])
 		})
 	}
+}
+
+func TestBuildCreateOrganizationPayload_BillingCollectionMethod(t *testing.T) {
+	t.Parallel()
+
+	testCases := map[string]OrganizationBillingCollectionMethod{
+		"stripe payment method": OrganizationBillingCollectionMethodStripePaymentMethod,
+		"marketplace":           OrganizationBillingCollectionMethodMarketplace,
+	}
+
+	for name, method := range testCases {
+		t.Run(name, func(t *testing.T) {
+			r := &restKC{}
+			org := r.buildCreateOrganizationPayload("org_123", OrganizationCreate{
+				Name:                    "Acme",
+				BillingCollectionMethod: method,
+			})
+
+			assert.Equal(t, string(method), org.Attributes[OrganizationBillingCollectionMethodKey][0])
+			assert.Equal(t, method, r.convertToOrganization(org).BillingCollectionMethod)
+		})
+	}
+}
+
+func TestUpdateOrganizationRejectsUnsupportedBillingCollectionMethod(t *testing.T) {
+	t.Parallel()
+
+	testCases := map[string]OrganizationBillingCollectionMethod{
+		"unknown":     OrganizationBillingCollectionMethodUnknown,
+		"unsupported": OrganizationBillingCollectionMethod("unsupported"),
+	}
+
+	for name, method := range testCases {
+		t.Run(name, func(t *testing.T) {
+			r := &restKC{}
+			_, err := r.UpdateOrganization(context.Background(), "realm", "org_123", OrganizationUpdate{
+				BillingCollectionMethod: &method,
+			})
+			require.EqualError(t, err, fmt.Sprintf("unsupported billing collection method %q", method))
+		})
+	}
+}
+
+func TestUpdateOrganizationBillingCollectionMethod(t *testing.T) {
+	organization := KeycloakOrganization{
+		ID:    "keycloak-id",
+		Name:  "org_123",
+		Alias: "org_123",
+		Attributes: map[string][]string{
+			OrganizationDisplayNameKey:             {"Acme"},
+			OrganizationBillingCollectionMethodKey: {string(OrganizationBillingCollectionMethodStripePaymentMethod)},
+		},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if strings.HasSuffix(req.URL.Path, tokenEndpointSuffix) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"access_token":"test-token","expires_in":300,"token_type":"Bearer"}`))
+			return
+		}
+		if req.Method == http.MethodPut {
+			if err := json.NewDecoder(req.Body).Decode(&organization); err != nil {
+				t.Errorf("decode organization: %v", err)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode([]KeycloakOrganization{organization}); err != nil {
+			t.Errorf("encode organization: %v", err)
+		}
+	}))
+	defer srv.Close()
+
+	r := newTestRestKC(srv.URL)
+	name := "Updated Acme"
+	got, err := r.UpdateOrganization(context.Background(), "realm", "org_123", OrganizationUpdate{Name: &name})
+	require.NoError(t, err)
+	assert.Equal(t, OrganizationBillingCollectionMethodStripePaymentMethod, got.BillingCollectionMethod)
+	assert.Equal(t, string(OrganizationBillingCollectionMethodStripePaymentMethod), organization.Attributes[OrganizationBillingCollectionMethodKey][0])
+
+	method := OrganizationBillingCollectionMethodMarketplace
+	_, err = r.UpdateOrganization(context.Background(), "realm", "org_123", OrganizationUpdate{BillingCollectionMethod: &method})
+	require.EqualError(t, err, "marketplace billing collection method requires a marketplace organization")
+
+	organization.Attributes[OrganizationMarketplaceKey] = []string{AWSMarketplaceProviderName}
+	got, err = r.UpdateOrganization(context.Background(), "realm", "org_123", OrganizationUpdate{BillingCollectionMethod: &method})
+	require.NoError(t, err)
+	assert.Equal(t, OrganizationBillingCollectionMethodMarketplace, got.BillingCollectionMethod)
+	assert.Equal(t, string(OrganizationBillingCollectionMethodMarketplace), organization.Attributes[OrganizationBillingCollectionMethodKey][0])
+
+	method = OrganizationBillingCollectionMethodStripePaymentMethod
+	got, err = r.UpdateOrganization(context.Background(), "realm", "org_123", OrganizationUpdate{BillingCollectionMethod: &method})
+	require.NoError(t, err)
+	assert.Equal(t, OrganizationBillingCollectionMethodStripePaymentMethod, got.BillingCollectionMethod)
+	assert.Equal(t, string(OrganizationBillingCollectionMethodStripePaymentMethod), organization.Attributes[OrganizationBillingCollectionMethodKey][0])
 }
 
 func TestConvertToOrganization_AWSMarketplace(t *testing.T) {

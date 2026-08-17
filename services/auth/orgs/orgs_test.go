@@ -19,6 +19,20 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+func TestUpdateOrganizationRejectsUnsupportedBillingCollectionMethod(t *testing.T) {
+	mockProj := protomocks.NewProjectsServiceClient(t)
+	mockKc := keycloakMocks.NewKeyCloak(t)
+	service := NewOrganizations(apitest.TestRealm, mockKc, mockProj)
+	method := keycloak.OrganizationBillingCollectionMethodUnknown
+
+	got, err := service.UpdateOrganization(context.Background(), "org-123", UpdateOrganizationOptions{
+		BillingCollectionMethod: &method,
+	})
+
+	require.Nil(t, got)
+	require.EqualError(t, err, `unsupported billing collection method "unknown"`)
+}
+
 func TestUpdateOrganization(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -218,6 +232,33 @@ func TestUpdateOrganization(t *testing.T) {
 				// mockProj is intentionally not called
 			},
 			wantErr: false,
+		},
+		{
+			name:           "billing collection method change updates Keycloak but does not trigger projects update",
+			organizationID: "org-123",
+			request: UpdateOrganizationOptions{
+				BillingCollectionMethod: ptr.To(keycloak.OrganizationBillingCollectionMethodMarketplace),
+			},
+			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
+				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-123", keycloak.GetOrganizationOptions{IncludeDeleted: false}).
+					Return(keycloak.Organization{
+						ID:                      "org-123",
+						BillingCollectionMethod: keycloak.OrganizationBillingCollectionMethodStripePaymentMethod,
+						Status: keycloak.OrganizationStatus{
+							BillingStatus: keycloak.OrganizationBillingStatusOK,
+						},
+					}, nil)
+
+				mockKc.EXPECT().UpdateOrganization(mock.Anything, apitest.TestRealm, "org-123", keycloak.OrganizationUpdate{
+					BillingCollectionMethod: ptr.To(keycloak.OrganizationBillingCollectionMethodMarketplace),
+				}).Return(keycloak.Organization{
+					ID:                      "org-123",
+					BillingCollectionMethod: keycloak.OrganizationBillingCollectionMethodMarketplace,
+					Status: keycloak.OrganizationStatus{
+						BillingStatus: keycloak.OrganizationBillingStatusOK,
+					},
+				}, nil)
+			},
 		},
 		{
 			name:           "UsageTier unchanged does not update Keycloak",
