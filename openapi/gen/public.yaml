@@ -47,6 +47,8 @@ tags:
   - name: Logs
     description: Operations for retrieving log entries for a branch
     x-displayName: Logs
+  - name: Vercel
+    x-displayName: Vercel
   - name: Webhooks
     x-displayName: Webhooks
 externalDocs:
@@ -2896,6 +2898,67 @@ paths:
         - GitHub App
       x-excluded: true
       x-operation-kind: destructive
+  /v1/installations/{installationId}:
+    put:
+      operationId: upsertInstallation
+      summary: Upsert a Vercel Marketplace installation
+      description: |
+        Create or update an installation. Vercel sends this when a customer
+        installs (or re-sends it idempotently). The acting account is taken from
+        the signed token claims, not this body. There is one installation per
+        Vercel team, and an installation can own many Xata organizations.
+      parameters:
+        - $ref: '#/components/parameters/InstallationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertInstallationRequest'
+      responses:
+        '204':
+          description: |
+            Installation created or updated. No body. (Vercel's contract also
+            allows a 200 with an installation-level billingPlan/notification
+            body; Xata does not use installation-level billing plans.)
+        '400':
+          $ref: '#/components/responses/VercelError'
+        '403':
+          $ref: '#/components/responses/VercelError'
+        '409':
+          $ref: '#/components/responses/VercelError'
+      tags:
+        - Vercel
+      x-excluded: true
+      x-operation-kind: write
+    delete:
+      operationId: deleteInstallation
+      summary: Delete a Vercel Marketplace installation
+      description: |
+        Begin uninstalling an installation. The installation is marked
+        'deleting' so billing can finalize before being soft-deleted; the 204
+        defers final deletion to Vercel's 24-hour window. (Vercel's contract
+        also allows a 200 with {"finalized": true} for immediate deletion;
+        Xata always finalizes asynchronously.)
+      parameters:
+        - $ref: '#/components/parameters/InstallationId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteInstallationRequest'
+      responses:
+        '204':
+          description: Uninstall accepted; deletion finalizes asynchronously. No body.
+        '403':
+          $ref: '#/components/responses/VercelError'
+        '409':
+          $ref: '#/components/responses/VercelError'
+      tags:
+        - Vercel
+      x-excluded: true
+      x-operation-kind: destructive
   /webhooks/orb:
     post:
       operationId: orbWebhook
@@ -3006,6 +3069,13 @@ components:
       schema:
         $ref: '#/components/schemas/UserID'
       description: Unique identifier for a specific user account
+    InstallationId:
+      name: installationId
+      in: path
+      required: true
+      description: Vercel installation id (icfg_...).
+      schema:
+        type: string
   schemas:
     User:
       description: User information including email, full name, and profile image
@@ -5030,6 +5100,122 @@ components:
         - name
       x-excluded: true
       x-internal: true
+    UpsertInstallationRequest:
+      type: object
+      properties:
+        scopes:
+          description: Scopes granted to the installation.
+          type: array
+          items:
+            type: string
+        acceptedPolicies:
+          description: 'Map of policy id to the acceptance timestamp (RFC 3339), e.g. {"toc": "2024-02-28T10:00:00Z"}.'
+          type: object
+          additionalProperties:
+            type: string
+            format: date-time
+        credentials:
+          $ref: '#/components/schemas/InstallationCredentials'
+        account:
+          $ref: '#/components/schemas/InstallationAccount'
+      required:
+        - scopes
+        - acceptedPolicies
+        - credentials
+        - account
+      x-excluded: true
+      x-internal: true
+    InstallationCredentials:
+      type: object
+      properties:
+        access_token:
+          description: Installation access token that authenticates our outbound Partner API calls to Vercel. Stored encrypted at rest.
+          type: string
+        token_type:
+          description: Token type (e.g. "Bearer").
+          type: string
+      required:
+        - access_token
+        - token_type
+      x-excluded: true
+      x-internal: true
+    InstallationAccount:
+      description: The Vercel account/team installing the integration.
+      type: object
+      properties:
+        name:
+          description: Team name (absent for personal accounts).
+          type: string
+        url:
+          description: URL of the account on Vercel.
+          type: string
+        contact:
+          description: Contact details for the account.
+          type: object
+          properties:
+            email:
+              type: string
+            name:
+              type: string
+          required:
+            - email
+      required:
+        - url
+      x-excluded: true
+      x-internal: true
+    DeleteInstallationRequest:
+      type: object
+      properties:
+        cascadeResourceDeletion:
+          description: Whether to delete the installation's resources along with the installation.
+          type: boolean
+        reason:
+          description: The reason for deleting the installation.
+          type: string
+      x-excluded: true
+      x-internal: true
+    VercelError:
+      description: Vercel Partner API error envelope.
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              description: Machine-readable error code (e.g. validation_error, conflict).
+              type: string
+            message:
+              description: Human-readable (system) error message.
+              type: string
+            user:
+              description: User-facing error details, if applicable.
+              type: object
+              properties:
+                message:
+                  description: User-facing error message.
+                  type: string
+                url:
+                  description: URL to a help article or dashboard page for resolution.
+                  type: string
+            fields:
+              description: Offending fields, for validation errors.
+              type: array
+              items:
+                type: object
+                properties:
+                  key:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - key
+          required:
+            - code
+            - message
+      required:
+        - error
+      x-excluded: true
+      x-internal: true
   responses:
     BadRequestError:
       description: Error returned when the request is malformed or contains invalid parameters
@@ -5123,6 +5309,12 @@ components:
                 type: string
             required:
               - message
+    VercelError:
+      description: Error response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/VercelError'
 x-tagGroups:
   - name: Authentication API
     tags:
@@ -5146,6 +5338,9 @@ x-tagGroups:
       - GitHub App
       - Metrics
       - Logs
+  - name: Vercel Marketplace API
+    tags:
+      - Vercel
 security:
   - oidc: []
   - apiKey: []
