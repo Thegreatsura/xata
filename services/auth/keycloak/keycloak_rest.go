@@ -765,8 +765,11 @@ func (r *restKC) searchOrganization(ctx context.Context, realm, alias string) (K
 		return KeycloakOrganization{}, fmt.Errorf("failed to get organization: %w", err)
 	}
 
-	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK, http.StatusConflict) {
-		return KeycloakOrganization{}, ErrOrganizationNotFound{ID: alias}
+	// The search endpoint only ever succeeds with a 200; a missing organization
+	// is an empty result list, so any other status is a Keycloak failure, not
+	// proof the organization is gone.
+	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK) {
+		return KeycloakOrganization{}, fmt.Errorf("search organization %s: unexpected status code %d: %s", alias, resp.StatusCode(), resp.String())
 	}
 
 	var orgs []KeycloakOrganization

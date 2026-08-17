@@ -2,6 +2,7 @@ package orgs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -54,6 +55,9 @@ func (o *orgsService) UpdateOrganization(
 	organizationID string,
 	req UpdateOrganizationOptions,
 ) (*keycloak.Organization, error) {
+	// Ensure the organization exists. Only a genuine not-found means no access;
+	// a degraded Keycloak must surface as an error so callers don't mistake an
+	// outage for a missing organization.
 	if req.BillingCollectionMethod != nil && !req.BillingCollectionMethod.Valid() {
 		return nil, fmt.Errorf("unsupported billing collection method %q", *req.BillingCollectionMethod)
 	}
@@ -61,7 +65,10 @@ func (o *orgsService) UpdateOrganization(
 	// Ensure the organization exists
 	organization, err := o.kcRest.GetOrganization(ctx, o.realm, organizationID, keycloak.GetOrganizationOptions{IncludeDeleted: false})
 	if err != nil {
-		return nil, api.ErrorNoOrganizationAccess{OrganizationID: organizationID}
+		if _, ok := errors.AsType[keycloak.ErrOrganizationNotFound](err); ok {
+			return nil, api.ErrorNoOrganizationAccess{OrganizationID: organizationID}
+		}
+		return nil, fmt.Errorf("get organization %s: %w", organizationID, err)
 	}
 
 	// Desired state

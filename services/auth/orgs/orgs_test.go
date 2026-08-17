@@ -41,19 +41,33 @@ func TestUpdateOrganization(t *testing.T) {
 		setupMock      func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient)
 		wantErr        bool
 		err            error
+		errIsNot       error
 	}{
 		{
-			name:           "Unknown organization returns error",
+			name:           "Unknown organization returns no-access error",
 			organizationID: "org-unknown",
 			request: UpdateOrganizationOptions{
 				DisabledByAdmin: new(true),
 			},
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
 				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-unknown", keycloak.GetOrganizationOptions{IncludeDeleted: false}).
-					Return(keycloak.Organization{}, api.ErrorNoOrganizationAccess{OrganizationID: "org-unknown"})
+					Return(keycloak.Organization{}, keycloak.ErrOrganizationNotFound{ID: "org-unknown"})
 			},
 			wantErr: true,
 			err:     api.ErrorNoOrganizationAccess{OrganizationID: "org-unknown"},
+		},
+		{
+			name:           "Keycloak failure is not translated to no-access",
+			organizationID: "org-123",
+			request: UpdateOrganizationOptions{
+				DisabledByAdmin: new(true),
+			},
+			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
+				mockKc.EXPECT().GetOrganization(mock.Anything, apitest.TestRealm, "org-123", keycloak.GetOrganizationOptions{IncludeDeleted: false}).
+					Return(keycloak.Organization{}, assert.AnError)
+			},
+			wantErr:  true,
+			errIsNot: api.ErrorNoOrganizationAccess{OrganizationID: "org-123"},
 		},
 		{
 			name:           "Empty request object doesn't invoke any update",
@@ -372,6 +386,12 @@ func TestUpdateOrganization(t *testing.T) {
 
 			if tt.wantErr {
 				require.Error(t, err)
+				if tt.err != nil {
+					require.ErrorIs(t, err, tt.err)
+				}
+				if tt.errIsNot != nil {
+					require.NotErrorIs(t, err, tt.errIsNot)
+				}
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, resp)

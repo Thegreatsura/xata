@@ -111,6 +111,63 @@ func TestGetOrganizationOptions(t *testing.T) {
 	}
 }
 
+func TestGetOrganizationSearchStatus(t *testing.T) {
+	tests := map[string]struct {
+		status       int
+		body         string
+		wantNotFound bool
+		wantErr      string
+	}{
+		"empty search result is not found": {
+			status:       http.StatusOK,
+			body:         `[]`,
+			wantNotFound: true,
+		},
+		"server error is not treated as not found": {
+			status:  http.StatusInternalServerError,
+			body:    `{"error":"boom"}`,
+			wantErr: "unexpected status code 500",
+		},
+		"bad gateway is not treated as not found": {
+			status:  http.StatusBadGateway,
+			body:    "upstream unavailable",
+			wantErr: "unexpected status code 502",
+		},
+		"conflict is not treated as not found": {
+			status:  http.StatusConflict,
+			body:    `{"errorMessage":"conflict"}`,
+			wantErr: "unexpected status code 409",
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if strings.HasSuffix(req.URL.Path, tokenEndpointSuffix) {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`{"access_token":"test-token","expires_in":300,"token_type":"Bearer"}`))
+					return
+				}
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+			r := newTestRestKC(srv.URL)
+
+			_, err := r.GetOrganization(context.Background(), "realm", "org-1", GetOrganizationOptions{})
+
+			if tc.wantNotFound {
+				var notFound ErrOrganizationNotFound
+				require.ErrorAs(t, err, &notFound)
+				return
+			}
+			var notFound ErrOrganizationNotFound
+			require.NotErrorAs(t, err, &notFound, "a Keycloak failure must not be reported as organization-not-found")
+			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+}
+
 func TestGetTokenCachesAdminLogin(t *testing.T) {
 	var loginCount, userCount atomic.Int32
 
