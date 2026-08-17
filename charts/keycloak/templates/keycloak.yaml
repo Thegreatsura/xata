@@ -51,6 +51,14 @@ spec:
     {{- toYaml .Values.resources | nindent 4 }}
   proxy:
     headers: {{ .Values.proxy.headers }} # double check your reverse proxy sets and overwrites the X-Forwarded-* headers
+  {{- with .Values.additionalOptions }}
+  additionalOptions:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if .Values.tracing.enabled }}
+  tracing:
+    {{- toYaml .Values.tracing | nindent 4 }}
+  {{- end }}
   {{- with .Values.tolerations }}
   scheduling:
     tolerations:

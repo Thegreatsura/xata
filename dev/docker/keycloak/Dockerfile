@@ -47,10 +47,9 @@ ARG SOURCE_DATE_EPOCH=946684800
 
 WORKDIR /opt/keycloak
 
-# TODO: Upgrade Keycloak once it includes Quarkus 3.35+; 26.7.0 still
-# generates non-reproducible proxy IDs during augmentation (quarkusio/quarkus#53025).
 RUN touch -m --date="@${SOURCE_DATE_EPOCH}" /opt/keycloak/providers/* && \
-    /opt/keycloak/bin/kc.sh build --features=docker,authorization --verbose
+    /opt/keycloak/bin/kc.sh build --features=docker,authorization \
+        --tracing-enabled=true --tracing-jdbc-enabled=false --verbose
 
 # Stage 4: Runtime image
 FROM quay.io/keycloak/keycloak:26.7.1

@@ -40,6 +40,17 @@ resources:
 proxy:
   headers: xforwarded
 
+additionalOptions:
+  # Successful events log at DEBUG, so without this only failures reach the log pipeline.
+  - name: spi-events-listener--jboss-logging--success-level
+    value: "info"
+  # Cluster gossip is 13% of the trace volume and says nothing about the flows we trace.
+  - name: tracing-infinispan-enabled
+    value: "false"
+
+tracing:
+  enabled: false
+
 config:
   api:
     url: http://auth-keycloak-service:8080
