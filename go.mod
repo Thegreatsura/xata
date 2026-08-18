@@ -564,6 +564,3 @@ tool (
 replace github.com/kedacore/keda/v2 => github.com/mycreepy/keda/v2 v2.0.0-20250410154859-818b39f4fdfe
 
 replace github.com/prometheus/prometheus => github.com/prometheus/prometheus v0.45.0
-
-// Transient dependency apps:v0.0.0 (which is not used) breaks the build in GoLand
-replace github.com/openebs/openebs-e2e/apps => /dev/null
