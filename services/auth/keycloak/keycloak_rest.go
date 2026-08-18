@@ -477,7 +477,7 @@ func (r *restKC) UpdateOrganization(
 	}
 
 	if len(updates) == 0 && !deleteResourcesCleanedAt {
-		return r.GetOrganization(ctx, realm, organizationID, GetOrganizationOptions{IncludeDeleted: false})
+		return r.GetOrganization(ctx, realm, organizationID, GetOrganizationOptions{IncludeDeleted: true})
 	}
 
 	// Apply updates
@@ -511,7 +511,7 @@ func (r *restKC) UpdateOrganization(
 		)
 	}
 
-	return r.GetOrganization(ctx, realm, organizationID, GetOrganizationOptions{IncludeDeleted: false})
+	return r.GetOrganization(ctx, realm, organizationID, GetOrganizationOptions{IncludeDeleted: true})
 }
 
 func (r *restKC) DeleteOrganization(ctx context.Context, realm, organizationID string) error {

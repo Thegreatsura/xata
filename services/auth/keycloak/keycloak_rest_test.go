@@ -728,6 +728,71 @@ func TestUpdateOrganizationRejectsUnsupportedBillingCollectionMethod(t *testing.
 	}
 }
 
+func TestUpdateOrganizationIncludesDeletedOrganization(t *testing.T) {
+	deletedAt := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
+	updatedName := "Updated Acme"
+	testCases := map[string]struct {
+		update   OrganizationUpdate
+		wantName string
+		wantPuts int32
+	}{
+		"updates deleted organization": {
+			update:   OrganizationUpdate{Name: &updatedName},
+			wantName: updatedName,
+			wantPuts: 1,
+		},
+		"returns deleted organization for no-op": {
+			update:   OrganizationUpdate{},
+			wantName: "Acme",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			organization := KeycloakOrganization{
+				ID:    "keycloak-id",
+				Name:  "org_123",
+				Alias: "org_123",
+				Attributes: map[string][]string{
+					OrganizationDisplayNameKey: {"Acme"},
+					OrganizationDeletedAtKey:   {deletedAt.Format(time.RFC3339)},
+				},
+			}
+			var putCount atomic.Int32
+
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if strings.HasSuffix(req.URL.Path, tokenEndpointSuffix) {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`{"access_token":"test-token","expires_in":300,"token_type":"Bearer"}`))
+					return
+				}
+				if req.Method == http.MethodPut {
+					if err := json.NewDecoder(req.Body).Decode(&organization); err != nil {
+						http.Error(w, err.Error(), http.StatusBadRequest)
+						return
+					}
+					putCount.Add(1)
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode([]KeycloakOrganization{organization})
+			}))
+			defer srv.Close()
+
+			r := newTestRestKC(srv.URL)
+			got, err := r.UpdateOrganization(context.Background(), "realm", "org_123", tc.update)
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantName, got.Name)
+			assert.Equal(t, &deletedAt, got.Status.DeletedAt)
+			assert.Equal(t, []string{tc.wantName}, organization.Attributes[OrganizationDisplayNameKey])
+			assert.Equal(t, []string{deletedAt.Format(time.RFC3339)}, organization.Attributes[OrganizationDeletedAtKey])
+			assert.Equal(t, tc.wantPuts, putCount.Load())
+		})
+	}
+}
+
 func TestUpdateOrganizationBillingCollectionMethod(t *testing.T) {
 	organization := KeycloakOrganization{
 		ID:    "keycloak-id",
