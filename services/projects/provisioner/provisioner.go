@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	clustersv1 "xata/gen/proto/clusters/v1"
+	"xata/internal/idgen"
 	"xata/services/projects/cells"
 	"xata/services/projects/store"
 
@@ -152,6 +153,7 @@ func (p *BranchProvisioner) CreateBranch(ctx context.Context, projectID, organiz
 	}, func(branch *store.Branch) error {
 		request := clustersv1.CreatePostgresClusterRequest{
 			Id:                  branch.ID,
+			IdempotencyKey:      idgen.Generate(),
 			ParentId:            branch.ParentID,
 			OrganizationId:      organizationID,
 			ProjectId:           projectID,

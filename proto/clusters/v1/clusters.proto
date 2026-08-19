@@ -75,6 +75,8 @@ message CreatePostgresClusterRequest {
   // whether to use the xatastor StorageClass for the root cluster (no-op if
   // xatastor is not enabled in the cell)
   optional bool use_xatastor = 11;
+  // identifies retries of the same internal create operation
+  string idempotency_key = 12;
 }
 
 // CreatePostgresClusterResponse is the response object for CreatePostgresCluster

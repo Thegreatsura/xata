@@ -343,8 +343,21 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		return nil, err
 	}
 
-	// Create the Branch CR
-	if err := c.kubeClient.Create(ctx, branch); err != nil {
+	// Create the Branch CR. A retry can reach this point after the first call
+	// created the Branch but lost its response. Treat the existing Branch as
+	// the result only when it has the same idempotency key.
+	createErr := c.kubeClient.Create(ctx, branch)
+	if apierrors.IsAlreadyExists(createErr) {
+		existing, err := c.getBranch(ctx, req.GetId())
+		if err != nil {
+			createErr = err
+		} else if req.GetIdempotencyKey() != "" &&
+			existing.Annotations[AnnotationIdempotencyKey] == req.GetIdempotencyKey() {
+			branch = existing
+			createErr = nil
+		}
+	}
+	if createErr != nil {
 		// Best-effort cleanup of a secret created by this call (skip if it
 		// pre-existed): without a Branch to adopt it, nothing owns it.
 		if createdSecret != nil {
@@ -359,7 +372,7 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 					Msg("clean up pgbackrest secret after branch create failure")
 			}
 		}
-		return nil, k8sErrorToGRPCError(err)
+		return nil, k8sErrorToGRPCError(createErr)
 	}
 
 	// Create the WakeupRequest CR if the new branch requires one

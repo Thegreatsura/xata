@@ -19,6 +19,7 @@ import (
 	"xata/internal/api/clienthttpheaders"
 	"xata/internal/extensions"
 	"xata/internal/flags"
+	"xata/internal/idgen"
 	"xata/internal/o11y"
 	"xata/internal/openfeature"
 	"xata/internal/postgrescfg"
@@ -2194,6 +2195,7 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 				createClusterPayload.Configuration.ScaleToZero = scaleToZero
 				request := clustersv1.CreatePostgresClusterRequest{
 					Id:             branch.ID,
+					IdempotencyKey: idgen.Generate(),
 					OrganizationId: organizationID,
 					ProjectId:      projectID,
 					ParentId:       branch.ParentID,

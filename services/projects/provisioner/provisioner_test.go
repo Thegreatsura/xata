@@ -94,7 +94,9 @@ func TestCreateBranch(t *testing.T) {
 			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
 				mockStore.EXPECT().GetProject(mock.Anything, orgID, projectID).Return(project, nil).Once()
 				mockCreateBranch(mockStore, branchOnPrimary)
-				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.Anything).
+				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.MatchedBy(func(req *clustersv1.CreatePostgresClusterRequest) bool {
+					return req.GetIdempotencyKey() != ""
+				})).
 					Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
 				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(primaryCell, nil).Once()
 			},

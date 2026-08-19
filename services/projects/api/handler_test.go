@@ -1941,7 +1941,7 @@ func TestRestoreFromBackup(t *testing.T) {
 				mockStore.EXPECT().GetPrimaryCell(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Cell{ID: "cell_id", RegionID: "region-id-1", Primary: true}, nil).Once()
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.MatchedBy(func(req *clustersv1.CreatePostgresClusterRequest) bool {
 					if cb, ok := req.DataSource.(*clustersv1.CreatePostgresClusterRequest_ContinuousBackup); ok {
-						return cb.ContinuousBackup.ClusterId == sourceBranchID
+						return cb.ContinuousBackup.ClusterId == sourceBranchID && req.GetIdempotencyKey() != ""
 					}
 					return false
 				})).Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()

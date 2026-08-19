@@ -19,6 +19,7 @@ const (
 	LabelProjectID                 = "xata.io/projectID"
 	LabelBranchID                  = "xata.io/branchID"
 	LabelXatastorAntiAffinityGroup = "xatastor.xata.io/anti-affinity-group"
+	AnnotationIdempotencyKey       = "xata.io/idempotency-key"
 	XataUtilsPreloadName           = "xatautils"
 
 	DefaultPgBackRestRetentionDays = 7
@@ -84,6 +85,11 @@ func (b *BranchBuilder) FromCreateClusterRequest(r *clustersv1.CreatePostgresClu
 			},
 			BackupSpec: backupSpec(r.GetBackupConfiguration()),
 		},
+	}
+	if r.GetIdempotencyKey() != "" {
+		b.branch.Annotations = map[string]string{
+			AnnotationIdempotencyKey: r.GetIdempotencyKey(),
+		}
 	}
 
 	return b

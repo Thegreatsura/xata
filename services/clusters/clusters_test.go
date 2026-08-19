@@ -780,6 +780,55 @@ func TestCreatePostgresCluster(t *testing.T) {
 	}
 }
 
+func TestCreatePostgresClusterIdempotent(t *testing.T) {
+	t.Parallel()
+
+	t.Run("same idempotency key returns existing branch", func(t *testing.T) {
+		ctx := context.Background()
+		svc, k8sClient := setupTestClustersService(t)
+		req, _, _, _, _ := exampleRequestsAndBranches()
+		req.IdempotencyKey = "create-request-id"
+
+		first, err := svc.CreatePostgresCluster(ctx, req)
+		require.NoError(t, err)
+
+		secretKey := client.ObjectKey{Name: req.GetId() + "-app", Namespace: "xata-clusters"}
+		firstSecret := &corev1.Secret{}
+		require.NoError(t, k8sClient.Get(ctx, secretKey, firstSecret))
+
+		second, err := svc.CreatePostgresCluster(ctx, req)
+		require.NoError(t, err)
+		require.Equal(t, first, second)
+
+		secondSecret := &corev1.Secret{}
+		require.NoError(t, k8sClient.Get(ctx, secretKey, secondSecret))
+		require.Equal(t,
+			firstSecret.Data[corev1.BasicAuthPasswordKey],
+			secondSecret.Data[corev1.BasicAuthPasswordKey])
+	})
+
+	t.Run("different idempotency key returns already exists", func(t *testing.T) {
+		ctx := context.Background()
+		req, existing, _, _, _ := exampleRequestsAndBranches()
+		req.IdempotencyKey = "create-request-id"
+		existing.Annotations = map[string]string{
+			AnnotationIdempotencyKey: "another-key",
+		}
+		svc, k8sClient := setupTestClustersService(t, withExistingObjects(existing))
+
+		resp, err := svc.CreatePostgresCluster(ctx, req)
+		require.Nil(t, resp)
+		require.Equal(t, codes.AlreadyExists, status.Code(err))
+
+		secret := &corev1.Secret{}
+		err = k8sClient.Get(ctx, client.ObjectKey{
+			Name:      req.GetId() + "-app",
+			Namespace: "xata-clusters",
+		}, secret)
+		require.True(t, errors.IsNotFound(err))
+	})
+}
+
 func TestCreatePostgresClusterAppSecret(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

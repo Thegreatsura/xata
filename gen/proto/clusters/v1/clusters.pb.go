@@ -108,9 +108,11 @@ type CreatePostgresClusterRequest struct {
 	UsePool *bool `protobuf:"varint,10,opt,name=use_pool,json=usePool,proto3,oneof" json:"use_pool,omitempty"`
 	// whether to use the xatastor StorageClass for the root cluster (no-op if
 	// xatastor is not enabled in the cell)
-	UseXatastor   *bool `protobuf:"varint,11,opt,name=use_xatastor,json=useXatastor,proto3,oneof" json:"use_xatastor,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	UseXatastor *bool `protobuf:"varint,11,opt,name=use_xatastor,json=useXatastor,proto3,oneof" json:"use_xatastor,omitempty"`
+	// identifies retries of the same internal create operation
+	IdempotencyKey string `protobuf:"bytes,12,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreatePostgresClusterRequest) Reset() {
@@ -231,6 +233,13 @@ func (x *CreatePostgresClusterRequest) GetUseXatastor() bool {
 		return *x.UseXatastor
 	}
 	return false
+}
+
+func (x *CreatePostgresClusterRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 type isCreatePostgresClusterRequest_DataSource interface {
@@ -2992,7 +3001,7 @@ var File_clusters_v1_clusters_proto protoreflect.FileDescriptor
 
 const file_clusters_v1_clusters_proto_rawDesc = "" +
 	"\n" +
-	"\x1aclusters/v1/clusters.proto\x12\vclusters.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8e\x05\n" +
+	"\x1aclusters/v1/clusters.proto\x12\vclusters.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x05\n" +
 	"\x1cCreatePostgresClusterRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12G\n" +
 	"\rconfiguration\x18\x02 \x01(\v2!.clusters.v1.ClusterConfigurationR\rconfiguration\x12 \n" +
@@ -3007,7 +3016,8 @@ const file_clusters_v1_clusters_proto_rawDesc = "" +
 	"baseBackup\x12\x1e\n" +
 	"\buse_pool\x18\n" +
 	" \x01(\bH\x02R\ausePool\x88\x01\x01\x12&\n" +
-	"\fuse_xatastor\x18\v \x01(\bH\x03R\vuseXatastor\x88\x01\x01B\r\n" +
+	"\fuse_xatastor\x18\v \x01(\bH\x03R\vuseXatastor\x88\x01\x01\x12'\n" +
+	"\x0fidempotency_key\x18\f \x01(\tR\x0eidempotencyKeyB\r\n" +
 	"\vdata_sourceB\f\n" +
 	"\n" +
 	"_parent_idB\v\n" +
