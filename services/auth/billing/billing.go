@@ -15,6 +15,14 @@ const (
 	CreditStatusPendingPayment = "pending_payment"
 )
 
+type CollectionMethod string
+
+const (
+	CollectionMethodUnknown             CollectionMethod = "unknown"
+	CollectionMethodStripePaymentMethod CollectionMethod = "stripe_payment_method"
+	CollectionMethodMarketplace         CollectionMethod = "marketplace"
+)
+
 type Subscription struct {
 	ID string
 }
@@ -66,6 +74,13 @@ type Customer struct {
 	DefaultPaymentMethod  *PaymentMethod
 	HasValidPaymentMethod bool
 	Organization          *authv1.Organization
+}
+
+func (c *Customer) CollectionMethod() CollectionMethod {
+	if c == nil {
+		return CollectionMethodUnknown
+	}
+	return CollectionMethod(c.Organization.GetBillingCollectionMethod())
 }
 
 func (c *Customer) CurrentActiveCredit() float64 {

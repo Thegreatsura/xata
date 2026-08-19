@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	authv1 "xata/gen/proto/auth/v1"
 )
 
 func TestOrbCustomerMetadataValues(t *testing.T) {
@@ -25,6 +27,40 @@ func TestOrbCustomerMetadataValues(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			got := tc.metadata.Values()
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestCustomerCollectionMethod(t *testing.T) {
+	testCases := map[string]struct {
+		customer *Customer
+		want     CollectionMethod
+	}{
+		"unknown": {
+			customer: &Customer{Organization: &authv1.Organization{BillingCollectionMethod: "unknown"}},
+			want:     CollectionMethodUnknown,
+		},
+		"marketplace": {
+			customer: &Customer{Organization: &authv1.Organization{BillingCollectionMethod: "marketplace"}},
+			want:     CollectionMethodMarketplace,
+		},
+		"Stripe payment method": {
+			customer: &Customer{Organization: &authv1.Organization{BillingCollectionMethod: "stripe_payment_method"}},
+			want:     CollectionMethodStripePaymentMethod,
+		},
+		"marketplace provider does not override collection method": {
+			customer: &Customer{Organization: &authv1.Organization{BillingCollectionMethod: "stripe_payment_method", Marketplace: "aws"}},
+			want:     CollectionMethodStripePaymentMethod,
+		},
+		"nil customer is unknown": {
+			want: CollectionMethodUnknown,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			got := tc.customer.CollectionMethod()
 			require.Equal(t, tc.want, got)
 		})
 	}
