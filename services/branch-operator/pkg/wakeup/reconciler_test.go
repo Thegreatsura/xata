@@ -69,6 +69,7 @@ func TestWakeupReconciler(t *testing.T) {
 		// Expect the Branch to have:
 		// * A cluster name assigned
 		// * The awaiting wakeup annotation set to false
+		// * Its image unchanged (the pool cluster has no image to adopt)
 		requireEventuallyTrue(t, func() bool {
 			br := &v1alpha1.Branch{}
 			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(branch), br)
@@ -76,7 +77,8 @@ func TestWakeupReconciler(t *testing.T) {
 				return false
 			}
 
-			return br.Spec.ClusterSpec.Name != nil && !br.IsAwaitingWakeup()
+			return br.Spec.ClusterSpec.Name != nil && !br.IsAwaitingWakeup() &&
+				br.Spec.ClusterSpec.Image == branch.Spec.ClusterSpec.Image
 		})
 
 		// Expect the Cluster to no longer have the pool's controller owner
@@ -112,6 +114,71 @@ func TestWakeupReconciler(t *testing.T) {
 			}
 
 			return pv.Annotations[v1alpha1.AwokenByXVolAnnotation] == "xvol-"+branchName
+		})
+	})
+
+	t.Run("adopts the pool cluster's newer minor image on wakeup", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		poolName := "pool-" + randomString(10)
+		clusterName := "cluster-" + randomString(10)
+		branchName := "branch-" + randomString(10)
+		wrName := "wur-" + randomString(10)
+
+		// Create a ClusterPool
+		pool := &poolv1alpha1.ClusterPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      poolName,
+				Namespace: TestNamespace,
+			},
+			Spec: poolv1alpha1.ClusterPoolSpec{
+				Clusters: 1,
+				ClusterSpec: apiv1.ClusterSpec{
+					Instances: 1,
+				},
+			},
+		}
+		require.NoError(t, k8sClient.Create(ctx, pool))
+
+		// Create a healthy CNPG Cluster with 1 ready instance, owned by the pool
+		cluster, err := setupPoolCluster(ctx, pool, clusterName, TestNamespace, 1)
+		require.NoError(t, err)
+
+		// Give the pool cluster a newer minor of the branch's image (the
+		// createBranch fixture pins cnpg-postgres-plus:17.7)
+		newerImage := "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.9"
+		cluster.Spec.ImageName = newerImage
+		require.NoError(t, k8sClient.Update(ctx, cluster))
+
+		// Create a Branch with pool annotation and no cluster name
+		branch, err := createBranch(ctx, branchName, map[string]string{
+			v1alpha1.WakeupPoolAnnotation:     poolName,
+			v1alpha1.AwaitingWakeupAnnotation: "true",
+		})
+		require.NoError(t, err)
+
+		// Seed the app secret and Cluster password status so the reconciler's
+		// wait for the role password to sync succeeds
+		require.NoError(t, seedPasswordSync(ctx, branch, cluster))
+
+		// Create a WakeupRequest
+		wr, err := createWakeupRequest(ctx, wrName, branch.Name)
+		require.NoError(t, err)
+
+		// Expect the WakeupRequest to complete successfully
+		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionTrue, v1alpha1.WakeupSucceededReason)
+
+		// Expect the Branch to have adopted the pool cluster's image in the
+		// same update that assigned the cluster
+		requireEventuallyTrue(t, func() bool {
+			br := &v1alpha1.Branch{}
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(branch), br); err != nil {
+				return false
+			}
+
+			return br.Spec.ClusterSpec.Name != nil && !br.IsAwaitingWakeup() &&
+				br.Spec.ClusterSpec.Image == newerImage
 		})
 	})
 

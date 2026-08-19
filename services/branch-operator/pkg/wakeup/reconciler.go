@@ -120,7 +120,7 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// * set the Succeeded condition to True
 	// * requeue the WakeupRequest for deletion after its TTL expires
 	if branch.Spec.ClusterSpec.Name != nil {
-		err = r.assignClusterToBranch(ctx, branch, *branch.Spec.ClusterSpec.Name)
+		err = r.assignClusterToBranch(ctx, branch, *branch.Spec.ClusterSpec.Name, branch.Spec.ClusterSpec.Image)
 		if err != nil {
 			log.Error(err, "re-assigning cluster to Branch", "branchName", branch.Name)
 			return ctrl.Result{}, ignoreTerminal(err)
@@ -211,8 +211,20 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, ignoreTerminal(err)
 	}
 
+	// Adopt the pool cluster's image when it is a newer minor of the branch's
+	// image, so that a pool version bump propagates to the branch on its next
+	// wakeup instead of the branch reconciler rolling the warm cluster back to
+	// the branch's older image right after adoption
+	image := adoptableImage(branch.Spec.ClusterSpec.Image, cluster.Spec.ImageName)
+	if image != "" {
+		log.Info("adopting pool cluster image", "branchName", branch.Name,
+			"branchImage", branch.Spec.ClusterSpec.Image, "clusterImage", image)
+	} else {
+		image = branch.Spec.ClusterSpec.Image
+	}
+
 	// Assign the cluster to the branch
-	err = r.assignClusterToBranch(ctx, branch, cluster.Name)
+	err = r.assignClusterToBranch(ctx, branch, cluster.Name, image)
 	if err != nil {
 		log.Error(err, "assigning cluster to Branch", "branchName", branch.Name)
 		return ctrl.Result{}, ignoreTerminal(err)

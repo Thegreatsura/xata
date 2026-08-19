@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"xata/internal/postgresversions"
 	"xata/services/branch-operator/api/v1alpha1"
 	v1alpha1ac "xata/services/branch-operator/applyconfiguration/api/v1alpha1"
 
@@ -52,13 +53,21 @@ func (r *WakeupReconciler) wakeupPoolName(branch *v1alpha1.Branch) (string, erro
 }
 
 // assignClusterToBranch updates the Branch resource to set the given Cluster
-// name in its spec and sets the awaiting wakeup annotation to false
-func (r *WakeupReconciler) assignClusterToBranch(ctx context.Context, branch *v1alpha1.Branch, clusterName string) error {
+// name and image in its spec and sets the awaiting wakeup annotation to
+// false. The image must always be passed (normally the branch's current
+// image, or the adopted pool cluster image, see adoptableImage): once this
+// field manager has applied the image, omitting it from a later apply would
+// make SSA remove the field from the Branch spec
+func (r *WakeupReconciler) assignClusterToBranch(ctx context.Context, branch *v1alpha1.Branch, clusterName, image string) error {
+	clusterSpec := v1alpha1ac.ClusterSpec().WithName(clusterName)
+	if image != "" {
+		clusterSpec = clusterSpec.WithImage(image)
+	}
+
 	ac := v1alpha1ac.Branch(branch.Name, "").
 		WithAnnotations(map[string]string{v1alpha1.AwaitingWakeupAnnotation: "false"}).
 		WithSpec(v1alpha1ac.BranchSpec().
-			WithClusterSpec(v1alpha1ac.ClusterSpec().
-				WithName(clusterName)))
+			WithClusterSpec(clusterSpec))
 
 	// Apply the Branch spec update using SSA
 	err := r.Apply(ctx, ac, client.FieldOwner(ReconcilerName), client.ForceOwnership)
@@ -67,4 +76,36 @@ func (r *WakeupReconciler) assignClusterToBranch(ctx context.Context, branch *v1
 	}
 
 	return nil
+}
+
+// adoptableImage returns the pool cluster's image when the branch should
+// adopt it on wakeup: the same offering and major version as the branch's
+// current image, with a newer minor. It returns "" when the branch's own
+// image stays authoritative; the branch reconciler then rolls the adopted
+// cluster to the branch's image, which remains the behavior for every other
+// kind of mismatch. Adopting newer minors makes a pool image bump propagate
+// to its branches for free on their next wakeup, instead of every wakeup
+// paying an extra rollout to move the warm cluster back to the branch's
+// older image.
+func adoptableImage(branchImage, clusterImage string) string {
+	if branchImage == "" || clusterImage == "" || branchImage == clusterImage {
+		return ""
+	}
+
+	branchVersion, err := postgresversions.ParseImageVersion(branchImage)
+	if err != nil {
+		return ""
+	}
+	clusterVersion, err := postgresversions.ParseImageVersion(clusterImage)
+	if err != nil {
+		return ""
+	}
+
+	if clusterVersion.Offering != branchVersion.Offering ||
+		clusterVersion.Major != branchVersion.Major ||
+		clusterVersion.Minor <= branchVersion.Minor {
+		return ""
+	}
+
+	return clusterImage
 }
