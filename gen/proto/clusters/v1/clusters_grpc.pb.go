@@ -28,6 +28,7 @@ const (
 	ClustersService_RegisterPostgresCluster_FullMethodName          = "/clusters.v1.ClustersService/RegisterPostgresCluster"
 	ClustersService_DeregisterPostgresCluster_FullMethodName        = "/clusters.v1.ClustersService/DeregisterPostgresCluster"
 	ClustersService_GetObjectStore_FullMethodName                   = "/clusters.v1.ClustersService/GetObjectStore"
+	ClustersService_GetRecoveryWindow_FullMethodName                = "/clusters.v1.ClustersService/GetRecoveryWindow"
 	ClustersService_SetBranchIPFiltering_FullMethodName             = "/clusters.v1.ClustersService/SetBranchIPFiltering"
 	ClustersService_SetBranchesIPFiltering_FullMethodName           = "/clusters.v1.ClustersService/SetBranchesIPFiltering"
 	ClustersService_GetBranchIPFiltering_FullMethodName             = "/clusters.v1.ClustersService/GetBranchIPFiltering"
@@ -58,8 +59,12 @@ type ClustersServiceClient interface {
 	RegisterPostgresCluster(ctx context.Context, in *RegisterPostgresClusterRequest, opts ...grpc.CallOption) (*RegisterPostgresClusterResponse, error)
 	// Deregister a postgres cluster by deleting the global services
 	DeregisterPostgresCluster(ctx context.Context, in *DeregisterPostgresClusterRequest, opts ...grpc.CallOption) (*DeregisterPostgresClusterResponse, error)
+	// Deprecated: Do not use.
 	// Get object store for a postgres cluster
+	// Deprecated: use GetRecoveryWindow instead.
 	GetObjectStore(ctx context.Context, in *GetObjectStoreRequest, opts ...grpc.CallOption) (*GetObjectStoreResponse, error)
+	// Get the recovery window for a branch, independent of the backup method
+	GetRecoveryWindow(ctx context.Context, in *GetRecoveryWindowRequest, opts ...grpc.CallOption) (*GetRecoveryWindowResponse, error)
 	// Set IP filtering configuration for a branch
 	SetBranchIPFiltering(ctx context.Context, in *SetBranchIPFilteringRequest, opts ...grpc.CallOption) (*SetBranchIPFilteringResponse, error)
 	// Set IP filtering configuration for multiple branches
@@ -162,10 +167,21 @@ func (c *clustersServiceClient) DeregisterPostgresCluster(ctx context.Context, i
 	return out, nil
 }
 
+// Deprecated: Do not use.
 func (c *clustersServiceClient) GetObjectStore(ctx context.Context, in *GetObjectStoreRequest, opts ...grpc.CallOption) (*GetObjectStoreResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetObjectStoreResponse)
 	err := c.cc.Invoke(ctx, ClustersService_GetObjectStore_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *clustersServiceClient) GetRecoveryWindow(ctx context.Context, in *GetRecoveryWindowRequest, opts ...grpc.CallOption) (*GetRecoveryWindowResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetRecoveryWindowResponse)
+	err := c.cc.Invoke(ctx, ClustersService_GetRecoveryWindow_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -254,8 +270,12 @@ type ClustersServiceServer interface {
 	RegisterPostgresCluster(context.Context, *RegisterPostgresClusterRequest) (*RegisterPostgresClusterResponse, error)
 	// Deregister a postgres cluster by deleting the global services
 	DeregisterPostgresCluster(context.Context, *DeregisterPostgresClusterRequest) (*DeregisterPostgresClusterResponse, error)
+	// Deprecated: Do not use.
 	// Get object store for a postgres cluster
+	// Deprecated: use GetRecoveryWindow instead.
 	GetObjectStore(context.Context, *GetObjectStoreRequest) (*GetObjectStoreResponse, error)
+	// Get the recovery window for a branch, independent of the backup method
+	GetRecoveryWindow(context.Context, *GetRecoveryWindowRequest) (*GetRecoveryWindowResponse, error)
 	// Set IP filtering configuration for a branch
 	SetBranchIPFiltering(context.Context, *SetBranchIPFilteringRequest) (*SetBranchIPFilteringResponse, error)
 	// Set IP filtering configuration for multiple branches
@@ -304,6 +324,9 @@ func (UnimplementedClustersServiceServer) DeregisterPostgresCluster(context.Cont
 }
 func (UnimplementedClustersServiceServer) GetObjectStore(context.Context, *GetObjectStoreRequest) (*GetObjectStoreResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetObjectStore not implemented")
+}
+func (UnimplementedClustersServiceServer) GetRecoveryWindow(context.Context, *GetRecoveryWindowRequest) (*GetRecoveryWindowResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetRecoveryWindow not implemented")
 }
 func (UnimplementedClustersServiceServer) SetBranchIPFiltering(context.Context, *SetBranchIPFilteringRequest) (*SetBranchIPFilteringResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetBranchIPFiltering not implemented")
@@ -506,6 +529,24 @@ func _ClustersService_GetObjectStore_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ClustersService_GetRecoveryWindow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRecoveryWindowRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ClustersServiceServer).GetRecoveryWindow(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ClustersService_GetRecoveryWindow_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ClustersServiceServer).GetRecoveryWindow(ctx, req.(*GetRecoveryWindowRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ClustersService_SetBranchIPFiltering_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetBranchIPFilteringRequest)
 	if err := dec(in); err != nil {
@@ -656,6 +697,10 @@ var ClustersService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetObjectStore",
 			Handler:    _ClustersService_GetObjectStore_Handler,
+		},
+		{
+			MethodName: "GetRecoveryWindow",
+			Handler:    _ClustersService_GetRecoveryWindow_Handler,
 		},
 		{
 			MethodName: "SetBranchIPFiltering",

@@ -2165,6 +2165,116 @@ func TestGetObjectStore(t *testing.T) {
 	}
 }
 
+func TestGetRecoveryWindow(t *testing.T) {
+	t.Parallel()
+
+	recoveryTime := metav1.NewTime(time.Date(2023, 1, 2, 15, 30, 0, 0, time.UTC))
+
+	pgbackrestBranch := &v1alpha1.Branch{
+		ObjectMeta: metav1.ObjectMeta{Name: "branch-1"},
+		Spec: v1alpha1.BranchSpec{
+			BackupSpec: &v1alpha1.BackupSpec{
+				Method:     v1alpha1.BackupMethodPgBackRest,
+				PgBackRest: &v1alpha1.PgBackRestSpec{},
+			},
+		},
+		Status: v1alpha1.BranchStatus{
+			FirstRecoverabilityPoint: "2023-01-01T10:00:00Z",
+			LastRecoverabilityPoint:  "2023-01-02T16:00:00Z",
+			LastSuccessfulBackup:     "2023-01-02T15:30:00Z",
+			LastFailedBackup:         "2023-01-02T09:00:00Z",
+		},
+	}
+
+	barmanBranch := &v1alpha1.Branch{
+		ObjectMeta: metav1.ObjectMeta{Name: "branch-1"},
+	}
+
+	tests := map[string]struct {
+		branch    *v1alpha1.Branch
+		setupMock func(m *cnpgmocks.Connector)
+		wantErr   string
+		validate  func(t *testing.T, resp *clustersv1.GetRecoveryWindowResponse)
+	}{
+		"pgbackrest branch reads the Branch status": {
+			branch:    pgbackrestBranch,
+			setupMock: func(_ *cnpgmocks.Connector) {},
+			validate: func(t *testing.T, resp *clustersv1.GetRecoveryWindowResponse) {
+				require.Equal(t, "2023-01-01T10:00:00Z", resp.FirstRecoverabilityPoint)
+				require.Equal(t, "2023-01-02T16:00:00Z", resp.LastRecoverabilityPoint)
+				require.Equal(t, "2023-01-02T15:30:00Z", resp.LastSuccessfulBackup)
+				require.Equal(t, "2023-01-02T09:00:00Z", resp.LastFailedBackup)
+			},
+		},
+		"barman branch reads the ObjectStore": {
+			branch: barmanBranch,
+			setupMock: func(m *cnpgmocks.Connector) {
+				m.EXPECT().GetObjectStore(mock.Anything, "branch-1", "xata-clusters").
+					Return(&barmanPluginApi.ObjectStore{
+						Status: barmanPluginApi.ObjectStoreStatus{
+							ServerRecoveryWindow: map[string]barmanPluginApi.RecoveryWindow{
+								"branch-1": {
+									FirstRecoverabilityPoint: &recoveryTime,
+									LastSuccessfulBackupTime: &recoveryTime,
+									LastFailedBackupTime:     &recoveryTime,
+								},
+							},
+						},
+					}, nil)
+			},
+			validate: func(t *testing.T, resp *clustersv1.GetRecoveryWindowResponse) {
+				require.Equal(t, "2023-01-02T15:30:00Z", resp.FirstRecoverabilityPoint)
+				require.Equal(t, "2023-01-02T15:30:00Z", resp.LastSuccessfulBackup)
+				require.Equal(t, "2023-01-02T15:30:00Z", resp.LastFailedBackup)
+				require.Empty(t, resp.LastRecoverabilityPoint)
+			},
+		},
+		"barman branch without a recovery window": {
+			branch: barmanBranch,
+			setupMock: func(m *cnpgmocks.Connector) {
+				m.EXPECT().GetObjectStore(mock.Anything, "branch-1", "xata-clusters").
+					Return(&barmanPluginApi.ObjectStore{}, nil)
+			},
+			validate: func(t *testing.T, resp *clustersv1.GetRecoveryWindowResponse) {
+				require.Empty(t, resp.FirstRecoverabilityPoint)
+				require.Empty(t, resp.LastRecoverabilityPoint)
+				require.Empty(t, resp.LastSuccessfulBackup)
+				require.Empty(t, resp.LastFailedBackup)
+			},
+		},
+		"branch not found": {
+			branch:    nil,
+			setupMock: func(_ *cnpgmocks.Connector) {},
+			wantErr:   "not found",
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			cnpgMock := cnpgmocks.NewConnector(t)
+			tt.setupMock(cnpgMock)
+
+			opts := []testServiceOption{withCNPGConnector(cnpgMock)}
+			if tt.branch != nil {
+				opts = append(opts, withExistingObjects(tt.branch.DeepCopy()))
+			}
+			svc, _ := setupTestClustersService(t, opts...)
+
+			resp, err := svc.GetRecoveryWindow(context.Background(),
+				&clustersv1.GetRecoveryWindowRequest{Id: "branch-1"})
+
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			if tt.validate != nil {
+				tt.validate(t, resp)
+			}
+		})
+	}
+}
+
 func TestSetBranchIPFiltering(t *testing.T) {
 	tests := []struct {
 		name    string

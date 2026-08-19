@@ -250,11 +250,10 @@ func Test_generateCron_generateSchedule_inverse(t *testing.T) {
 	}
 }
 
-func Test_parseRestoreTimes(t *testing.T) {
+func Test_parseRecoveryWindow(t *testing.T) {
 	tests := []struct {
 		name         string
-		status       *clustersv1.GetObjectStoreResponse
-		backupID     string
+		window       *clustersv1.GetRecoveryWindowResponse
 		wantEarliest *time.Time
 		wantLatest   *time.Time
 		wantErr      bool
@@ -262,95 +261,38 @@ func Test_parseRestoreTimes(t *testing.T) {
 	}{
 		{
 			name: "successful parsing with valid timestamps",
-			status: &clustersv1.GetObjectStoreResponse{
-				Status: &clustersv1.ObjectStoreStatus{
-					ServerRecoveryWindow: map[string]*clustersv1.RecoveryWindow{
-						"backup123": {
-							FirstRecoverabilityPoint: "2023-01-01 10:00:00 +0000 UTC",
-							LastSuccessfulBackupTime: "2023-01-02 15:30:00 +0000 UTC",
-						},
-					},
-				},
+			window: &clustersv1.GetRecoveryWindowResponse{
+				FirstRecoverabilityPoint: "2023-01-01T10:00:00Z",
+				LastSuccessfulBackup:     "2023-01-02T15:30:00Z",
 			},
-			backupID:     "backup123",
 			wantEarliest: new(time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC)),
 			wantLatest:   new(time.Date(2023, 1, 2, 15, 30, 0, 0, time.UTC)),
 			wantErr:      false,
 		},
 		{
-			name:         "nil status",
-			status:       nil,
-			backupID:     "backup123",
-			wantEarliest: nil,
-			wantLatest:   nil,
+			name: "last recoverability point wins over last successful backup",
+			window: &clustersv1.GetRecoveryWindowResponse{
+				FirstRecoverabilityPoint: "2023-01-01T10:00:00Z",
+				LastRecoverabilityPoint:  "2023-01-02T16:00:00Z",
+				LastSuccessfulBackup:     "2023-01-02T15:30:00Z",
+			},
+			wantEarliest: new(time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC)),
+			wantLatest:   new(time.Date(2023, 1, 2, 16, 0, 0, 0, time.UTC)),
 			wantErr:      false,
 		},
 		{
-			name: "nil status.Status",
-			status: &clustersv1.GetObjectStoreResponse{
-				Status: nil,
-			},
-			backupID:     "backup123",
-			wantEarliest: nil,
-			wantLatest:   nil,
-			wantErr:      false,
-		},
-		{
-			name: "nil ServerRecoveryWindow",
-			status: &clustersv1.GetObjectStoreResponse{
-				Status: &clustersv1.ObjectStoreStatus{
-					ServerRecoveryWindow: nil,
-				},
-			},
-			backupID:     "backup123",
-			wantEarliest: nil,
-			wantLatest:   nil,
-			wantErr:      false,
-		},
-		{
-			name: "backup ID not found in ServerRecoveryWindow",
-			status: &clustersv1.GetObjectStoreResponse{
-				Status: &clustersv1.ObjectStoreStatus{
-					ServerRecoveryWindow: map[string]*clustersv1.RecoveryWindow{
-						"otherbackup": {
-							FirstRecoverabilityPoint: "2023-01-01 10:00:00 +0000 UTC",
-							LastSuccessfulBackupTime: "2023-01-02 15:30:00 +0000 UTC",
-						},
-					},
-				},
-			},
-			backupID:     "backup123",
-			wantEarliest: nil,
-			wantLatest:   nil,
-			wantErr:      false,
-		},
-		{
-			name: "nil recovery window for backup ID",
-			status: &clustersv1.GetObjectStoreResponse{
-				Status: &clustersv1.ObjectStoreStatus{
-					ServerRecoveryWindow: map[string]*clustersv1.RecoveryWindow{
-						"backup123": nil,
-					},
-				},
-			},
-			backupID:     "backup123",
+			name:         "nil window",
+			window:       nil,
 			wantEarliest: nil,
 			wantLatest:   nil,
 			wantErr:      false,
 		},
 		{
 			name: "invalid earliest restore timestamp",
-			status: &clustersv1.GetObjectStoreResponse{
-				Status: &clustersv1.ObjectStoreStatus{
-					ServerRecoveryWindow: map[string]*clustersv1.RecoveryWindow{
-						"backup123": {
-							FirstRecoverabilityPoint: "invalid-timestamp",
-							LastSuccessfulBackupTime: "2023-01-02 15:30:00 +0000 UTC",
-						},
-					},
-				},
+			window: &clustersv1.GetRecoveryWindowResponse{
+				FirstRecoverabilityPoint: "invalid-timestamp",
+				LastSuccessfulBackup:     "2023-01-02T15:30:00Z",
 			},
-			backupID:     "backup123",
 			wantEarliest: nil,
 			wantLatest:   nil,
 			wantErr:      true,
@@ -358,35 +300,18 @@ func Test_parseRestoreTimes(t *testing.T) {
 		},
 		{
 			name: "invalid latest restore timestamp",
-			status: &clustersv1.GetObjectStoreResponse{
-				Status: &clustersv1.ObjectStoreStatus{
-					ServerRecoveryWindow: map[string]*clustersv1.RecoveryWindow{
-						"backup123": {
-							FirstRecoverabilityPoint: "2023-01-01 10:00:00 +0000 UTC",
-							LastSuccessfulBackupTime: "invalid-timestamp",
-						},
-					},
-				},
+			window: &clustersv1.GetRecoveryWindowResponse{
+				FirstRecoverabilityPoint: "2023-01-01T10:00:00Z",
+				LastSuccessfulBackup:     "invalid-timestamp",
 			},
-			backupID:     "backup123",
 			wantEarliest: nil,
 			wantLatest:   nil,
 			wantErr:      true,
 			errContains:  "unexpected timestamp for latest restore time",
 		},
 		{
-			name: "empty timestamp strings",
-			status: &clustersv1.GetObjectStoreResponse{
-				Status: &clustersv1.ObjectStoreStatus{
-					ServerRecoveryWindow: map[string]*clustersv1.RecoveryWindow{
-						"backup123": {
-							FirstRecoverabilityPoint: "",
-							LastSuccessfulBackupTime: "",
-						},
-					},
-				},
-			},
-			backupID:     "backup123",
+			name:         "empty timestamp strings",
+			window:       &clustersv1.GetRecoveryWindowResponse{},
 			wantEarliest: nil,
 			wantLatest:   nil,
 		},
@@ -394,38 +319,38 @@ func Test_parseRestoreTimes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotEarliest, gotLatest, err := parseRestoreTimes(tt.status, tt.backupID)
+			gotEarliest, gotLatest, err := parseRecoveryWindow(tt.window)
 
 			if tt.wantErr {
 				if err == nil {
-					t.Errorf("parseRestoreTimes() error = nil, wantErr %v", tt.wantErr)
+					t.Errorf("parseRecoveryWindow() error = nil, wantErr %v", tt.wantErr)
 					return
 				}
 				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
-					t.Errorf("parseRestoreTimes() error = %v, want error containing %v", err, tt.errContains)
+					t.Errorf("parseRecoveryWindow() error = %v, want error containing %v", err, tt.errContains)
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("parseRestoreTimes() unexpected error = %v", err)
+				t.Errorf("parseRecoveryWindow() unexpected error = %v", err)
 				return
 			}
 
 			if (gotEarliest == nil) != (tt.wantEarliest == nil) {
-				t.Errorf("parseRestoreTimes() gotEarliest = %v, want %v", gotEarliest, tt.wantEarliest)
+				t.Errorf("parseRecoveryWindow() gotEarliest = %v, want %v", gotEarliest, tt.wantEarliest)
 				return
 			}
 			if gotEarliest != nil && tt.wantEarliest != nil && !gotEarliest.Equal(*tt.wantEarliest) {
-				t.Errorf("parseRestoreTimes() gotEarliest = %v, want %v", gotEarliest, tt.wantEarliest)
+				t.Errorf("parseRecoveryWindow() gotEarliest = %v, want %v", gotEarliest, tt.wantEarliest)
 			}
 
 			if (gotLatest == nil) != (tt.wantLatest == nil) {
-				t.Errorf("parseRestoreTimes() gotLatest = %v, want %v", gotLatest, tt.wantLatest)
+				t.Errorf("parseRecoveryWindow() gotLatest = %v, want %v", gotLatest, tt.wantLatest)
 				return
 			}
 			if gotLatest != nil && tt.wantLatest != nil && !gotLatest.Equal(*tt.wantLatest) {
-				t.Errorf("parseRestoreTimes() gotLatest = %v, want %v", gotLatest, tt.wantLatest)
+				t.Errorf("parseRecoveryWindow() gotLatest = %v, want %v", gotLatest, tt.wantLatest)
 			}
 		})
 	}

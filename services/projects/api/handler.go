@@ -51,8 +51,6 @@ const (
 	DefaultBackupFrequency       = "weekly"
 	BackupMethodBarman           = "barman"
 	BackupMethodPgBackRest       = "pgbackrest"
-
-	backupTimestampLayout = "2006-01-02 15:04:05 -0700 MST"
 )
 
 type Permission int
@@ -455,14 +453,14 @@ func (s *handler) GetBackup(c echo.Context, organizationID spec.OrganizationID, 
 		}
 		defer client.Close()
 
-		status, err := client.GetObjectStore(c.Request().Context(), &clustersv1.GetObjectStoreRequest{
+		window, err := client.GetRecoveryWindow(c.Request().Context(), &clustersv1.GetRecoveryWindowRequest{
 			Id: branch.ID,
 		})
 		if err != nil {
 			return err
 		}
 
-		earliestRestore, latestRestore, err := parseRestoreTimes(status, backupID)
+		earliestRestore, latestRestore, err := parseRecoveryWindow(window)
 		if err != nil {
 			return err
 		}

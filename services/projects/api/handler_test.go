@@ -2375,19 +2375,12 @@ func TestGetBackup(t *testing.T) {
 
 				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, projectID, backupID).Return(branch, nil).Once()
 
-				// Mock GetObjectStore call
-				mockClusters.EXPECT().GetObjectStore(mock.Anything, &clustersv1.GetObjectStoreRequest{
+				// Mock GetRecoveryWindow call
+				mockClusters.EXPECT().GetRecoveryWindow(mock.Anything, &clustersv1.GetRecoveryWindowRequest{
 					Id: backupID,
-				}).Return(&clustersv1.GetObjectStoreResponse{
-					Status: &clustersv1.ObjectStoreStatus{
-						ServerRecoveryWindow: map[string]*clustersv1.RecoveryWindow{
-							backupID: {
-								FirstRecoverabilityPoint: yesterday.Add(-oneDay * 5).Format(backupTimestampLayout),
-								LastSuccessfulBackupTime: latestRestore.Format(backupTimestampLayout),
-								LastFailedBackupTime:     "",
-							},
-						},
-					},
+				}).Return(&clustersv1.GetRecoveryWindowResponse{
+					FirstRecoverabilityPoint: yesterday.Add(-oneDay * 5).Format(time.RFC3339),
+					LastSuccessfulBackup:     latestRestore.Format(time.RFC3339),
 				}, nil).Once()
 
 				return mockStore, mockClusters
@@ -2458,10 +2451,10 @@ func TestGetBackup(t *testing.T) {
 
 				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, projectID, backupID).Return(branch, nil).Once()
 
-				// Mock GetObjectStore call failure
-				mockClusters.EXPECT().GetObjectStore(mock.Anything, &clustersv1.GetObjectStoreRequest{
+				// Mock GetRecoveryWindow call failure
+				mockClusters.EXPECT().GetRecoveryWindow(mock.Anything, &clustersv1.GetRecoveryWindowRequest{
 					Id: backupID,
-				}).Return(nil, errors.New("object store service unavailable")).Once()
+				}).Return(nil, errors.New("recovery window service unavailable")).Once()
 
 				return mockStore, mockClusters
 			},
@@ -2484,19 +2477,12 @@ func TestGetBackup(t *testing.T) {
 
 				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, projectID, backupID).Return(branch, nil).Once()
 
-				// Mock GetObjectStore call with invalid timestamp format
-				mockClusters.EXPECT().GetObjectStore(mock.Anything, &clustersv1.GetObjectStoreRequest{
+				// Mock GetRecoveryWindow call with invalid timestamp format
+				mockClusters.EXPECT().GetRecoveryWindow(mock.Anything, &clustersv1.GetRecoveryWindowRequest{
 					Id: backupID,
-				}).Return(&clustersv1.GetObjectStoreResponse{
-					Status: &clustersv1.ObjectStoreStatus{
-						ServerRecoveryWindow: map[string]*clustersv1.RecoveryWindow{
-							backupID: {
-								FirstRecoverabilityPoint: "invalid-timestamp",
-								LastSuccessfulBackupTime: "invalid-timestamp",
-								LastFailedBackupTime:     "",
-							},
-						},
-					},
+				}).Return(&clustersv1.GetRecoveryWindowResponse{
+					FirstRecoverabilityPoint: "invalid-timestamp",
+					LastSuccessfulBackup:     "invalid-timestamp",
 				}, nil).Once()
 
 				return mockStore, mockClusters

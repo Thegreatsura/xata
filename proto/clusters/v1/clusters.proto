@@ -31,7 +31,13 @@ service ClustersService {
   rpc DeregisterPostgresCluster(DeregisterPostgresClusterRequest) returns (DeregisterPostgresClusterResponse) {}
 
   // Get object store for a postgres cluster
-  rpc GetObjectStore(GetObjectStoreRequest) returns (GetObjectStoreResponse) {}
+  // Deprecated: use GetRecoveryWindow instead.
+  rpc GetObjectStore(GetObjectStoreRequest) returns (GetObjectStoreResponse) {
+    option deprecated = true;
+  }
+
+  // Get the recovery window for a branch, independent of the backup method
+  rpc GetRecoveryWindow(GetRecoveryWindowRequest) returns (GetRecoveryWindowResponse) {}
 
   // Set IP filtering configuration for a branch
   rpc SetBranchIPFiltering(SetBranchIPFilteringRequest) returns (SetBranchIPFilteringResponse) {}
@@ -247,28 +253,54 @@ message BackupConfiguration {
   string backup_method = 4;
 }
 
+// Deprecated: use GetRecoveryWindowRequest instead.
 message GetObjectStoreRequest {
+  option deprecated = true;
   // The id of the cluster
   string id = 1;
 }
 
+// Deprecated: use GetRecoveryWindowResponse instead.
 message GetObjectStoreResponse {
+  option deprecated = true;
   // Object store status information
   ObjectStoreStatus status = 1;
 }
 
+// Deprecated: part of the GetObjectStore response.
 message ObjectStoreStatus {
+  option deprecated = true;
   // Map of server names to their recovery windows
   map<string, RecoveryWindow> server_recovery_window = 1;
 }
 
+// Deprecated: part of the GetObjectStore response.
 message RecoveryWindow {
+  option deprecated = true;
   // The first recoverability point
   string first_recoverability_point = 1;
   // The last successful backup time
   string last_successful_backup_time = 2;
   // The last failed backup time
   string last_failed_backup_time = 3;
+}
+
+message GetRecoveryWindowRequest {
+  // The id of the branch
+  string id = 1;
+}
+
+message GetRecoveryWindowResponse {
+  // The oldest point in time the branch can be restored to (RFC3339)
+  string first_recoverability_point = 1;
+  // The newest point in time the branch can be restored to, based on the
+  // last archived WAL (RFC3339). Empty when the backup method does not
+  // report it.
+  string last_recoverability_point = 2;
+  // The time of the last successful backup (RFC3339)
+  string last_successful_backup = 3;
+  // The time of the last failed backup (RFC3339)
+  string last_failed_backup = 4;
 }
 
 //used for child clusters

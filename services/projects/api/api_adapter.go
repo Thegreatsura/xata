@@ -601,25 +601,35 @@ func storeToAPIGithubRepository(mapping *store.GithubRepoMapping) *spec.GithubRe
 	}
 }
 
-// parseRestoreTimes parses the earliest and latest restore times from the object store status for a given backup ID.
-// TODO adjust restore times: https://github.com/xataio/maki/issues/1284
-func parseRestoreTimes(status *clustersv1.GetObjectStoreResponse, backupID string) (earliestRestore, latestRestore *time.Time, err error) {
-	// for newly created branches we need to handle when the backup is not yet present
-	if status != nil && status.Status != nil && status.Status.ServerRecoveryWindow != nil && status.Status.ServerRecoveryWindow[backupID] != nil {
-		if status.Status.ServerRecoveryWindow[backupID].FirstRecoverabilityPoint != "" {
-			earliestRestoreTime, err := time.Parse(backupTimestampLayout, status.Status.ServerRecoveryWindow[backupID].FirstRecoverabilityPoint)
-			if err != nil {
-				return nil, nil, fmt.Errorf("unexpected timestamp for earliest restore time: %w", err)
-			}
-			earliestRestore = new(earliestRestoreTime)
-		}
-		if status.Status.ServerRecoveryWindow[backupID].LastSuccessfulBackupTime != "" {
-			latestRestoreTime, err := time.Parse(backupTimestampLayout, status.Status.ServerRecoveryWindow[backupID].LastSuccessfulBackupTime)
-			if err != nil {
-				return nil, nil, fmt.Errorf("unexpected timestamp for latest restore time: %w", err)
-			}
-			latestRestore = new(latestRestoreTime)
-		}
+// parseRecoveryWindow parses the earliest and latest restore times from the
+// recovery window of a branch. The latest restore time is the last
+// recoverability point (last archived WAL) when the backup method reports it,
+// and the last successful backup time otherwise. For newly created branches
+// the fields are empty until the first backup completes.
+func parseRecoveryWindow(window *clustersv1.GetRecoveryWindowResponse) (earliestRestore, latestRestore *time.Time, err error) {
+	if window == nil {
+		return nil, nil, nil
 	}
+
+	if window.FirstRecoverabilityPoint != "" {
+		earliestRestoreTime, err := time.Parse(time.RFC3339, window.FirstRecoverabilityPoint)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unexpected timestamp for earliest restore time: %w", err)
+		}
+		earliestRestore = new(earliestRestoreTime)
+	}
+
+	latest := window.LastRecoverabilityPoint
+	if latest == "" {
+		latest = window.LastSuccessfulBackup
+	}
+	if latest != "" {
+		latestRestoreTime, err := time.Parse(time.RFC3339, latest)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unexpected timestamp for latest restore time: %w", err)
+		}
+		latestRestore = new(latestRestoreTime)
+	}
+
 	return earliestRestore, latestRestore, nil
 }

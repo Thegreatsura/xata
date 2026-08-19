@@ -680,6 +680,68 @@ func (_c *CellClient_GetPostgresClusterCredentials_Call) Return(_a0 *clustersv1.
 	return _c
 }
 
+// GetRecoveryWindow provides a mock function with given fields: ctx, in, opts
+func (_m *CellClient) GetRecoveryWindow(ctx context.Context, in *clustersv1.GetRecoveryWindowRequest, opts ...grpc.CallOption) (*clustersv1.GetRecoveryWindowResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 *clustersv1.GetRecoveryWindowResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *clustersv1.GetRecoveryWindowRequest, ...grpc.CallOption) *clustersv1.GetRecoveryWindowResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*clustersv1.GetRecoveryWindowResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *clustersv1.GetRecoveryWindowRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// CellClient_GetRecoveryWindow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRecoveryWindow'
+type CellClient_GetRecoveryWindow_Call struct {
+	*mock.Call
+}
+
+// GetRecoveryWindow is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *clustersv1.GetRecoveryWindowRequest
+//   - opts ...grpc.CallOption
+func (_e *CellClient_Expecter) GetRecoveryWindow(ctx interface{}, in interface{}, opts ...interface{}) *CellClient_GetRecoveryWindow_Call {
+	return &CellClient_GetRecoveryWindow_Call{Call: _e.mock.On("GetRecoveryWindow",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *CellClient_GetRecoveryWindow_Call) Run(run func(ctx context.Context, in *clustersv1.GetRecoveryWindowRequest, opts ...grpc.CallOption)) *CellClient_GetRecoveryWindow_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*clustersv1.GetRecoveryWindowRequest), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *CellClient_GetRecoveryWindow_Call) Return(_a0 *clustersv1.GetRecoveryWindowResponse, _a1 error) *CellClient_GetRecoveryWindow_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // RegisterPostgresCluster provides a mock function with given fields: ctx, in, opts
 func (_m *CellClient) RegisterPostgresCluster(ctx context.Context, in *clustersv1.RegisterPostgresClusterRequest, opts ...grpc.CallOption) (*clustersv1.RegisterPostgresClusterResponse, error) {
 	_va := make([]interface{}, len(opts))

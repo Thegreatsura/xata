@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog/log"
 
@@ -657,6 +658,52 @@ func (c *ClustersService) GetObjectStore(ctx context.Context, request *clustersv
 		}
 
 		response.Status.ServerRecoveryWindow[server] = recoveryWindow
+	}
+
+	return response, nil
+}
+
+// GetRecoveryWindow returns the recovery window for a branch, independent of
+// the backup method. For pgbackrest the values come from the Branch status;
+// for barman they come from the ObjectStore CR maintained by the plugin.
+// All timestamps are RFC3339.
+func (c *ClustersService) GetRecoveryWindow(ctx context.Context, request *clustersv1.GetRecoveryWindowRequest) (*clustersv1.GetRecoveryWindowResponse, error) {
+	branch, err := c.getBranch(ctx, request.Id)
+	if err != nil {
+		return nil, k8sErrorToGRPCError(err)
+	}
+
+	if branch.Spec.BackupSpec.IsPgBackRest() {
+		return &clustersv1.GetRecoveryWindowResponse{
+			FirstRecoverabilityPoint: branch.Status.FirstRecoverabilityPoint,
+			LastRecoverabilityPoint:  branch.Status.LastRecoverabilityPoint,
+			LastSuccessfulBackup:     branch.Status.LastSuccessfulBackup,
+			LastFailedBackup:         branch.Status.LastFailedBackup,
+		}, nil
+	}
+
+	objectStore, err := c.cnpgConnector.GetObjectStore(ctx, request.Id, c.config.ClustersNamespace)
+	if err != nil {
+		if strings.Contains(err.Error(), fmt.Sprintf("objectstores.barman.io \"%s\" not found", request.Id)) {
+			return nil, fmt.Errorf("object store not found for cluster %s", request.Id)
+		}
+		return nil, fmt.Errorf("get object store status: %w", err)
+	}
+
+	response := &clustersv1.GetRecoveryWindowResponse{}
+	window, ok := objectStore.Status.ServerRecoveryWindow[request.Id]
+	if !ok {
+		return response, nil
+	}
+
+	if window.FirstRecoverabilityPoint != nil {
+		response.FirstRecoverabilityPoint = window.FirstRecoverabilityPoint.UTC().Format(time.RFC3339)
+	}
+	if window.LastSuccessfulBackupTime != nil {
+		response.LastSuccessfulBackup = window.LastSuccessfulBackupTime.UTC().Format(time.RFC3339)
+	}
+	if window.LastFailedBackupTime != nil {
+		response.LastFailedBackup = window.LastFailedBackupTime.UTC().Format(time.RFC3339)
 	}
 
 	return response, nil
