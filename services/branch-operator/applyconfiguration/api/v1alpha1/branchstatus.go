@@ -21,6 +21,22 @@ type BranchStatusApplyConfiguration struct {
 	// PrimaryXVolName is the name of the XVol backing the primary instance's
 	// PersistentVolume. Retained after cluster removal.
 	PrimaryXVolName *string `json:"primaryXVolName,omitempty"`
+	// FirstRecoverabilityPoint is the oldest point in time the branch can be
+	// restored to (RFC3339). Copied from the Cluster status and retained
+	// across hibernation and cluster replacement.
+	FirstRecoverabilityPoint *string `json:"firstRecoverabilityPoint,omitempty"`
+	// LastSuccessfulBackup is the time of the last successful backup
+	// (RFC3339). Copied from the Cluster status and retained across
+	// hibernation and cluster replacement.
+	LastSuccessfulBackup *string `json:"lastSuccessfulBackup,omitempty"`
+	// LastFailedBackup is the time of the last failed backup (RFC3339).
+	// Copied from the Cluster status and retained across hibernation and
+	// cluster replacement.
+	LastFailedBackup *string `json:"lastFailedBackup,omitempty"`
+	// LastRecoverabilityPoint is the newest point in time the branch can be
+	// restored to (RFC3339), based on the last archived WAL. Copied from the
+	// Cluster status and retained across hibernation and cluster replacement.
+	LastRecoverabilityPoint *string `json:"lastRecoverabilityPoint,omitempty"`
 }
 
 // BranchStatusApplyConfiguration constructs a declarative configuration of the BranchStatus type for use with
@@ -63,5 +79,37 @@ func (b *BranchStatusApplyConfiguration) WithLastError(value string) *BranchStat
 // If called multiple times, the PrimaryXVolName field is set to the value of the last call.
 func (b *BranchStatusApplyConfiguration) WithPrimaryXVolName(value string) *BranchStatusApplyConfiguration {
 	b.PrimaryXVolName = &value
+	return b
+}
+
+// WithFirstRecoverabilityPoint sets the FirstRecoverabilityPoint field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the FirstRecoverabilityPoint field is set to the value of the last call.
+func (b *BranchStatusApplyConfiguration) WithFirstRecoverabilityPoint(value string) *BranchStatusApplyConfiguration {
+	b.FirstRecoverabilityPoint = &value
+	return b
+}
+
+// WithLastSuccessfulBackup sets the LastSuccessfulBackup field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the LastSuccessfulBackup field is set to the value of the last call.
+func (b *BranchStatusApplyConfiguration) WithLastSuccessfulBackup(value string) *BranchStatusApplyConfiguration {
+	b.LastSuccessfulBackup = &value
+	return b
+}
+
+// WithLastFailedBackup sets the LastFailedBackup field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the LastFailedBackup field is set to the value of the last call.
+func (b *BranchStatusApplyConfiguration) WithLastFailedBackup(value string) *BranchStatusApplyConfiguration {
+	b.LastFailedBackup = &value
+	return b
+}
+
+// WithLastRecoverabilityPoint sets the LastRecoverabilityPoint field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the LastRecoverabilityPoint field is set to the value of the last call.
+func (b *BranchStatusApplyConfiguration) WithLastRecoverabilityPoint(value string) *BranchStatusApplyConfiguration {
+	b.LastRecoverabilityPoint = &value
 	return b
 }

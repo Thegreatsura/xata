@@ -43,6 +43,19 @@ func (r *BranchReconciler) applyStatus(ctx context.Context, br *v1alpha1.Branch)
 		status = status.WithPrimaryXVolName(br.Status.PrimaryXVolName)
 	}
 
+	if br.Status.FirstRecoverabilityPoint != "" {
+		status = status.WithFirstRecoverabilityPoint(br.Status.FirstRecoverabilityPoint)
+	}
+	if br.Status.LastSuccessfulBackup != "" {
+		status = status.WithLastSuccessfulBackup(br.Status.LastSuccessfulBackup)
+	}
+	if br.Status.LastFailedBackup != "" {
+		status = status.WithLastFailedBackup(br.Status.LastFailedBackup)
+	}
+	if br.Status.LastRecoverabilityPoint != "" {
+		status = status.WithLastRecoverabilityPoint(br.Status.LastRecoverabilityPoint)
+	}
+
 	ac := v1alpha1ac.Branch(br.Name, "").WithStatus(status)
 
 	return r.Status().Apply(ctx, ac, client.FieldOwner(OperatorName), client.ForceOwnership)

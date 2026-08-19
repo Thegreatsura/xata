@@ -16,8 +16,8 @@ func GenerationOrAnnotationChanged() predicate.Predicate {
 }
 
 // ClusterPhaseOrGenerationOrAnnotationChanged is a predicate for Cluster
-// resources that filters events where the Cluster's phase, generation, or
-// annotations have changed
+// resources that filters events where the Cluster's phase, backup status
+// fields, generation, or annotations have changed
 var ClusterPhaseOrGenerationOrAnnotationChanged = predicate.Or(
 	predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
@@ -26,8 +26,20 @@ var ClusterPhaseOrGenerationOrAnnotationChanged = predicate.Or(
 			//nolint:forcetypeassert
 			newCluster := e.ObjectNew.(*apiv1.Cluster)
 
-			// React only to status Phase transitions
-			return oldCluster.Status.Phase != newCluster.Status.Phase
+			// React to status Phase transitions
+			if oldCluster.Status.Phase != newCluster.Status.Phase {
+				return true
+			}
+
+			// React to backup status changes, so updateBackupStatus copies
+			// them to the Branch. A backup changes no phase, generation, or
+			// annotation. The fields are marked deprecated upstream because
+			// backup plugins do not set them; our in-core pgbackrest does.
+			//nolint:staticcheck
+			return oldCluster.Status.FirstRecoverabilityPoint != newCluster.Status.FirstRecoverabilityPoint ||
+				oldCluster.Status.LastSuccessfulBackup != newCluster.Status.LastSuccessfulBackup ||
+				oldCluster.Status.LastFailedBackup != newCluster.Status.LastFailedBackup ||
+				oldCluster.Status.LastRecoverabilityPoint != newCluster.Status.LastRecoverabilityPoint
 		},
 	},
 	predicate.GenerationChangedPredicate{},

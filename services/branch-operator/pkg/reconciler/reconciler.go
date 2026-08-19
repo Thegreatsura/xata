@@ -154,6 +154,12 @@ func (r *BranchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	// Update backup status fields on the Branch
+	if err = r.updateBackupStatus(ctx, branch); err != nil {
+		log.Error(err, "updating backup status")
+		return ctrl.Result{}, err
+	}
+
 	// Reconcile XVols owner references for the branch
 	_, err = r.reconcileXVolOwnership(ctx, branch)
 	if err != nil {

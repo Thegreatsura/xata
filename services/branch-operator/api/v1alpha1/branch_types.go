@@ -645,6 +645,30 @@ type BranchStatus struct {
 	// PersistentVolume. Retained after cluster removal.
 	// +optional
 	PrimaryXVolName string `json:"primaryXVolName,omitempty"`
+
+	// FirstRecoverabilityPoint is the oldest point in time the branch can be
+	// restored to (RFC3339). Copied from the Cluster status and retained
+	// across hibernation and cluster replacement.
+	// +optional
+	FirstRecoverabilityPoint string `json:"firstRecoverabilityPoint,omitempty"`
+
+	// LastSuccessfulBackup is the time of the last successful backup
+	// (RFC3339). Copied from the Cluster status and retained across
+	// hibernation and cluster replacement.
+	// +optional
+	LastSuccessfulBackup string `json:"lastSuccessfulBackup,omitempty"`
+
+	// LastFailedBackup is the time of the last failed backup (RFC3339).
+	// Copied from the Cluster status and retained across hibernation and
+	// cluster replacement.
+	// +optional
+	LastFailedBackup string `json:"lastFailedBackup,omitempty"`
+
+	// LastRecoverabilityPoint is the newest point in time the branch can be
+	// restored to (RFC3339), based on the last archived WAL. Copied from the
+	// Cluster status and retained across hibernation and cluster replacement.
+	// +optional
+	LastRecoverabilityPoint string `json:"lastRecoverabilityPoint,omitempty"`
 }
 
 // +kubebuilder:object:root=true

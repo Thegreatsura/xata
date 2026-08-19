@@ -663,10 +663,34 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              firstRecoverabilityPoint:
+                description: |-
+                  FirstRecoverabilityPoint is the oldest point in time the branch can be
+                  restored to (RFC3339). Copied from the Cluster status and retained
+                  across hibernation and cluster replacement.
+                type: string
               lastError:
                 description: |-
                   LastError contains the last error message encountered during
                   reconciliation, if any.
+                type: string
+              lastFailedBackup:
+                description: |-
+                  LastFailedBackup is the time of the last failed backup (RFC3339).
+                  Copied from the Cluster status and retained across hibernation and
+                  cluster replacement.
+                type: string
+              lastRecoverabilityPoint:
+                description: |-
+                  LastRecoverabilityPoint is the newest point in time the branch can be
+                  restored to (RFC3339), based on the last archived WAL. Copied from the
+                  Cluster status and retained across hibernation and cluster replacement.
+                type: string
+              lastSuccessfulBackup:
+                description: |-
+                  LastSuccessfulBackup is the time of the last successful backup
+                  (RFC3339). Copied from the Cluster status and retained across
+                  hibernation and cluster replacement.
                 type: string
               observedGeneration:
                 description: ObservedGeneration reflects the generation of the most
