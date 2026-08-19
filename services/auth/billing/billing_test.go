@@ -66,6 +66,38 @@ func TestCustomerCollectionMethod(t *testing.T) {
 	}
 }
 
+func TestCustomerCanCollectPayment(t *testing.T) {
+	testCases := map[string]struct {
+		customer *Customer
+		want     bool
+	}{
+		"marketplace collection method": {
+			customer: &Customer{Organization: &authv1.Organization{BillingCollectionMethod: "marketplace"}},
+			want:     true,
+		},
+		"Stripe collection method with valid payment method": {
+			customer: &Customer{Organization: &authv1.Organization{BillingCollectionMethod: "stripe_payment_method"}, HasValidPaymentMethod: true},
+			want:     true,
+		},
+		"Stripe collection method without valid payment method": {
+			customer: &Customer{Organization: &authv1.Organization{BillingCollectionMethod: "stripe_payment_method"}},
+		},
+		"Marketplace provider does not override Stripe collection method": {
+			customer: &Customer{Organization: &authv1.Organization{BillingCollectionMethod: "stripe_payment_method", Marketplace: "aws"}},
+		},
+		"unknown collection method": {
+			customer: &Customer{},
+		},
+		"nil customer": {},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			require.Equal(t, tc.want, tc.customer.CanCollectPayment())
+		})
+	}
+}
+
 func TestCustomerCreditCalculations(t *testing.T) {
 	now := time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC)
 	activeExpiry := now.Add(time.Hour)

@@ -63,15 +63,16 @@ type PaymentMethod struct {
 }
 
 type Customer struct {
-	ID                    string
-	CustomerID            string
-	CustomerExternalID    string
-	Name                  string
-	Email                 string
-	PaymentProviderID     string
-	Subscriptions         []Subscription
-	Credits               []Credit
-	DefaultPaymentMethod  *PaymentMethod
+	ID                   string
+	CustomerID           string
+	CustomerExternalID   string
+	Name                 string
+	Email                string
+	PaymentProviderID    string
+	Subscriptions        []Subscription
+	Credits              []Credit
+	DefaultPaymentMethod *PaymentMethod
+	// HasValidPaymentMethod indicates Stripe has a supported default payment method. Use CanCollectPayment for collection decisions because marketplace billing does not require one.
 	HasValidPaymentMethod bool
 	Organization          *authv1.Organization
 }
@@ -81,6 +82,12 @@ func (c *Customer) CollectionMethod() CollectionMethod {
 		return CollectionMethodUnknown
 	}
 	return CollectionMethod(c.Organization.GetBillingCollectionMethod())
+}
+
+func (c *Customer) CanCollectPayment() bool {
+	method := c.CollectionMethod()
+	return method == CollectionMethodMarketplace ||
+		method == CollectionMethodStripePaymentMethod && c.HasValidPaymentMethod
 }
 
 func (c *Customer) CurrentActiveCredit() float64 {
