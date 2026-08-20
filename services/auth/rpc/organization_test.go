@@ -44,6 +44,17 @@ func TestKeycloakOrganizationToProto(t *testing.T) {
 				Marketplace:             string(keycloak.OrganizationMarketplaceProviderAWS),
 			},
 		},
+		"bank transfer collection method": {
+			org: keycloak.Organization{
+				ID:                      "org-bank-transfer",
+				BillingCollectionMethod: keycloak.OrganizationBillingCollectionMethodBankTransfer,
+			},
+			want: &authv1.Organization{
+				Id:                      "org-bank-transfer",
+				Status:                  string(keycloak.OrganizationStateDisabled),
+				BillingCollectionMethod: string(keycloak.OrganizationBillingCollectionMethodBankTransfer),
+			},
+		},
 		"soft-deleted organization": {
 			org: keycloak.Organization{
 				ID: "org-deleted",

@@ -53,6 +53,10 @@ func TestCustomerCollectionMethod(t *testing.T) {
 			customer: &Customer{Organization: &authv1.Organization{BillingCollectionMethod: "stripe_payment_method", Marketplace: "aws"}},
 			want:     CollectionMethodStripePaymentMethod,
 		},
+		"bank transfer": {
+			customer: &Customer{Organization: &authv1.Organization{BillingCollectionMethod: "bank_transfer"}},
+			want:     CollectionMethodBankTransfer,
+		},
 		"nil customer is unknown": {
 			want: CollectionMethodUnknown,
 		},
@@ -84,6 +88,14 @@ func TestCustomerCanCollectPayment(t *testing.T) {
 		},
 		"Marketplace provider does not override Stripe collection method": {
 			customer: &Customer{Organization: &authv1.Organization{BillingCollectionMethod: "stripe_payment_method", Marketplace: "aws"}},
+		},
+		"bank transfer collection method without valid Stripe payment method": {
+			customer: &Customer{Organization: &authv1.Organization{BillingCollectionMethod: "bank_transfer"}},
+			want:     true,
+		},
+		"bank transfer collection method with valid Stripe payment method": {
+			customer: &Customer{Organization: &authv1.Organization{BillingCollectionMethod: "bank_transfer"}, HasValidPaymentMethod: true},
+			want:     true,
 		},
 		"unknown collection method": {
 			customer: &Customer{},

@@ -21,6 +21,7 @@ const (
 	CollectionMethodUnknown             CollectionMethod = "unknown"
 	CollectionMethodStripePaymentMethod CollectionMethod = "stripe_payment_method"
 	CollectionMethodMarketplace         CollectionMethod = "marketplace"
+	CollectionMethodBankTransfer        CollectionMethod = "bank_transfer"
 )
 
 type Subscription struct {
@@ -81,13 +82,15 @@ func (c *Customer) CollectionMethod() CollectionMethod {
 	if c == nil {
 		return CollectionMethodUnknown
 	}
+	// Auth normalizes unsupported collection methods to "unknown" before returning organizations, so this cast only produces declared CollectionMethod values.
 	return CollectionMethod(c.Organization.GetBillingCollectionMethod())
 }
 
 func (c *Customer) CanCollectPayment() bool {
 	method := c.CollectionMethod()
 	return method == CollectionMethodMarketplace ||
-		method == CollectionMethodStripePaymentMethod && c.HasValidPaymentMethod
+		method == CollectionMethodBankTransfer ||
+		(method == CollectionMethodStripePaymentMethod && c.HasValidPaymentMethod)
 }
 
 func (c *Customer) CurrentActiveCredit() float64 {

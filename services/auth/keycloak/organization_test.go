@@ -19,6 +19,10 @@ func TestOrganizationBillingCollectionMethodFromAttributes(t *testing.T) {
 			attributes: map[string][]string{OrganizationBillingCollectionMethodKey: {string(OrganizationBillingCollectionMethodMarketplace)}},
 			want:       OrganizationBillingCollectionMethodMarketplace,
 		},
+		"bank transfer": {
+			attributes: map[string][]string{OrganizationBillingCollectionMethodKey: {string(OrganizationBillingCollectionMethodBankTransfer)}},
+			want:       OrganizationBillingCollectionMethodBankTransfer,
+		},
 		"missing is unknown": {
 			want: OrganizationBillingCollectionMethodUnknown,
 		},
@@ -47,6 +51,7 @@ func TestOrganizationBillingCollectionMethodValid(t *testing.T) {
 	}{
 		"stripe payment method": {method: OrganizationBillingCollectionMethodStripePaymentMethod, want: true},
 		"marketplace":           {method: OrganizationBillingCollectionMethodMarketplace, want: true},
+		"bank transfer":         {method: OrganizationBillingCollectionMethodBankTransfer, want: true},
 		"unknown":               {method: OrganizationBillingCollectionMethodUnknown},
 		"empty":                 {},
 		"unsupported":           {method: OrganizationBillingCollectionMethod("unsupported")},

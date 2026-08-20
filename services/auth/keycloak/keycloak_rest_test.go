@@ -693,6 +693,7 @@ func TestBuildCreateOrganizationPayload_BillingCollectionMethod(t *testing.T) {
 	testCases := map[string]OrganizationBillingCollectionMethod{
 		"stripe payment method": OrganizationBillingCollectionMethodStripePaymentMethod,
 		"marketplace":           OrganizationBillingCollectionMethodMarketplace,
+		"bank transfer":         OrganizationBillingCollectionMethodBankTransfer,
 	}
 
 	for name, method := range testCases {
@@ -800,7 +801,7 @@ func TestUpdateOrganizationBillingCollectionMethod(t *testing.T) {
 		Alias: "org_123",
 		Attributes: map[string][]string{
 			OrganizationDisplayNameKey:             {"Acme"},
-			OrganizationBillingCollectionMethodKey: {string(OrganizationBillingCollectionMethodStripePaymentMethod)},
+			OrganizationBillingCollectionMethodKey: {string(OrganizationBillingCollectionMethodBankTransfer)},
 		},
 	}
 
@@ -829,8 +830,8 @@ func TestUpdateOrganizationBillingCollectionMethod(t *testing.T) {
 	name := "Updated Acme"
 	got, err := r.UpdateOrganization(context.Background(), "realm", "org_123", OrganizationUpdate{Name: &name})
 	require.NoError(t, err)
-	assert.Equal(t, OrganizationBillingCollectionMethodStripePaymentMethod, got.BillingCollectionMethod)
-	assert.Equal(t, string(OrganizationBillingCollectionMethodStripePaymentMethod), organization.Attributes[OrganizationBillingCollectionMethodKey][0])
+	assert.Equal(t, OrganizationBillingCollectionMethodBankTransfer, got.BillingCollectionMethod)
+	assert.Equal(t, string(OrganizationBillingCollectionMethodBankTransfer), organization.Attributes[OrganizationBillingCollectionMethodKey][0])
 
 	method := OrganizationBillingCollectionMethodMarketplace
 	_, err = r.UpdateOrganization(context.Background(), "realm", "org_123", OrganizationUpdate{BillingCollectionMethod: &method})

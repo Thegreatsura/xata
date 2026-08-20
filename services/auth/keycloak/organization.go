@@ -39,6 +39,7 @@ const (
 	OrganizationBillingCollectionMethodUnknown             OrganizationBillingCollectionMethod = "unknown"
 	OrganizationBillingCollectionMethodStripePaymentMethod OrganizationBillingCollectionMethod = "stripe_payment_method"
 	OrganizationBillingCollectionMethodMarketplace         OrganizationBillingCollectionMethod = "marketplace"
+	OrganizationBillingCollectionMethodBankTransfer        OrganizationBillingCollectionMethod = "bank_transfer"
 )
 
 const (
@@ -127,7 +128,8 @@ type OrganizationBillingCollectionMethod string
 
 func (m OrganizationBillingCollectionMethod) Valid() bool {
 	return m == OrganizationBillingCollectionMethodStripePaymentMethod ||
-		m == OrganizationBillingCollectionMethodMarketplace
+		m == OrganizationBillingCollectionMethodMarketplace ||
+		m == OrganizationBillingCollectionMethodBankTransfer
 }
 
 type OrganizationUsageTier string
