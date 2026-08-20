@@ -13,6 +13,30 @@ const (
 	XataScopes xataContextKey = "xata.Scopes"
 )
 
+// Defines values for BillingCollectionMethod.
+const (
+	BillingCollectionMethodBankTransfer        BillingCollectionMethod = "bank_transfer"
+	BillingCollectionMethodMarketplace         BillingCollectionMethod = "marketplace"
+	BillingCollectionMethodStripePaymentMethod BillingCollectionMethod = "stripe_payment_method"
+	BillingCollectionMethodUnknown             BillingCollectionMethod = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the BillingCollectionMethod enum.
+func (e BillingCollectionMethod) Valid() bool {
+	switch e {
+	case BillingCollectionMethodBankTransfer:
+		return true
+	case BillingCollectionMethodMarketplace:
+		return true
+	case BillingCollectionMethodStripePaymentMethod:
+		return true
+	case BillingCollectionMethodUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BillingCreditStatus.
 const (
 	Active         BillingCreditStatus = "active"
@@ -219,6 +243,9 @@ type BillingCheckoutSessionResponse struct {
 	Url string `json:"url"`
 }
 
+// BillingCollectionMethod How billing payment is collected for the organization.
+type BillingCollectionMethod string
+
 // BillingCredit defines model for BillingCredit.
 type BillingCredit struct {
 	// Balance Remaining credit balance.
@@ -258,9 +285,13 @@ type BillingCreditDetails struct {
 
 // BillingCustomerResponse defines model for BillingCustomerResponse.
 type BillingCustomerResponse struct {
-	BillingEmail  openapi_types.Email  `json:"billing_email"`
-	CreditDetails BillingCreditDetails `json:"credit_details"`
-	Credits       []BillingCredit      `json:"credits"`
+	BillingEmail      openapi_types.Email `json:"billing_email"`
+	CanCollectPayment bool                `json:"can_collect_payment"`
+
+	// CollectionMethod Read-only collection method configured for the organization.
+	CollectionMethod BillingCollectionMethod `json:"collection_method"`
+	CreditDetails    BillingCreditDetails    `json:"credit_details"`
+	Credits          []BillingCredit         `json:"credits"`
 
 	// DefaultPaymentMethod The Stripe default card payment method, when one is configured and retrievable.
 	DefaultPaymentMethod *BillingPaymentMethod `json:"default_payment_method"`

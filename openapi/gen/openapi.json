@@ -4960,6 +4960,22 @@
           "status"
         ]
       },
+      "BillingCollectionMethod": {
+        "description": "How billing payment is collected for the organization.",
+        "type": "string",
+        "enum": [
+          "unknown",
+          "stripe_payment_method",
+          "marketplace",
+          "bank_transfer"
+        ],
+        "x-enum-varnames": [
+          "BillingCollectionMethodUnknown",
+          "BillingCollectionMethodStripePaymentMethod",
+          "BillingCollectionMethodMarketplace",
+          "BillingCollectionMethodBankTransfer"
+        ]
+      },
       "BillingCustomerResponse": {
         "type": "object",
         "properties": {
@@ -4975,6 +4991,17 @@
               }
             ],
             "nullable": true
+          },
+          "collection_method": {
+            "description": "Read-only collection method configured for the organization.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BillingCollectionMethod"
+              }
+            ]
+          },
+          "can_collect_payment": {
+            "type": "boolean"
           },
           "has_payment_method": {
             "description": "True when the customer has a valid Stripe default card payment method.",
@@ -5002,6 +5029,8 @@
         "required": [
           "billing_email",
           "marketplace",
+          "collection_method",
+          "can_collect_payment",
           "has_payment_method",
           "default_payment_method",
           "credits",
