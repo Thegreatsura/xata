@@ -28,13 +28,15 @@ spec:
       key: {{ .key }}
     {{- end }}
     {{- end }}
-    {{- with .Values.db.passwordSecret }}
-    {{- if and .name .key }}
-    passwordSecret:
-      name: {{ .name }}
-      key: {{ .key }}
-    {{- end }}
-    {{- end }}
+  {{- with .Values.db.passwordSecret }}
+  {{- if and .name .key }}
+  env:
+    - name: KCRAW_DB_PASSWORD
+      secret:
+        name: {{ .name }}
+        key: {{ .key }}
+  {{- end }}
+  {{- end }}
   http:
     httpEnabled: {{ .Values.http.httpEnabled }}
     httpPort: {{ .Values.http.httpPort }}

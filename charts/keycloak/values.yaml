@@ -18,6 +18,7 @@ db:
   host: ""
   database: ""
   usernameSecret: {}
+  # Rendered as KCRAW_DB_PASSWORD so Keycloak preserves $ characters.
   passwordSecret: {}
 
 http:
