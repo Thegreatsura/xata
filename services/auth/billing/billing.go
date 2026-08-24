@@ -36,6 +36,14 @@ type Subscription struct {
 	DefaultInvoiceMemo string
 }
 
+type OrbBankTransferOptions struct {
+	ExternalCustomerID string
+	StripeCustomerID   string
+	SubscriptionID     string
+	NetTerms           int
+	InvoiceMemo        string
+}
+
 type Credit struct {
 	ID                    string
 	Amount                float64
@@ -266,6 +274,43 @@ type StripeCustomer struct {
 	OrganizationID string
 }
 
+type BankTransferAddress struct {
+	Line1      string `json:"line1"`
+	Line2      string `json:"line2,omitempty"`
+	City       string `json:"city"`
+	State      string `json:"state"`
+	PostalCode string `json:"postal_code"`
+	Country    string `json:"country"`
+}
+
+type FindStripeBankTransferCustomerOptions struct {
+	OrganizationID         string
+	LinkedStripeCustomerID string
+}
+
+type ConfigureStripeBankTransferCustomerOptions struct {
+	OrganizationID   string
+	StripeCustomerID string
+	Email            string
+	Address          BankTransferAddress
+}
+
+type StripeFundingInstructions struct {
+	Currency          string
+	Network           string
+	AccountHolderName string
+	BankName          string
+	AccountNumber     string
+	RoutingNumber     string
+	AccountType       string
+}
+
+type StripeBankTransferResult struct {
+	CustomerID          string
+	Created             bool
+	FundingInstructions StripeFundingInstructions
+}
+
 type StripeCashBalanceTransaction struct {
 	ID                   string
 	CustomerID           string
@@ -296,6 +341,8 @@ type Client interface {
 	FetchCustomerByExternalID(ctx context.Context, externalCustomerID string) (*Customer, error)
 	// FetchCustomerByStripeCustomerID retrieves a customer using its Stripe customer ID.
 	FetchCustomerByStripeCustomerID(ctx context.Context, stripeCustomerID string) (*Customer, error)
+	// ConfigureOrbCustomerForBankTransfers configures an Orb customer and subscription for manual collection through Stripe.
+	ConfigureOrbCustomerForBankTransfers(ctx context.Context, opts OrbBankTransferOptions) error
 	// FetchBillingCustomerWithDefaultPaymentMethod retrieves a customer with their default payment method details.
 	FetchBillingCustomerWithDefaultPaymentMethod(ctx context.Context, externalCustomerID string) (*Customer, error)
 	UpdateOrbCustomerEmail(ctx context.Context, externalCustomerID, email string) (*Customer, error)
@@ -307,6 +354,10 @@ type Client interface {
 	ListCustomersCreatedAfter(ctx context.Context, createdAfter time.Time) ([]*Customer, error)
 	// FetchStripeCustomer retrieves a Stripe customer by their Stripe customer ID.
 	FetchStripeCustomer(ctx context.Context, stripeCustomerID string) (*StripeCustomer, error)
+	// FindExistingStripeCustomerForBankTransfers returns a safe existing Stripe customer ID without writes.
+	FindExistingStripeCustomerForBankTransfers(ctx context.Context, opts FindStripeBankTransferCustomerOptions) (stripeCustomerID string, err error)
+	// ConfigureStripeCustomerForBankTransfers creates or configures a Stripe customer and ensures USD ACH funding instructions.
+	ConfigureStripeCustomerForBankTransfers(ctx context.Context, opts ConfigureStripeBankTransferCustomerOptions) (StripeBankTransferResult, error)
 	// FetchStripeCashBalanceTransaction retrieves a Stripe cash balance transaction by its customer and transaction IDs.
 	FetchStripeCashBalanceTransaction(ctx context.Context, stripeCustomerID, transactionID string) (*StripeCashBalanceTransaction, error)
 	// FetchPaymentIntentPaymentMethodID retrieves the payment method attached to a Stripe payment intent.
@@ -358,6 +409,10 @@ func (n *NoopBilling) FetchCustomerByStripeCustomerID(_ context.Context, _ strin
 	return nil, nil
 }
 
+func (n *NoopBilling) ConfigureOrbCustomerForBankTransfers(_ context.Context, _ OrbBankTransferOptions) error {
+	return nil
+}
+
 func (n *NoopBilling) FetchBillingCustomerWithDefaultPaymentMethod(_ context.Context, _ string) (*Customer, error) {
 	return nil, nil
 }
@@ -384,6 +439,14 @@ func (n *NoopBilling) FetchInvoice(_ context.Context, _ string) (*Invoice, error
 
 func (n *NoopBilling) FetchStripeCustomer(_ context.Context, _ string) (*StripeCustomer, error) {
 	return nil, nil
+}
+
+func (n *NoopBilling) FindExistingStripeCustomerForBankTransfers(_ context.Context, _ FindStripeBankTransferCustomerOptions) (string, error) {
+	return "", nil
+}
+
+func (n *NoopBilling) ConfigureStripeCustomerForBankTransfers(_ context.Context, _ ConfigureStripeBankTransferCustomerOptions) (StripeBankTransferResult, error) {
+	return StripeBankTransferResult{}, nil
 }
 
 func (n *NoopBilling) FetchStripeCashBalanceTransaction(_ context.Context, _, _ string) (*StripeCashBalanceTransaction, error) {

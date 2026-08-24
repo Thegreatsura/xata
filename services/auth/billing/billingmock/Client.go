@@ -24,6 +24,89 @@ func (_m *Client) EXPECT() *Client_Expecter {
 	return &Client_Expecter{mock: &_m.Mock}
 }
 
+// ConfigureOrbCustomerForBankTransfers provides a mock function with given fields: ctx, opts
+func (_m *Client) ConfigureOrbCustomerForBankTransfers(ctx context.Context, opts billing.OrbBankTransferOptions) error {
+	ret := _m.Called(ctx, opts)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, billing.OrbBankTransferOptions) error); ok {
+		r0 = rf(ctx, opts)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Client_ConfigureOrbCustomerForBankTransfers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ConfigureOrbCustomerForBankTransfers'
+type Client_ConfigureOrbCustomerForBankTransfers_Call struct {
+	*mock.Call
+}
+
+// ConfigureOrbCustomerForBankTransfers is a helper method to define mock.On call
+//   - ctx context.Context
+//   - opts billing.OrbBankTransferOptions
+func (_e *Client_Expecter) ConfigureOrbCustomerForBankTransfers(ctx interface{}, opts interface{}) *Client_ConfigureOrbCustomerForBankTransfers_Call {
+	return &Client_ConfigureOrbCustomerForBankTransfers_Call{Call: _e.mock.On("ConfigureOrbCustomerForBankTransfers", ctx, opts)}
+}
+
+func (_c *Client_ConfigureOrbCustomerForBankTransfers_Call) Run(run func(ctx context.Context, opts billing.OrbBankTransferOptions)) *Client_ConfigureOrbCustomerForBankTransfers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(billing.OrbBankTransferOptions))
+	})
+	return _c
+}
+
+func (_c *Client_ConfigureOrbCustomerForBankTransfers_Call) Return(_a0 error) *Client_ConfigureOrbCustomerForBankTransfers_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+// ConfigureStripeCustomerForBankTransfers provides a mock function with given fields: ctx, opts
+func (_m *Client) ConfigureStripeCustomerForBankTransfers(ctx context.Context, opts billing.ConfigureStripeBankTransferCustomerOptions) (billing.StripeBankTransferResult, error) {
+	ret := _m.Called(ctx, opts)
+
+	var r0 billing.StripeBankTransferResult
+	if rf, ok := ret.Get(0).(func(context.Context, billing.ConfigureStripeBankTransferCustomerOptions) billing.StripeBankTransferResult); ok {
+		r0 = rf(ctx, opts)
+	} else {
+		r0 = ret.Get(0).(billing.StripeBankTransferResult)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, billing.ConfigureStripeBankTransferCustomerOptions) error); ok {
+		r1 = rf(ctx, opts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Client_ConfigureStripeCustomerForBankTransfers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ConfigureStripeCustomerForBankTransfers'
+type Client_ConfigureStripeCustomerForBankTransfers_Call struct {
+	*mock.Call
+}
+
+// ConfigureStripeCustomerForBankTransfers is a helper method to define mock.On call
+//   - ctx context.Context
+//   - opts billing.ConfigureStripeBankTransferCustomerOptions
+func (_e *Client_Expecter) ConfigureStripeCustomerForBankTransfers(ctx interface{}, opts interface{}) *Client_ConfigureStripeCustomerForBankTransfers_Call {
+	return &Client_ConfigureStripeCustomerForBankTransfers_Call{Call: _e.mock.On("ConfigureStripeCustomerForBankTransfers", ctx, opts)}
+}
+
+func (_c *Client_ConfigureStripeCustomerForBankTransfers_Call) Run(run func(ctx context.Context, opts billing.ConfigureStripeBankTransferCustomerOptions)) *Client_ConfigureStripeCustomerForBankTransfers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(billing.ConfigureStripeBankTransferCustomerOptions))
+	})
+	return _c
+}
+
+func (_c *Client_ConfigureStripeCustomerForBankTransfers_Call) Return(_a0 billing.StripeBankTransferResult, _a1 error) *Client_ConfigureStripeCustomerForBankTransfers_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // CountPendingInvoices provides a mock function with given fields: ctx, externalCustomerID
 func (_m *Client) CountPendingInvoices(ctx context.Context, externalCustomerID string) (int, error) {
 	ret := _m.Called(ctx, externalCustomerID)
@@ -838,6 +921,51 @@ func (_c *Client_FinalizeSubscription_Call) Run(run func(ctx context.Context, ex
 
 func (_c *Client_FinalizeSubscription_Call) Return(_a0 error) *Client_FinalizeSubscription_Call {
 	_c.Call.Return(_a0)
+	return _c
+}
+
+// FindExistingStripeCustomerForBankTransfers provides a mock function with given fields: ctx, opts
+func (_m *Client) FindExistingStripeCustomerForBankTransfers(ctx context.Context, opts billing.FindStripeBankTransferCustomerOptions) (string, error) {
+	ret := _m.Called(ctx, opts)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(context.Context, billing.FindStripeBankTransferCustomerOptions) string); ok {
+		r0 = rf(ctx, opts)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, billing.FindStripeBankTransferCustomerOptions) error); ok {
+		r1 = rf(ctx, opts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Client_FindExistingStripeCustomerForBankTransfers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindExistingStripeCustomerForBankTransfers'
+type Client_FindExistingStripeCustomerForBankTransfers_Call struct {
+	*mock.Call
+}
+
+// FindExistingStripeCustomerForBankTransfers is a helper method to define mock.On call
+//   - ctx context.Context
+//   - opts billing.FindStripeBankTransferCustomerOptions
+func (_e *Client_Expecter) FindExistingStripeCustomerForBankTransfers(ctx interface{}, opts interface{}) *Client_FindExistingStripeCustomerForBankTransfers_Call {
+	return &Client_FindExistingStripeCustomerForBankTransfers_Call{Call: _e.mock.On("FindExistingStripeCustomerForBankTransfers", ctx, opts)}
+}
+
+func (_c *Client_FindExistingStripeCustomerForBankTransfers_Call) Run(run func(ctx context.Context, opts billing.FindStripeBankTransferCustomerOptions)) *Client_FindExistingStripeCustomerForBankTransfers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(billing.FindStripeBankTransferCustomerOptions))
+	})
+	return _c
+}
+
+func (_c *Client_FindExistingStripeCustomerForBankTransfers_Call) Return(stripeCustomerID string, err error) *Client_FindExistingStripeCustomerForBankTransfers_Call {
+	_c.Call.Return(stripeCustomerID, err)
 	return _c
 }
 
