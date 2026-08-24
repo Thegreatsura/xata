@@ -256,6 +256,14 @@ type StripeCustomer struct {
 	OrganizationID string
 }
 
+type StripeCashBalanceTransaction struct {
+	ID                   string
+	CustomerID           string
+	Currency             string
+	NetAmount            float64
+	FundedByBankTransfer bool
+}
+
 type CheckoutSession struct {
 	URL string
 }
@@ -276,6 +284,8 @@ type Client interface {
 	FetchOrbCustomer(ctx context.Context, customerID string) (*Customer, error)
 	// FetchCustomerByExternalID retrieves a customer record by the external customer ID.
 	FetchCustomerByExternalID(ctx context.Context, externalCustomerID string) (*Customer, error)
+	// FetchCustomerByStripeCustomerID retrieves a customer using its Stripe customer ID.
+	FetchCustomerByStripeCustomerID(ctx context.Context, stripeCustomerID string) (*Customer, error)
 	// FetchBillingCustomerWithDefaultPaymentMethod retrieves a customer with their default payment method details.
 	FetchBillingCustomerWithDefaultPaymentMethod(ctx context.Context, externalCustomerID string) (*Customer, error)
 	UpdateOrbCustomerEmail(ctx context.Context, externalCustomerID, email string) (*Customer, error)
@@ -287,6 +297,8 @@ type Client interface {
 	ListCustomersCreatedAfter(ctx context.Context, createdAfter time.Time) ([]*Customer, error)
 	// FetchStripeCustomer retrieves a Stripe customer by their Stripe customer ID.
 	FetchStripeCustomer(ctx context.Context, stripeCustomerID string) (*StripeCustomer, error)
+	// FetchStripeCashBalanceTransaction retrieves a Stripe cash balance transaction by its customer and transaction IDs.
+	FetchStripeCashBalanceTransaction(ctx context.Context, stripeCustomerID, transactionID string) (*StripeCashBalanceTransaction, error)
 	// FetchPaymentIntentPaymentMethodID retrieves the payment method attached to a Stripe payment intent.
 	FetchPaymentIntentPaymentMethodID(ctx context.Context, paymentIntentID string) (string, error)
 	// FetchSetupIntentPaymentMethodID retrieves the payment method attached to a Stripe setup intent.
@@ -332,6 +344,10 @@ func (n *NoopBilling) FetchCustomerByExternalID(_ context.Context, _ string) (*C
 	return nil, nil
 }
 
+func (n *NoopBilling) FetchCustomerByStripeCustomerID(_ context.Context, _ string) (*Customer, error) {
+	return nil, nil
+}
+
 func (n *NoopBilling) FetchBillingCustomerWithDefaultPaymentMethod(_ context.Context, _ string) (*Customer, error) {
 	return nil, nil
 }
@@ -357,6 +373,10 @@ func (n *NoopBilling) FetchInvoice(_ context.Context, _ string) (*Invoice, error
 }
 
 func (n *NoopBilling) FetchStripeCustomer(_ context.Context, _ string) (*StripeCustomer, error) {
+	return nil, nil
+}
+
+func (n *NoopBilling) FetchStripeCashBalanceTransaction(_ context.Context, _, _ string) (*StripeCashBalanceTransaction, error) {
 	return nil, nil
 }
 
