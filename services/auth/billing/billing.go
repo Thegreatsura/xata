@@ -192,6 +192,10 @@ type InvoiceAutoCollection struct {
 	NextAttemptAt *time.Time
 }
 
+type InvoiceStatus string
+
+const InvoiceStatusIssued InvoiceStatus = "issued"
+
 type Invoice struct {
 	ID                 string
 	InvoiceNumber      string
@@ -199,7 +203,7 @@ type Invoice struct {
 	AmountDueCents     int64
 	Total              float64
 	Currency           string
-	Status             string
+	Status             InvoiceStatus
 	WillAutoIssue      bool
 	InvoiceDate        time.Time
 	BillingPeriodStart time.Time
@@ -211,8 +215,9 @@ type Invoice struct {
 }
 
 type InvoiceListOptions struct {
-	Cursor string
-	Limit  int
+	Cursor   string
+	Limit    int
+	Statuses []InvoiceStatus
 }
 
 type InvoicesPage struct {
