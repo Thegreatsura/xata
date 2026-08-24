@@ -24,8 +24,16 @@ const (
 	CollectionMethodBankTransfer        CollectionMethod = "bank_transfer"
 )
 
+type SubscriptionStatus string
+
+const SubscriptionStatusActive SubscriptionStatus = "active"
+
 type Subscription struct {
-	ID string
+	ID                 string
+	Status             SubscriptionStatus
+	AutoCollection     bool
+	NetTerms           int
+	DefaultInvoiceMemo string
 }
 
 type Credit struct {
@@ -69,7 +77,9 @@ type Customer struct {
 	CustomerExternalID   string
 	Name                 string
 	Email                string
+	PaymentProvider      string
 	PaymentProviderID    string
+	AutoCollection       bool
 	Subscriptions        []Subscription
 	Credits              []Credit
 	DefaultPaymentMethod *PaymentMethod

@@ -26,6 +26,7 @@ func TestKeycloakOrganizationToProto(t *testing.T) {
 		"enabled organization with optional fields": {
 			org: keycloak.Organization{
 				ID:                      "org-enabled",
+				Name:                    "Enabled organization",
 				BillingCollectionMethod: keycloak.OrganizationBillingCollectionMethodMarketplace,
 				Marketplace:             &marketplace,
 				Status: keycloak.OrganizationStatus{
@@ -36,6 +37,7 @@ func TestKeycloakOrganizationToProto(t *testing.T) {
 			},
 			want: &authv1.Organization{
 				Id:                      "org-enabled",
+				Name:                    "Enabled organization",
 				Status:                  string(keycloak.OrganizationStateEnabled),
 				BillingStatus:           string(keycloak.OrganizationBillingStatusOK),
 				CreatedAt:               timestamppb.New(createdAt),

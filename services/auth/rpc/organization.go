@@ -12,6 +12,7 @@ import (
 func keycloakOrganizationToProto(org keycloak.Organization) *authv1.Organization {
 	resp := &authv1.Organization{
 		Id:                      org.ID,
+		Name:                    org.Name,
 		Status:                  string(org.Status.EffectiveState()),
 		DisabledByAdmin:         org.Status.DisabledByAdmin,
 		DisabledByAdminReason:   org.Status.AdminReason,

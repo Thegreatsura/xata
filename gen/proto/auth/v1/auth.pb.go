@@ -227,6 +227,7 @@ type Organization struct {
 	Marketplace             string                 `protobuf:"bytes,9,opt,name=marketplace,proto3" json:"marketplace,omitempty"`
 	DeletedAt               *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
 	BillingCollectionMethod string                 `protobuf:"bytes,11,opt,name=billing_collection_method,json=billingCollectionMethod,proto3" json:"billing_collection_method,omitempty"`
+	Name                    string                 `protobuf:"bytes,12,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -334,6 +335,13 @@ func (x *Organization) GetDeletedAt() *timestamppb.Timestamp {
 func (x *Organization) GetBillingCollectionMethod() string {
 	if x != nil {
 		return x.BillingCollectionMethod
+	}
+	return ""
+}
+
+func (x *Organization) GetName() string {
+	if x != nil {
+		return x.Name
 	}
 	return ""
 }
@@ -656,7 +664,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"api_key_id\x18\t \x01(\tR\bapiKeyId\x1aW\n" +
 	"\x12OrganizationsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.auth.v1.OrganizationR\x05value:\x028\x01J\x04\b\x05\x10\x06\"\x96\x04\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.auth.v1.OrganizationR\x05value:\x028\x01J\x04\b\x05\x10\x06\"\xaa\x04\n" +
 	"\fOrganization\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12*\n" +
@@ -672,7 +680,8 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
 	"deleted_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\x12:\n" +
-	"\x19billing_collection_method\x18\v \x01(\tR\x17billingCollectionMethodB\x1b\n" +
+	"\x19billing_collection_method\x18\v \x01(\tR\x17billingCollectionMethod\x12\x12\n" +
+	"\x04name\x18\f \x01(\tR\x04nameB\x1b\n" +
 	"\x19_disabled_by_admin_reasonB\x11\n" +
 	"\x0f_billing_reason\"j\n" +
 	"\x16GetOrganizationRequest\x12'\n" +
