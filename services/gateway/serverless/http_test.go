@@ -1046,7 +1046,7 @@ func TestQuery_IPFilter(t *testing.T) {
 }
 
 func TestConnect(t *testing.T) {
-	const branchAddr = "branch-test-rw.xata-clusters.svc.cluster.local:5432"
+	const branchAddr = "branch-test-rw.xata-clusters.svc.cluster.local.:5432"
 	info := &connectionInfo{User: "bob", Password: "hunter2", Database: "mydb"}
 
 	t.Run("dials exactly once via ClusterDialer", func(t *testing.T) {

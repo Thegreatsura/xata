@@ -21,49 +21,49 @@ func TestResolve(t *testing.T) {
 		"simple branch": {
 			serverName: "branch1.example.com",
 			fallback:   session.EndpointRW,
-			wantAddr:   "branch-branch1-rw.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-rw.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 		"read-only endpoint": {
 			serverName: "branch1-ro.example.com",
 			fallback:   session.EndpointRW,
-			wantAddr:   "branch-branch1-ro.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-ro.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 		"read-write endpoint explicitly requested": {
 			serverName: "branch1-rw.example.com",
 			fallback:   session.EndpointRW,
-			wantAddr:   "branch-branch1-rw.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-rw.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 		"read endpoint": {
 			serverName: "branch1-r.example.com",
 			fallback:   session.EndpointRW,
-			wantAddr:   "branch-branch1-r.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-r.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 		"deprecated marker": {
 			serverName: "branch1-deprecated.example.com",
 			fallback:   session.EndpointRW,
-			wantAddr:   "branch-branch1-rw.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-rw.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 		"deprecated marker before endpoint": {
 			serverName: "branch1-deprecated-ro.example.com",
 			fallback:   session.EndpointRW,
-			wantAddr:   "branch-branch1-ro.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-ro.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 		"deprecated marker after endpoint": {
 			serverName: "branch1-ro-deprecated.example.com",
 			fallback:   session.EndpointRW,
-			wantAddr:   "branch-branch1-ro.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-ro.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 		"branch named deprecated": {
 			serverName: "deprecated.example.com",
 			fallback:   session.EndpointRW,
-			wantAddr:   "branch-deprecated-rw.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-deprecated-rw.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "deprecated",
 		},
 	}
@@ -92,49 +92,49 @@ func TestResolve_PoolerEnabled(t *testing.T) {
 		"pooler endpoint": {
 			serverName: "branch1-pooler.example.com",
 			fallback:   session.EndpointRW,
-			wantAddr:   "branch-branch1-pooler.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-pooler.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 		"pooler with underscore branch": {
 			serverName: "my_branch-pooler.example.com",
 			fallback:   session.EndpointRW,
-			wantAddr:   "branch-my_branch-pooler.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-my_branch-pooler.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "my_branch",
 		},
 		"rw still works with pooler enabled": {
 			serverName: "branch1-rw.example.com",
 			fallback:   session.EndpointRW,
-			wantAddr:   "branch-branch1-rw.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-rw.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 		"rw fallback with pooler enabled": {
 			serverName: "branch1.example.com",
 			fallback:   session.EndpointRW,
-			wantAddr:   "branch-branch1-rw.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-rw.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 		"pooler fallback with no suffix": {
 			serverName: "branch1.example.com",
 			fallback:   session.EndpointPooler,
-			wantAddr:   "branch-branch1-pooler.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-pooler.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 		"explicit -rw wins over pooler fallback": {
 			serverName: "branch1-rw.example.com",
 			fallback:   session.EndpointPooler,
-			wantAddr:   "branch-branch1-rw.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-rw.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 		"explicit -ro wins over pooler fallback": {
 			serverName: "branch1-ro.example.com",
 			fallback:   session.EndpointPooler,
-			wantAddr:   "branch-branch1-ro.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-ro.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 		"deprecated marker after pooler endpoint": {
 			serverName: "branch1-pooler-deprecated.example.com",
 			fallback:   session.EndpointRW,
-			wantAddr:   "branch-branch1-pooler.test-namespace.svc.cluster.local:5432",
+			wantAddr:   "branch-branch1-pooler.test-namespace.svc.cluster.local.:5432",
 			wantBranch: "branch1",
 		},
 	}
@@ -160,14 +160,14 @@ func TestResolve_PoolerDisabled(t *testing.T) {
 	t.Run("pooler fallback silently degrades to rw", func(t *testing.T) {
 		branch, err := resolver.Resolve(context.Background(), "branch1.example.com", session.EndpointPooler)
 		require.NoError(t, err)
-		require.Equal(t, "branch-branch1-rw.test-namespace.svc.cluster.local:5432", branch.Address)
+		require.Equal(t, "branch-branch1-rw.test-namespace.svc.cluster.local.:5432", branch.Address)
 		require.Equal(t, "branch1", branch.ID)
 	})
 
 	t.Run("unknown fallback degrades to rw", func(t *testing.T) {
 		branch, err := resolver.Resolve(context.Background(), "branch1.example.com", "bogus")
 		require.NoError(t, err)
-		require.Equal(t, "branch-branch1-rw.test-namespace.svc.cluster.local:5432", branch.Address)
+		require.Equal(t, "branch-branch1-rw.test-namespace.svc.cluster.local.:5432", branch.Address)
 		require.Equal(t, "branch1", branch.ID)
 	})
 }
