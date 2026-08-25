@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"net"
 	"os"
 	"testing"
@@ -41,6 +42,20 @@ func (si *stubInitiator) InitSession(ctx context.Context, sessionID string, conn
 	s := &stubSession{release: make(chan struct{})}
 	si.sessions <- s
 	return s, nil
+}
+
+type branchError struct {
+	err error
+}
+
+func (e *branchError) Error() string    { return e.err.Error() }
+func (e *branchError) Unwrap() error    { return e.err }
+func (e *branchError) BranchID() string { return "test-branch" }
+
+type errorInitiator struct{}
+
+func (errorInitiator) InitSession(context.Context, string, net.Conn) (session.Session, error) {
+	return nil, &branchError{err: errors.New("session failed")}
 }
 
 func startTestServer(t *testing.T, drainingTime time.Duration) (addr string, sessions chan *stubSession, runErr chan error, cancel context.CancelFunc) {
@@ -209,6 +224,23 @@ func TestServerSiblingFailureSkipsDraining(t *testing.T) {
 	_, err := conn.Read(make([]byte, 1))
 	require.Error(t, err)
 	require.NotErrorIs(t, err, os.ErrDeadlineExceeded)
+}
+
+func TestStartSessionReturnsBranchIDFromError(t *testing.T) {
+	client, serverConn := net.Pipe()
+	t.Cleanup(func() {
+		client.Close()
+		serverConn.Close()
+	})
+
+	srv := &server{
+		initiator: errorInitiator{},
+		drainer:   newTimedWaitGroup(time.Second),
+	}
+
+	branchID, err := srv.startSession(context.Background(), "session-id", serverConn)
+	require.EqualError(t, err, "session failed")
+	require.Equal(t, "test-branch", branchID)
 }
 
 // TestServerRunCancelRace cancels the run context concurrently with server

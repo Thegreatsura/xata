@@ -16,6 +16,22 @@ import (
 
 var ErrIPNotAllowed = errors.New("forbidden")
 
+type branchIDError struct {
+	branchID string
+	err      error
+}
+
+func (e *branchIDError) Error() string    { return e.err.Error() }
+func (e *branchIDError) Unwrap() error    { return e.err }
+func (e *branchIDError) BranchID() string { return e.branchID }
+
+func withBranchID(branchID string, err error) error {
+	if branchID == "" {
+		return err
+	}
+	return &branchIDError{branchID: branchID, err: err}
+}
+
 type Proxy struct {
 	tracer   trace.Tracer
 	resolver BranchResolver
@@ -60,7 +76,7 @@ func (p *Proxy) CreateBackendSession(
 
 	outConn, branchName, err := p.initProxyConn(ctx, serverName, inboundConn, startupMessage)
 	if err != nil {
-		return nil, err
+		return nil, withBranchID(branchName, err)
 	}
 
 	span.SetAttributes(metrics.AttrBranchID.String(branchName))
@@ -73,7 +89,7 @@ func (p *Proxy) CancelSession(ctx context.Context, serverName string, inboundCon
 
 	out, branchName, err := p.initProxyConn(ctx, serverName, inboundConn, req)
 	if err != nil {
-		return err
+		return withBranchID(branchName, err)
 	}
 
 	span.SetAttributes(metrics.AttrBranchID.String(branchName))

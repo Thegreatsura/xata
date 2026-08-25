@@ -211,6 +211,9 @@ func TestProxy_CreateBackendSession_NetworkDialError(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "connection refused")
 	require.Nil(t, backendSession)
+	var branchErr interface{ BranchID() string }
+	require.ErrorAs(t, err, &branchErr)
+	require.Equal(t, "branch1", branchErr.BranchID())
 
 	// Verify both resolver and dialer were called with correct parameters
 	require.Equal(t, "test.example.com", resolver.ServerName)

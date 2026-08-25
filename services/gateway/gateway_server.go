@@ -214,6 +214,14 @@ func isIgnorableError(err error) bool {
 		errors.Is(err, initiator.ErrorStartupMsgLength)
 }
 
+func branchIDFromError(err error) string {
+	var branchErr interface{ BranchID() string }
+	if errors.As(err, &branchErr) {
+		return branchErr.BranchID()
+	}
+	return ""
+}
+
 func (s *server) startSession(ctx context.Context, sessionID string, clientConn net.Conn) (string, error) {
 	if err := s.drainer.Add(1); err != nil {
 		clientConn.Close()
@@ -235,7 +243,7 @@ func (s *server) startSession(ctx context.Context, sessionID string, clientConn 
 
 	session, err := s.initiator.InitSession(ctx, sessionID, clientConn)
 	if err != nil {
-		return "", err
+		return branchIDFromError(err), err
 	}
 	return session.BranchID(), session.ServeSQLSession(ctx)
 }
