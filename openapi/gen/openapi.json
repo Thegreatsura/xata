@@ -6363,7 +6363,7 @@
             "nullable": true
           },
           "connectionString": {
-            "description": "Deprecated: retrieve the connection string from the branch credentials endpoint (GET .../branches/{branchID}/credentials) instead.",
+            "description": "Deprecated: retrieve the connection string from the branch credentials endpoint (GET .../branches/{branchID}/credentials) instead. The hostname in this connection string carries a -deprecated marker in its first DNS label.",
             "type": "string",
             "deprecated": true,
             "nullable": true
@@ -6479,7 +6479,7 @@
             "$ref": "#/components/schemas/BranchStatus"
           },
           "connectionString": {
-            "description": "Deprecated: retrieve the connection string from the branch credentials endpoint (GET .../branches/{branchID}/credentials) instead.",
+            "description": "Deprecated: retrieve the connection string from the branch credentials endpoint (GET .../branches/{branchID}/credentials) instead. The hostname in this connection string carries a -deprecated marker in its first DNS label.",
             "type": "string",
             "deprecated": true,
             "nullable": true

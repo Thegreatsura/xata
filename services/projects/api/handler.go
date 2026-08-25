@@ -1321,6 +1321,11 @@ const branchDatabaseName = "xata"
 // defaultPostgresPort is omitted from connection strings, clients assume it.
 const defaultPostgresPort = 5432
 
+// deprecatedHostSuffix marks hostnames served in the deprecated branch
+// connectionString field. The gateway strips it and logs the connection,
+// so clients still using that field can be detected.
+const deprecatedHostSuffix = "-deprecated"
+
 // formatConnectionString assembles the branch DSN from its parts. It carries
 // no sslmode parameter, clients choose their own TLS settings.
 func formatConnectionString(username, password, hostname string, port int) string {
@@ -1342,8 +1347,9 @@ func (s *handler) resolveGatewayHostPort(region *store.Region) string {
 }
 
 // branchEndpoint returns the hostname and port clients use to reach a branch
-// through the region's gateway.
-func (s *handler) branchEndpoint(region *store.Region, branchID string) (string, int, error) {
+// through the region's gateway. hostLabel is normally the branch ID, optionally
+// decorated with a suffix the gateway understands.
+func (s *handler) branchEndpoint(region *store.Region, hostLabel string) (string, int, error) {
 	hostPort := s.resolveGatewayHostPort(region)
 	if hostPort == "" {
 		return "", 0, errors.New("no gateway host:port configured")
@@ -1351,7 +1357,7 @@ func (s *handler) branchEndpoint(region *store.Region, branchID string) (string,
 	// Regions may register a host-only gateway address (ie us-east-1.xata.tech),
 	// in that case connections use the default postgres port.
 	if !strings.Contains(hostPort, ":") {
-		return branchID + "." + hostPort, defaultPostgresPort, nil
+		return hostLabel + "." + hostPort, defaultPostgresPort, nil
 	}
 	host, portStr, err := net.SplitHostPort(hostPort)
 	if err != nil {
@@ -1361,7 +1367,7 @@ func (s *handler) branchEndpoint(region *store.Region, branchID string) (string,
 	if err != nil {
 		return "", 0, fmt.Errorf("parse gateway port [%s]: %w", portStr, err)
 	}
-	return branchID + "." + host, port, nil
+	return hostLabel + "." + host, port, nil
 }
 
 func (s *handler) getConnectionString(c echo.Context, organizationID string, branch *store.Branch) (string, error) {
@@ -1386,7 +1392,9 @@ func (s *handler) getConnectionString(c echo.Context, organizationID string, bra
 		return "", err
 	}
 
-	hostname, port, err := s.branchEndpoint(region, branch.ID)
+	// The deprecated marker keeps the connection routable while letting the
+	// gateway log which clients still use this connection string.
+	hostname, port, err := s.branchEndpoint(region, branch.ID+deprecatedHostSuffix)
 	if err != nil {
 		return "", err
 	}

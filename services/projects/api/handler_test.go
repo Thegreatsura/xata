@@ -927,7 +927,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch succeeds",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123-deprecated.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": branch.Name, "mode": "custom", "configuration": map[string]any{"image": configuration.Image, "replicas": configuration.Replicas, "region": configuration.Region, "instanceType": configuration.InstanceType}, "backupConfiguration": map[string]any{"retentionPeriod": 2, "backupTime": "2:23:23"}},
 			configuration:    configuration,
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
@@ -959,7 +959,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch succeeds with missing backup settings",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123-deprecated.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": branch.Name, "mode": "custom", "configuration": map[string]any{"image": configuration.Image, "replicas": configuration.Replicas, "region": configuration.Region, "instanceType": configuration.InstanceType}},
 			configuration:    configuration,
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
@@ -1012,7 +1012,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch succeeds with incomplete backup settings",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123-deprecated.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": branch.Name, "mode": "custom", "configuration": map[string]any{"image": configuration.Image, "replicas": configuration.Replicas, "region": configuration.Region, "instanceType": configuration.InstanceType}, "backupConfiguration": map[string]any{"backupTime": "*:23:23"}},
 			configuration:    configuration,
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
@@ -1065,7 +1065,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch succeeds with daily backup settings",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123-deprecated.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": branch.Name, "mode": "custom", "configuration": map[string]any{"image": configuration.Image, "replicas": configuration.Replicas, "region": configuration.Region, "instanceType": configuration.InstanceType}, "backupConfiguration": map[string]any{"retentionPeriod": 2, "backupTime": "*:23:23"}},
 			configuration:    configuration,
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
@@ -1117,7 +1117,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a child branch succeeds",
 			projectID:        "project_id",
 			branch:           childBranch,
-			connectionString: new("postgresql://user:pass@1234.testdomain/xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@1234-deprecated.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": childBranch.Name, "mode": "inherit", "parentID": *childBranch.ParentID, "backupConfiguration": map[string]any{"retentionPeriod": 2, "backupTime": "2:23:23"}},
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
 				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
@@ -1139,7 +1139,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a child branch fails for unhealthy parent",
 			projectID:        "project_id",
 			branch:           childBranch,
-			connectionString: new("postgresql://user:pass@1234.testdomain/xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@1234-deprecated.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": childBranch.Name, "mode": "inherit", "parentID": *childBranch.ParentID, "backupConfiguration": map[string]any{"retentionPeriod": 2, "backupTime": "2:23:23"}},
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
 				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
@@ -1321,7 +1321,7 @@ func TestCreateBranch(t *testing.T) {
 		{
 			name:             "create a branch with correct description succeeds",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123-deprecated.testdomain/xata?sslmode=require"),
 			jsonBody:         map[string]any{"name": branch.Name, "description": correctDescription, "mode": "custom", "configuration": map[string]any{"image": configuration.Image, "replicas": configuration.Replicas, "storage": configuration.Storage, "region": configuration.Region, "instanceType": configuration.InstanceType}, "backupConfiguration": map[string]any{"retentionPeriod": 2, "backupTime": "2:23:23"}},
 			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
 				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
@@ -1511,7 +1511,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch with custom preload libraries succeeds",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123-deprecated.testdomain/xata?sslmode=require"),
 			jsonBody: map[string]any{
 				"name": branch.Name,
 				"mode": "custom",
@@ -1565,7 +1565,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch with custom postgres configuration parameters succeeds",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123-deprecated.testdomain/xata?sslmode=require"),
 			jsonBody: map[string]any{
 				"name": branch.Name,
 				"mode": "custom",
@@ -1624,7 +1624,7 @@ func TestCreateBranch(t *testing.T) {
 			name:             "create a branch with both custom preload libraries and postgres parameters succeeds",
 			projectID:        "project_id",
 			branch:           branch,
-			connectionString: new("postgresql://user:pass@123.testdomain/xata?sslmode=require"),
+			connectionString: new("postgresql://user:pass@123-deprecated.testdomain/xata?sslmode=require"),
 			jsonBody: map[string]any{
 				"name": branch.Name,
 				"mode": "custom",
@@ -2650,7 +2650,7 @@ func TestDescribeBranch(t *testing.T) {
 				assert.Equal(t, branch.ParentID, got.ParentID)
 				assert.Equal(t, branch.Description, got.Description)
 				assert.Equal(t, branch.PublicAccess, got.PublicAccess)
-				assert.Equal(t, new("postgresql://user:pass@branchID.footest.tld:1234/xata?sslmode=require"), got.ConnectionString)
+				assert.Equal(t, new("postgresql://user:pass@branchID-deprecated.footest.tld:1234/xata?sslmode=require"), got.ConnectionString)
 				assert.Equal(t, int32(0), got.Configuration.Replicas)
 				assert.Equal(t, "xata.small", got.Configuration.InstanceType) // assuming VcpuLimit: 0.5, VcpuRequest: 2 / Ram 2 → xata.small
 				assert.Equal(t, "postgres:17.11", got.Configuration.Image)
@@ -2712,7 +2712,7 @@ func TestDescribeBranch(t *testing.T) {
 				assert.Equal(t, branch.ParentID, got.ParentID)
 				assert.Equal(t, branch.Description, got.Description)
 				assert.Equal(t, branch.PublicAccess, got.PublicAccess)
-				assert.Equal(t, new("postgresql://user:pass@branchID.footest.tld:1234/xata?sslmode=require"), got.ConnectionString)
+				assert.Equal(t, new("postgresql://user:pass@branchID-deprecated.footest.tld:1234/xata?sslmode=require"), got.ConnectionString)
 				assert.Equal(t, int32(0), got.Configuration.Replicas)
 				assert.Equal(t, "xata.small", got.Configuration.InstanceType) // assuming Vcpu 2 / Ram 2 → xata.small
 				assert.Equal(t, "postgres:17.11", got.Configuration.Image)
@@ -2788,7 +2788,7 @@ func TestDescribeBranch(t *testing.T) {
 				assert.Equal(t, branch.ID, got.Id)
 				assert.Equal(t, branch.CreatedAt, got.CreatedAt)
 				assert.Equal(t, branch.Name, got.Name)
-				assert.Equal(t, new("postgresql://user:pass@branchID.footest.tld:1234/xata?sslmode=require"), got.ConnectionString)
+				assert.Equal(t, new("postgresql://user:pass@branchID-deprecated.footest.tld:1234/xata?sslmode=require"), got.ConnectionString)
 				assert.Equal(t, int32(0), got.Configuration.Replicas)
 				assert.Equal(t, int32(1), *got.Configuration.Storage)
 				assert.Equal(t, apiv1.PhaseImageCatalogError, got.Status.Status)
@@ -2849,7 +2849,7 @@ func TestDescribeBranch(t *testing.T) {
 				assert.Equal(t, branch.ParentID, got.ParentID)
 				assert.Equal(t, branch.Description, got.Description)
 				assert.Equal(t, branch.PublicAccess, got.PublicAccess)
-				assert.Equal(t, new("postgresql://user:pass@branchID.footest.tld:1234/xata?sslmode=require"), got.ConnectionString)
+				assert.Equal(t, new("postgresql://user:pass@branchID-deprecated.footest.tld:1234/xata?sslmode=require"), got.ConnectionString)
 				assert.Equal(t, int32(0), got.Configuration.Replicas)
 				assert.Equal(t, defaultStorage, *got.Configuration.Storage)
 				assert.Equal(t, FallbackInstanceType, got.Configuration.InstanceType)
@@ -2947,7 +2947,7 @@ func TestDescribeBranch(t *testing.T) {
 				assert.Equal(t, branch.Name, got.Name)
 				expectedPreloadLibraries := []string{"pg_stat_statements", "auto_explain", "pg_cron"}
 				assert.Equal(t, expectedPreloadLibraries, *got.Configuration.PreloadLibraries)
-				assert.Equal(t, new("postgresql://user:pass@branchID.footest.tld:1234/xata?sslmode=require"), got.ConnectionString)
+				assert.Equal(t, new("postgresql://user:pass@branchID-deprecated.footest.tld:1234/xata?sslmode=require"), got.ConnectionString)
 				assert.Equal(t, int32(0), got.Configuration.Replicas)
 				assert.Equal(t, "xata.small", got.Configuration.InstanceType)
 				assert.Equal(t, "postgres:17.11", got.Configuration.Image)
@@ -3056,7 +3056,7 @@ func TestDescribeBranchXataUser(t *testing.T) {
 	rec.MustCode(http.StatusOK)
 	var got spec.BranchMetadata
 	rec.ReadBody(&got)
-	assert.Equal(t, "postgresql://xata:password@branchID.footest.tld:1234/xata?sslmode=require", *got.ConnectionString)
+	assert.Equal(t, "postgresql://xata:password@branchID-deprecated.footest.tld:1234/xata?sslmode=require", *got.ConnectionString)
 }
 
 func TestBranchMetrics(t *testing.T) {
@@ -5506,7 +5506,7 @@ func TestUpdateBranch(t *testing.T) {
 				rec.MustCode(http.StatusOK)
 				rec.ReadBody(&gotBranch)
 				assert.Equal(t, tt.branchID, gotBranch.Id)
-				assert.Equal(t, new("postgresql://user:pass@123.testdomain/xata?sslmode=require"), gotBranch.ConnectionString)
+				assert.Equal(t, new("postgresql://user:pass@123-deprecated.testdomain/xata?sslmode=require"), gotBranch.ConnectionString)
 			} else {
 				assert.Error(t, err)
 				assert.Equal(t, tt.expectedError, err)
