@@ -110,8 +110,11 @@ func (r *BranchReconciler) reconcileOwnedClusters(
 // clusterAnnotations builds the annotation map for a CNPG Cluster resource
 func clusterAnnotations(branch *v1alpha1.Branch) map[string]string {
 	annotations := map[string]string{
-		BranchAnnotation:   branch.Name,
-		PodPatchAnnotation: `[{"op": "add", "path": "/spec/enableServiceLinks", "value": false}]`,
+		BranchAnnotation: branch.Name,
+		PodPatchAnnotation: `[` +
+			`{"op": "add", "path": "/spec/enableServiceLinks", "value": false},` +
+			`{"op": "add", "path": "/spec/dnsConfig", "value": {"options": [{"name": "ndots", "value": "1"}]}}` +
+			`]`,
 	}
 
 	cSpec := branch.Spec.ClusterSpec

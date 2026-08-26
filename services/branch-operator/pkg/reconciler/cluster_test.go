@@ -263,8 +263,11 @@ func TestClusterReconciliation(t *testing.T) {
 			requireEventuallyNoErr(t, func() error {
 				return getK8SObject(ctx, br.Name, &cluster)
 			})
-			require.Equal(t,
-				`[{"op": "add", "path": "/spec/enableServiceLinks", "value": false}]`,
+			require.JSONEq(t,
+				`[
+					{"op": "add", "path": "/spec/enableServiceLinks", "value": false},
+					{"op": "add", "path": "/spec/dnsConfig", "value": {"options": [{"name": "ndots", "value": "1"}]}}
+				]`,
 				cluster.Annotations[reconciler.PodPatchAnnotation],
 			)
 		})
