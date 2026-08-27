@@ -212,7 +212,10 @@ type InvoiceAutoCollection struct {
 
 type InvoiceStatus string
 
-const InvoiceStatusIssued InvoiceStatus = "issued"
+const (
+	InvoiceStatusIssued InvoiceStatus = "issued"
+	InvoiceStatusPaid   InvoiceStatus = "paid"
+)
 
 type Invoice struct {
 	ID                 string
@@ -316,7 +319,49 @@ type StripeCashBalanceTransaction struct {
 	CustomerID           string
 	Currency             string
 	NetAmount            float64
+	NetAmountCents       int64
+	CreatedAt            time.Time
 	FundedByBankTransfer bool
+}
+
+type BankTransferReconciliationOutcome string
+
+const (
+	BankTransferReconciliationIgnored   BankTransferReconciliationOutcome = "ignored"
+	BankTransferReconciliationManual    BankTransferReconciliationOutcome = "manual"
+	BankTransferReconciliationRetryable BankTransferReconciliationOutcome = "retryable_error"
+	BankTransferReconciliationSucceeded BankTransferReconciliationOutcome = "succeeded"
+)
+
+type BankTransferReconciliationReason string
+
+const (
+	BankTransferReasonNone                  BankTransferReconciliationReason = ""
+	BankTransferReasonNotFunded             BankTransferReconciliationReason = "not_funded_by_bank_transfer"
+	BankTransferReasonCustomerNotMapped     BankTransferReconciliationReason = "customer_not_mapped"
+	BankTransferReasonNoIssuedInvoice       BankTransferReconciliationReason = "no_issued_invoice"
+	BankTransferReasonMultipleInvoices      BankTransferReconciliationReason = "multiple_issued_invoices"
+	BankTransferReasonInvoicePageIncomplete BankTransferReconciliationReason = "issued_invoice_page_incomplete"
+	BankTransferReasonCurrencyMismatch      BankTransferReconciliationReason = "currency_mismatch"
+	BankTransferReasonAmountMismatch        BankTransferReconciliationReason = "amount_mismatch"
+	BankTransferReasonInvoiceNotPayable     BankTransferReconciliationReason = "invoice_not_payable"
+	BankTransferReasonPaymentNotSucceeded   BankTransferReconciliationReason = "payment_intent_not_succeeded"
+	BankTransferReasonProviderFailure       BankTransferReconciliationReason = "provider_failure"
+)
+
+type BankTransferReconciliation struct {
+	StripeCustomerID      string
+	StripeTransactionID   string
+	Transaction           *StripeCashBalanceTransaction
+	Customer              *Customer
+	IssuedInvoices        []Invoice
+	HasMoreIssuedInvoices bool
+	MatchedInvoice        *Invoice
+	PaymentIntentID       string
+	PaymentIntentStatus   string
+	InvoiceMarkedPaid     bool
+	Outcome               BankTransferReconciliationOutcome
+	Reason                BankTransferReconciliationReason
 }
 
 type CheckoutSession struct {
@@ -358,8 +403,8 @@ type Client interface {
 	FindExistingStripeCustomerForBankTransfers(ctx context.Context, opts FindStripeBankTransferCustomerOptions) (stripeCustomerID string, err error)
 	// ConfigureStripeCustomerForBankTransfers creates or configures a Stripe customer and ensures USD ACH funding instructions.
 	ConfigureStripeCustomerForBankTransfers(ctx context.Context, opts ConfigureStripeBankTransferCustomerOptions) (StripeBankTransferResult, error)
-	// FetchStripeCashBalanceTransaction retrieves a Stripe cash balance transaction by its customer and transaction IDs.
-	FetchStripeCashBalanceTransaction(ctx context.Context, stripeCustomerID, transactionID string) (*StripeCashBalanceTransaction, error)
+	// ReconcileBankTransfer reconciles a funded Stripe cash-balance transaction with one matching Orb invoice.
+	ReconcileBankTransfer(ctx context.Context, stripeCustomerID, transactionID string) (BankTransferReconciliation, error)
 	// FetchPaymentIntentPaymentMethodID retrieves the payment method attached to a Stripe payment intent.
 	FetchPaymentIntentPaymentMethodID(ctx context.Context, paymentIntentID string) (string, error)
 	// FetchSetupIntentPaymentMethodID retrieves the payment method attached to a Stripe setup intent.
@@ -449,8 +494,8 @@ func (n *NoopBilling) ConfigureStripeCustomerForBankTransfers(_ context.Context,
 	return StripeBankTransferResult{}, nil
 }
 
-func (n *NoopBilling) FetchStripeCashBalanceTransaction(_ context.Context, _, _ string) (*StripeCashBalanceTransaction, error) {
-	return nil, nil
+func (n *NoopBilling) ReconcileBankTransfer(_ context.Context, stripeCustomerID, transactionID string) (BankTransferReconciliation, error) {
+	return BankTransferReconciliation{StripeCustomerID: stripeCustomerID, StripeTransactionID: transactionID}, nil
 }
 
 func (n *NoopBilling) FetchPaymentIntentPaymentMethodID(_ context.Context, _ string) (string, error) {

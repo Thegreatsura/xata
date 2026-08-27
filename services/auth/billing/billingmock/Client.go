@@ -697,54 +697,6 @@ func (_c *Client_FetchSetupIntentPaymentMethodID_Call) Return(_a0 string, _a1 er
 	return _c
 }
 
-// FetchStripeCashBalanceTransaction provides a mock function with given fields: ctx, stripeCustomerID, transactionID
-func (_m *Client) FetchStripeCashBalanceTransaction(ctx context.Context, stripeCustomerID string, transactionID string) (*billing.StripeCashBalanceTransaction, error) {
-	ret := _m.Called(ctx, stripeCustomerID, transactionID)
-
-	var r0 *billing.StripeCashBalanceTransaction
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) *billing.StripeCashBalanceTransaction); ok {
-		r0 = rf(ctx, stripeCustomerID, transactionID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*billing.StripeCashBalanceTransaction)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, stripeCustomerID, transactionID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Client_FetchStripeCashBalanceTransaction_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FetchStripeCashBalanceTransaction'
-type Client_FetchStripeCashBalanceTransaction_Call struct {
-	*mock.Call
-}
-
-// FetchStripeCashBalanceTransaction is a helper method to define mock.On call
-//   - ctx context.Context
-//   - stripeCustomerID string
-//   - transactionID string
-func (_e *Client_Expecter) FetchStripeCashBalanceTransaction(ctx interface{}, stripeCustomerID interface{}, transactionID interface{}) *Client_FetchStripeCashBalanceTransaction_Call {
-	return &Client_FetchStripeCashBalanceTransaction_Call{Call: _e.mock.On("FetchStripeCashBalanceTransaction", ctx, stripeCustomerID, transactionID)}
-}
-
-func (_c *Client_FetchStripeCashBalanceTransaction_Call) Run(run func(ctx context.Context, stripeCustomerID string, transactionID string)) *Client_FetchStripeCashBalanceTransaction_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
-	})
-	return _c
-}
-
-func (_c *Client_FetchStripeCashBalanceTransaction_Call) Return(_a0 *billing.StripeCashBalanceTransaction, _a1 error) *Client_FetchStripeCashBalanceTransaction_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
 // FetchStripeCustomer provides a mock function with given fields: ctx, stripeCustomerID
 func (_m *Client) FetchStripeCustomer(ctx context.Context, stripeCustomerID string) (*billing.StripeCustomer, error) {
 	ret := _m.Called(ctx, stripeCustomerID)
@@ -1150,6 +1102,52 @@ func (_c *Client_ListInvoices_Call) Run(run func(ctx context.Context, externalCu
 }
 
 func (_c *Client_ListInvoices_Call) Return(_a0 *billing.InvoicesPage, _a1 error) *Client_ListInvoices_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// ReconcileBankTransfer provides a mock function with given fields: ctx, stripeCustomerID, transactionID
+func (_m *Client) ReconcileBankTransfer(ctx context.Context, stripeCustomerID string, transactionID string) (billing.BankTransferReconciliation, error) {
+	ret := _m.Called(ctx, stripeCustomerID, transactionID)
+
+	var r0 billing.BankTransferReconciliation
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) billing.BankTransferReconciliation); ok {
+		r0 = rf(ctx, stripeCustomerID, transactionID)
+	} else {
+		r0 = ret.Get(0).(billing.BankTransferReconciliation)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, stripeCustomerID, transactionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Client_ReconcileBankTransfer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReconcileBankTransfer'
+type Client_ReconcileBankTransfer_Call struct {
+	*mock.Call
+}
+
+// ReconcileBankTransfer is a helper method to define mock.On call
+//   - ctx context.Context
+//   - stripeCustomerID string
+//   - transactionID string
+func (_e *Client_Expecter) ReconcileBankTransfer(ctx interface{}, stripeCustomerID interface{}, transactionID interface{}) *Client_ReconcileBankTransfer_Call {
+	return &Client_ReconcileBankTransfer_Call{Call: _e.mock.On("ReconcileBankTransfer", ctx, stripeCustomerID, transactionID)}
+}
+
+func (_c *Client_ReconcileBankTransfer_Call) Run(run func(ctx context.Context, stripeCustomerID string, transactionID string)) *Client_ReconcileBankTransfer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *Client_ReconcileBankTransfer_Call) Return(_a0 billing.BankTransferReconciliation, _a1 error) *Client_ReconcileBankTransfer_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
