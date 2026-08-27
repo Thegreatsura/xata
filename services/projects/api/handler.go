@@ -1943,7 +1943,7 @@ func (s *handler) GetDefaultProjectLimits(c echo.Context, organizationID spec.Or
 			MaxDescriptionLength: MaxBranchDescriptionLength,
 			MaxInstances:         DefaultMaxInstances,
 			MinInstances:         DefaultMinInstances,
-			MaxBranches:          store.MaxBranchesPerProject,
+			MaxBranches:          store.TierDefaultInt(store.TierT2, store.LimitMaxBranchesPerProject, store.MaxBranchesPerProject),
 		})
 	})
 }

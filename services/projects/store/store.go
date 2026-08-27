@@ -49,11 +49,11 @@ var tierDefaults = map[UsageTier]map[LimitKey]int{
 	},
 	TierT2: {
 		LimitMaxDescriptionLength:   50,
-		LimitMaxBranchesPerProject:  100,
+		LimitMaxBranchesPerProject:  1000,
 		LimitMaxBranchesPerOrg:      1000,
 		LimitMaxInstancesPerBranch:  5,
 		LimitMinInstancesPerBranch:  1,
-		LimitMaxBranchesPerHour:     50,
+		LimitMaxBranchesPerHour:     100,
 		LimitMaxProjects:            100,
 		LimitMaxProjectsPerHour:     20,
 		LimitMaxAllowedInstanceType: 32000, // xata.8xlarge, the largest instance type

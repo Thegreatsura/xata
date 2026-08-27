@@ -5599,7 +5599,7 @@ func TestHandler_GetDefaultProjectLimits(t *testing.T) {
 		MaxDescriptionLength: MaxBranchDescriptionLength,
 		MaxInstances:         DefaultMaxInstances,
 		MinInstances:         DefaultMinInstances,
-		MaxBranches:          store.MaxBranchesPerProject,
+		MaxBranches:          store.TierDefaultInt(store.TierT2, store.LimitMaxBranchesPerProject, store.MaxBranchesPerProject),
 	}
 
 	c, rec := e.GET("/organizations/" + apitest.TestOrganization + "/projects/limits").Context()
