@@ -152,20 +152,20 @@ func (_c *Client_CountPendingInvoices_Call) Return(_a0 int, _a1 error) *Client_C
 	return _c
 }
 
-// CreateCustomer provides a mock function with given fields: ctx, name, email, externalCustomerID, organizationsCount, metadata
-func (_m *Client) CreateCustomer(ctx context.Context, name string, email string, externalCustomerID string, organizationsCount int, metadata billing.OrbCustomerMetadata) (billing.CreateCustomerResult, error) {
-	ret := _m.Called(ctx, name, email, externalCustomerID, organizationsCount, metadata)
+// CreateCustomer provides a mock function with given fields: ctx, opts
+func (_m *Client) CreateCustomer(ctx context.Context, opts billing.CreateCustomerOptions) (billing.CreateCustomerResult, error) {
+	ret := _m.Called(ctx, opts)
 
 	var r0 billing.CreateCustomerResult
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, int, billing.OrbCustomerMetadata) billing.CreateCustomerResult); ok {
-		r0 = rf(ctx, name, email, externalCustomerID, organizationsCount, metadata)
+	if rf, ok := ret.Get(0).(func(context.Context, billing.CreateCustomerOptions) billing.CreateCustomerResult); ok {
+		r0 = rf(ctx, opts)
 	} else {
 		r0 = ret.Get(0).(billing.CreateCustomerResult)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, int, billing.OrbCustomerMetadata) error); ok {
-		r1 = rf(ctx, name, email, externalCustomerID, organizationsCount, metadata)
+	if rf, ok := ret.Get(1).(func(context.Context, billing.CreateCustomerOptions) error); ok {
+		r1 = rf(ctx, opts)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -180,18 +180,14 @@ type Client_CreateCustomer_Call struct {
 
 // CreateCustomer is a helper method to define mock.On call
 //   - ctx context.Context
-//   - name string
-//   - email string
-//   - externalCustomerID string
-//   - organizationsCount int
-//   - metadata billing.OrbCustomerMetadata
-func (_e *Client_Expecter) CreateCustomer(ctx interface{}, name interface{}, email interface{}, externalCustomerID interface{}, organizationsCount interface{}, metadata interface{}) *Client_CreateCustomer_Call {
-	return &Client_CreateCustomer_Call{Call: _e.mock.On("CreateCustomer", ctx, name, email, externalCustomerID, organizationsCount, metadata)}
+//   - opts billing.CreateCustomerOptions
+func (_e *Client_Expecter) CreateCustomer(ctx interface{}, opts interface{}) *Client_CreateCustomer_Call {
+	return &Client_CreateCustomer_Call{Call: _e.mock.On("CreateCustomer", ctx, opts)}
 }
 
-func (_c *Client_CreateCustomer_Call) Run(run func(ctx context.Context, name string, email string, externalCustomerID string, organizationsCount int, metadata billing.OrbCustomerMetadata)) *Client_CreateCustomer_Call {
+func (_c *Client_CreateCustomer_Call) Run(run func(ctx context.Context, opts billing.CreateCustomerOptions)) *Client_CreateCustomer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(int), args[5].(billing.OrbCustomerMetadata))
+		run(args[0].(context.Context), args[1].(billing.CreateCustomerOptions))
 	})
 	return _c
 }

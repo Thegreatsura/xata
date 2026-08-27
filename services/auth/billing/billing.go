@@ -261,6 +261,15 @@ type OrbCustomerMetadata struct {
 	Marketplace string
 }
 
+type CreateCustomerOptions struct {
+	Name                  string
+	Email                 string
+	ExternalCustomerID    string
+	OrganizationsCount    int
+	Metadata              OrbCustomerMetadata
+	SubscriptionStartDate *time.Time
+}
+
 type CreateCustomerResult struct {
 	CreditAmount int
 }
@@ -379,7 +388,7 @@ type StripePaymentMethodCard struct {
 
 type Client interface {
 	// CreateCustomer creates a new customer in the billing system
-	CreateCustomer(ctx context.Context, name, email, externalCustomerID string, organizationsCount int, metadata OrbCustomerMetadata) (CreateCustomerResult, error)
+	CreateCustomer(ctx context.Context, opts CreateCustomerOptions) (CreateCustomerResult, error)
 	// FetchOrbCustomer retrieves a customer using its Orb internal customer ID.
 	FetchOrbCustomer(ctx context.Context, customerID string) (*Customer, error)
 	// FetchCustomerByExternalID retrieves a customer record by the external customer ID.
@@ -438,7 +447,7 @@ type Client interface {
 
 type NoopBilling struct{}
 
-func (n *NoopBilling) CreateCustomer(ctx context.Context, name, email, externalCustomerID string, organizationsCount int, metadata OrbCustomerMetadata) (CreateCustomerResult, error) {
+func (n *NoopBilling) CreateCustomer(ctx context.Context, opts CreateCustomerOptions) (CreateCustomerResult, error) {
 	return CreateCustomerResult{}, nil
 }
 
