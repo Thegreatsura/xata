@@ -17,6 +17,7 @@ import (
 	"github.com/elastic/go-concert/ctxtool"
 	"github.com/google/uuid"
 	proxyproto "github.com/pires/go-proxyproto"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -177,13 +178,9 @@ func (s *server) serve(ctx context.Context, l net.Listener) error {
 			var err error
 			branchID, err = s.startSession(sessionLogger.WithContext(ctx), sessionID, conn)
 
-			// Enrich after startSession: RemoteAddr()/ProxyHeader() on a
-			// proxyproto.Conn must not be called before peekByte (see initiator).
-			sessionLogger = sessionLogger.With().
-				Str("client_addr", conn.RemoteAddr().String()).
-				Bool("external_connection", isProxyProtocolConn(conn)).
-				Str("branch_id", branchID).
-				Logger()
+			// RemoteAddr()/ProxyHeader() on a proxyproto.Conn must not be
+			// called before startSession has parsed the header (see initiator).
+			sessionLogger = enrichSessionLogger(sessionLogger, conn, branchID)
 
 			if err != nil {
 				if isIgnorableError(err) {
@@ -204,6 +201,38 @@ func isProxyProtocolConn(conn net.Conn) bool {
 		return false
 	}
 	return proxyConn.ProxyHeader() != nil
+}
+
+// enrichSessionLogger adds available connection identity to session logs.
+// Call it only after the PROXY protocol header has been parsed.
+func enrichSessionLogger(logger zerolog.Logger, conn net.Conn, branchID string) zerolog.Logger {
+	logger = logger.With().Str("branchID", branchID).Logger()
+	return enrichConnectionLogger(logger, conn)
+}
+
+// enrichConnectionLogger adds available network identity to session logs.
+// Call it only after the PROXY protocol header has been parsed.
+func enrichConnectionLogger(logger zerolog.Logger, conn net.Conn) zerolog.Logger {
+	context := logger.With().
+		Bool("external_connection", isProxyProtocolConn(conn))
+
+	if addr := conn.RemoteAddr(); addr != nil {
+		context = context.Str("client_addr", addr.String())
+	}
+	if addr := conn.LocalAddr(); addr != nil {
+		context = context.Str("destination_addr", addr.String())
+	}
+
+	if proxyConn, ok := conn.(*proxyproto.Conn); ok {
+		if rawAddr := proxyConn.Raw().LocalAddr(); rawAddr != nil {
+			context = context.Str("gateway_addr", rawAddr.String())
+		}
+		if header := proxyConn.ProxyHeader(); header != nil {
+			context = context.Int("proxy_protocol_version", int(header.Version))
+		}
+	}
+
+	return context.Logger()
 }
 
 func isIgnorableError(err error) bool {
@@ -245,5 +274,11 @@ func (s *server) startSession(ctx context.Context, sessionID string, clientConn 
 	if err != nil {
 		return branchIDFromError(err), err
 	}
-	return session.BranchID(), session.ServeSQLSession(ctx)
+
+	branchID := session.BranchID()
+	// InitSession has consumed the PROXY protocol header. Enrich the context
+	// before ServeSQLSession so all lifecycle and copy-loop logs carry the
+	// client and destination connection identity.
+	sessionLogger := enrichConnectionLogger(*log.Ctx(ctx), clientConn)
+	return branchID, session.ServeSQLSession(sessionLogger.WithContext(ctx))
 }

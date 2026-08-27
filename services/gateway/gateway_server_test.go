@@ -1,7 +1,9 @@
 package gateway
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"os"
@@ -11,6 +13,9 @@ import (
 	"xata/services/gateway/metrics"
 	"xata/services/gateway/session"
 
+	proxyproto "github.com/pires/go-proxyproto"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/metric/noop"
 )
@@ -58,6 +63,22 @@ func (errorInitiator) InitSession(context.Context, string, net.Conn) (session.Se
 	return nil, &branchError{err: errors.New("session failed")}
 }
 
+type loggingSession struct{}
+
+func (loggingSession) BranchID() string { return "test-branch" }
+
+func (loggingSession) ServeSQLSession(ctx context.Context) error {
+	logger := log.Ctx(ctx).With().Str("branchID", "test-branch").Logger()
+	logger.Info().Msg("serving session")
+	return nil
+}
+
+type loggingInitiator struct{}
+
+func (loggingInitiator) InitSession(context.Context, string, net.Conn) (session.Session, error) {
+	return loggingSession{}, nil
+}
+
 func startTestServer(t *testing.T, drainingTime time.Duration) (addr string, sessions chan *stubSession, runErr chan error, cancel context.CancelFunc) {
 	return startTestServerWithSignal(t, drainingTime, nil)
 }
@@ -98,6 +119,11 @@ func startTestServerWithSignal(t *testing.T, drainingTime time.Duration, signal 
 func dial(t *testing.T, addr string) net.Conn {
 	t.Helper()
 	conn, err := net.Dial("tcp", addr)
+	require.NoError(t, err)
+	// Production initiators read the first client byte while determining
+	// whether the connection uses PROXY protocol. The stub initiator does not,
+	// so provide a byte that lets the listener make the same determination.
+	_, err = conn.Write([]byte{0})
 	require.NoError(t, err)
 	return conn
 }
@@ -241,6 +267,60 @@ func TestStartSessionReturnsBranchIDFromError(t *testing.T) {
 	branchID, err := srv.startSession(context.Background(), "session-id", serverConn)
 	require.EqualError(t, err, "session failed")
 	require.Equal(t, "test-branch", branchID)
+}
+
+func TestStartSessionEnrichesSessionLogger(t *testing.T) {
+	client, serverConn := net.Pipe()
+	t.Cleanup(func() {
+		client.Close()
+		serverConn.Close()
+	})
+
+	proxyConn := proxyproto.NewConn(serverConn, proxyproto.WithPolicy(proxyproto.USE))
+	header := &proxyproto.Header{
+		Version:           1,
+		Command:           proxyproto.PROXY,
+		TransportProtocol: proxyproto.TCPv4,
+		SourceAddr: &net.TCPAddr{
+			IP:   net.ParseIP("198.51.100.10"),
+			Port: 43210,
+		},
+		DestinationAddr: &net.TCPAddr{
+			IP:   net.ParseIP("203.0.113.20"),
+			Port: 5432,
+		},
+	}
+
+	writeErr := make(chan error, 1)
+	go func() {
+		_, err := header.WriteTo(client)
+		writeErr <- err
+	}()
+
+	var output bytes.Buffer
+	logger := zerolog.New(&output)
+	ctx := logger.WithContext(context.Background())
+	srv := &server{
+		initiator: loggingInitiator{},
+		drainer:   newTimedWaitGroup(time.Second),
+	}
+
+	branchID, err := srv.startSession(ctx, "session-id", proxyConn)
+	require.NoError(t, err)
+	require.Equal(t, "test-branch", branchID)
+	require.NoError(t, <-writeErr)
+
+	rawEntry := bytes.TrimSpace(output.Bytes())
+	require.Equal(t, 1, bytes.Count(rawEntry, []byte(`"branchID"`)))
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal(rawEntry, &entry))
+	require.Equal(t, "test-branch", entry["branchID"])
+	require.Equal(t, "198.51.100.10:43210", entry["client_addr"])
+	require.Equal(t, "203.0.113.20:5432", entry["destination_addr"])
+	require.Equal(t, "pipe", entry["gateway_addr"])
+	require.Equal(t, true, entry["external_connection"])
+	require.Equal(t, float64(1), entry["proxy_protocol_version"])
 }
 
 // TestServerRunCancelRace cancels the run context concurrently with server
