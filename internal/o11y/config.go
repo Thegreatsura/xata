@@ -21,7 +21,7 @@ type Config struct {
 
 	ProfileTypes profileTypes `env:"XATA_CONT_PROFILING_TYPES" env-default:"cpu,memory" env-description:"configure the profiling types"`
 
-	IDStyle idstyleConfig `env:"XATA_OTEL_ID_STYLE" env-default:"datadog" env-description:"configure trace ID formatting for correlating logs with traces"`
+	IDStyle idstyleConfig `env:"XATA_OTEL_ID_STYLE" env-default:"hex" env-description:"configure trace ID formatting for correlating logs with traces"`
 
 	MetricsPeriod time.Duration `env:"XATA_OTEL_METRICS_PERIOD" env-default:"60s" env-description:"metrics collection period"`
 

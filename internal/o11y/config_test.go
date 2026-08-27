@@ -49,3 +49,9 @@ func TestStructConfigMapping(t *testing.T) {
 	require.Equal(t, []profileType{profileTypeCPU, profileTypeMemory}, conf.ProfileTypes.list)
 	require.Equal(t, DatadogIDStyle, conf.IDStyle.style)
 }
+
+func TestIDStyleDefault(t *testing.T) {
+	conf := Config{}
+	require.NoError(t, envcfg.Read(&conf))
+	require.Equal(t, PlainIDStyle, conf.IDStyle.style)
+}
