@@ -38,6 +38,26 @@ clickhouse:
     limits:
       cpu: "2"
       memory: 4Gi
+  # ClickHouse sizes its caches for a dedicated server. The mark cache alone
+  # defaults to 5Gi, which is larger than this whole container, and the
+  # uncompressed cache defaults to 8Gi. Both are lazily filled LRUs, so they do
+  # not allocate up front, but they grow toward those ceilings and leave nothing
+  # for query execution. Cap them to something proportionate to a dev pod.
+  settings:
+    mark_cache_size: "268435456"
+    uncompressed_cache_size: "134217728"
+    index_mark_cache_size: "134217728"
+    compiled_expression_cache_size: "67108864"
+  # Cap what a single query may allocate, below the server ceiling that
+  # max_server_memory_usage_to_ram_ratio derives from the cgroup limit
+  # (0.9 * 4Gi = 3.6Gi). Without this an expensive query, the metrics list in
+  # particular, allocates until the kernel stops the whole pod. That surfaces in
+  # the UI as dashboard panels that spin forever rather than as a query error.
+  # Spilling GROUP BY to disk keeps the aggregation that triggered it alive.
+  profiles:
+    default/max_memory_usage: "2000000000"
+    default/max_bytes_before_external_group_by: "1000000000"
+    default/max_bytes_before_external_sort: "1000000000"
   zookeeper:
     enabled: true
     replicaCount: 1
