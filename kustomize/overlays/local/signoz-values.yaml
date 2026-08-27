@@ -69,8 +69,8 @@ clickhouse:
         cpu: 500m
         memory: 1Gi
 
-# -- Schema migrator (runs as Helm hook)
-schemaMigrator:
+# -- Telemetry store migrator (runs as a Helm pre-install/pre-upgrade hook).
+telemetryStoreMigrator:
   enabled: true
 
 # -- OpenTelemetry Collector
