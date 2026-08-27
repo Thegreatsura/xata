@@ -214,6 +214,18 @@ otelCollector:
               kubernetes_sd_configs:
                 - role: pod
               relabel_configs:
+                # Pods with explicit port annotations are owned by
+                # annotation-scrape. Without this drop, any pod carrying both
+                # prometheus.io/scrape and prometheus.io/port AND a port named
+                # "metrics" is scraped by both jobs, silently doubling every
+                # counter. Mirrors infra-new/kustomize/infra-new/base/otel/values.yaml.
+                - source_labels:
+                    [
+                      __meta_kubernetes_pod_annotation_prometheus_io_scrape,
+                      __meta_kubernetes_pod_annotation_prometheus_io_port,
+                    ]
+                  action: drop
+                  regex: true;\d+
                 - source_labels: [__meta_kubernetes_pod_container_port_name]
                   action: keep
                   regex: metrics(-.*)?
@@ -246,9 +258,19 @@ otelCollector:
                 - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
                   action: keep
                   regex: true
-                - source_labels: [__meta_kubernetes_pod_container_port_name]
+                # Ports named "metrics" belong to metrics-port, but only on a
+                # pod that metrics-port still keeps. Its drop rule hands every
+                # pod with an explicit prometheus.io/port to this job, so this
+                # rule must not fire on those. Matching the empty annotation
+                # keeps a pod whose only port is named "metrics" from being
+                # dropped by both jobs.
+                - source_labels:
+                    [
+                      __meta_kubernetes_pod_container_port_name,
+                      __meta_kubernetes_pod_annotation_prometheus_io_port,
+                    ]
                   action: drop
-                  regex: metrics(-.*)?
+                  regex: metrics(-.*)?;
                 - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scheme]
                   action: replace
                   regex: (https)
