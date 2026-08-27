@@ -109,7 +109,7 @@ type Region struct {
 	PublicAccess   bool                   `protobuf:"varint,2,opt,name=public_access,json=publicAccess,proto3" json:"public_access,omitempty"`            // true if the region has public access (over the Internet) to SQL
 	OrganizationId *string                `protobuf:"bytes,3,opt,name=organization_id,json=organizationId,proto3,oneof" json:"organization_id,omitempty"` // if set, the region will be available only for this organization
 	BackupsEnabled bool                   `protobuf:"varint,4,opt,name=backups_enabled,json=backupsEnabled,proto3" json:"backups_enabled,omitempty"`      // true if backups are enabled for branches created in this region
-	Provider       string                 `protobuf:"bytes,5,opt,name=provider,proto3" json:"provider,omitempty"`                                         // cloud provider the region runs on (aws, gcp or custom)
+	Provider       string                 `protobuf:"bytes,5,opt,name=provider,proto3" json:"provider,omitempty"`                                         // cloud provider the region runs on (aws, gcp, azure or custom)
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -187,7 +187,7 @@ type CreateRegionRequest struct {
 	Hostport       string                 `protobuf:"bytes,4,opt,name=hostport,proto3" json:"hostport,omitempty"`                                         // host:port of the region SQL gateway (ie us-east-1.xata.tech)
 	OrganizationId *string                `protobuf:"bytes,3,opt,name=organization_id,json=organizationId,proto3,oneof" json:"organization_id,omitempty"` // if set, the region will be available only for this organization
 	BackupsEnabled bool                   `protobuf:"varint,5,opt,name=backups_enabled,json=backupsEnabled,proto3" json:"backups_enabled,omitempty"`      // true if backups should be enabled for branches created in this region
-	Provider       string                 `protobuf:"bytes,6,opt,name=provider,proto3" json:"provider,omitempty"`                                         // cloud provider the region runs on, must be one of: aws, gcp, custom
+	Provider       string                 `protobuf:"bytes,6,opt,name=provider,proto3" json:"provider,omitempty"`                                         // cloud provider the region runs on, must be one of: aws, gcp, azure, custom
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }

@@ -137,7 +137,7 @@ func TestCreateRegion(t *testing.T) {
 
 func TestCreateRegionInvalidProvider(t *testing.T) {
 	for name, provider := range map[string]string{
-		"unknown provider": "azure",
+		"unknown provider": "digitalocean",
 		"empty provider":   "",
 	} {
 		t.Run(name, func(t *testing.T) {

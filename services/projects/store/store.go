@@ -191,16 +191,17 @@ type Provider string
 const (
 	ProviderAWS    Provider = "aws"
 	ProviderGCP    Provider = "gcp"
+	ProviderAzure  Provider = "azure"
 	ProviderCustom Provider = "custom"
 )
 
 // ParseProvider validates a provider name
 func ParseProvider(s string) (Provider, error) {
 	switch Provider(s) {
-	case ProviderAWS, ProviderGCP, ProviderCustom:
+	case ProviderAWS, ProviderGCP, ProviderAzure, ProviderCustom:
 		return Provider(s), nil
 	default:
-		return "", fmt.Errorf("unknown provider %q, must be one of: %s, %s, %s", s, ProviderAWS, ProviderGCP, ProviderCustom)
+		return "", fmt.Errorf("unknown provider %q, must be one of: %s, %s, %s, %s", s, ProviderAWS, ProviderGCP, ProviderAzure, ProviderCustom)
 	}
 }
 

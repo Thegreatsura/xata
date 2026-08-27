@@ -77,7 +77,7 @@ func TestSQLStoreRegions(t *testing.T) {
 	require.Equal(t, store.ProviderGCP, gcpRegion.Provider)
 
 	// invalid provider is rejected
-	_, err = sqlStore.CreateRegion(ctx, "invalid-provider-region", store.RegionFlags{Provider: "azure"}, "")
+	_, err = sqlStore.CreateRegion(ctx, "invalid-provider-region", store.RegionFlags{Provider: "digitalocean"}, "")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "unknown provider")
 
