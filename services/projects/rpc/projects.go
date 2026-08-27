@@ -130,7 +130,7 @@ func (p *ProjectsService) UpdateOrganizationStatus(ctx context.Context, req *pro
 	defer func() {
 		for k, conn := range connMap {
 			if err := conn.Close(); err != nil {
-				log.Err(err).Msgf("Failed to close cell [%s] connection", k)
+				log.Ctx(ctx).Err(err).Msgf("Failed to close cell [%s] connection", k)
 			}
 		}
 	}()
@@ -145,7 +145,7 @@ func (p *ProjectsService) UpdateOrganizationStatus(ctx context.Context, req *pro
 			if _, ok := connMap[branch.CellID]; !ok {
 				conn, err := p.cells.GetCellConnection(ctx, req.OrganizationId, branch.CellID)
 				if err != nil {
-					log.Err(err).Msgf("Failed to get cell [%s] connection for branch [%s]", branch.CellID, branch.ID)
+					log.Ctx(ctx).Err(err).Msgf("Failed to get cell [%s] connection for branch [%s]", branch.CellID, branch.ID)
 					continue
 				}
 				connMap[branch.CellID] = conn
@@ -156,7 +156,7 @@ func (p *ProjectsService) UpdateOrganizationStatus(ctx context.Context, req *pro
 				Id: branch.ID,
 			})
 			if err != nil {
-				log.Err(err).Msgf("Failed to describe cluster [%s]", branch.ID)
+				log.Ctx(ctx).Err(err).Msgf("Failed to describe cluster [%s]", branch.ID)
 				continue
 			}
 			shouldUpdate := false
@@ -186,13 +186,13 @@ func (p *ProjectsService) UpdateOrganizationStatus(ctx context.Context, req *pro
 			}
 
 			if shouldUpdate {
-				log.Info().Msgf("Updating cluster [%s] configuration", branch.ID)
+				log.Ctx(ctx).Info().Msgf("Updating cluster [%s] configuration", branch.ID)
 				_, err = client.UpdatePostgresCluster(ctx, &clustersv1.UpdatePostgresClusterRequest{
 					Id:                  branch.ID,
 					UpdateConfiguration: &configuration,
 				})
 				if err != nil {
-					log.Err(err).Msgf("Failed to update Postgres cluster for branch [%s]", branch.ID)
+					log.Ctx(ctx).Err(err).Msgf("Failed to update Postgres cluster for branch [%s]", branch.ID)
 					continue
 				}
 			}
@@ -230,7 +230,7 @@ func (p *ProjectsService) DeleteProjectsInOrg(ctx context.Context, req *projects
 				continue
 			}
 			response.BranchesDeleted++
-			log.Info().Msgf("Deleted branch [%s] in project [%s] for org [%s]", branch.ID, project.ID, req.OrganizationId)
+			log.Ctx(ctx).Info().Msgf("Deleted branch [%s] in project [%s] for org [%s]", branch.ID, project.ID, req.OrganizationId)
 		}
 
 		if projectErrors == nil {
@@ -238,7 +238,7 @@ func (p *ProjectsService) DeleteProjectsInOrg(ctx context.Context, req *projects
 				projectErrors = append(projectErrors, fmt.Sprintf("delete project %s: %v", project.ID, err))
 			} else {
 				response.ProjectsDeleted++
-				log.Info().Msgf("Deleted project [%s] for org [%s]", project.ID, req.OrganizationId)
+				log.Ctx(ctx).Info().Msgf("Deleted project [%s] for org [%s]", project.ID, req.OrganizationId)
 			}
 		}
 		response.Errors = append(response.Errors, projectErrors...)
