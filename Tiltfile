@@ -150,8 +150,8 @@ def create_resources():
 
     # Networking
     k8s_resource(workload='envoy-gateway', labels='networking')
-    # Expose envoy API gateway (port 5001)
-    local_resource('envoy-api', labels='networking', links='http://localhost:5001', serve_cmd='''
+    # Expose envoy API gateway (port 5081; avoids macOS AirPlay Receiver on 5000/5001)
+    local_resource('envoy-api', labels='networking', links='http://localhost:5081', serve_cmd='''
             while true; do
                 while ! kubectl get svc -n envoy-gateway-system --selector=gateway.envoyproxy.io/owning-gateway-namespace=xata,gateway.envoyproxy.io/owning-gateway-name=eg -o jsonpath='{.items[0].metadata.name}' 2>/dev/null; do
                     echo Waiting for envoy;
@@ -159,7 +159,7 @@ def create_resources():
                 done;
 
                 ENVOY_SERVICE=$(kubectl get svc -n envoy-gateway-system --selector=gateway.envoyproxy.io/owning-gateway-namespace=xata,gateway.envoyproxy.io/owning-gateway-name=eg -o jsonpath='{.items[0].metadata.name}');
-                kubectl port-forward -n envoy-gateway-system svc/$ENVOY_SERVICE 5001:80;
+                kubectl port-forward -n envoy-gateway-system svc/$ENVOY_SERVICE 5081:80;
             done
         ''')
 
