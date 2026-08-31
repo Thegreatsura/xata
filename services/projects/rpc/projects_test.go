@@ -15,6 +15,9 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestCreateRegion(t *testing.T) {
@@ -707,6 +710,104 @@ func TestUpdateOrganization(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, tt.authRequest.OrganizationId, got.OrganizationId)
+		})
+	}
+}
+
+func TestUpdateOrganizationStatusStopsWhenContextEnds(t *testing.T) {
+	request := &projectsv1.UpdateOrganizationStatusRequest{
+		OrganizationId: apitest.TestOrganization,
+		Disabled:       true,
+	}
+
+	tests := map[string]struct {
+		cancelBeforeCall bool
+		setupMock        func(*mocks.ProjectsStore, *cellsmock.Cells, context.CancelFunc) *cellsmock.CellClient
+		wantErrContains  []string
+		checkCellClient  func(*testing.T, *cellsmock.CellClient)
+	}{
+		"stops before the first branch": {
+			cancelBeforeCall: true,
+			setupMock: func(mockStore *mocks.ProjectsStore, mockCells *cellsmock.Cells, cancel context.CancelFunc) *cellsmock.CellClient {
+				mockStore.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).
+					Return([]store.Project{{ID: "proj-1"}}, nil)
+				mockStore.EXPECT().ListBranches(mock.Anything, apitest.TestOrganization, "proj-1").
+					Return([]store.Branch{
+						{ID: "branch-1", CellID: "cell-1"},
+						{ID: "branch-2", CellID: "cell-1"},
+					}, nil)
+
+				// No cell connection is opened and no cluster is described, so the
+				// mocks contain no expectations for either.
+				return nil
+			},
+			wantErrContains: []string{apitest.TestOrganization, "aborted after 0 branches (0 updated)"},
+		},
+		"stops at the branch after the context ends": {
+			setupMock: func(mockStore *mocks.ProjectsStore, mockCells *cellsmock.Cells, cancel context.CancelFunc) *cellsmock.CellClient {
+				mockStore.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).
+					Return([]store.Project{{ID: "proj-1"}}, nil)
+				mockStore.EXPECT().ListBranches(mock.Anything, apitest.TestOrganization, "proj-1").
+					Return([]store.Branch{
+						{ID: "branch-1", CellID: "cell-1"},
+						{ID: "branch-2", CellID: "cell-1"},
+						{ID: "branch-3", CellID: "cell-1"},
+					}, nil)
+
+				cellClient := cellsmock.NewCellClient(t)
+				mockCells.EXPECT().GetCellConnection(mock.Anything, apitest.TestOrganization, "cell-1").
+					Return(cellClient, nil)
+				cellClient.EXPECT().Close().Return(nil)
+
+				// branch-1 is already hibernated and so needs no update. Ending the
+				// context inside the call stands in for the caller giving up part way
+				// through, which is what an Orb webhook timeout does in production.
+				cellClient.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
+					Id: "branch-1",
+				}).Run(func(_ context.Context, _ *clustersv1.DescribePostgresClusterRequest, _ ...grpc.CallOption) {
+					cancel()
+				}).Return(&clustersv1.DescribePostgresClusterResponse{
+					Id:     "branch-1",
+					Status: &clustersv1.ClusterStatus{StatusType: clustersv1.ClusterStatus_STATUS_TYPE_HIBERNATED},
+					Configuration: &clustersv1.ClusterConfiguration{
+						Hibernate:   true,
+						ScaleToZero: &clustersv1.ScaleToZero{Enabled: false, InactivityPeriodMinutes: 30},
+					},
+				}, nil)
+
+				return cellClient
+			},
+			wantErrContains: []string{"aborted after 1 branches (0 updated)"},
+			checkCellClient: func(t *testing.T, cellClient *cellsmock.CellClient) {
+				// branch-2 and branch-3 are never described. Before this change each
+				// of them produced its own error log line.
+				cellClient.AssertNumberOfCalls(t, "DescribePostgresCluster", 1)
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			mockStore := mocks.NewProjectsStore(t)
+			mockCells := cellsmock.NewCells(t)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if tt.cancelBeforeCall {
+				cancel()
+			}
+			cellClient := tt.setupMock(mockStore, mockCells, cancel)
+
+			_, err := NewProjectsService(mockStore, mockCells).UpdateOrganizationStatus(ctx, request)
+
+			require.Error(t, err)
+			require.Equal(t, codes.Canceled, status.Code(err))
+			for _, want := range tt.wantErrContains {
+				require.Contains(t, err.Error(), want)
+			}
+
+			if tt.checkCellClient != nil {
+				tt.checkCellClient(t, cellClient)
+			}
 		})
 	}
 }

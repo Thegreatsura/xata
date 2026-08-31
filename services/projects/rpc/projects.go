@@ -134,17 +134,30 @@ func (p *ProjectsService) UpdateOrganizationStatus(ctx context.Context, req *pro
 			}
 		}
 	}()
+	// Reported in the error when the context ends part way through, so the
+	// caller can see how much of the organization the update covered.
+	var seen, updated int
+
 	for i := range projects {
 		branches, err := p.store.ListBranches(ctx, req.OrganizationId, projects[i].ID)
 		if err != nil {
 			return nil, err
 		}
 		for i2 := range branches {
+			// Stop here instead of logging an error per remaining branch.
+			if abortErr := abortIfDone(ctx, req.OrganizationId, seen, updated); abortErr != nil {
+				return nil, abortErr
+			}
+
 			branch := branches[i2]
+			seen++
 
 			if _, ok := connMap[branch.CellID]; !ok {
 				conn, err := p.cells.GetCellConnection(ctx, req.OrganizationId, branch.CellID)
 				if err != nil {
+					if abortErr := abortIfDone(ctx, req.OrganizationId, seen, updated); abortErr != nil {
+						return nil, abortErr
+					}
 					log.Ctx(ctx).Err(err).Msgf("Failed to get cell [%s] connection for branch [%s]", branch.CellID, branch.ID)
 					continue
 				}
@@ -156,6 +169,9 @@ func (p *ProjectsService) UpdateOrganizationStatus(ctx context.Context, req *pro
 				Id: branch.ID,
 			})
 			if err != nil {
+				if abortErr := abortIfDone(ctx, req.OrganizationId, seen, updated); abortErr != nil {
+					return nil, abortErr
+				}
 				log.Ctx(ctx).Err(err).Msgf("Failed to describe cluster [%s]", branch.ID)
 				continue
 			}
@@ -192,14 +208,33 @@ func (p *ProjectsService) UpdateOrganizationStatus(ctx context.Context, req *pro
 					UpdateConfiguration: &configuration,
 				})
 				if err != nil {
+					if abortErr := abortIfDone(ctx, req.OrganizationId, seen, updated); abortErr != nil {
+						return nil, abortErr
+					}
 					log.Ctx(ctx).Err(err).Msgf("Failed to update Postgres cluster for branch [%s]", branch.ID)
 					continue
 				}
+				updated++
 			}
 		}
 	}
 
 	return &projectsv1.UpdateOrganizationStatusResponse{OrganizationId: req.OrganizationId}, nil
+}
+
+// abortIfDone returns nil while ctx is live, or an error once ctx ends
+// reporting that the organization status update stopped early. The gRPC
+// code comes from ctx.Err so the caller still sees Canceled or
+// DeadlineExceeded, and the message names the organization and the
+// progress made, neither of which a bare "context canceled" tells an
+// operator.
+func abortIfDone(ctx context.Context, organizationID string, seen, updated int) error {
+	if ctx.Err() == nil {
+		return nil
+	}
+	return status.Errorf(status.FromContextError(ctx.Err()).Code(),
+		"update organization [%s] status aborted after %d branches (%d updated): %v",
+		organizationID, seen, updated, context.Cause(ctx))
 }
 
 // DeleteProjectsInOrg implements projectsv1.ProjectsServiceServer.
