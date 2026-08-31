@@ -11,10 +11,9 @@ import (
 )
 
 const (
-	MaxBranchesPerProject = 100
-	MaxNewOrgBranches     = 10
-	DefaultRegion         = "us-east-1"
-	BackupTypeContinuous  = "continuous"
+	MaxNewOrgBranches    = 10
+	DefaultRegion        = "us-east-1"
+	BackupTypeContinuous = "continuous"
 
 	// XatastorMaxBranchesPerOrg is the MaxBranchesPerOrg default for T2 orgs with UseXatastor enabled (10× T2).
 	XatastorMaxBranchesPerOrg = 10000

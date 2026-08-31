@@ -5587,31 +5587,6 @@ func TestDeleteBranch(t *testing.T) {
 	}
 }
 
-func TestHandler_GetDefaultProjectLimits(t *testing.T) {
-	mockStore := mocks.NewProjectsStore(t)
-	mockImageProvider := postgresversionsmocks.NewImageProvider(t)
-	feat := openfeaturetest.NewClient(nil)
-	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
-	handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, mockImageProvider, nil)
-	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
-
-	want := spec.ProjectLimits{
-		MaxDescriptionLength: MaxBranchDescriptionLength,
-		MaxInstances:         DefaultMaxInstances,
-		MinInstances:         DefaultMinInstances,
-		MaxBranches:          store.TierDefaultInt(store.TierT2, store.LimitMaxBranchesPerProject, store.MaxBranchesPerProject),
-	}
-
-	c, rec := e.GET("/organizations/" + apitest.TestOrganization + "/projects/limits").Context()
-	err := handler.GetDefaultProjectLimits(c, apitest.TestOrganization)
-	require.NoError(t, err)
-
-	var got spec.ProjectLimits
-	rec.MustCode(http.StatusOK)
-	rec.ReadBody(&got)
-	require.Equal(t, want, got)
-}
-
 func TestHandler_GetOrganizationLimits(t *testing.T) {
 	t1Claims := token.Claims{
 		ID:            apitest.TestUserID,
@@ -5859,39 +5834,6 @@ func TestUpdateBranch_ProjectScopedLimitEnforced(t *testing.T) {
 	var maxLen xvalidator.ErrorMaxLength
 	require.ErrorAs(t, err, &maxLen)
 	require.Equal(t, 10, maxLen.Limit)
-}
-
-// TestLimitsEndpointsConsistency ensures that the overlapping fields between
-// /organizations/{id}/limits and /organizations/{id}/projects/limits stay in sync
-// for a T2 org with no overrides. If they diverge, it's a bug.
-// T1 is intentionally excluded: /projects/limits is a legacy tier-unaware endpoint
-// scheduled for removal, and its MaxBranches (always 100) diverges from the T1 default (10).
-func TestLimitsEndpointsConsistency(t *testing.T) {
-	mockStore := mocks.NewProjectsStore(t)
-	mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "").Return(map[store.LimitKey]any{}, nil)
-
-	mockImageProvider := postgresversionsmocks.NewImageProvider(t)
-	feat := openfeaturetest.NewClient(nil)
-	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
-	h := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, mockImageProvider, nil)
-	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
-
-	cProj, recProj := e.GET("/organizations/" + apitest.TestOrganization + "/projects/limits").Context()
-	require.NoError(t, h.GetDefaultProjectLimits(cProj, apitest.TestOrganization))
-	var projLimits spec.ProjectLimits
-	recProj.MustCode(http.StatusOK)
-	recProj.ReadBody(&projLimits)
-
-	cOrg, recOrg := e.GET("/organizations/" + apitest.TestOrganization + "/limits").Context()
-	require.NoError(t, h.GetOrganizationLimits(cOrg, apitest.TestOrganization))
-	var orgLimits spec.OrganizationLimits
-	recOrg.MustCode(http.StatusOK)
-	recOrg.ReadBody(&orgLimits)
-
-	require.Equal(t, projLimits.MaxBranches, orgLimits.MaxBranchesPerProject, "maxBranches mismatch")
-	require.Equal(t, projLimits.MaxInstances, orgLimits.MaxInstancesPerBranch, "maxInstances mismatch")
-	require.Equal(t, projLimits.MinInstances, orgLimits.MinInstancesPerBranch, "minInstances mismatch")
-	require.Equal(t, projLimits.MaxDescriptionLength, orgLimits.MaxDescriptionLength, "maxDescriptionLength mismatch")
 }
 
 func mustParseTime(s string) time.Time {

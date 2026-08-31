@@ -270,9 +270,6 @@ func TestSQLStore(t *testing.T) {
 
 	fakeParentID := "fakeID"
 
-	_, cleanupBranchLimit := createProjectAndBranchesForLimitTest(t, ctx, sqlStore, "organizationID", "branchLimitProject")
-	defer cleanupBranchLimit()
-
 	depthProject, depthBranch, cleanupDepthLimit := createProjectAndBranchesForDepthTest(t, ctx, sqlStore, "organizationID", "depthProject")
 	defer cleanupDepthLimit()
 
@@ -959,11 +956,14 @@ func TestSQLStore(t *testing.T) {
 	})
 }
 
+// limitTestBranchCount is the number of branches created by createProjectAndBranchesForLimitTest.
+const limitTestBranchCount = 3
+
 func createProjectAndBranchesForLimitTest(t *testing.T, ctx context.Context, sqlStore *sqlProjectStore, orgID string, name string) (project *store.Project, cleanup func()) {
 	project, err := sqlStore.CreateProject(ctx, orgID, createProjectConfig(name, nil))
 	require.NoError(t, err)
 
-	for i := range store.MaxBranchesPerProject {
+	for i := range limitTestBranchCount {
 		_, err := sqlStore.CreateBranch(ctx, orgID, project.ID, "cell", createBranchConfig(fmt.Sprintf("br%d", i), nil, nil), func(b *store.Branch) error {
 			return nil
 		})
@@ -1356,7 +1356,7 @@ func TestSoftDeleteBehavior(t *testing.T) {
 
 		count, err := sqlStore.CountActiveProjectBranches(ctx, project.ID)
 		require.NoError(t, err)
-		require.Equal(t, int64(store.MaxBranchesPerProject), count)
+		require.Equal(t, int64(limitTestBranchCount), count)
 
 		branches, err := sqlStore.ListBranches(ctx, orgID, project.ID)
 		require.NoError(t, err)
@@ -1365,7 +1365,7 @@ func TestSoftDeleteBehavior(t *testing.T) {
 
 		count, err = sqlStore.CountActiveProjectBranches(ctx, project.ID)
 		require.NoError(t, err)
-		require.Equal(t, int64(store.MaxBranchesPerProject-1), count)
+		require.Equal(t, int64(limitTestBranchCount-1), count)
 	})
 
 	t.Run("CleanupTerminatedProjects", func(t *testing.T) {

@@ -80,8 +80,6 @@ func GetScopes(method, path string) []string {
 			return []string{"branch:read"}
 		case "/organizations/:organizationID/projects/:projectID/limits":
 			return []string{"project:read"}
-		case "/organizations/:organizationID/projects/limits":
-			return []string{"project:read"}
 		case "/organizations/:organizationID/regions":
 			return []string{"project:read"}
 		}

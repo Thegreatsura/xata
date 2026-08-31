@@ -1935,19 +1935,6 @@ func (s *handler) GetProjectLimits(c echo.Context, organizationID spec.Organizat
 	})
 }
 
-// GetDefaultProjectLimits returns the default project limits in the organization
-// (GET /organizations/{organizationID}/projects/limits)
-func (s *handler) GetDefaultProjectLimits(c echo.Context, organizationID spec.OrganizationID) error {
-	return s.withOrganizationAccess(c, organizationID, All, func() error {
-		return c.JSON(http.StatusOK, spec.ProjectLimits{
-			MaxDescriptionLength: MaxBranchDescriptionLength,
-			MaxInstances:         DefaultMaxInstances,
-			MinInstances:         DefaultMinInstances,
-			MaxBranches:          store.TierDefaultInt(store.TierT2, store.LimitMaxBranchesPerProject, store.MaxBranchesPerProject),
-		})
-	})
-}
-
 // GetOrganizationLimits returns the effective limits for an organization, applying
 // tier defaults and any per-organization overrides stored in the DB.
 // T1 organizations always receive tier defaults with no DB lookup.

@@ -2502,49 +2502,6 @@
         "x-operation-kind": "read"
       }
     },
-    "/organizations/{organizationID}/projects/limits": {
-      "summary": "Project Limits",
-      "description": "Endpoint for retrieving the default resource limits for projects within an organization.",
-      "get": {
-        "operationId": "getDefaultProjectLimits",
-        "summary": "Get project resource limits",
-        "description": "Retrieves the default resource limits for projects in the specified organization, including maximum instances, storage, and allowed regions.",
-        "parameters": [
-          {
-            "name": "organizationID",
-            "in": "path",
-            "description": "Unique identifier of the organization to get project limits for",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/OrganizationID"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default resource limits for projects in the organization",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProjectLimits"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "xata": [
-              "project:read"
-            ]
-          }
-        ],
-        "tags": [
-          "Projects"
-        ],
-        "x-operation-kind": "read"
-      }
-    },
     "/organizations/{organizationID}/projects": {
       "summary": "Projects Management",
       "description": "Endpoints for listing and creating projects within an organization.",
@@ -6893,41 +6850,6 @@
         },
         "x-excluded": true,
         "x-internal": true
-      },
-      "ProjectLimits": {
-        "description": "Resource limits and constraints for projects within an organization",
-        "type": "object",
-        "properties": {
-          "maxInstances": {
-            "description": "Maximum number of database instances allowed per branch",
-            "type": "integer",
-            "minimum": 1,
-            "title": "Maximum number of instances in a branch"
-          },
-          "minInstances": {
-            "description": "Minimum number of database instances required per branch",
-            "type": "integer",
-            "minimum": 1,
-            "title": "Minimum number of instances in a branch"
-          },
-          "maxDescriptionLength": {
-            "description": "Maximum character length allowed for project descriptions",
-            "type": "integer",
-            "minimum": 25,
-            "title": "Maximum length of a project description"
-          },
-          "maxBranches": {
-            "description": "Maximum number of branches allowed per project",
-            "type": "integer",
-            "title": "Maximum number of branches per project"
-          }
-        },
-        "required": [
-          "maxInstances",
-          "minInstances",
-          "maxDescriptionLength",
-          "maxBranches"
-        ]
       },
       "BranchMetricName": {
         "description": "Name of a branch metric exposed by the API.",
