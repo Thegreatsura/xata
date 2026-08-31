@@ -435,6 +435,69 @@ func TestClusterDialer_Dial(t *testing.T) {
 			wantMinDialCalls: 2,
 			wantErr:          syscall.ECONNREFUSED,
 		},
+		// StatusType is derived from the Cluster resource and lags the instances,
+		// so it can still read Healthy while the primary is crashed or in
+		// recovery and nothing can accept connections. There is nothing to wait
+		// for, so the dial error is surfaced immediately rather than holding the
+		// client connection for the full reactivate timeout. The single dial
+		// call is the assertion that matters: it proves waitUntilReachable was
+		// never entered, so the clusters service is not polled either.
+		"error - cluster reports healthy but no instance is ready, fails fast without holding": {
+			dialer: &mockDialer{
+				dialFn: func(ctx context.Context, _ uint, network, address string) (net.Conn, error) {
+					return nil, syscall.ECONNREFUSED
+				},
+			},
+			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
+				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+					Id: "test-branch",
+				}).Return(&clustersv1.DescribePostgresClusterResponse{
+					Status: &clustersv1.ClusterStatus{
+						StatusType:         clustersv1.ClusterStatus_STATUS_TYPE_HEALTHY,
+						InstanceCount:      1,
+						InstanceReadyCount: 0,
+					},
+					Configuration: &clustersv1.ClusterConfiguration{},
+				}, nil)
+			},
+
+			wantDialCalls: 1,
+			wantErr:       syscall.ECONNREFUSED,
+		},
+		// Same fail-fast path, reached with a Transient cluster whose primary is
+		// restarting in place and reported unhealthy. This is the shape seen
+		// when a primary is being OOM-killed repeatedly. A restart phase is not
+		// distinguishable from a crash loop, so it is not held for: an in-place
+		// restart of a running cluster is excluded from startingFromZeroPhases.
+		"error - cluster restarting primary in place, fails fast without holding": {
+			dialer: &mockDialer{
+				dialFn: func(ctx context.Context, _ uint, network, address string) (net.Conn, error) {
+					return nil, syscall.ECONNREFUSED
+				},
+			},
+			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
+				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+					Id: "test-branch",
+				}).Return(&clustersv1.DescribePostgresClusterResponse{
+					Status: &clustersv1.ClusterStatus{
+						Status:             apiv1.PhaseInplacePrimaryRestart,
+						StatusType:         clustersv1.ClusterStatus_STATUS_TYPE_TRANSIENT,
+						InstanceCount:      1,
+						InstanceReadyCount: 0,
+						Instances: map[string]*clustersv1.InstanceStatus{
+							"test-branch-1": {
+								Primary: true,
+								Status:  apiv1.PodFailed,
+							},
+						},
+					},
+					Configuration: &clustersv1.ClusterConfiguration{},
+				}, nil)
+			},
+
+			wantDialCalls: 1,
+			wantErr:       syscall.ECONNREFUSED,
+		},
 		// Simulates a hibernated cluster that reactivates successfully (Postgres
 		// instances come back) but the dial target (e.g. the pooler Service)
 		// stays unreachable. waitUntilReachable retries the probe-dial until

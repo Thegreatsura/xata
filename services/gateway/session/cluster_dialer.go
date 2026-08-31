@@ -184,12 +184,37 @@ func (d *ClusterDialer) Dial(ctx context.Context, network string, branch *Branch
 		return nil, ErrBranchHibernated
 
 	case d.isClusterStartingOrHealthy(cluster.Status):
-		// The cluster is not hibernated but the dial still failed. The cluster
-		// is supposed to be reachable (Healthy or Transient), so the target is
-		// briefly unavailable: a scale-to-zero wake in flight, a postgres pod
-		// roll, a pooler Service endpoint flap. Hold the connection and wait
-		// for the target to become reachable instead of returning the dial
-		// error.
+		// The cluster is not hibernated but the dial still failed. Two very
+		// different situations reach this branch, and only one of them is worth
+		// holding a client connection for:
+		//
+		//   - An instance is serving and only the dial target lags behind: a
+		//     scale-to-zero wake in flight, a postgres pod roll, a pooler
+		//     Service endpoint flap. Endpoint propagation is quick, so holding
+		//     hides a blip that would otherwise surface as a spurious error.
+		//   - No instance is serving at all, because the primary crashed and is
+		//     in recovery. StatusType is derived from the Cluster resource and
+		//     lags the instances, so it still reads Healthy or Transient while
+		//     nothing can accept connections. Holding here blocks the client
+		//     for the full reactivate timeout and makes waitUntilReachable poll
+		//     the clusters service for the whole duration, which turns one
+		//     unhealthy branch into load on a shared service.
+		//
+		// isClusterAvailable is the same predicate that ends the wait inside
+		// waitUntilReachable, so checking it here keeps the decision to hold
+		// and the condition that releases the hold consistent. The phase check
+		// covers the one case where no instance is available yet but waiting is
+		// still right: a cluster on its way up from zero, typically a
+		// scale-to-zero wake that a concurrent connection already triggered.
+		if !d.isClusterAvailable(cluster.Status) && !d.isStartingFromZero(cluster.Status) {
+			dialLogger.Warn().
+				Stringer("status_type", cluster.Status.StatusType).
+				Int64("instance_count", cluster.Status.InstanceCount).
+				Int64("instance_ready_count", cluster.Status.InstanceReadyCount).
+				Msg("dial failed and no cluster instance is available, not holding the connection")
+			return nil, dialErr
+		}
+
 		dialLogger.Info().Msg("cluster is unreachable but reported available, waiting...")
 		conn, err := d.waitUntilReachable(ctx, svc, branch.ID, network, branch.Address)
 		if err != nil {
@@ -300,6 +325,34 @@ func (d *ClusterDialer) isClusterAvailable(status *clustersv1.ClusterStatus) boo
 	}
 	return status.StatusType == clustersv1.ClusterStatus_STATUS_TYPE_HEALTHY &&
 		status.InstanceCount == status.InstanceReadyCount
+}
+
+// startingFromZeroPhases are the cluster phases that mean the cluster is on its
+// way up from having no running instance. The important one is a scale-to-zero
+// wake that a concurrent connection already triggered: this connection did not
+// start the wake, so it arrives here rather than on the hibernated branch, and
+// an instance is expected shortly.
+//
+// Phases where an already-running cluster is being disrupted (switchover,
+// failover, in-place restart) are deliberately excluded. Those are not
+// distinguishable from a primary that is crash-looping, and holding a client
+// connection for the full reactivate timeout is the wrong trade there: the
+// client is better served by a prompt error it can retry.
+var startingFromZeroPhases = map[string]struct{}{
+	apiv1.PhaseWaitingForInstancesToBeActive: {},
+	apiv1.PhaseFirstPrimary:                  {},
+	apiv1.PhaseCreatingReplica:               {},
+}
+
+// isStartingFromZero reports whether the cluster is coming up from having no
+// running instance, in which case holding the connection is worthwhile even
+// though isClusterAvailable is still false.
+func (d *ClusterDialer) isStartingFromZero(status *clustersv1.ClusterStatus) bool {
+	if status == nil {
+		return false
+	}
+	_, ok := startingFromZeroPhases[status.Status]
+	return ok
 }
 
 // shouldAttemptReactivation returns true for dial errors that warrant a
