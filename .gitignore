@@ -6,3 +6,4 @@ kustomize/**/charts/
 charts/cell-observability/charts/
 coverage
 tmp/
+.idea/
