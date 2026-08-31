@@ -435,6 +435,93 @@ func TestClusterDialer_Dial(t *testing.T) {
 			wantMinDialCalls: 2,
 			wantErr:          syscall.ECONNREFUSED,
 		},
+		// A branch on a wakeup pool that has not been assigned a cluster yet.
+		// The clusters service has no Cluster resource to derive a status from,
+		// so it synthesizes one: the healthy phase with a Transient status type
+		// and no instances. A freshly created branch connects in exactly this
+		// window, so the connection has to be held until the assigned cluster
+		// comes up. The phase is not one of startingFromZeroPhases, so the
+		// no-instance-reported check is what keeps this waiting.
+		"ok - branch awaiting a wakeup pool assignment, waits then connects": {
+			dialer: &mockDialer{
+				dialFn: func(ctx context.Context, i uint, network, address string) (net.Conn, error) {
+					switch i {
+					case 1:
+						return nil, syscall.ECONNREFUSED
+					default:
+						return &net.TCPConn{}, nil
+					}
+				},
+			},
+			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
+				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+					Id: "test-branch",
+				}).Return(&clustersv1.DescribePostgresClusterResponse{
+					Status: &clustersv1.ClusterStatus{
+						Status:     apiv1.PhaseHealthy,
+						StatusType: clustersv1.ClusterStatus_STATUS_TYPE_TRANSIENT,
+					},
+					Configuration: &clustersv1.ClusterConfiguration{
+						ScaleToZero: &clustersv1.ScaleToZero{Enabled: true},
+					},
+				}, nil).Once()
+
+				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+					Id: "test-branch",
+				}).Return(&clustersv1.DescribePostgresClusterResponse{
+					Status: &clustersv1.ClusterStatus{
+						Status:             apiv1.PhaseHealthy,
+						StatusType:         clustersv1.ClusterStatus_STATUS_TYPE_HEALTHY,
+						InstanceCount:      1,
+						InstanceReadyCount: 1,
+					},
+				}, nil).Once()
+			},
+
+			wantDialCalls: 2,
+			wantErr:       nil,
+		},
+		// A Cluster that exists but whose status the operator has not populated
+		// yet: the clusters service reports the unknown phase with a Transient
+		// status type. Nothing is running and nothing can be crash-looping, so
+		// the connection is held.
+		"ok - cluster status not populated yet, waits then connects": {
+			dialer: &mockDialer{
+				dialFn: func(ctx context.Context, i uint, network, address string) (net.Conn, error) {
+					switch i {
+					case 1:
+						return nil, syscall.ECONNREFUSED
+					default:
+						return &net.TCPConn{}, nil
+					}
+				},
+			},
+			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
+				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+					Id: "test-branch",
+				}).Return(&clustersv1.DescribePostgresClusterResponse{
+					Status: &clustersv1.ClusterStatus{
+						Status:     "unknown",
+						StatusType: clustersv1.ClusterStatus_STATUS_TYPE_TRANSIENT,
+					},
+					Configuration: &clustersv1.ClusterConfiguration{},
+				}, nil).Once()
+
+				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+					Id: "test-branch",
+				}).Return(&clustersv1.DescribePostgresClusterResponse{
+					Status: &clustersv1.ClusterStatus{
+						Status:             apiv1.PhaseHealthy,
+						StatusType:         clustersv1.ClusterStatus_STATUS_TYPE_HEALTHY,
+						InstanceCount:      1,
+						InstanceReadyCount: 1,
+					},
+				}, nil).Once()
+			},
+
+			wantDialCalls: 2,
+			wantErr:       nil,
+		},
 		// StatusType is derived from the Cluster resource and lags the instances,
 		// so it can still read Healthy while the primary is crashed or in
 		// recovery and nothing can accept connections. There is nothing to wait

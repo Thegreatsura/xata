@@ -202,12 +202,14 @@ func (d *ClusterDialer) Dial(ctx context.Context, network string, branch *Branch
 		//
 		// isClusterAvailable is the same predicate that ends the wait inside
 		// waitUntilReachable, so checking it here keeps the decision to hold
-		// and the condition that releases the hold consistent. The phase check
-		// covers the one case where no instance is available yet but waiting is
-		// still right: a cluster on its way up from zero, typically a
-		// scale-to-zero wake that a concurrent connection already triggered.
+		// and the condition that releases the hold consistent.
+		// isStartingFromZero covers the cases where no instance is available
+		// yet but waiting is still right: a branch that is being created or
+		// woken and has no serving instance yet, so there is nothing that could
+		// be crash-looping.
 		if !d.isClusterAvailable(cluster.Status) && !d.isStartingFromZero(cluster.Status) {
 			dialLogger.Warn().
+				Str("status", cluster.Status.Status).
 				Stringer("status_type", cluster.Status.StatusType).
 				Int64("instance_count", cluster.Status.InstanceCount).
 				Int64("instance_ready_count", cluster.Status.InstanceReadyCount).
@@ -351,6 +353,28 @@ func (d *ClusterDialer) isStartingFromZero(status *clustersv1.ClusterStatus) boo
 	if status == nil {
 		return false
 	}
+
+	// InstanceCount is CNPG's Cluster.Status.Instances, which counts bound PVC
+	// groups rather than pods ("an instance has no identity of its own, is a
+	// reflection of the available PVCs"). Zero means the cluster has no
+	// instance identity at all, so there is nothing that could be crash-
+	// looping: a primary being OOM-killed keeps its bound PVC and so keeps a
+	// non-zero count, and lands on the phase check below instead.
+	//
+	// Two shapes report zero, and neither carries a CNPG phase that the check
+	// below would match:
+	//
+	//   - A branch on a wakeup pool that has not been assigned a cluster yet.
+	//     Its Branch has no cluster name, so the clusters service has no
+	//     Cluster resource to derive a status from and synthesizes one, which
+	//     reports the healthy phase with a Transient status type. This is the
+	//     window a freshly created branch connects in.
+	//   - A Cluster that exists but whose status the operator has not populated
+	//     yet, reported as the unknown phase.
+	if status.InstanceCount == 0 {
+		return true
+	}
+
 	_, ok := startingFromZeroPhases[status.Status]
 	return ok
 }
