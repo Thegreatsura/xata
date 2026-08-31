@@ -1953,8 +1953,10 @@
                     "id": 3,
                     "method": "tools/call",
                     "params": {
-                      "name": "user_info",
-                      "arguments": {}
+                      "name": "search_operations",
+                      "arguments": {
+                        "query": "list branches"
+                      }
                     }
                   }
                 }
@@ -1979,7 +1981,7 @@
                       "result": {
                         "content": [
                           {
-                            "text": "{\"email\":\"user@example.com\"}",
+                            "text": "{\"operations\":[{\"operationID\":\"listBranches\",\"method\":\"GET\",\"path\":\"/organizations/{organizationID}/projects/{projectID}/branches\",\"summary\":\"List all branches\",\"callTool\":\"call_read_operation\"}]}",
                             "type": "text"
                           }
                         ],
@@ -1994,7 +1996,7 @@
                   "description": "Server-sent events, each `data` field holding one JSON-RPC message.",
                   "type": "string"
                 },
-                "example": "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"email\\\":\\\"user@example.com\\\"}\"}],\"isError\":false}}\n"
+                "example": "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"operations\\\":[{\\\"operationID\\\":\\\"listBranches\\\",\\\"method\\\":\\\"GET\\\",\\\"path\\\":\\\"/organizations/{organizationID}/projects/{projectID}/branches\\\",\\\"summary\\\":\\\"List all branches\\\",\\\"callTool\\\":\\\"call_read_operation\\\"}]}\"}],\"isError\":false}}\n"
               }
             }
           },

@@ -1256,8 +1256,9 @@ paths:
                   id: 3
                   method: tools/call
                   params:
-                    name: user_info
-                    arguments: {}
+                    name: search_operations
+                    arguments:
+                      query: list branches
       responses:
         '200':
           description: JSON-RPC response to the request
@@ -1273,7 +1274,7 @@ paths:
                     id: 3
                     result:
                       content:
-                        - text: '{"email":"user@example.com"}'
+                        - text: '{"operations":[{"operationID":"listBranches","method":"GET","path":"/organizations/{organizationID}/projects/{projectID}/branches","summary":"List all branches","callTool":"call_read_operation"}]}'
                           type: text
                       isError: false
             text/event-stream:
@@ -1282,7 +1283,7 @@ paths:
                 type: string
               example: |
                 event: message
-                data: {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\"email\":\"user@example.com\"}"}],"isError":false}}
+                data: {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\"operations\":[{\"operationID\":\"listBranches\",\"method\":\"GET\",\"path\":\"/organizations/{organizationID}/projects/{projectID}/branches\",\"summary\":\"List all branches\",\"callTool\":\"call_read_operation\"}]}"}],"isError":false}}
         '202':
           description: Notification or response accepted; no body is returned
         '400':
