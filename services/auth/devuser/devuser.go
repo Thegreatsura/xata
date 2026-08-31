@@ -62,16 +62,14 @@ func CreateDevUserCmd() *cobra.Command {
 }
 
 func createUser(ctx context.Context, client *gocloak.GoCloak, token, realm string) (string, error) {
-	users, err := client.GetUsers(ctx, token, realm, gocloak.GetUsersParams{
-		Username: new(DevUsername),
-	})
+	existing, err := findDevUser(ctx, client, token, realm)
 	if err != nil {
-		return "", fmt.Errorf("failed to get users: %w", err)
+		return "", err
 	}
-	if len(users) > 0 {
+	if existing != "" {
 		//nolint:forbidigo
 		fmt.Printf("User %s already exists\n", DevUsername)
-		return *users[0].ID, nil
+		return existing, nil
 	}
 
 	userID, err := client.CreateUser(ctx, token, realm, gocloak.User{

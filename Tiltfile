@@ -191,7 +191,7 @@ def create_resources():
     # E2E Tests
     local_resource(
         'e2e-tests',
-        'make test-e2e',
+        'make test-e2e-local',
         deps=['e2e'],
         resource_deps=['auth', 'clusters', 'gateway', 'projects', 'envoy-api', 'envoy-auth'],
         labels='e2e-tests',

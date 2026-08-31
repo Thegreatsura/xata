@@ -13,6 +13,7 @@ func main() {
 	svc := auth.NewAuthService()
 	cmd := cmd.RootCmdForService(svc)
 	cmd.AddCommand(devuser.CreateDevUserCmd())
+	cmd.AddCommand(devuser.CreateDevAPIKeyCmd())
 
 	if err := cmd.Execute(); err != nil {
 		fmt.Println(err) //nolint:forbidigo

@@ -7,6 +7,7 @@ GOMPLATE := $(GO) run github.com/hairyhenderson/gomplate/v4/cmd/gomplate@latest
 DOCKER_FLAGS=--rm --user $(shell id -u):$(shell id -g)
 DOCKER_OPA := docker run $(DOCKER_FLAGS) -v $(PWD)/internal/opa:/policy openpolicyagent/opa:latest
 DOCKER_JQ := docker run $(DOCKER_FLAGS) -v $(PWD):/data -w /data jq-tools
+DEV_API_KEY := kubectl -n xata exec deploy/auth -c auth -- /server create_dev_api_key
 GIT_COMMIT_SHORT := $(shell git rev-parse --short=7 HEAD)
 SOURCE_URL := $(or $(GITHUB_SERVER_URL),https://github.com)/$(or $(GITHUB_REPOSITORY),xataio/maki)
 WORKFLOW_FILES := $(wildcard .github/workflows/* oss/.github/workflows/*)
@@ -154,6 +155,10 @@ test: ## Run unit and integration tests
 .PHONY: test-e2e
 test-e2e:
 	$(GO) test -tags=e2e -timeout 5m -v ./e2e/...
+
+.PHONY: test-e2e-local
+test-e2e-local: ## Run the e2e tests against the local cluster, on a freshly minted dev API key
+	@key=$$($(DEV_API_KEY)) && XATA_E2E_API_KEY=$$key $(MAKE) test-e2e
 
 tools: $(shell find ./dev/docker/jq-tools -type f)  ## Install/Build tools
 	cd ./dev/docker/jq-tools && $(MAKE)
