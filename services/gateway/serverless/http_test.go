@@ -628,9 +628,10 @@ func TestIsPgxClientError(t *testing.T) {
 
 func TestHandlePgError(t *testing.T) {
 	tests := map[string]struct {
-		err            error
-		wantStatusCode int
-		wantCode       string
+		err             error
+		wantStatusCode  int
+		wantCode        string
+		wantMsgContains string
 	}{
 		"pgx client error - unused argument": {
 			err:            errors.New("unused argument: 1"),
@@ -648,9 +649,10 @@ func TestHandlePgError(t *testing.T) {
 			wantCode:       "XX000",
 		},
 		"response too large": {
-			err:            ErrResponseTooLarge,
-			wantStatusCode: http.StatusInsufficientStorage,
-			wantCode:       "RESPONSE_TOO_LARGE",
+			err:             ErrResponseTooLarge,
+			wantStatusCode:  http.StatusBadRequest,
+			wantCode:        "RESPONSE_TOO_LARGE",
+			wantMsgContains: "10MB response limit",
 		},
 		"plain error": {
 			err:            errors.New("begin transaction: connection reset"),
@@ -731,6 +733,10 @@ func TestHandlePgError(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, resp.Code)
 			require.Equal(t, tc.wantCode, *resp.Code)
+
+			if tc.wantMsgContains != "" {
+				require.Contains(t, resp.Message, tc.wantMsgContains)
+			}
 		})
 	}
 }

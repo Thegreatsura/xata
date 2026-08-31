@@ -166,7 +166,7 @@ paths:
                           - count: '1'
                         rowAsArray: false
         '400':
-          description: 'Invalid request, SQL error, or query execution timeout'
+          description: 'Invalid request, SQL error, query execution timeout, or a result larger than the 10MB response limit'
           content:
             application/json:
               schema:
@@ -209,12 +209,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '504':
           description: Timed out connecting to the database
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '507':
-          description: Response too large
           content:
             application/json:
               schema:

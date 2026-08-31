@@ -126,7 +126,8 @@ func pgErrorResponse(pgErr *pgconn.PgError) *spec.ErrorResponse {
 func handlePgError(c echo.Context, err error) error {
 	switch classifyError(err) {
 	case errTypeResponseTooLarge:
-		return c.JSON(http.StatusInsufficientStorage, errorResponse("RESPONSE_TOO_LARGE", err.Error()))
+		return c.JSON(http.StatusBadRequest, errorResponse("RESPONSE_TOO_LARGE",
+			fmt.Sprintf("query result exceeds the %dMB response limit, narrow it with LIMIT/OFFSET or use a direct Postgres connection", maxResponseSizeBytes/(1024*1024))))
 	case errTypeQueryTimeout:
 		return c.JSON(http.StatusBadRequest, errorResponse("QUERY_TIMEOUT", "query exceeded the timeout limit"))
 	case errTypeTimeout:

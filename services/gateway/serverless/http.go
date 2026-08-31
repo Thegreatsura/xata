@@ -105,9 +105,9 @@ func (h *handler) Query(c echo.Context, params spec.QueryParams) error {
 		o11y.SetReqAttribute(c, "error_type", errorType)
 		_ = handlePgError(c, err)
 		// Client-side conditions are not server faults: a canceled request
-		// (client gave up) or a user query that exceeded the execution
-		// timeout
-		if errorType == errTypeCanceled || errorType == errTypeQueryTimeout {
+		// (client gave up), a user query that exceeded the execution
+		// timeout, or one whose result exceeded the response limit
+		if errorType == errTypeCanceled || errorType == errTypeQueryTimeout || errorType == errTypeResponseTooLarge {
 			return nil
 		}
 
