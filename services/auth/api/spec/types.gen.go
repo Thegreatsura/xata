@@ -472,9 +472,6 @@ type OrganizationInvitation struct {
 	// Id Unique identifier for the invitation
 	Id string `json:"id"`
 
-	// InviteLink URL link to accept the invitation
-	InviteLink *string `json:"invite_link,omitempty"`
-
 	// LastName Last name of the invited user
 	LastName       *string        `json:"last_name,omitempty"`
 	OrganizationId OrganizationID `json:"organization_id" validate:"identifier"`

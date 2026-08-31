@@ -3198,9 +3198,6 @@ components:
           enum:
             - pending
             - expired
-        invite_link:
-          description: URL link to accept the invitation
-          type: string
       required:
         - id
         - organization_id

@@ -109,7 +109,6 @@ type OrganizationInvitation struct {
 	CreatedAt      int64   `json:"sentDate"`
 	ExpiresAt      int64   `json:"expiresAt"`
 	Status         string  `json:"status"`
-	InviteLink     string  `json:"inviteLink"`
 }
 
 type ListInvitationsParams struct {
