@@ -21,6 +21,10 @@ observability:
 config:
   frontendURL: ""
   billingRequired: false
+  # Create the invitee's Keycloak account before sending an organization
+  # invitation, so the invite can be accepted by identity-provider users.
+  # Temporary, until we run a Keycloak carrying keycloak/keycloak#52181.
+  seedInvitedUsers: false
 
 httpRoute:
   hostname: localhost

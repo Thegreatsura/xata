@@ -1148,3 +1148,83 @@ func TestInvitationOperations(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateInvitationSeedsInvitedUser(t *testing.T) {
+	tests := map[string]struct {
+		seedInvitedUsers bool
+		seedStatus       int
+		wantSeeded       bool
+		wantInvited      bool
+		wantErr          string
+	}{
+		"seeding disabled leaves the account alone": {
+			wantInvited: true,
+		},
+		"seeding creates the account before inviting": {
+			seedInvitedUsers: true,
+			seedStatus:       http.StatusCreated,
+			wantSeeded:       true,
+			wantInvited:      true,
+		},
+		"an account that already exists is not an error": {
+			seedInvitedUsers: true,
+			seedStatus:       http.StatusConflict,
+			wantSeeded:       true,
+			wantInvited:      true,
+		},
+		"a failed seed stops the invitation": {
+			seedInvitedUsers: true,
+			seedStatus:       http.StatusInternalServerError,
+			wantSeeded:       true,
+			wantErr:          "seed invited user",
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			var seeded, invited bool
+			var seededBody map[string]any
+
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				switch {
+				case strings.HasSuffix(req.URL.Path, tokenEndpointSuffix):
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`{"access_token":"test-token","expires_in":300,"token_type":"Bearer"}`))
+				case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/organizations"):
+					_, _ = w.Write([]byte(`[{"id":"org-uuid","alias":"org-1"}]`))
+				case req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/users"):
+					seeded = true
+					require.NoError(t, json.NewDecoder(req.Body).Decode(&seededBody))
+					w.WriteHeader(tt.seedStatus)
+				case req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/members/invite-user"):
+					invited = true
+					w.WriteHeader(http.StatusNoContent)
+				default:
+					t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+				}
+			}))
+			defer srv.Close()
+
+			r := newTestRestKC(srv.URL)
+			r.authConfig.SeedInvitedUsers = tt.seedInvitedUsers
+
+			err := r.CreateInvitation(context.Background(), "test-realm", "org-1", "alice@example.com")
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			assert.Equal(t, tt.wantSeeded, seeded, "account seeded")
+			assert.Equal(t, tt.wantInvited, invited, "invitation sent")
+
+			if tt.wantSeeded && tt.seedStatus == http.StatusCreated {
+				assert.Equal(t, "alice@example.com", seededBody["username"])
+				assert.Equal(t, "alice@example.com", seededBody["email"])
+				assert.Equal(t, true, seededBody["emailVerified"])
+				assert.Equal(t, true, seededBody["enabled"])
+				assert.NotContains(t, seededBody, "credentials", "the seeded account must not be usable on its own")
+			}
+		})
+	}
+}

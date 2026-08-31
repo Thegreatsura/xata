@@ -262,6 +262,12 @@ func (r *restKC) CreateInvitation(ctx context.Context, realm string, organizatio
 		return fmt.Errorf("failed to get organization: %w", err)
 	}
 
+	if r.authConfig.SeedInvitedUsers {
+		if err := r.seedInvitedUser(ctx, realm, email); err != nil {
+			return fmt.Errorf("seed invited user: %w", err)
+		}
+	}
+
 	invURL, err := r.buildRealmURL(realm, "organizations", organization.ID, "members", "invite-user")
 	if err != nil {
 		return fmt.Errorf("failed to join URL: %w", err)
@@ -281,6 +287,44 @@ func (r *restKC) CreateInvitation(ctx context.Context, realm string, organizatio
 
 	if !r.isSuccessStatus(resp.StatusCode(), http.StatusCreated, http.StatusNoContent, http.StatusOK) {
 		return ErrInvitationFailed{Email: email}
+	}
+
+	return nil
+}
+
+// seedInvitedUser creates the invitee's account so that Keycloak mints an
+// action-token invite link rather than a registration one. The registration link
+// is only ever consumed by Keycloak's local registration form, so an invitee who
+// signs in with Google or GitHub can never accept it.
+//
+// The account is created verified because the invitation is delivered to that
+// address, and with no credentials, so the invitee still has to authenticate
+// through an identity provider or a password reset before it is usable.
+//
+// Temporary: remove this and the AUTH_SEED_INVITED_USERS flag once we run a
+// Keycloak that carries the fix for keycloak/keycloak#52181 (PR 52183).
+func (r *restKC) seedInvitedUser(ctx context.Context, realm, email string) error {
+	usersURL, err := r.buildRealmURL(realm, "users")
+	if err != nil {
+		return fmt.Errorf("failed to join URL: %w", err)
+	}
+
+	resp, err := r.makeAuthenticatedRequest(ctx, "POST", usersURL, nil, map[string]any{
+		"username":      email,
+		"email":         email,
+		"emailVerified": true,
+		"enabled":       true,
+	})
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode() == http.StatusConflict {
+		return nil
+	}
+
+	if !r.isSuccessStatus(resp.StatusCode(), http.StatusCreated, http.StatusOK) {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 	}
 
 	return nil

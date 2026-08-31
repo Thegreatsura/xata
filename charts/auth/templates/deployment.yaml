@@ -83,6 +83,8 @@ spec:
               value: {{ .Values.config.frontendURL | quote }}
             - name: BILLING_REQUIRED
               value: {{ .Values.config.billingRequired | quote }}
+            - name: AUTH_SEED_INVITED_USERS
+              value: {{ .Values.config.seedInvitedUsers | quote }}
             - name: KEYCLOAK_ADMIN_USERNAME
               valueFrom:
                 secretKeyRef:
