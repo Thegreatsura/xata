@@ -173,7 +173,7 @@ func TestBuildUserClaims(t *testing.T) {
 			mockKC.EXPECT().ListOrganizations(mock.Anything, realm, userID).
 				Return(tc.kcOrgs, nil)
 
-			svc := NewAuthService(mockStore, gocloak.NewClient("http://localhost"), mockKC, mockProjects, mockOrgs, realm, tc.defaultOrgID, false)
+			svc := NewAuthService(mockStore, gocloak.NewClient("http://localhost"), mockKC, mockProjects, mockOrgs, realm, tc.defaultOrgID)
 			got, err := svc.buildUserClaims(context.Background(), userID)
 
 			require.NoError(t, err)
@@ -259,7 +259,7 @@ func TestGetGithubIdentityProviderTokenRejectsWithoutKeycloak(t *testing.T) {
 			mockProjects := protomocks.NewProjectsServiceClient(t)
 			mockOrgs := orgsmock.NewOrganizations(t)
 
-			svc := NewAuthService(mockStore, gocloak.NewClient(srv.URL), mockKC, mockProjects, mockOrgs, "test-realm", "", false)
+			svc := NewAuthService(mockStore, gocloak.NewClient(srv.URL), mockKC, mockProjects, mockOrgs, "test-realm", "")
 
 			_, err := svc.GetGithubIdentityProviderToken(context.Background(), &authv1.GetGithubIdentityProviderTokenRequest{Token: tc.token})
 

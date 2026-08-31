@@ -129,7 +129,7 @@ func (s *AuthService) Init(ctx context.Context) error {
 	kcRest := keycloak.NewRestKC(client, s.config.AuthConfig)
 	projectsClient := projectsv1.NewProjectsServiceClient(s.projectsConn)
 	organizations := orgs.NewOrganizations(s.config.AuthConfig.Realm, kcRest, projectsClient)
-	s.rpcService = rpc.NewAuthService(s.store, client, kcRest, projectsClient, organizations, s.config.AuthConfig.Realm, s.config.DefaultOrgID, s.config.AuthConfig.TrustTokenClaims)
+	s.rpcService = rpc.NewAuthService(s.store, client, kcRest, projectsClient, organizations, s.config.AuthConfig.Realm, s.config.DefaultOrgID)
 
 	return nil
 }

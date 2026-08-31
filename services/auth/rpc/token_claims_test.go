@@ -224,13 +224,11 @@ func TestAddDefaultOrganization(t *testing.T) {
 	}
 }
 
-// TestClaimsFromTokenGate covers the rollout switch and the revalidation that
-// keeps a membership granted after issuance from being denied.
 // TestTrustedClaimsDefaultOrganizationOrdering pins that the default
 // organization is added before the membership check, so an OSS deployment can
 // still reach its own default organization.
 func TestTrustedClaimsDefaultOrganizationOrdering(t *testing.T) {
-	svc := &AuthService{trustTokenClaims: true, defaultOrgID: "default-org"}
+	svc := &AuthService{defaultOrgID: "default-org"}
 
 	got, fromToken := svc.trustedClaims("user-1", "default-org",
 		mapClaims(t, `{"email": "user@xata.io", "organization": {"acme": {"displayName": ["Acme Inc"]}}}`))
@@ -238,23 +236,22 @@ func TestTrustedClaimsDefaultOrganizationOrdering(t *testing.T) {
 	require.Contains(t, got.Organizations, "default-org")
 }
 
-func TestTrustedClaimsGate(t *testing.T) {
+// TestTrustedClaimsRevalidation covers the revalidation that keeps a denial the
+// token alone would produce from outliving the membership change behind it.
+func TestTrustedClaimsRevalidation(t *testing.T) {
 	for name, test := range map[string]struct {
-		trustTokenClaims bool
-		organizationID   string
-		billingStatus    string
-		wantFromToken    bool
+		organizationID string
+		billingStatus  string
+		wantFromToken  bool
 	}{
-		"disabled always falls back":    {trustTokenClaims: false, wantFromToken: false},
-		"disabled ignores a known org":  {trustTokenClaims: false, organizationID: "acme", wantFromToken: false},
-		"enabled with no target org":    {trustTokenClaims: true, wantFromToken: true},
-		"enabled with a known org":      {trustTokenClaims: true, organizationID: "acme", wantFromToken: true},
-		"enabled with an unknown org":   {trustTokenClaims: true, organizationID: "brand-new", wantFromToken: false},
-		"enabled with a disabled org":   {trustTokenClaims: true, organizationID: "acme", billingStatus: "no_payment_method", wantFromToken: false},
-		"enabled ignores another's org": {trustTokenClaims: true, billingStatus: "no_payment_method", wantFromToken: true},
+		"no target org":         {wantFromToken: true},
+		"a known org":           {organizationID: "acme", wantFromToken: true},
+		"an unknown org":        {organizationID: "brand-new", wantFromToken: false},
+		"a disabled org":        {organizationID: "acme", billingStatus: "no_payment_method", wantFromToken: false},
+		"ignores another's org": {billingStatus: "no_payment_method", wantFromToken: true},
 	} {
 		t.Run(name, func(t *testing.T) {
-			svc := &AuthService{trustTokenClaims: test.trustTokenClaims}
+			svc := &AuthService{}
 
 			attributes := `"displayName": ["Acme Inc"]`
 			if test.billingStatus != "" {

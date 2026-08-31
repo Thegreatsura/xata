@@ -45,15 +45,10 @@ type AuthService struct {
 	projectsClient projectsv1.ProjectsServiceClient
 	orgs           orgs.Organizations
 	defaultOrgID   string
-
-	// trustTokenClaims builds claims from the access token instead of calling
-	// Keycloak. Turning it off restores the pre-token behaviour without a
-	// Keycloak or realm change.
-	trustTokenClaims bool
 }
 
 // NewAuthService creates a new AuthService.
-func NewAuthService(store store.AuthStore, kcClient *gocloak.GoCloak, kcRest keycloak.KeyCloak, projectsClient projectsv1.ProjectsServiceClient, orgs orgs.Organizations, realm, defaultOrgID string, trustTokenClaims bool) *AuthService {
+func NewAuthService(store store.AuthStore, kcClient *gocloak.GoCloak, kcRest keycloak.KeyCloak, projectsClient projectsv1.ProjectsServiceClient, orgs orgs.Organizations, realm, defaultOrgID string) *AuthService {
 	policy, err := opa.NewPolicy(context.Background())
 	if err != nil {
 		log.Fatalf("failed to prepare OPA policy: %v", err)
@@ -68,8 +63,6 @@ func NewAuthService(store store.AuthStore, kcClient *gocloak.GoCloak, kcRest key
 		projectsClient: projectsClient,
 		orgs:           orgs,
 		defaultOrgID:   defaultOrgID,
-
-		trustTokenClaims: trustTokenClaims,
 	}
 }
 
@@ -101,10 +94,6 @@ func (a *AuthService) validateJWT(ctx context.Context, tokenStr, organizationID 
 // trustedClaims reports whether the request can be authorized from the access
 // token alone. organizationID is the organization the request targets, if any.
 func (a *AuthService) trustedClaims(userID, organizationID string, mc jwt.MapClaims) (*token.Claims, bool) {
-	if !a.trustTokenClaims {
-		return nil, false
-	}
-
 	claims, ok := claimsFromAccessToken(userID, mc)
 	if !ok {
 		return nil, false

@@ -21,9 +21,6 @@ observability:
 config:
   frontendURL: ""
   billingRequired: false
-  # Build user claims from the access token instead of calling Keycloak on every
-  # ValidateAccess. Opted into per environment for testing.
-  trustTokenClaims: false
 
 httpRoute:
   hostname: localhost
