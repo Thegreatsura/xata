@@ -27,6 +27,12 @@ type Config struct {
 	HTTPEnabled bool `env:"XATA_SQL_GW_HTTP_ENABLED" env-description:"SQL Gateway: enable HTTP/WebSocket endpoints" env-default:"true"`
 	// HTTPListenAddress is the address and port to listen on for HTTP and WebSocket connections.
 	HTTPListenAddress string `env:"XATA_SQL_GW_HTTP_LISTEN_ADDRESS" env-description:"SQL Gateway: address and port to listen on for HTTP/WebSocket" env-default:":8443"`
+	// BackendTCPUserTimeout bounds how long data written to a backend Postgres
+	// connection may stay unacknowledged before the kernel fails the
+	// connection. Zero keeps the system default, under which an
+	// unacknowledged write is retried for many minutes and the gateway holds
+	// the session open without surfacing an error. Linux only.
+	BackendTCPUserTimeout time.Duration `env:"XATA_SQL_GW_BACKEND_TCP_USER_TIMEOUT" env-description:"SQL Gateway: bound on unacknowledged data to a backend connection before it fails; 0 uses the system default" env-default:"0s"`
 	// EnablePooler allows connecting to PostgreSQL using PgBouncer
 	EnablePooler bool `env:"XATA_ENABLE_POOLER" env-default:"true" env-description:"enable PgBouncer connection pooler for new branches"`
 }

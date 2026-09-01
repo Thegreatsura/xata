@@ -14,6 +14,7 @@ type GatewayMetrics struct {
 	requestsTotal       metric.Int64Counter
 	requestDuration     metric.Float64Histogram
 	clusterReactivation metric.Float64Histogram
+	bytesForwarded      metric.Int64Counter
 }
 
 func New(meter metric.Meter) (*GatewayMetrics, error) {
@@ -53,6 +54,13 @@ func New(meter metric.Meter) (*GatewayMetrics, error) {
 		return nil, err
 	}
 
+	m.bytesForwarded, err = meter.Int64Counter("xata.gateway.bytes_forwarded",
+		metric.WithUnit("By"),
+		metric.WithDescription("bytes forwarded between client and backend, by direction"))
+	if err != nil {
+		return nil, err
+	}
+
 	return m, nil
 }
 
@@ -78,4 +86,13 @@ func (m *GatewayMetrics) RecordRequest(ctx context.Context, protocol string, suc
 
 func (m *GatewayMetrics) RecordClusterReactivation(ctx context.Context, duration time.Duration) {
 	m.clusterReactivation.Record(ctx, duration.Seconds())
+}
+
+// RecordBytesForwarded records the bytes copied in one direction of a wire
+// session. A nil receiver is a no-op so a session can run without metrics.
+func (m *GatewayMetrics) RecordBytesForwarded(ctx context.Context, direction string, n int64) {
+	if m == nil || n <= 0 {
+		return
+	}
+	m.bytesForwarded.Add(ctx, n, metric.WithAttributes(AttrDirection.String(direction)))
 }

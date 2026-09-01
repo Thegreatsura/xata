@@ -109,8 +109,9 @@ func (g *GatewayService) Run(ctx context.Context, o *o11y.O) error {
 
 	dialer := session.NewClusterDialer(
 		session.ClusterDialerConfiguration{
-			ReactivateTimeout:   g.config.ClusterReactivateTimeout,
-			StatusCheckInterval: g.config.ClusterStatusCheckInterval,
+			ReactivateTimeout:     g.config.ClusterReactivateTimeout,
+			StatusCheckInterval:   g.config.ClusterStatusCheckInterval,
+			BackendTCPUserTimeout: g.config.BackendTCPUserTimeout,
 		},
 		session.WithInstrumentation(gwMetrics),
 	)
@@ -142,7 +143,7 @@ func (g *GatewayService) Run(ctx context.Context, o *o11y.O) error {
 }
 
 func (g *GatewayService) newServer(shutdownSignal context.Context, gwMetrics *metrics.GatewayMetrics, tracer trace.Tracer, dialer *session.ClusterDialer) (Server, error) {
-	proxy := session.NewProxy(tracer, g.resolver, dialer.Dial, g.ipFilter)
+	proxy := session.NewProxy(tracer, g.resolver, dialer.Dial, g.ipFilter, gwMetrics)
 	sessionInitiator, err := initiator.New(tracer, proxy, g.certificate)
 	if err != nil {
 		return nil, err

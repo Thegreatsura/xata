@@ -5,11 +5,13 @@ import (
 	"errors"
 	"io"
 	"net"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 func TestIsClosedConnError(t *testing.T) {
@@ -71,14 +73,16 @@ func TestCopyLoop(t *testing.T) {
 	branch := "test-branch"
 
 	tests := map[string]struct {
-		reader   io.Reader
-		wantErr  bool
-		wantData string
+		reader    io.Reader
+		wantErr   bool
+		wantData  string
+		wantBytes int64
 	}{
 		"successful data copy": {
-			reader:   dataReader("Hello, World!"),
-			wantErr:  false,
-			wantData: "Hello, World!",
+			reader:    dataReader("Hello, World!"),
+			wantErr:   false,
+			wantData:  "Hello, World!",
+			wantBytes: 13,
 		},
 		"EOF should not be error": {
 			reader:  errorReader(io.EOF),
@@ -106,12 +110,20 @@ func TestCopyLoop(t *testing.T) {
 			reader:  errorReader(errors.New("some other error")),
 			wantErr: true,
 		},
+		"bytes copied before an error are still reported": {
+			reader: io.MultiReader(
+				strings.NewReader("partial"),
+				errorReader(errors.New("some other error")),
+			),
+			wantErr:   true,
+			wantBytes: 7,
+		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			var writer strings.Builder
-			err := copyLoop(ctx, branch, &writer, test.reader)
+			got, err := copyLoop(ctx, branch, &writer, test.reader)
 
 			if test.wantErr {
 				require.Error(t, err)
@@ -122,6 +134,7 @@ func TestCopyLoop(t *testing.T) {
 					require.Equal(t, test.wantData, writer.String())
 				}
 			}
+			require.Equal(t, test.wantBytes, got)
 		})
 	}
 }
@@ -188,7 +201,8 @@ func TestCopyLoop_AsyncClosing(t *testing.T) {
 
 			// Start copyLoop in goroutine
 			go func() {
-				errCh <- copyLoop(ctx, branch, &output, reader)
+				_, err := copyLoop(ctx, branch, &output, reader)
+				errCh <- err
 			}()
 
 			// Close one connection endpoint after delay
@@ -236,4 +250,105 @@ func dataReader(data string) io.Reader {
 		pos += n
 		return n, nil
 	})
+}
+
+func TestReadTCPInfo(t *testing.T) {
+	t.Run("returns nil for a non-socket connection", func(t *testing.T) {
+		client, server := net.Pipe()
+		defer client.Close()
+		defer server.Close()
+
+		info, err := readTCPInfo(client)
+		require.NoError(t, err)
+		require.Nil(t, info)
+	})
+
+	t.Run("nil connection is not an error", func(t *testing.T) {
+		info, err := readTCPInfo(nil)
+		require.NoError(t, err)
+		require.Nil(t, info)
+	})
+
+	t.Run("reports acked bytes on a real socket", func(t *testing.T) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer listener.Close()
+
+		const payload = "hello backend"
+		received := make(chan struct{})
+		go func() {
+			defer close(received)
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			defer conn.Close()
+			io.ReadFull(conn, make([]byte, len(payload)))
+		}()
+
+		conn, err := net.Dial("tcp", listener.Addr().String())
+		require.NoError(t, err)
+		defer conn.Close()
+
+		_, err = conn.Write([]byte(payload))
+		require.NoError(t, err)
+		<-received
+
+		if runtime.GOOS != "linux" {
+			t.Skip("TCP_INFO is only available on Linux")
+		}
+		info, err := readTCPInfo(conn)
+		require.NoError(t, err)
+		require.NotNil(t, info)
+		// The peer read everything, so the write must have been acknowledged
+		// and nothing should be left outstanding.
+		require.GreaterOrEqual(t, info.BytesAcked, uint64(len(payload)))
+		require.Zero(t, info.NotsentBytes)
+	})
+}
+
+// TestSessionCapturesBackendTCPInfo guards the ordering hazard that the
+// capture must happen before the session's connections are closed. close runs
+// asynchronously via the context hook, so a naive read at the end of
+// ServeSQLSession finds an already-closed socket and silently reports nothing.
+func TestSessionCapturesBackendTCPInfo(t *testing.T) {
+	backend, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer backend.Close()
+
+	const payload = "select 1"
+	backendDone := make(chan struct{})
+	go func() {
+		defer close(backendDone)
+		conn, err := backend.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		// Read what the client sent, then hang up so the session ends.
+		io.ReadFull(conn, make([]byte, len(payload)))
+	}()
+
+	outbound, err := net.Dial("tcp", backend.Addr().String())
+	require.NoError(t, err)
+
+	clientSide, inbound := net.Pipe()
+	go func() {
+		clientSide.Write([]byte(payload))
+		io.Copy(io.Discard, clientSide)
+	}()
+
+	s, ok := New(noop.NewTracerProvider().Tracer("test"), "test-branch", inbound, outbound, nil).(*session)
+	require.True(t, ok)
+	require.NoError(t, s.ServeSQLSession(t.Context()))
+	<-backendDone
+
+	if runtime.GOOS != "linux" {
+		t.Skip("TCP_INFO is only available on Linux")
+	}
+	info := s.tcpInfo.Load()
+	require.NotNil(t, info,
+		"TCP_INFO must be captured while the backend socket is still open")
+	require.GreaterOrEqual(t, info.BytesAcked, uint64(len(payload)),
+		"the backend read the payload, so it must show as acknowledged")
 }

@@ -884,3 +884,42 @@ type realClustersClient struct {
 }
 
 func (c *realClustersClient) Close() error { return c.conn.Close() }
+
+func TestNewNetDialer(t *testing.T) {
+	tests := map[string]struct {
+		userTimeout time.Duration
+	}{
+		"system default": {
+			userTimeout: 0,
+		},
+		"with user timeout": {
+			userTimeout: 30 * time.Second,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			require.NoError(t, err)
+			defer listener.Close()
+
+			accepted := make(chan struct{})
+			go func() {
+				defer close(accepted)
+				conn, err := listener.Accept()
+				if err == nil {
+					conn.Close()
+				}
+			}()
+
+			// The Control hook runs during dial, so a successful connection
+			// means the socket option was accepted by the kernel. On non-Linux
+			// platforms setTCPUserTimeout is a no-op and this just checks the
+			// dialer is still usable.
+			conn, err := newNetDialer(test.userTimeout)(t.Context(), "tcp", listener.Addr().String())
+			require.NoError(t, err)
+			require.NoError(t, conn.Close())
+			<-accepted
+		})
+	}
+}

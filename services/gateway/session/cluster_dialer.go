@@ -52,6 +52,11 @@ type ClusterDialerOption func(*ClusterDialer)
 type ClusterDialerConfiguration struct {
 	ReactivateTimeout   time.Duration
 	StatusCheckInterval time.Duration
+	// BackendTCPUserTimeout bounds how long data written to a backend
+	// connection may stay unacknowledged before the kernel fails it. Zero
+	// leaves the system default, under which an unacknowledged write is
+	// retried for many minutes without surfacing an error. Linux only.
+	BackendTCPUserTimeout time.Duration
 }
 
 type clustersService interface {
@@ -73,15 +78,23 @@ func (c *clustersServiceClientImpl) Close() error {
 	return c.conn.Close()
 }
 
-var netDialer = func(ctx context.Context, network, address string) (net.Conn, error) {
+// newNetDialer builds the dialer used for backend connections. A non-zero
+// userTimeout applies TCP_USER_TIMEOUT to each socket, so a write that is
+// never acknowledged fails the connection instead of hanging silently.
+func newNetDialer(userTimeout time.Duration) dialerFn {
 	var d net.Dialer
-	return d.DialContext(ctx, network, address)
+	if userTimeout > 0 {
+		d.Control = func(_, _ string, c syscall.RawConn) error {
+			return setTCPUserTimeout(c, userTimeout)
+		}
+	}
+	return d.DialContext
 }
 
 // NewClusterDialer creates a dialer for connecting to Postgres clusters.
 func NewClusterDialer(cfg ClusterDialerConfiguration, opts ...ClusterDialerOption) *ClusterDialer {
 	d := &ClusterDialer{
-		dialer:                netDialer,
+		dialer:                newNetDialer(cfg.BackendTCPUserTimeout),
 		clustersServiceClient: defaultClustersService(),
 		reactivateTimeout:     cfg.ReactivateTimeout,
 		statusCheckInterval:   cfg.StatusCheckInterval,

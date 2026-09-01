@@ -7,6 +7,10 @@ import (
 	"io"
 	"net"
 	"strings"
+	"sync"
+	"sync/atomic"
+
+	"xata/services/gateway/metrics"
 
 	"github.com/elastic/go-concert/ctxtool"
 	"github.com/elastic/go-concert/unison"
@@ -24,14 +28,29 @@ type session struct {
 	branch       string
 	inboundConn  net.Conn
 	outboundConn net.Conn
+	metrics      *metrics.GatewayMetrics
+
+	// Bytes moved in each direction, reported on the session's closing log
+	// line. Written by the copy goroutines, read after they have both
+	// finished.
+	bytesToBackend atomic.Int64
+	bytesToClient  atomic.Int64
+
+	// The kernel's view of the backend connection, which is only readable
+	// while its socket is open. See captureBackendTCPInfo.
+	tcpInfoOnce sync.Once
+	tcpInfo     atomic.Pointer[backendTCPInfo]
 }
 
-func New(tracer trace.Tracer, branch string, inboundConn, outboundConn net.Conn) Session {
+// New creates a session proxying between a client and a backend connection.
+// gwMetrics may be nil, in which case no metrics are recorded.
+func New(tracer trace.Tracer, branch string, inboundConn, outboundConn net.Conn, gwMetrics *metrics.GatewayMetrics) Session {
 	return &session{
 		tracer:       tracer,
 		branch:       branch,
 		inboundConn:  inboundConn,
 		outboundConn: outboundConn,
+		metrics:      gwMetrics,
 	}
 }
 
@@ -50,7 +69,26 @@ func (s *session) ServeSQLSession(ctx context.Context) error {
 	ctx = logger.WithContext(ctx)
 
 	logger.Info().Msg("Start serving SQL session")
-	defer logger.Info().Msg("End serving SQL session")
+	// Reported as a closure so the byte counts are read after both copy
+	// goroutines have finished, rather than captured when the defer is set up.
+	defer func() {
+		// close runs asynchronously, so it may or may not have captured this
+		// already; whichever gets there first does it while the socket is open.
+		s.captureBackendTCPInfo()
+
+		event := logger.Info().
+			Int64("bytes_to_backend", s.bytesToBackend.Load()).
+			Int64("bytes_to_client", s.bytesToClient.Load())
+		if info := s.tcpInfo.Load(); info != nil {
+			event = event.
+				Uint64("backend_bytes_acked", info.BytesAcked).
+				Uint64("backend_bytes_retrans", info.BytesRetrans).
+				Uint32("backend_unacked", info.Unacked).
+				Uint32("backend_notsent", info.NotsentBytes).
+				Uint32("backend_total_retrans", info.TotalRetrans)
+		}
+		event.Msg("End serving SQL session")
+	}()
 
 	tg := unison.TaskGroupWithCancel(ctx)
 	tg.OnQuit = unison.StopAll
@@ -59,7 +97,9 @@ func (s *session) ServeSQLSession(ctx context.Context) error {
 		logger := log.Ctx(ctx).With().Str("direction", "postgres -> client").Logger()
 		ctx = logger.WithContext(ctx)
 
-		err := copyLoop(ctx, s.branch, s.inboundConn, s.outboundConn)
+		n, err := copyLoop(ctx, s.branch, s.inboundConn, s.outboundConn)
+		s.bytesToClient.Store(n)
+		s.metrics.RecordBytesForwarded(ctx, metrics.DirectionBackendToClient, n)
 		if err != nil {
 			logger.Error().Err(err).Msg("Copy loop error")
 		}
@@ -70,7 +110,9 @@ func (s *session) ServeSQLSession(ctx context.Context) error {
 		logger := log.Ctx(ctx).With().Str("direction", "client -> postgres").Logger()
 		ctx = logger.WithContext(ctx)
 
-		err := copyLoop(ctx, s.branch, s.outboundConn, s.inboundConn)
+		n, err := copyLoop(ctx, s.branch, s.outboundConn, s.inboundConn)
+		s.bytesToBackend.Store(n)
+		s.metrics.RecordBytesForwarded(ctx, metrics.DirectionClientToBackend, n)
 		if err != nil {
 			logger.Error().Err(err).Msg("Copy loop error")
 		}
@@ -80,7 +122,26 @@ func (s *session) ServeSQLSession(ctx context.Context) error {
 	return nil
 }
 
+// captureBackendTCPInfo snapshots what the kernel knows about the backend
+// connection: how much of what we wrote was acknowledged, and how much is
+// still outstanding. It is only readable while the socket is open, and the
+// session is torn down from two directions - close, driven asynchronously by
+// the context hook, and the final log in ServeSQLSession - so both call this
+// and the once decides. close calls it before closing anything, which also
+// means a concurrent caller cannot lose the race to the socket being closed.
+func (s *session) captureBackendTCPInfo() {
+	s.tcpInfoOnce.Do(func() {
+		info, err := readTCPInfo(s.outboundConn)
+		if err != nil || info == nil {
+			return
+		}
+		s.tcpInfo.Store(info)
+	})
+}
+
 func (s *session) close(ctx context.Context) {
+	s.captureBackendTCPInfo()
+
 	if s.inboundConn != nil {
 		if err := s.inboundConn.Close(); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("close inbound connection")
@@ -93,12 +154,15 @@ func (s *session) close(ctx context.Context) {
 	}
 }
 
-func copyLoop(ctx context.Context, branch string, to io.Writer, from io.Reader) error {
-	_, err := io.Copy(to, from)
+// copyLoop copies until the source is exhausted, returning the number of bytes
+// written. The count is returned on error too, so a partially forwarded stream
+// is still accounted for.
+func copyLoop(ctx context.Context, branch string, to io.Writer, from io.Reader) (int64, error) {
+	n, err := io.Copy(to, from)
 	if err != nil {
 		if errors.Is(err, io.EOF) || isClosedConnError(err) {
 			log.Ctx(ctx).Info().Msgf("connection from branch [%s] has been closed", branch)
-			return nil
+			return n, nil
 		}
 
 		if netOpError, ok := errors.AsType[*net.OpError](err); ok {
@@ -110,9 +174,9 @@ func copyLoop(ctx context.Context, branch string, to io.Writer, from io.Reader) 
 		}
 
 		// return err
-		return fmt.Errorf("copy loop: %+w [%T]", err, err)
+		return n, fmt.Errorf("copy loop: %+w [%T]", err, err)
 	}
-	return nil
+	return n, nil
 }
 
 func isClosedConnError(err error) bool {

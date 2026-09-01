@@ -74,7 +74,7 @@ func testInitiatorConnect(t *testing.T, connector func(addr string) (*pgx.Conn, 
 		}, nil
 	})
 
-	proxy := session.NewProxy(testTracer, resolver, dialer.Dial, nil)
+	proxy := session.NewProxy(testTracer, resolver, dialer.Dial, nil, nil)
 	initiator := must(New(testTracer, proxy, certificate))
 	tg.Go(gatewayMain(gwListener, initiator))
 
@@ -155,7 +155,7 @@ func testInitiatorCancellation(t *testing.T,
 		}, nil
 	})
 
-	proxy := session.NewProxy(testTracer, resolver, dialer.Dial, nil)
+	proxy := session.NewProxy(testTracer, resolver, dialer.Dial, nil, nil)
 
 	initiator := must(New(testTracer, proxy, certificate))
 
@@ -300,7 +300,7 @@ func TestInitiator_Err_InvalidServerName(t *testing.T) {
 		return nil, fmt.Errorf("invalid server name")
 	})
 
-	proxy := session.NewProxy(testTracer, resolver, dialer.Dial, nil)
+	proxy := session.NewProxy(testTracer, resolver, dialer.Dial, nil, nil)
 
 	initiator := must(New(testTracer, proxy, certificate))
 	ctx := newTestLogger(t).WithContext(context.Background())

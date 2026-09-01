@@ -37,6 +37,7 @@ type Proxy struct {
 	resolver BranchResolver
 	dialer   branchDialerFn
 	ipFilter IPFilter
+	metrics  *metrics.GatewayMetrics
 }
 
 // IPFilter checks if an IP address is allowed for a branch.
@@ -56,12 +57,15 @@ func CheckIPAllowed(filter IPFilter, branchID, clientAddr string) error {
 
 type branchDialerFn func(ctx context.Context, network string, branch *Branch) (net.Conn, error)
 
-func NewProxy(tracer trace.Tracer, resolver BranchResolver, dialer branchDialerFn, ipFilter IPFilter) *Proxy {
+// NewProxy creates a proxy that resolves and dials branch backends.
+// gwMetrics may be nil, in which case sessions record no metrics.
+func NewProxy(tracer trace.Tracer, resolver BranchResolver, dialer branchDialerFn, ipFilter IPFilter, gwMetrics *metrics.GatewayMetrics) *Proxy {
 	return &Proxy{
 		tracer:   tracer,
 		resolver: resolver,
 		dialer:   dialer,
 		ipFilter: ipFilter,
+		metrics:  gwMetrics,
 	}
 }
 
@@ -80,7 +84,7 @@ func (p *Proxy) CreateBackendSession(
 	}
 
 	span.SetAttributes(metrics.AttrBranchID.String(branchName))
-	return New(p.tracer, branchName, inboundConn, outConn), nil
+	return New(p.tracer, branchName, inboundConn, outConn, p.metrics), nil
 }
 
 func (p *Proxy) CancelSession(ctx context.Context, serverName string, inboundConn net.Conn, req *pgproto3.CancelRequest) (err error) {

@@ -19,7 +19,7 @@ func TestServeSQLSession_BidirectionalDataFlow(t *testing.T) {
 	defer clientConn.Close()
 	defer serverConn.Close()
 
-	sess := session.New(tracer, "test-branch", proxyClientConn, proxyServerConn)
+	sess := session.New(tracer, "test-branch", proxyClientConn, proxyServerConn, nil)
 	ctx := context.Background()
 
 	errCh := make(chan error, 1)
@@ -53,7 +53,7 @@ func TestServeSQLSession_ContextCancelledBeforeStart(t *testing.T) {
 	defer clientConn.Close()
 	defer serverConn.Close()
 
-	sess := session.New(tracer, "test-branch", proxyClientConn, proxyServerConn)
+	sess := session.New(tracer, "test-branch", proxyClientConn, proxyServerConn, nil)
 
 	// Cancel context before starting session
 	ctx, cancel := context.WithCancel(context.Background())
@@ -70,7 +70,7 @@ func TestServeSQLSession_ContextCancelledDuringSession(t *testing.T) {
 	defer clientConn.Close()
 	defer serverConn.Close()
 
-	sess := session.New(tracer, "test-branch", proxyClientConn, proxyServerConn)
+	sess := session.New(tracer, "test-branch", proxyClientConn, proxyServerConn, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	errCh := make(chan error, 1)
@@ -104,7 +104,7 @@ func TestServeSQLSession_ConnectionErrorPropagation(t *testing.T) {
 	proxyServerConn, serverConn := net.Pipe()
 	defer serverConn.Close()
 
-	sess := session.New(tracer, "test-branch", proxyClientConn, proxyServerConn)
+	sess := session.New(tracer, "test-branch", proxyClientConn, proxyServerConn, nil)
 
 	ctx := context.Background()
 

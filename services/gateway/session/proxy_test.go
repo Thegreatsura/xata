@@ -114,7 +114,7 @@ func TestProxy_CreateBackendSession_Success(t *testing.T) {
 	// Mock resolver that returns valid address and branch name
 	resolver := &mockResolver{Address: "mock-address:5432", Branch: "branch1"}
 	md := &mockDialer{Conn: proxyToServerConn}
-	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil)
+	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil, nil)
 
 	// Create a valid startup message
 	startupMessage := createStartupMessage()
@@ -176,7 +176,7 @@ func TestProxy_CreateBackendSession_ResolverError(t *testing.T) {
 	var dialerCalled bool
 	resolver := &mockResolver{Error: testError}
 	md := &mockDialer{Err: errors.New("dialer should not be called when resolver fails")}
-	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil)
+	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil, nil)
 
 	// Test the CreateBackendSession method with invalid server name
 	ctx := context.Background()
@@ -201,7 +201,7 @@ func TestProxy_CreateBackendSession_NetworkDialError(t *testing.T) {
 	resolver := &mockResolver{Address: "unreachable.address:9999", Branch: "branch1"}
 	// Mock dialer that simulates network connection failure
 	md := &mockDialer{Err: errors.New("connection refused")}
-	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil)
+	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil, nil)
 
 	// Test the CreateBackendSession method
 	ctx := context.Background()
@@ -236,7 +236,7 @@ func TestProxy_CreateBackendSession_SendMessageError(t *testing.T) {
 	}}
 
 	// Mock resolver that returns valid address
-	proxy := session.NewProxy(testTracer, &mockResolver{Address: "valid.address:5432", Branch: "branch1"}, md.Dial, nil)
+	proxy := session.NewProxy(testTracer, &mockResolver{Address: "valid.address:5432", Branch: "branch1"}, md.Dial, nil, nil)
 
 	// Test the CreateBackendSession method
 	ctx := context.Background()
@@ -280,7 +280,7 @@ func TestProxy_CancelSession_Success(t *testing.T) {
 	resolver := &mockResolver{Address: "mock-address:5432", Branch: "branch1"}
 	// Mock dialer that returns the proxy-to-server connection
 	md := &mockDialer{Conn: proxyToServerConn}
-	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil)
+	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil, nil)
 
 	// Create a valid cancel request
 	cancelRequest := createCancelRequest()
@@ -336,7 +336,7 @@ func TestProxy_CancelSession_ResolverError(t *testing.T) {
 	clientConn := newClientConn(t)
 	resolver := &mockResolver{Error: fmt.Errorf("resolver failed")}
 	md := &mockDialer{Err: errors.New("dialer should not be called when resolver fails")}
-	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil)
+	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil, nil)
 
 	ctx := context.Background()
 	err := proxy.CancelSession(ctx, "bad.example.com", clientConn, createCancelRequest())
@@ -353,7 +353,7 @@ func TestProxy_CancelSession_NetworkDialError(t *testing.T) {
 	clientConn := newClientConn(t)
 	resolver := &mockResolver{Address: "unreachable.address:9999", Branch: "branch1"}
 	md := &mockDialer{Err: fmt.Errorf("connection refused")}
-	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil)
+	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil, nil)
 
 	ctx := context.Background()
 	err := proxy.CancelSession(ctx, "branch1.example.com", clientConn, createCancelRequest())
@@ -378,7 +378,7 @@ func TestProxy_CancelSession_SendMessageError(t *testing.T) {
 		Conn:       proxyToServerConn,
 		CallAction: func() { serverSideConn.Close() },
 	}
-	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil)
+	proxy := session.NewProxy(testTracer, resolver, md.Dial, nil, nil)
 
 	ctx := context.Background()
 	err := proxy.CancelSession(ctx, "branch1.example.com", clientConn, createCancelRequest())
@@ -471,6 +471,7 @@ func TestProxy_IPFilter(t *testing.T) {
 			&mockResolver{Address: "mock-address:5432", Branch: "branch1"},
 			md.Dial,
 			&mockIPFilter{allowed: allowed},
+			nil,
 		)
 		return proxy, md
 	}
