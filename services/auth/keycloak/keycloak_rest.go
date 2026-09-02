@@ -774,7 +774,7 @@ func (r *restKC) getToken(ctx context.Context) (*gocloak.JWT, error) {
 
 	// Holding the lock across the login serializes concurrent refreshes so we
 	// don't stampede Keycloak with parallel logins when the token expires.
-	jwt, err := r.client.LoginAdmin(ctx, "temp-admin", r.authConfig.KeycloakAdminPassword, "master")
+	jwt, err := r.client.LoginAdmin(ctx, r.authConfig.KeycloakAdminUsername, r.authConfig.KeycloakAdminPassword, "master")
 	if err != nil {
 		return nil, fmt.Errorf("failed to login as admin: %w", err)
 	}

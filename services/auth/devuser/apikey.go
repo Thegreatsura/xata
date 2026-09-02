@@ -34,7 +34,7 @@ func CreateDevAPIKeyCmd() *cobra.Command {
 			}
 
 			client := gocloak.NewClient(cfg.KeycloakURL)
-			jwt, err := client.LoginAdmin(cmd.Context(), "temp-admin", cfg.KeycloakAdminPassword, "master")
+			jwt, err := client.LoginAdmin(cmd.Context(), cfg.KeycloakAdminUsername, cfg.KeycloakAdminPassword, "master")
 			if err != nil {
 				return fmt.Errorf("login as admin: %w", err)
 			}

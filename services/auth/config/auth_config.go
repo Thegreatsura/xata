@@ -4,7 +4,7 @@ package config
 type AuthConfig struct {
 	KeycloakURL           string `env:"KEYCLOAK_URL" env-default:"http://localhost:8080/"`
 	Realm                 string `env:"KEYCLOAK_REALM" env-default:"xata"`
-	KeycloakAdminUsername string `env:"KEYCLOAK_ADMIN_USERNAME"`
+	KeycloakAdminUsername string `env:"KEYCLOAK_ADMIN_USERNAME" env-default:"temp-admin"`
 	KeycloakAdminPassword string `env:"KEYCLOAK_ADMIN_PASSWORD"`
 	FrontendURL           string `env:"FRONTEND_URL"`
 	BillingRequired       bool   `env:"BILLING_REQUIRED" env-default:"false"`
