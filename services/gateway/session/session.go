@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 
 	"xata/services/gateway/metrics"
 
@@ -40,6 +41,24 @@ type session struct {
 	// while its socket is open. See captureBackendTCPInfo.
 	tcpInfoOnce sync.Once
 	tcpInfo     atomic.Pointer[backendTCPInfo]
+}
+
+const (
+	directionBackendToFrontend = "postgres -> client"
+	directionFrontendToBackend = "client -> postgres"
+	sideFrontend               = "frontend"
+)
+
+type copyResult struct {
+	direction        string
+	err              error
+	contextCancelled bool
+}
+
+type terminationDetails struct {
+	reason    string
+	side      string
+	operation string
 }
 
 // New creates a session proxying between a client and a backend connection.
@@ -95,36 +114,68 @@ func (s *session) ServeSQLSession(ctx context.Context) error {
 		}
 		event.Msg("End serving SQL session")
 	}()
+	if ctx.Err() != nil {
+		logger.Info().
+			Str("termination_reason", "context_cancelled").
+			Str("termination_side", "gateway").
+			Msg("SQL session terminated")
+		return nil
+	}
 
+	results := make(chan copyResult, 2)
 	tg := unison.TaskGroupWithCancel(ctx)
 	tg.OnQuit = unison.StopAll
 	tg.Go(func(ctx context.Context) error {
-		defer cancel()
-		logger := log.Ctx(ctx).With().Str("direction", "postgres -> client").Logger()
-		ctx = logger.WithContext(ctx)
-
-		n, err := copyLoop(ctx, s.branch, s.inboundConn, s.outboundConn)
+		n, err := copyLoop(s.inboundConn, s.outboundConn)
 		s.bytesToClient.Store(n)
 		s.metrics.RecordBytesForwarded(ctx, metrics.DirectionBackendToClient, n)
-		if err != nil {
-			logger.Error().Err(err).Msg("Copy loop error")
+		results <- copyResult{
+			direction:        directionBackendToFrontend,
+			err:              err,
+			contextCancelled: closeCtx.Err() != nil,
 		}
 		return nil
 	})
 	tg.Go(func(ctx context.Context) error {
-		defer cancel()
-		logger := log.Ctx(ctx).With().Str("direction", "client -> postgres").Logger()
-		ctx = logger.WithContext(ctx)
-
-		n, err := copyLoop(ctx, s.branch, s.outboundConn, s.inboundConn)
+		n, err := copyLoop(s.outboundConn, s.inboundConn)
 		s.bytesToBackend.Store(n)
 		s.metrics.RecordBytesForwarded(ctx, metrics.DirectionClientToBackend, n)
-		if err != nil {
-			logger.Error().Err(err).Msg("Copy loop error")
+		results <- copyResult{
+			direction:        directionFrontendToBackend,
+			err:              err,
+			contextCancelled: closeCtx.Err() != nil,
 		}
 		return nil
 	})
+
+	// io.Copy returns only when its source reaches EOF or a read/write fails,
+	// and neither loop closes a socket on its own. Therefore, unless the parent
+	// context was already cancelled, the first result is the event that ended
+	// the session. Save it before cancel closes both sockets; the sibling error
+	// is then a cleanup effect.
+	first, received := awaitCopyResult(closeCtx, results)
+	cancel()
 	tg.Wait()
+	if !received {
+		logger.Info().
+			Str("termination_reason", "context_cancelled").
+			Str("termination_side", "gateway").
+			Msg("SQL session terminated")
+		return nil
+	}
+
+	details := classifyTermination(first.direction, first.err, first.contextCancelled)
+	event := logger.Info().
+		Str("direction", first.direction).
+		Str("termination_reason", details.reason).
+		Str("termination_side", details.side)
+	if details.operation != "" {
+		event = event.Str("socket_operation", details.operation)
+	}
+	if first.err != nil {
+		event = event.Err(first.err)
+	}
+	event.Msg("SQL session terminated")
 	return nil
 }
 
@@ -145,6 +196,20 @@ func (s *session) captureBackendTCPInfo() {
 	})
 }
 
+func awaitCopyResult(ctx context.Context, results <-chan copyResult) (copyResult, bool) {
+	select {
+	case result := <-results:
+		return result, true
+	case <-ctx.Done():
+		select {
+		case result := <-results:
+			return result, true
+		default:
+			return copyResult{}, false
+		}
+	}
+}
+
 func (s *session) close(ctx context.Context) {
 	s.captureBackendTCPInfo()
 
@@ -163,56 +228,101 @@ func (s *session) close(ctx context.Context) {
 // copyLoop copies until the source is exhausted, returning the number of bytes
 // written. The count is returned on error too, so a partially forwarded stream
 // is still accounted for.
-func copyLoop(ctx context.Context, branch string, to io.Writer, from io.Reader) (int64, error) {
+func copyLoop(to io.Writer, from io.Reader) (int64, error) {
 	n, err := io.Copy(to, from)
 	if err != nil {
-		if errors.Is(err, io.EOF) || isClosedConnError(err) {
-			log.Ctx(ctx).Info().Msgf("connection from branch [%s] has been closed", branch)
-			return n, nil
-		}
-
-		if netOpError, ok := errors.AsType[*net.OpError](err); ok {
-			if netOpError.Op == "read" {
-				if wrappedErr := errors.Unwrap(err); wrappedErr != nil {
-					log.Ctx(ctx).Info().Err(wrappedErr).Msgf("wrapped error: %T", wrappedErr)
-				}
-			}
-		}
-
-		// return err
 		return n, fmt.Errorf("copy loop: %+w [%T]", err, err)
 	}
 	return n, nil
 }
 
-func isClosedConnError(err error) bool {
-	if err == nil {
-		return false
+func classifyTermination(direction string, err error, contextCancelled bool) terminationDetails {
+	operation := socketOperation(err)
+	if contextCancelled {
+		return terminationDetails{
+			reason:    "context_cancelled",
+			side:      "gateway",
+			operation: operation,
+		}
 	}
 
-	if errors.Is(err, net.ErrClosed) {
-		return true
+	side := terminationSide(direction, operation)
+	if err == nil || errors.Is(err, io.EOF) {
+		return terminationDetails{
+			reason:    side + "_fin",
+			side:      side,
+			operation: operation,
+		}
+	}
+	if side == sideFrontend && errors.Is(err, io.ErrUnexpectedEOF) {
+		return terminationDetails{
+			reason:    "frontend_tls_unexpected_eof",
+			side:      side,
+			operation: operation,
+		}
+	}
+	if errors.Is(err, syscall.ECONNRESET) || strings.Contains(err.Error(), "connection reset by peer") {
+		return terminationDetails{
+			reason:    side + "_reset",
+			side:      side,
+			operation: operation,
+		}
+	}
+	if isTimeout(err) {
+		return terminationDetails{
+			reason:    side + "_timeout",
+			side:      side,
+			operation: operation,
+		}
+	}
+	if errors.Is(err, syscall.EPIPE) {
+		return terminationDetails{
+			reason:    side + "_broken_pipe",
+			side:      side,
+			operation: operation,
+		}
+	}
+	if errors.Is(err, net.ErrClosed) || strings.Contains(err.Error(), "use of closed network connection") {
+		return terminationDetails{
+			reason:    "gateway_close",
+			side:      "gateway",
+			operation: operation,
+		}
 	}
 
-	// some error values are private e.g. poll.errNetClosed. These are normally
-	// wrapped inside a net.OpError.
-	// Unfortunately we need to test by string matching the error message.
+	return terminationDetails{
+		reason:    side + "_io_error",
+		side:      side,
+		operation: operation,
+	}
+}
 
-	var opErr *net.OpError
-	if !errors.As(err, &opErr) {
-		return false
+func socketOperation(err error) string {
+	operation := ""
+	for err != nil {
+		if opErr, ok := err.(*net.OpError); ok { //nolint:errorlint // Inspect each wrapper to find the innermost operation.
+			operation = opErr.Op
+		}
+		err = errors.Unwrap(err)
 	}
-	if err = opErr.Unwrap(); err == nil {
-		return false
+	return operation
+}
+
+func terminationSide(direction, operation string) string {
+	if operation == "write" {
+		if direction == directionBackendToFrontend {
+			return sideFrontend
+		}
+		return "backend"
 	}
 
-	errmsg := err.Error()
-	if strings.Contains(errmsg, "use of closed network connection") {
-		return true
+	if direction == directionBackendToFrontend {
+		return "backend"
 	}
-	if strings.Contains(errmsg, "reset by peer") {
-		return true
-	}
+	return sideFrontend
+}
 
-	return false
+func isTimeout(err error) bool {
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
 }

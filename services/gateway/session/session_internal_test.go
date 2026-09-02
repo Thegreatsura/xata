@@ -1,77 +1,435 @@
 package session
 
 import (
+	"bytes"
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"io"
+	"math/big"
 	"net"
+	"os"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
 )
 
-func TestIsClosedConnError(t *testing.T) {
+func TestClassifyTermination(t *testing.T) {
 	tests := map[string]struct {
-		err  error
-		want bool
+		direction        string
+		err              error
+		contextCancelled bool
+		want             terminationDetails
 	}{
-		"net.ErrClosed": {
-			err:  net.ErrClosed,
-			want: true,
+		"frontend FIN": {
+			direction: directionFrontendToBackend,
+			want: terminationDetails{
+				reason: "frontend_fin",
+				side:   "frontend",
+			},
 		},
-		"nil error": {
-			err:  nil,
-			want: false,
+		"backend FIN": {
+			direction: directionBackendToFrontend,
+			want: terminationDetails{
+				reason: "backend_fin",
+				side:   "backend",
+			},
 		},
-		"non-network error": {
-			err:  errors.New("some random error"),
-			want: false,
-		},
-		"closed network connection": {
+		"frontend read reset": {
+			direction: directionFrontendToBackend,
 			err: &net.OpError{
 				Op:  "read",
-				Err: errors.New("use of closed network connection"),
+				Err: syscall.ECONNRESET,
 			},
-			want: true,
+			want: terminationDetails{
+				reason:    "frontend_reset",
+				side:      "frontend",
+				operation: "read",
+			},
 		},
-		"connection reset by peer": {
+		"frontend write reset": {
+			direction: directionBackendToFrontend,
+			err: &net.OpError{
+				Op: "readfrom",
+				Err: &net.OpError{
+					Op:  "write",
+					Err: syscall.ECONNRESET,
+				},
+			},
+			want: terminationDetails{
+				reason:    "frontend_reset",
+				side:      "frontend",
+				operation: "write",
+			},
+		},
+		"frontend TLS unexpected EOF": {
+			direction: directionFrontendToBackend,
+			err: &net.OpError{
+				Op:  "readfrom",
+				Err: io.ErrUnexpectedEOF,
+			},
+			want: terminationDetails{
+				reason:    "frontend_tls_unexpected_eof",
+				side:      "frontend",
+				operation: "readfrom",
+			},
+		},
+		"backend timeout": {
+			direction: directionBackendToFrontend,
 			err: &net.OpError{
 				Op:  "read",
-				Err: errors.New("connection reset by peer"),
+				Err: os.ErrDeadlineExceeded,
 			},
-			want: true,
+			want: terminationDetails{
+				reason:    "backend_timeout",
+				side:      "backend",
+				operation: "read",
+			},
 		},
-		"op error without wrapped error": {
+		"backend broken pipe": {
+			direction: directionFrontendToBackend,
 			err: &net.OpError{
-				Op: "read",
+				Op:  "write",
+				Err: syscall.EPIPE,
 			},
-			want: false,
+			want: terminationDetails{
+				reason:    "backend_broken_pipe",
+				side:      "backend",
+				operation: "write",
+			},
 		},
-		"op error with other error": {
+		"gateway close": {
+			direction: directionFrontendToBackend,
 			err: &net.OpError{
 				Op:  "read",
-				Err: errors.New("some other network error"),
+				Err: net.ErrClosed,
 			},
-			want: false,
+			want: terminationDetails{
+				reason:    "gateway_close",
+				side:      "gateway",
+				operation: "read",
+			},
+		},
+		"context cancellation takes precedence": {
+			direction: directionFrontendToBackend,
+			err: &net.OpError{
+				Op:  "read",
+				Err: net.ErrClosed,
+			},
+			contextCancelled: true,
+			want: terminationDetails{
+				reason:    "context_cancelled",
+				side:      "gateway",
+				operation: "read",
+			},
+		},
+		"unknown frontend error": {
+			direction: directionFrontendToBackend,
+			err:       errors.New("some random error"),
+			want: terminationDetails{
+				reason: "frontend_io_error",
+				side:   "frontend",
+			},
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := isClosedConnError(test.err)
+			got := classifyTermination(test.direction, test.err, test.contextCancelled)
 			require.Equal(t, test.want, got)
 		})
 	}
 }
 
-func TestCopyLoop(t *testing.T) {
-	ctx := context.Background()
-	branch := "test-branch"
+func TestAwaitCopyResult(t *testing.T) {
+	t.Run("copy result", func(t *testing.T) {
+		results := make(chan copyResult, 1)
+		want := copyResult{direction: directionFrontendToBackend}
+		results <- want
 
+		got, received := awaitCopyResult(context.Background(), results)
+		require.True(t, received)
+		require.Equal(t, want, got)
+	})
+
+	t.Run("copy result before cancellation", func(t *testing.T) {
+		for range 100 {
+			ctx, cancel := context.WithCancel(context.Background())
+			results := make(chan copyResult, 1)
+			want := copyResult{direction: directionFrontendToBackend}
+			results <- want
+			cancel()
+
+			got, received := awaitCopyResult(ctx, results)
+			require.True(t, received)
+			require.Equal(t, want, got)
+		}
+	})
+
+	t.Run("context cancellation", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		got, received := awaitCopyResult(ctx, make(chan copyResult))
+		require.False(t, received)
+		require.Equal(t, copyResult{}, got)
+	})
+}
+
+func TestClassifyTerminationTCP(t *testing.T) {
+	tests := map[string]struct {
+		direction        string
+		contextCancelled bool
+		err              func(t *testing.T) error
+		want             terminationDetails
+	}{
+		"frontend FIN": {
+			direction: directionFrontendToBackend,
+			err: func(t *testing.T) error {
+				conn, peer := newTCPPair(t)
+				require.NoError(t, peer.Close())
+				_, err := copyLoop(io.Discard, conn)
+				return err
+			},
+			want: terminationDetails{
+				reason: "frontend_fin",
+				side:   "frontend",
+			},
+		},
+		"backend FIN": {
+			direction: directionBackendToFrontend,
+			err: func(t *testing.T) error {
+				conn, peer := newTCPPair(t)
+				require.NoError(t, peer.Close())
+				_, err := copyLoop(io.Discard, conn)
+				return err
+			},
+			want: terminationDetails{
+				reason: "backend_fin",
+				side:   "backend",
+			},
+		},
+		"frontend reset": {
+			direction: directionFrontendToBackend,
+			err: func(t *testing.T) error {
+				source, sourcePeer := newTCPPair(t)
+				require.NoError(t, sourcePeer.SetLinger(0))
+				require.NoError(t, sourcePeer.Close())
+				_, err := copyLoop(io.Discard, source)
+				return err
+			},
+			want: terminationDetails{
+				reason:    "frontend_reset",
+				side:      "frontend",
+				operation: "read",
+			},
+		},
+		"frontend TLS unexpected EOF": {
+			direction: directionFrontendToBackend,
+			err:       frontendTLSUnexpectedEOF,
+			want: terminationDetails{
+				reason:    "frontend_tls_unexpected_eof",
+				side:      "frontend",
+				operation: "readfrom",
+			},
+		},
+		"backend timeout": {
+			direction: directionBackendToFrontend,
+			err: func(t *testing.T) error {
+				conn, _ := newTCPPair(t)
+				require.NoError(t, conn.SetReadDeadline(time.Now()))
+				_, err := copyLoop(io.Discard, conn)
+				return err
+			},
+			want: terminationDetails{
+				reason:    "backend_timeout",
+				side:      "backend",
+				operation: "read",
+			},
+		},
+		"backend broken pipe": {
+			direction: directionFrontendToBackend,
+			err:       brokenPipeError,
+			want: terminationDetails{
+				reason:    "backend_broken_pipe",
+				side:      "backend",
+				operation: "write",
+			},
+		},
+		"gateway close": {
+			direction: directionFrontendToBackend,
+			err: func(t *testing.T) error {
+				conn, _ := newTCPPair(t)
+				require.NoError(t, conn.Close())
+				_, err := copyLoop(io.Discard, conn)
+				return err
+			},
+			want: terminationDetails{
+				reason:    "gateway_close",
+				side:      "gateway",
+				operation: "read",
+			},
+		},
+		"context cancellation": {
+			direction:        directionFrontendToBackend,
+			contextCancelled: true,
+			err: func(t *testing.T) error {
+				conn, _ := newTCPPair(t)
+				require.NoError(t, conn.Close())
+				_, err := copyLoop(io.Discard, conn)
+				return err
+			},
+			want: terminationDetails{
+				reason:    "context_cancelled",
+				side:      "gateway",
+				operation: "read",
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := test.err(t)
+			got := classifyTermination(test.direction, err, test.contextCancelled)
+			require.Equal(t, test.want, got)
+		})
+	}
+}
+
+func TestServeSQLSession_ConnectionCloseUsesParentContext(t *testing.T) {
+	client, inbound := net.Pipe()
+	outbound, backend := net.Pipe()
+	t.Cleanup(func() {
+		client.Close()
+		backend.Close()
+	})
+
+	var logs bytes.Buffer
+	logger := zerolog.New(&logs)
+	ctx := logger.WithContext(context.Background())
+	tracer := noop.NewTracerProvider().Tracer("test")
+	sess := New(tracer, "test-branch", inbound, outbound, nil)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- sess.ServeSQLSession(ctx)
+	}()
+
+	require.NoError(t, client.Close())
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("session did not complete in time")
+	}
+
+	require.Contains(t, logs.String(), `"termination_reason":"frontend_fin"`)
+}
+
+func newTCPPair(t *testing.T) (*net.TCPConn, *net.TCPConn) {
+	t.Helper()
+
+	listener, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	t.Cleanup(func() { listener.Close() })
+
+	address, ok := listener.Addr().(*net.TCPAddr)
+	require.True(t, ok)
+	peer, err := net.DialTCP("tcp", nil, address)
+	require.NoError(t, err)
+	t.Cleanup(func() { peer.Close() })
+
+	conn, err := listener.AcceptTCP()
+	require.NoError(t, err)
+	t.Cleanup(func() { conn.Close() })
+
+	return conn, peer
+}
+
+func frontendTLSUnexpectedEOF(t *testing.T) error {
+	t.Helper()
+
+	serverConn, clientConn := newTCPPair(t)
+	require.NoError(t, serverConn.SetDeadline(time.Now().Add(time.Second)))
+	require.NoError(t, clientConn.SetDeadline(time.Now().Add(time.Second)))
+
+	serverTLS := tls.Server(serverConn, &tls.Config{
+		Certificates: []tls.Certificate{newTestCertificate(t)},
+		MinVersion:   tls.VersionTLS12,
+	})
+	clientTLS := tls.Client(clientConn, &tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec // The test uses an ephemeral self-signed certificate.
+		MinVersion:         tls.VersionTLS12,
+	})
+
+	serverHandshake := make(chan error, 1)
+	go func() {
+		serverHandshake <- serverTLS.Handshake()
+	}()
+	require.NoError(t, clientTLS.Handshake())
+	require.NoError(t, <-serverHandshake)
+
+	// Write part of an application-data record, then close the transport
+	// without close_notify. Go reports EOF within a TLS record as unexpected.
+	_, err := clientConn.Write([]byte{0x17})
+	require.NoError(t, err)
+	require.NoError(t, clientConn.Close())
+	destination, _ := newTCPPair(t)
+	_, err = copyLoop(destination, serverTLS)
+	return err
+}
+
+func newTestCertificate(t *testing.T) tls.Certificate {
+	t.Helper()
+
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		NotBefore:    time.Now().Add(-time.Minute),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey, privateKey)
+	require.NoError(t, err)
+
+	return tls.Certificate{
+		Certificate: [][]byte{der},
+		PrivateKey:  privateKey,
+	}
+}
+
+func brokenPipeError(t *testing.T) error {
+	t.Helper()
+
+	conn, peer := newTCPPair(t)
+	require.NoError(t, peer.Close())
+	require.NoError(t, conn.SetWriteDeadline(time.Now().Add(time.Second)))
+
+	payload := make([]byte, 64*1024)
+	for {
+		_, err := conn.Write(payload)
+		if errors.Is(err, syscall.EPIPE) {
+			return err
+		}
+		if errors.Is(err, syscall.ECONNRESET) {
+			continue
+		}
+		require.NoError(t, err)
+	}
+}
+
+func TestCopyLoop(t *testing.T) {
 	tests := map[string]struct {
 		reader    io.Reader
 		wantErr   bool
@@ -88,16 +446,16 @@ func TestCopyLoop(t *testing.T) {
 			reader:  errorReader(io.EOF),
 			wantErr: false,
 		},
-		"closed connection should not be error": {
+		"closed connection should be preserved": {
 			reader:  errorReader(net.ErrClosed),
-			wantErr: false,
+			wantErr: true,
 		},
-		"network reset should be no error": {
+		"network reset should be preserved": {
 			reader: errorReader(&net.OpError{
 				Op:  "read",
-				Err: errors.New("connection reset by peer"),
+				Err: syscall.ECONNRESET,
 			}),
-			wantErr: false,
+			wantErr: true,
 		},
 		"other network error should be error": {
 			reader: errorReader(&net.OpError{
@@ -123,7 +481,7 @@ func TestCopyLoop(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			var writer strings.Builder
-			got, err := copyLoop(ctx, branch, &writer, test.reader)
+			got, err := copyLoop(&writer, test.reader)
 
 			if test.wantErr {
 				require.Error(t, err)
@@ -141,9 +499,6 @@ func TestCopyLoop(t *testing.T) {
 
 func TestCopyLoop_AsyncClosing(t *testing.T) {
 	// Use TCP connections to test async closing of any connection endpoint does exit the copy loop.
-
-	ctx := context.Background()
-	branch := "test-branch"
 
 	tests := map[string]struct {
 		name       string
@@ -201,7 +556,7 @@ func TestCopyLoop_AsyncClosing(t *testing.T) {
 
 			// Start copyLoop in goroutine
 			go func() {
-				_, err := copyLoop(ctx, branch, &output, reader)
+				_, err := copyLoop(&output, reader)
 				errCh <- err
 			}()
 
@@ -218,8 +573,7 @@ func TestCopyLoop_AsyncClosing(t *testing.T) {
 
 			// Wait for copyLoop to complete
 			select {
-			case err := <-errCh:
-				require.NoError(t, err)
+			case <-errCh:
 			case <-time.After(200 * time.Millisecond):
 				t.Fatal("copyLoop did not complete in time")
 			}
