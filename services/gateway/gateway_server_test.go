@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -347,4 +348,37 @@ func TestServerRunCancelRace(t *testing.T) {
 		_ = srv.runWithListener(ctx, l)
 		cancel()
 	}
+}
+
+// TestRawClientConn guards the PROXY-protocol unwrap that the client
+// TCP_USER_TIMEOUT relies on: a proxyproto.Conn does not expose the raw
+// socket, so the option has to be set on the connection underneath it.
+func TestRawClientConn(t *testing.T) {
+	t.Run("unwraps a proxyproto conn to the raw socket", func(t *testing.T) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer listener.Close()
+
+		tcpConn, err := net.Dial("tcp", listener.Addr().String())
+		require.NoError(t, err)
+		defer tcpConn.Close()
+
+		proxyConn := proxyproto.NewConn(tcpConn, proxyproto.WithPolicy(proxyproto.USE))
+		_, wrapped := any(proxyConn).(syscall.Conn)
+		require.False(t, wrapped, "proxyproto.Conn must not expose the raw socket directly")
+
+		raw := rawClientConn(proxyConn)
+		_, unwrapped := raw.(syscall.Conn)
+		require.True(t, unwrapped, "unwrapped conn must expose the raw socket")
+
+		// The whole inbound path applies cleanly on the unwrapped socket.
+		require.NoError(t, session.SetConnTCPUserTimeout(raw, 30*time.Second))
+	})
+
+	t.Run("returns a non-proxy conn unchanged", func(t *testing.T) {
+		client, server := net.Pipe()
+		defer client.Close()
+		defer server.Close()
+		require.Same(t, client, rawClientConn(client))
+	})
 }

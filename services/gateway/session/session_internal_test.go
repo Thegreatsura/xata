@@ -352,3 +352,38 @@ func TestSessionCapturesBackendTCPInfo(t *testing.T) {
 	require.GreaterOrEqual(t, info.BytesAcked, uint64(len(payload)),
 		"the backend read the payload, so it must show as acknowledged")
 }
+
+// TestSetConnTCPUserTimeout exercises the inbound socket-option path used to
+// bound a client that stops reading. It cannot assert the kernel timer fires
+// without a slow, flaky wait, so it checks the option is accepted on a real
+// socket and that non-sockets and a zero timeout are no-ops.
+func TestSetConnTCPUserTimeout(t *testing.T) {
+	t.Run("applies to a real socket", func(t *testing.T) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer listener.Close()
+
+		conn, err := net.Dial("tcp", listener.Addr().String())
+		require.NoError(t, err)
+		defer conn.Close()
+
+		// A rejected socket option would surface here; on non-Linux the call
+		// is a no-op and still returns nil.
+		require.NoError(t, SetConnTCPUserTimeout(conn, 30*time.Second))
+	})
+
+	t.Run("zero timeout is a no-op", func(t *testing.T) {
+		client, server := net.Pipe()
+		defer client.Close()
+		defer server.Close()
+		require.NoError(t, SetConnTCPUserTimeout(client, 0))
+	})
+
+	t.Run("non-socket conn is a no-op", func(t *testing.T) {
+		client, server := net.Pipe()
+		defer client.Close()
+		defer server.Close()
+		// net.Pipe conns do not implement syscall.Conn, so this must not error.
+		require.NoError(t, SetConnTCPUserTimeout(client, 30*time.Second))
+	})
+}

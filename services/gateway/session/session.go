@@ -44,7 +44,12 @@ type session struct {
 
 // New creates a session proxying between a client and a backend connection.
 // gwMetrics may be nil, in which case no metrics are recorded.
-func New(tracer trace.Tracer, branch string, inboundConn, outboundConn net.Conn, gwMetrics *metrics.GatewayMetrics) Session {
+func New(
+	tracer trace.Tracer,
+	branch string,
+	inboundConn, outboundConn net.Conn,
+	gwMetrics *metrics.GatewayMetrics,
+) Session {
 	return &session{
 		tracer:       tracer,
 		branch:       branch,
@@ -85,7 +90,8 @@ func (s *session) ServeSQLSession(ctx context.Context) error {
 				Uint64("backend_bytes_retrans", info.BytesRetrans).
 				Uint32("backend_unacked", info.Unacked).
 				Uint32("backend_notsent", info.NotsentBytes).
-				Uint32("backend_total_retrans", info.TotalRetrans)
+				Uint32("backend_total_retrans", info.TotalRetrans).
+				Int("backend_recv_queue", info.RecvQueue)
 		}
 		event.Msg("End serving SQL session")
 	}()

@@ -29,10 +29,13 @@ type Config struct {
 	HTTPListenAddress string `env:"XATA_SQL_GW_HTTP_LISTEN_ADDRESS" env-description:"SQL Gateway: address and port to listen on for HTTP/WebSocket" env-default:":8443"`
 	// BackendTCPUserTimeout bounds how long data written to a backend Postgres
 	// connection may stay unacknowledged before the kernel fails the
-	// connection. Zero keeps the system default, under which an
-	// unacknowledged write is retried for many minutes and the gateway holds
-	// the session open without surfacing an error. Linux only.
+	// connection. Zero keeps the system default. Linux only.
 	BackendTCPUserTimeout time.Duration `env:"XATA_SQL_GW_BACKEND_TCP_USER_TIMEOUT" env-description:"SQL Gateway: bound on unacknowledged data to a backend connection before it fails; 0 uses the system default" env-default:"0s"`
+	// ClientTCPUserTimeout bounds how long data written to a client connection
+	// may stay unacknowledged, or how long the client's receive window may
+	// stay closed, before the kernel fails the connection. Zero keeps the
+	// system default. Linux only.
+	ClientTCPUserTimeout time.Duration `env:"XATA_SQL_GW_CLIENT_TCP_USER_TIMEOUT" env-description:"SQL Gateway: bound on unacknowledged data or a closed receive window on a client connection before it fails; 0 uses the system default" env-default:"0s"`
 	// EnablePooler allows connecting to PostgreSQL using PgBouncer
 	EnablePooler bool `env:"XATA_ENABLE_POOLER" env-default:"true" env-description:"enable PgBouncer connection pooler for new branches"`
 }
@@ -63,6 +66,9 @@ type ServerConfig struct {
 	// the run context (e.g. via an errgroup), where the server should fail
 	// fast instead of draining. When nil, the run context is used.
 	ShutdownSignal context.Context
+	// ClientTCPUserTimeout, when non-zero, is set as TCP_USER_TIMEOUT on each
+	// accepted client socket. See Config.ClientTCPUserTimeout.
+	ClientTCPUserTimeout time.Duration
 }
 
 type CLIConfig struct {

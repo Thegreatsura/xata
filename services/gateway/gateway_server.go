@@ -28,11 +28,12 @@ type Server interface {
 // Server implements the SQL wire protocol server. The server uses the
 // `Initiator` to accept and configure a new `Session` when a client connects.
 type server struct {
-	initiator      sessionInitiator
-	drainer        *timedWaitGroup
-	listenURL      string
-	metrics        *metrics.GatewayMetrics
-	shutdownSignal context.Context
+	initiator            sessionInitiator
+	drainer              *timedWaitGroup
+	listenURL            string
+	metrics              *metrics.GatewayMetrics
+	shutdownSignal       context.Context
+	clientTCPUserTimeout time.Duration
 }
 
 // Initiator creates and configures a new session. The Initiator should handle
@@ -50,11 +51,12 @@ func NewServer(si sessionInitiator, cfg ServerConfig, m *metrics.GatewayMetrics)
 	}
 
 	return &server{
-		listenURL:      cfg.Listen,
-		drainer:        newTimedWaitGroup(cfg.DrainingTime),
-		initiator:      si,
-		metrics:        m,
-		shutdownSignal: cfg.ShutdownSignal,
+		listenURL:            cfg.Listen,
+		drainer:              newTimedWaitGroup(cfg.DrainingTime),
+		initiator:            si,
+		metrics:              m,
+		shutdownSignal:       cfg.ShutdownSignal,
+		clientTCPUserTimeout: cfg.ClientTCPUserTimeout,
 	}
 }
 
@@ -147,6 +149,16 @@ func (s *server) serve(ctx context.Context, l net.Listener) error {
 			return err
 		}
 
+		// Bound how long a copy loop may block writing to a client that has
+		// stopped reading. That stall otherwise wedges the whole session,
+		// because the client leg is TLS-terminated and crypto/tls serialises
+		// a connection's reads and writes through one lock.
+		if s.clientTCPUserTimeout > 0 {
+			if err := session.SetConnTCPUserTimeout(rawClientConn(conn), s.clientTCPUserTimeout); err != nil {
+				logger.Warn().Err(err).Msg("set client TCP_USER_TIMEOUT")
+			}
+		}
+
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
@@ -193,6 +205,17 @@ func (s *server) serve(ctx context.Context, l net.Listener) error {
 	}
 
 	return ctx.Err()
+}
+
+// rawClientConn unwraps the PROXY protocol wrapper to reach the raw socket,
+// which is what exposes syscall.Conn for socket options. Raw() returns the
+// underlying connection without consuming the PROXY header, so it is safe to
+// call before the header is parsed.
+func rawClientConn(conn net.Conn) net.Conn {
+	if proxyConn, ok := conn.(*proxyproto.Conn); ok {
+		return proxyConn.Raw()
+	}
+	return conn
 }
 
 func isProxyProtocolConn(conn net.Conn) bool {

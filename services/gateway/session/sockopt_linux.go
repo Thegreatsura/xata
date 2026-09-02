@@ -41,6 +41,10 @@ type backendTCPInfo struct {
 	Unacked      uint32
 	NotsentBytes uint32
 	TotalRetrans uint32
+	// RecvQueue is how many bytes the kernel has received and buffered that
+	// the proxy has not read yet. A large value means the backend delivered
+	// data the copy loop never picked up, which TCP_INFO does not report.
+	RecvQueue int
 }
 
 // readTCPInfo reads TCP_INFO from conn. It returns nil when conn is not a
@@ -56,9 +60,16 @@ func readTCPInfo(conn net.Conn) (*backendTCPInfo, error) {
 	}
 
 	var info *unix.TCPInfo
+	var recvQueue int
 	var getErr error
 	if err := raw.Control(func(fd uintptr) {
 		info, getErr = unix.GetsockoptTCPInfo(int(fd), unix.IPPROTO_TCP, unix.TCP_INFO)
+		if getErr != nil {
+			return
+		}
+		// Best effort: an unread receive queue is worth reporting, but not at
+		// the cost of losing the TCP_INFO we already have.
+		recvQueue, _ = unix.IoctlGetInt(int(fd), unix.SIOCINQ)
 	}); err != nil {
 		return nil, err
 	}
@@ -67,6 +78,7 @@ func readTCPInfo(conn net.Conn) (*backendTCPInfo, error) {
 	}
 
 	return &backendTCPInfo{
+		RecvQueue:    recvQueue,
 		BytesAcked:   info.Bytes_acked,
 		BytesRetrans: info.Bytes_retrans,
 		Unacked:      info.Unacked,

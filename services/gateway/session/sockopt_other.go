@@ -20,6 +20,7 @@ type backendTCPInfo struct {
 	Unacked      uint32
 	NotsentBytes uint32
 	TotalRetrans uint32
+	RecvQueue    int
 }
 
 // readTCPInfo is a no-op outside Linux: TCP_INFO is Linux-specific. The

@@ -150,9 +150,10 @@ func (g *GatewayService) newServer(shutdownSignal context.Context, gwMetrics *me
 	}
 
 	return NewServer(sessionInitiator, ServerConfig{
-		Listen:         g.config.ListenAddress,
-		DrainingTime:   g.config.DrainingTime,
-		ShutdownSignal: shutdownSignal,
+		Listen:               g.config.ListenAddress,
+		DrainingTime:         g.config.DrainingTime,
+		ShutdownSignal:       shutdownSignal,
+		ClientTCPUserTimeout: g.config.ClientTCPUserTimeout,
 	}, gwMetrics), nil
 }
 

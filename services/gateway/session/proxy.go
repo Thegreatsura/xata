@@ -59,7 +59,13 @@ type branchDialerFn func(ctx context.Context, network string, branch *Branch) (n
 
 // NewProxy creates a proxy that resolves and dials branch backends.
 // gwMetrics may be nil, in which case sessions record no metrics.
-func NewProxy(tracer trace.Tracer, resolver BranchResolver, dialer branchDialerFn, ipFilter IPFilter, gwMetrics *metrics.GatewayMetrics) *Proxy {
+func NewProxy(
+	tracer trace.Tracer,
+	resolver BranchResolver,
+	dialer branchDialerFn,
+	ipFilter IPFilter,
+	gwMetrics *metrics.GatewayMetrics,
+) *Proxy {
 	return &Proxy{
 		tracer:   tracer,
 		resolver: resolver,
