@@ -1720,3 +1720,150 @@ func (s *sqlProjectStore) DeleteOrgLimit(ctx context.Context, orgID, projectID s
 	}
 	return nil
 }
+
+// organizationStatusColumns is the column list shared by every
+// organization_statuses read, so scanning stays in step with selection.
+const organizationStatusColumns = `organization_id, disabled, version, updated_at, synced_at, attempts, next_retry_at, last_error, lease_until`
+
+func scanOrganizationStatus(sc interface{ Scan(...any) error }) (store.OrganizationStatus, error) {
+	var (
+		s          store.OrganizationStatus
+		syncedAt   sql.NullTime
+		leaseUntil sql.NullTime
+	)
+	err := sc.Scan(&s.OrganizationID, &s.Disabled, &s.Version, &s.UpdatedAt, &syncedAt, &s.Attempts, &s.NextRetryAt, &s.LastError, &leaseUntil)
+	if err != nil {
+		return store.OrganizationStatus{}, err
+	}
+	if syncedAt.Valid {
+		s.SyncedAt = &syncedAt.Time
+	}
+	if leaseUntil.Valid {
+		s.LeaseUntil = &leaseUntil.Time
+	}
+	return s, nil
+}
+
+// UpsertOrganizationStatus implements store.ProjectsStore.
+func (s *sqlProjectStore) UpsertOrganizationStatus(ctx context.Context, organizationID string, disabled bool) (*store.OrganizationStatus, error) {
+	// version only advances when disabled actually changes, so a repeated
+	// write of a state the fleet already matches does not schedule a
+	// pointless fan-out. synced_at is cleared either way, so a row whose
+	// previous sync failed is retried even when the desired state is unchanged.
+	//
+	// lease_until is left alone, so a row already claimed stays claimed until
+	// the syncing worker clears it. A new desired state waits for that sync to
+	// finish rather than being picked up by a second, concurrent worker.
+	row := s.sql.QueryRowContext(ctx, `
+		INSERT INTO organization_statuses (organization_id, disabled, version, updated_at, synced_at, attempts, next_retry_at, last_error)
+		VALUES ($1, $2, 1, $3, NULL, 0, $3, '')
+		ON CONFLICT (organization_id) DO UPDATE
+		SET disabled = EXCLUDED.disabled,
+		    version = organization_statuses.version + (CASE WHEN organization_statuses.disabled IS DISTINCT FROM EXCLUDED.disabled THEN 1 ELSE 0 END),
+		    updated_at = EXCLUDED.updated_at,
+		    synced_at = NULL,
+		    attempts = 0,
+		    next_retry_at = EXCLUDED.next_retry_at,
+		    last_error = ''
+		RETURNING `+organizationStatusColumns, organizationID, disabled, time.Now().UTC())
+
+	result, err := scanOrganizationStatus(row)
+	if err != nil {
+		return nil, fmt.Errorf("upsert organization status: %w", err)
+	}
+	return &result, nil
+}
+
+// ClaimOrganizationStatusForSync implements store.ProjectsStore.
+func (s *sqlProjectStore) ClaimOrganizationStatusForSync(ctx context.Context, now time.Time, leaseFor time.Duration) (*store.OrganizationStatus, error) {
+	// The lease is applied by the same statement that selects the row, so no
+	// transaction stays open for the length of a fan-out. SKIP LOCKED keeps
+	// concurrent workers off each other's rows in the same instant.
+	// lease_until keeps them off for the length of the sync.
+	row := s.sql.QueryRowContext(ctx, `
+		UPDATE organization_statuses
+		SET attempts = attempts + 1,
+		    lease_until = $1::timestamptz + $2::interval
+		WHERE organization_id = (
+			SELECT organization_id
+			FROM organization_statuses
+			WHERE synced_at IS NULL
+			  AND next_retry_at <= $1
+			  AND (lease_until IS NULL OR lease_until <= $1)
+			ORDER BY updated_at
+			LIMIT 1
+			FOR UPDATE SKIP LOCKED
+		)
+		RETURNING `+organizationStatusColumns,
+		now.UTC(), fmt.Sprintf("%d milliseconds", leaseFor.Milliseconds()))
+
+	claimed, err := scanOrganizationStatus(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("claim organization status: %w", err)
+	}
+	return &claimed, nil
+}
+
+// MarkOrganizationStatusSynced implements store.ProjectsStore.
+func (s *sqlProjectStore) MarkOrganizationStatusSynced(ctx context.Context, organizationID string, version int64, now time.Time) (bool, error) {
+	// The lease is released regardless of whether the version matched, since
+	// the sync that held it has finished either way. Only the synced
+	// bookkeeping is version-guarded, so a state that flipped mid-sync stays
+	// pending and is immediately claimable.
+	var marked bool
+	err := s.sql.QueryRowContext(ctx, `
+		UPDATE organization_statuses
+		SET lease_until = NULL,
+		    synced_at  = CASE WHEN version = $2 THEN $3::timestamptz ELSE synced_at END,
+		    attempts   = CASE WHEN version = $2 THEN 0 ELSE attempts END,
+		    last_error = CASE WHEN version = $2 THEN '' ELSE last_error END
+		WHERE organization_id = $1
+		RETURNING version = $2
+	`, organizationID, version, now.UTC()).Scan(&marked)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("mark organization status synced: %w", err)
+	}
+	return marked, nil
+}
+
+// MarkOrganizationStatusFailed implements store.ProjectsStore.
+func (s *sqlProjectStore) MarkOrganizationStatusFailed(ctx context.Context, organizationID string, version int64, reason string, nextRetryAt time.Time) error {
+	// Same shape as MarkOrganizationStatusSynced: always release the lease,
+	// but write last_error and next_retry_at only for the version that
+	// actually failed. Otherwise a newer desired state, already scheduled for
+	// now by the upsert, would have its retry pushed out by this backoff.
+	_, err := s.sql.ExecContext(ctx, `
+		UPDATE organization_statuses
+		SET lease_until   = NULL,
+		    next_retry_at = CASE WHEN version = $2 THEN $3::timestamptz ELSE next_retry_at END,
+		    last_error    = CASE WHEN version = $2 THEN $4 ELSE last_error END
+		WHERE organization_id = $1
+	`, organizationID, version, nextRetryAt.UTC(), reason)
+	if err != nil {
+		return fmt.Errorf("mark organization status failed: %w", err)
+	}
+	return nil
+}
+
+// CountUnsyncedOrganizationStatuses implements store.ProjectsStore.
+func (s *sqlProjectStore) CountUnsyncedOrganizationStatuses(ctx context.Context) (int, time.Time, error) {
+	var (
+		count  int
+		oldest sql.NullTime
+	)
+	err := s.sql.QueryRowContext(ctx, `
+		SELECT count(*), min(updated_at)
+		FROM organization_statuses
+		WHERE synced_at IS NULL
+	`).Scan(&count, &oldest)
+	if err != nil {
+		return 0, time.Time{}, fmt.Errorf("count unsynced organization statuses: %w", err)
+	}
+	return count, oldest.Time, nil
+}

@@ -1,0 +1,30 @@
+{
+    "operations": [
+        {
+            "create_table": {
+                "name": "organization_statuses",
+                "columns": [
+                    { "name": "organization_id", "type": "text", "pk": true },
+                    { "name": "disabled", "type": "boolean", "nullable": false },
+                    { "name": "version", "type": "bigint", "nullable": false, "default": "1" },
+                    { "name": "updated_at", "type": "timestamptz", "nullable": false, "default": "now()" },
+                    { "name": "synced_at", "type": "timestamptz", "nullable": true },
+                    { "name": "attempts", "type": "integer", "nullable": false, "default": "0" },
+                    { "name": "next_retry_at", "type": "timestamptz", "nullable": false, "default": "now()" },
+                    { "name": "lease_until", "type": "timestamptz", "nullable": true },
+                    { "name": "last_error", "type": "text", "nullable": false, "default": "''" }
+                ]
+            }
+        },
+        {
+            "create_index": {
+                "table": "organization_statuses",
+                "name": "idx_organization_statuses_pending",
+                "columns": [
+                    { "column": "updated_at" }
+                ],
+                "predicate": "synced_at IS NULL"
+            }
+        }
+    ]
+}

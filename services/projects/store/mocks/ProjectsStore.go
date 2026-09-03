@@ -71,6 +71,54 @@ func (_c *ProjectsStore_AcquireProjectLock_Call) Return(release func() error, er
 	return _c
 }
 
+// ClaimOrganizationStatusForSync provides a mock function with given fields: ctx, now, leaseFor
+func (_m *ProjectsStore) ClaimOrganizationStatusForSync(ctx context.Context, now time.Time, leaseFor time.Duration) (*store.OrganizationStatus, error) {
+	ret := _m.Called(ctx, now, leaseFor)
+
+	var r0 *store.OrganizationStatus
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Duration) *store.OrganizationStatus); ok {
+		r0 = rf(ctx, now, leaseFor)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*store.OrganizationStatus)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Duration) error); ok {
+		r1 = rf(ctx, now, leaseFor)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProjectsStore_ClaimOrganizationStatusForSync_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClaimOrganizationStatusForSync'
+type ProjectsStore_ClaimOrganizationStatusForSync_Call struct {
+	*mock.Call
+}
+
+// ClaimOrganizationStatusForSync is a helper method to define mock.On call
+//   - ctx context.Context
+//   - now time.Time
+//   - leaseFor time.Duration
+func (_e *ProjectsStore_Expecter) ClaimOrganizationStatusForSync(ctx interface{}, now interface{}, leaseFor interface{}) *ProjectsStore_ClaimOrganizationStatusForSync_Call {
+	return &ProjectsStore_ClaimOrganizationStatusForSync_Call{Call: _e.mock.On("ClaimOrganizationStatusForSync", ctx, now, leaseFor)}
+}
+
+func (_c *ProjectsStore_ClaimOrganizationStatusForSync_Call) Run(run func(ctx context.Context, now time.Time, leaseFor time.Duration)) *ProjectsStore_ClaimOrganizationStatusForSync_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(time.Time), args[2].(time.Duration))
+	})
+	return _c
+}
+
+func (_c *ProjectsStore_ClaimOrganizationStatusForSync_Call) Return(_a0 *store.OrganizationStatus, _a1 error) *ProjectsStore_ClaimOrganizationStatusForSync_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // CleanupTerminatedBranches provides a mock function with given fields: ctx, cellID, terminatedFor
 func (_m *ProjectsStore) CleanupTerminatedBranches(ctx context.Context, cellID string, terminatedFor time.Duration) (int64, error) {
 	ret := _m.Called(ctx, cellID, terminatedFor)
@@ -286,6 +334,57 @@ func (_c *ProjectsStore_CountOrganizationBranches_Call) Run(run func(ctx context
 
 func (_c *ProjectsStore_CountOrganizationBranches_Call) Return(_a0 int64, _a1 error) *ProjectsStore_CountOrganizationBranches_Call {
 	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// CountUnsyncedOrganizationStatuses provides a mock function with given fields: ctx
+func (_m *ProjectsStore) CountUnsyncedOrganizationStatuses(ctx context.Context) (int, time.Time, error) {
+	ret := _m.Called(ctx)
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 time.Time
+	if rf, ok := ret.Get(1).(func(context.Context) time.Time); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Get(1).(time.Time)
+	}
+
+	var r2 error
+	if rf, ok := ret.Get(2).(func(context.Context) error); ok {
+		r2 = rf(ctx)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// ProjectsStore_CountUnsyncedOrganizationStatuses_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountUnsyncedOrganizationStatuses'
+type ProjectsStore_CountUnsyncedOrganizationStatuses_Call struct {
+	*mock.Call
+}
+
+// CountUnsyncedOrganizationStatuses is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *ProjectsStore_Expecter) CountUnsyncedOrganizationStatuses(ctx interface{}) *ProjectsStore_CountUnsyncedOrganizationStatuses_Call {
+	return &ProjectsStore_CountUnsyncedOrganizationStatuses_Call{Call: _e.mock.On("CountUnsyncedOrganizationStatuses", ctx)}
+}
+
+func (_c *ProjectsStore_CountUnsyncedOrganizationStatuses_Call) Run(run func(ctx context.Context)) *ProjectsStore_CountUnsyncedOrganizationStatuses_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *ProjectsStore_CountUnsyncedOrganizationStatuses_Call) Return(count int, oldest time.Time, err error) *ProjectsStore_CountUnsyncedOrganizationStatuses_Call {
+	_c.Call.Return(count, oldest, err)
 	return _c
 }
 
@@ -1718,6 +1817,94 @@ func (_c *ProjectsStore_ListRegions_Call) Return(_a0 []store.Region, _a1 error) 
 	return _c
 }
 
+// MarkOrganizationStatusFailed provides a mock function with given fields: ctx, organizationID, version, reason, nextRetryAt
+func (_m *ProjectsStore) MarkOrganizationStatusFailed(ctx context.Context, organizationID string, version int64, reason string, nextRetryAt time.Time) error {
+	ret := _m.Called(ctx, organizationID, version, reason, nextRetryAt)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string, time.Time) error); ok {
+		r0 = rf(ctx, organizationID, version, reason, nextRetryAt)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// ProjectsStore_MarkOrganizationStatusFailed_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkOrganizationStatusFailed'
+type ProjectsStore_MarkOrganizationStatusFailed_Call struct {
+	*mock.Call
+}
+
+// MarkOrganizationStatusFailed is a helper method to define mock.On call
+//   - ctx context.Context
+//   - organizationID string
+//   - version int64
+//   - reason string
+//   - nextRetryAt time.Time
+func (_e *ProjectsStore_Expecter) MarkOrganizationStatusFailed(ctx interface{}, organizationID interface{}, version interface{}, reason interface{}, nextRetryAt interface{}) *ProjectsStore_MarkOrganizationStatusFailed_Call {
+	return &ProjectsStore_MarkOrganizationStatusFailed_Call{Call: _e.mock.On("MarkOrganizationStatusFailed", ctx, organizationID, version, reason, nextRetryAt)}
+}
+
+func (_c *ProjectsStore_MarkOrganizationStatusFailed_Call) Run(run func(ctx context.Context, organizationID string, version int64, reason string, nextRetryAt time.Time)) *ProjectsStore_MarkOrganizationStatusFailed_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(string), args[4].(time.Time))
+	})
+	return _c
+}
+
+func (_c *ProjectsStore_MarkOrganizationStatusFailed_Call) Return(_a0 error) *ProjectsStore_MarkOrganizationStatusFailed_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+// MarkOrganizationStatusSynced provides a mock function with given fields: ctx, organizationID, version, now
+func (_m *ProjectsStore) MarkOrganizationStatusSynced(ctx context.Context, organizationID string, version int64, now time.Time) (bool, error) {
+	ret := _m.Called(ctx, organizationID, version, now)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, time.Time) bool); ok {
+		r0 = rf(ctx, organizationID, version, now)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, time.Time) error); ok {
+		r1 = rf(ctx, organizationID, version, now)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProjectsStore_MarkOrganizationStatusSynced_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkOrganizationStatusSynced'
+type ProjectsStore_MarkOrganizationStatusSynced_Call struct {
+	*mock.Call
+}
+
+// MarkOrganizationStatusSynced is a helper method to define mock.On call
+//   - ctx context.Context
+//   - organizationID string
+//   - version int64
+//   - now time.Time
+func (_e *ProjectsStore_Expecter) MarkOrganizationStatusSynced(ctx interface{}, organizationID interface{}, version interface{}, now interface{}) *ProjectsStore_MarkOrganizationStatusSynced_Call {
+	return &ProjectsStore_MarkOrganizationStatusSynced_Call{Call: _e.mock.On("MarkOrganizationStatusSynced", ctx, organizationID, version, now)}
+}
+
+func (_c *ProjectsStore_MarkOrganizationStatusSynced_Call) Run(run func(ctx context.Context, organizationID string, version int64, now time.Time)) *ProjectsStore_MarkOrganizationStatusSynced_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(time.Time))
+	})
+	return _c
+}
+
+func (_c *ProjectsStore_MarkOrganizationStatusSynced_Call) Return(_a0 bool, _a1 error) *ProjectsStore_MarkOrganizationStatusSynced_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // SetOrgLimit provides a mock function with given fields: ctx, orgID, projectID, key, value
 func (_m *ProjectsStore) SetOrgLimit(ctx context.Context, orgID string, projectID string, key store.LimitKey, value interface{}) error {
 	ret := _m.Called(ctx, orgID, projectID, key, value)
@@ -1992,6 +2179,54 @@ func (_c *ProjectsStore_UpdateProject_Call) Run(run func(ctx context.Context, or
 }
 
 func (_c *ProjectsStore_UpdateProject_Call) Return(_a0 *store.Project, _a1 error) *ProjectsStore_UpdateProject_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// UpsertOrganizationStatus provides a mock function with given fields: ctx, organizationID, disabled
+func (_m *ProjectsStore) UpsertOrganizationStatus(ctx context.Context, organizationID string, disabled bool) (*store.OrganizationStatus, error) {
+	ret := _m.Called(ctx, organizationID, disabled)
+
+	var r0 *store.OrganizationStatus
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) *store.OrganizationStatus); ok {
+		r0 = rf(ctx, organizationID, disabled)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*store.OrganizationStatus)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, bool) error); ok {
+		r1 = rf(ctx, organizationID, disabled)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProjectsStore_UpsertOrganizationStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertOrganizationStatus'
+type ProjectsStore_UpsertOrganizationStatus_Call struct {
+	*mock.Call
+}
+
+// UpsertOrganizationStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - organizationID string
+//   - disabled bool
+func (_e *ProjectsStore_Expecter) UpsertOrganizationStatus(ctx interface{}, organizationID interface{}, disabled interface{}) *ProjectsStore_UpsertOrganizationStatus_Call {
+	return &ProjectsStore_UpsertOrganizationStatus_Call{Call: _e.mock.On("UpsertOrganizationStatus", ctx, organizationID, disabled)}
+}
+
+func (_c *ProjectsStore_UpsertOrganizationStatus_Call) Run(run func(ctx context.Context, organizationID string, disabled bool)) *ProjectsStore_UpsertOrganizationStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(bool))
+	})
+	return _c
+}
+
+func (_c *ProjectsStore_UpsertOrganizationStatus_Call) Return(_a0 *store.OrganizationStatus, _a1 error) *ProjectsStore_UpsertOrganizationStatus_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }

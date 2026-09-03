@@ -446,6 +446,33 @@ type GithubRepoMappingWithOrg struct {
 
 //go:generate go run github.com/vektra/mockery/v3 --with-expecter --name ProjectsStore
 
+// OrganizationStatus is the desired enabled/disabled state of an organization
+// together with the progress of propagating that state to the branches in the
+// fleet.
+type OrganizationStatus struct {
+	OrganizationID string
+	Disabled       bool
+
+	// Version increments only when Disabled changes. A sync marks the row synced
+	// only if Version has not moved since that sync began, so a status that
+	// flips part way through a sync is picked up again rather than being
+	// recorded as done.
+	Version   int64
+	UpdatedAt time.Time
+
+	// SyncedAt is nil while the fleet is known not to match Disabled.
+	SyncedAt    *time.Time
+	Attempts    int
+	NextRetryAt time.Time
+	LastError   string
+
+	// LeaseUntil is set while a worker is syncing the row and nil otherwise. It
+	// is kept separate from NextRetryAt so a desired-state write landing during
+	// a sync waits for the lease, rather than making the row claimable by a
+	// second worker while the first is still writing to branches.
+	LeaseUntil *time.Time
+}
+
 // ProjectsStore stores information about projects
 type ProjectsStore interface {
 	// Setup runs DB migrations for the store
@@ -453,6 +480,38 @@ type ProjectsStore interface {
 
 	// Close closes the store
 	Close(ctx context.Context) error
+
+	// UpsertOrganizationStatus records the desired enabled/disabled state for an
+	// organization. It clears SyncedAt, which leaves the organization pending a
+	// sync, and bumps the row's version when disabled differs from the state
+	// already stored.
+	UpsertOrganizationStatus(ctx context.Context, organizationID string, disabled bool) (*OrganizationStatus, error)
+
+	// ClaimOrganizationStatusForSync leases the organization status that has
+	// waited longest for a sync attempt and is not already leased. It returns
+	// nil when nothing is due. Claiming sets LeaseUntil to now+leaseFor and
+	// increments Attempts, so a worker that dies mid-sync releases its claim
+	// when the lease expires rather than holding it forever. Concurrent workers
+	// never claim the same row.
+	ClaimOrganizationStatusForSync(ctx context.Context, now time.Time, leaseFor time.Duration) (*OrganizationStatus, error)
+
+	// MarkOrganizationStatusSynced releases the lease and records that the
+	// fleet matches the desired state, the latter only if version still matches
+	// the version that was synced. It reports whether the row was marked synced;
+	// false means the desired state changed while the sync ran, so the row
+	// stays pending for another pass.
+	MarkOrganizationStatusSynced(ctx context.Context, organizationID string, version int64, now time.Time) (bool, error)
+
+	// MarkOrganizationStatusFailed releases the lease and, when version still
+	// matches, records why the attempt failed and when to retry. When version
+	// has moved on, the schedule and reason are left as the newer write set
+	// them, so a stale failure cannot overwrite a fresh desired state's own
+	// retry time.
+	MarkOrganizationStatusFailed(ctx context.Context, organizationID string, version int64, reason string, nextRetryAt time.Time) error
+
+	// CountUnsyncedOrganizationStatuses reports how many organizations are
+	// pending a sync and the age of the oldest, for metrics and alerting.
+	CountUnsyncedOrganizationStatuses(ctx context.Context) (count int, oldest time.Time, err error)
 
 	// ListRegions returns a list of regions in the organization
 	ListRegions(ctx context.Context, organizationID string) ([]Region, error)
