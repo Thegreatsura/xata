@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	clustersv1 "xata/gen/proto/clusters/v1"
 	"xata/services/projects/cells"
 
 	projectsv1 "xata/gen/proto/projects/v1"
@@ -25,6 +24,14 @@ type ProjectsService struct {
 
 	store store.ProjectsStore
 	cells cells.Cells
+
+	// nudger wakes the orgstatus worker after a desired-state write.
+	nudger Nudger
+}
+
+// Nudger is woken when an organization's desired status changes.
+type Nudger interface {
+	Nudge()
 }
 
 // NewProjectsService creates a new ProjectsService.
@@ -34,6 +41,10 @@ func NewProjectsService(store store.ProjectsStore, cells cells.Cells) *ProjectsS
 		cells: cells,
 	}
 }
+
+// SetNudger wires the orgstatus worker so status writes are applied promptly
+// instead of waiting for the worker's next poll.
+func (p *ProjectsService) SetNudger(n Nudger) { p.nudger = n }
 
 // CreateCell implements projectsv1.ProjectsServiceServer.
 func (p *ProjectsService) CreateCell(ctx context.Context, input *projectsv1.CreateCellRequest) (*projectsv1.CreateCellResponse, error) {
@@ -120,121 +131,19 @@ func (p *ProjectsService) HasActiveProjects(ctx context.Context, req *projectsv1
 }
 
 // UpdateOrganizationStatus implements projectsv1.ProjectsServiceServer.
+//
+// It records the desired state and returns. The orgstatus worker fans that
+// state out to the fleet asynchronously.
 func (p *ProjectsService) UpdateOrganizationStatus(ctx context.Context, req *projectsv1.UpdateOrganizationStatusRequest) (*projectsv1.UpdateOrganizationStatusResponse, error) {
-	projects, err := p.store.ListProjects(ctx, req.OrganizationId)
-	if err != nil {
-		return nil, err
+	if _, err := p.store.UpsertOrganizationStatus(ctx, req.OrganizationId, req.Disabled); err != nil {
+		return nil, fmt.Errorf("record organization [%s] status: %w", req.OrganizationId, err)
 	}
 
-	connMap := make(map[string]cells.CellClient)
-	defer func() {
-		for k, conn := range connMap {
-			if err := conn.Close(); err != nil {
-				log.Ctx(ctx).Err(err).Msgf("Failed to close cell [%s] connection", k)
-			}
-		}
-	}()
-	// Reported in the error when the context ends part way through, so the
-	// caller can see how much of the organization the update covered.
-	var seen, updated int
-
-	for i := range projects {
-		branches, err := p.store.ListBranches(ctx, req.OrganizationId, projects[i].ID)
-		if err != nil {
-			return nil, err
-		}
-		for i2 := range branches {
-			// Stop here instead of logging an error per remaining branch.
-			if abortErr := abortIfDone(ctx, req.OrganizationId, seen, updated); abortErr != nil {
-				return nil, abortErr
-			}
-
-			branch := branches[i2]
-			seen++
-
-			if _, ok := connMap[branch.CellID]; !ok {
-				conn, err := p.cells.GetCellConnection(ctx, req.OrganizationId, branch.CellID)
-				if err != nil {
-					if abortErr := abortIfDone(ctx, req.OrganizationId, seen, updated); abortErr != nil {
-						return nil, abortErr
-					}
-					log.Ctx(ctx).Err(err).Msgf("Failed to get cell [%s] connection for branch [%s]", branch.CellID, branch.ID)
-					continue
-				}
-				connMap[branch.CellID] = conn
-			}
-
-			client := connMap[branch.CellID]
-			cluster, err := client.DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
-				Id: branch.ID,
-			})
-			if err != nil {
-				if abortErr := abortIfDone(ctx, req.OrganizationId, seen, updated); abortErr != nil {
-					return nil, abortErr
-				}
-				log.Ctx(ctx).Err(err).Msgf("Failed to describe cluster [%s]", branch.ID)
-				continue
-			}
-			shouldUpdate := false
-			hibernate := req.Disabled
-			// Only update if there is a change
-			configuration := clustersv1.UpdateClusterConfiguration{}
-			if hibernate != (cluster.Status.StatusType == clustersv1.ClusterStatus_STATUS_TYPE_HIBERNATED) {
-				shouldUpdate = true
-				configuration.Hibernate = new(hibernate)
-			}
-
-			// Toggle S2Z only for branches that already had it configured.
-			// DescribePostgresCluster always returns a non-nil ScaleToZero proto
-			// (defaulting to {Enabled:false, InactivityPeriodMinutes:0} for
-			// branches without CRD config), so the nil check is purely defensive.
-			// InactivityPeriodMinutes > 0 is the real guard: the CRD enforces
-			// minimum=1, so 0 means the branch was never configured for S2Z.
-			if cluster.Configuration.ScaleToZero != nil {
-				desiredEnabled := !hibernate && cluster.Configuration.ScaleToZero.InactivityPeriodMinutes > 0
-				if cluster.Configuration.ScaleToZero.Enabled != desiredEnabled {
-					shouldUpdate = true
-					configuration.ScaleToZero = &clustersv1.ScaleToZero{
-						Enabled:                 desiredEnabled,
-						InactivityPeriodMinutes: cluster.Configuration.ScaleToZero.InactivityPeriodMinutes,
-					}
-				}
-			}
-
-			if shouldUpdate {
-				log.Ctx(ctx).Info().Msgf("Updating cluster [%s] configuration", branch.ID)
-				_, err = client.UpdatePostgresCluster(ctx, &clustersv1.UpdatePostgresClusterRequest{
-					Id:                  branch.ID,
-					UpdateConfiguration: &configuration,
-				})
-				if err != nil {
-					if abortErr := abortIfDone(ctx, req.OrganizationId, seen, updated); abortErr != nil {
-						return nil, abortErr
-					}
-					log.Ctx(ctx).Err(err).Msgf("Failed to update Postgres cluster for branch [%s]", branch.ID)
-					continue
-				}
-				updated++
-			}
-		}
+	if p.nudger != nil {
+		p.nudger.Nudge()
 	}
 
 	return &projectsv1.UpdateOrganizationStatusResponse{OrganizationId: req.OrganizationId}, nil
-}
-
-// abortIfDone returns nil while ctx is live, or an error once ctx ends
-// reporting that the organization status update stopped early. The gRPC
-// code comes from ctx.Err so the caller still sees Canceled or
-// DeadlineExceeded, and the message names the organization and the
-// progress made, neither of which a bare "context canceled" tells an
-// operator.
-func abortIfDone(ctx context.Context, organizationID string, seen, updated int) error {
-	if ctx.Err() == nil {
-		return nil
-	}
-	return status.Errorf(status.FromContextError(ctx.Err()).Code(),
-		"update organization [%s] status aborted after %d branches (%d updated): %v",
-		organizationID, seen, updated, context.Cause(ctx))
 }
 
 // DeleteProjectsInOrg implements projectsv1.ProjectsServiceServer.
@@ -277,6 +186,15 @@ func (p *ProjectsService) DeleteProjectsInOrg(ctx context.Context, req *projects
 			}
 		}
 		response.Errors = append(response.Errors, projectErrors...)
+	}
+
+	// The organization keeps no branches once every project is gone, so the
+	// desired status has nothing left to apply to. Auth deletes the
+	// organization itself after this call and never tells projects again.
+	if len(response.Errors) == 0 {
+		if err := p.store.DeleteOrganizationStatus(ctx, req.OrganizationId); err != nil {
+			response.Errors = append(response.Errors, fmt.Sprintf("delete organization status: %v", err))
+		}
 	}
 
 	return response, nil

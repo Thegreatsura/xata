@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -15,9 +16,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func TestCreateRegion(t *testing.T) {
@@ -219,6 +217,13 @@ func TestDeleteProjectsInOrg(t *testing.T) {
 				mockStore.EXPECT().ListProjects(mock.Anything, orgID).Return(nil, nil)
 			},
 		},
+		"organization status delete failure is reported": {
+			setupMock: func(mockStore *mocks.ProjectsStore, mockCells *cellsmock.Cells) {
+				mockStore.EXPECT().ListProjects(mock.Anything, orgID).Return(nil, nil)
+				mockStore.EXPECT().DeleteOrganizationStatus(mock.Anything, orgID).Return(errTest).Once()
+			},
+			wantErrors: []string{"delete organization status: test error"},
+		},
 		"single project with single branch on primary cell": {
 			setupMock: func(mockStore *mocks.ProjectsStore, mockCells *cellsmock.Cells) {
 				mockStore.EXPECT().ListProjects(mock.Anything, orgID).Return([]store.Project{{ID: "proj-1"}}, nil)
@@ -373,6 +378,9 @@ func TestDeleteProjectsInOrg(t *testing.T) {
 			mockStore := mocks.NewProjectsStore(t)
 			mockCells := cellsmock.NewCells(t)
 			tt.setupMock(mockStore, mockCells)
+			if tt.wantErrors == nil && !tt.wantErr {
+				mockStore.EXPECT().DeleteOrganizationStatus(mock.Anything, orgID).Return(nil).Once()
+			}
 
 			service := NewProjectsService(mockStore, mockCells)
 			resp, err := service.DeleteProjectsInOrg(ctx, &projectsv1.DeleteProjectsInOrgRequest{
@@ -447,367 +455,54 @@ func TestHasActiveProjects(t *testing.T) {
 
 var errTest = fmt.Errorf("test error")
 
-func TestUpdateOrganization(t *testing.T) {
-	ctx := context.Background()
-	tests := map[string]struct {
-		setupMock   func(*mocks.ProjectsStore, *cellsmock.Cells)
-		authRequest *projectsv1.UpdateOrganizationStatusRequest
-	}{
-		"disable org with S2Z configured branches": {
-			setupMock: func(mockStore *mocks.ProjectsStore, cells *cellsmock.Cells) {
-				mockStore.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).Return([]store.Project{
-					{ID: "proj-1"},
-					{ID: "proj-2"},
-				}, nil)
-				mockStore.EXPECT().ListBranches(mock.Anything, apitest.TestOrganization, "proj-1").Return([]store.Branch{
-					{ID: "branch-1", CellID: "cell-1"},
-				}, nil)
-				mockStore.EXPECT().ListBranches(mock.Anything, apitest.TestOrganization, "proj-2").Return([]store.Branch{
-					{ID: "branch-2", CellID: "cell-1"},
-				}, nil)
-				cellClient := cellsmock.NewCellClient(t)
-				cells.EXPECT().GetCellConnection(mock.Anything, apitest.TestOrganization, "cell-1").Return(cellClient, nil)
-				cellClient.EXPECT().Close().Return(nil)
-				cellClient.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
-					Id: "branch-1",
-				}).Return(&clustersv1.DescribePostgresClusterResponse{
-					Id: "branch-1",
-					Status: &clustersv1.ClusterStatus{
-						StatusType: clustersv1.ClusterStatus_STATUS_TYPE_HEALTHY,
-					},
-					Configuration: &clustersv1.ClusterConfiguration{
-						Hibernate: false,
-						ScaleToZero: &clustersv1.ScaleToZero{
-							Enabled:                 true,
-							InactivityPeriodMinutes: 30,
-						},
-					},
-				}, nil)
-				cellClient.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
-					Id: "branch-2",
-				}).Return(&clustersv1.DescribePostgresClusterResponse{
-					Id: "branch-2",
-					Status: &clustersv1.ClusterStatus{
-						StatusType: clustersv1.ClusterStatus_STATUS_TYPE_HEALTHY,
-					},
-					Configuration: &clustersv1.ClusterConfiguration{
-						Hibernate: false,
-						ScaleToZero: &clustersv1.ScaleToZero{
-							Enabled:                 true,
-							InactivityPeriodMinutes: 30,
-						},
-					},
-				}, nil)
-				cellClient.EXPECT().UpdatePostgresCluster(mock.Anything, &clustersv1.UpdatePostgresClusterRequest{
-					Id: "branch-1",
-					UpdateConfiguration: &clustersv1.UpdateClusterConfiguration{
-						Hibernate: new(true),
-						ScaleToZero: &clustersv1.ScaleToZero{
-							Enabled:                 false,
-							InactivityPeriodMinutes: 30,
-						},
-					},
-				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil)
-				cellClient.EXPECT().UpdatePostgresCluster(mock.Anything, &clustersv1.UpdatePostgresClusterRequest{
-					Id: "branch-2",
-					UpdateConfiguration: &clustersv1.UpdateClusterConfiguration{
-						Hibernate: new(true),
-						ScaleToZero: &clustersv1.ScaleToZero{
-							Enabled:                 false,
-							InactivityPeriodMinutes: 30,
-						},
-					},
-				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil)
-			},
-			authRequest: &projectsv1.UpdateOrganizationStatusRequest{
-				OrganizationId: apitest.TestOrganization,
-				Disabled:       true,
-			},
-		},
-		"disable already disabled branch is a no-op": {
-			setupMock: func(mockStore *mocks.ProjectsStore, cells *cellsmock.Cells) {
-				mockStore.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).Return([]store.Project{{ID: "proj-1"}}, nil)
-				mockStore.EXPECT().ListBranches(mock.Anything, apitest.TestOrganization, "proj-1").Return([]store.Branch{
-					{ID: "branch-1", CellID: "cell-1"},
-				}, nil)
-				cellClient := cellsmock.NewCellClient(t)
-				cells.EXPECT().GetCellConnection(mock.Anything, apitest.TestOrganization, "cell-1").Return(cellClient, nil)
-				cellClient.EXPECT().Close().Return(nil)
-				cellClient.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
-					Id: "branch-1",
-				}).Return(&clustersv1.DescribePostgresClusterResponse{
-					Id: "branch-1",
-					Status: &clustersv1.ClusterStatus{
-						StatusType: clustersv1.ClusterStatus_STATUS_TYPE_HIBERNATED,
-					},
-					Configuration: &clustersv1.ClusterConfiguration{
-						Hibernate: true,
-						ScaleToZero: &clustersv1.ScaleToZero{
-							Enabled:                 false,
-							InactivityPeriodMinutes: 30,
-						},
-					},
-				}, nil)
-			},
-			authRequest: &projectsv1.UpdateOrganizationStatusRequest{
-				OrganizationId: apitest.TestOrganization,
-				Disabled:       true,
-			},
-		},
-		"disable hibernated branch with S2Z enabled disables S2Z": {
-			setupMock: func(mockStore *mocks.ProjectsStore, cells *cellsmock.Cells) {
-				mockStore.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).Return([]store.Project{{ID: "proj-1"}}, nil)
-				mockStore.EXPECT().ListBranches(mock.Anything, apitest.TestOrganization, "proj-1").Return([]store.Branch{
-					{ID: "branch-1", CellID: "cell-1"},
-				}, nil)
-				cellClient := cellsmock.NewCellClient(t)
-				cells.EXPECT().GetCellConnection(mock.Anything, apitest.TestOrganization, "cell-1").Return(cellClient, nil)
-				cellClient.EXPECT().Close().Return(nil)
-				cellClient.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
-					Id: "branch-1",
-				}).Return(&clustersv1.DescribePostgresClusterResponse{
-					Id: "branch-1",
-					Status: &clustersv1.ClusterStatus{
-						StatusType: clustersv1.ClusterStatus_STATUS_TYPE_HIBERNATED,
-					},
-					Configuration: &clustersv1.ClusterConfiguration{
-						Hibernate: false,
-						ScaleToZero: &clustersv1.ScaleToZero{
-							Enabled:                 true,
-							InactivityPeriodMinutes: 30,
-						},
-					},
-				}, nil)
-				cellClient.EXPECT().UpdatePostgresCluster(mock.Anything, &clustersv1.UpdatePostgresClusterRequest{
-					Id: "branch-1",
-					UpdateConfiguration: &clustersv1.UpdateClusterConfiguration{
-						ScaleToZero: &clustersv1.ScaleToZero{
-							Enabled:                 false,
-							InactivityPeriodMinutes: 30,
-						},
-					},
-				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil)
-			},
-			authRequest: &projectsv1.UpdateOrganizationStatusRequest{
-				OrganizationId: apitest.TestOrganization,
-				Disabled:       true,
-			},
-		},
-		"disable org with branch without S2Z config skips S2Z update": {
-			setupMock: func(mockStore *mocks.ProjectsStore, cells *cellsmock.Cells) {
-				mockStore.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).Return([]store.Project{{ID: "proj-1"}}, nil)
-				mockStore.EXPECT().ListBranches(mock.Anything, apitest.TestOrganization, "proj-1").Return([]store.Branch{
-					{ID: "branch-1", CellID: "cell-1"},
-				}, nil)
-				cellClient := cellsmock.NewCellClient(t)
-				cells.EXPECT().GetCellConnection(mock.Anything, apitest.TestOrganization, "cell-1").Return(cellClient, nil)
-				cellClient.EXPECT().Close().Return(nil)
-				cellClient.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
-					Id: "branch-1",
-				}).Return(&clustersv1.DescribePostgresClusterResponse{
-					Id: "branch-1",
-					Status: &clustersv1.ClusterStatus{
-						StatusType: clustersv1.ClusterStatus_STATUS_TYPE_HEALTHY,
-					},
-					Configuration: &clustersv1.ClusterConfiguration{
-						Hibernate: false,
-					},
-				}, nil)
-				cellClient.EXPECT().UpdatePostgresCluster(mock.Anything, &clustersv1.UpdatePostgresClusterRequest{
-					Id: "branch-1",
-					UpdateConfiguration: &clustersv1.UpdateClusterConfiguration{
-						Hibernate: new(true),
-					},
-				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil)
-			},
-			authRequest: &projectsv1.UpdateOrganizationStatusRequest{
-				OrganizationId: apitest.TestOrganization,
-				Disabled:       true,
-			},
-		},
-		"re-enable org restores S2Z on branch that had it configured": {
-			setupMock: func(mockStore *mocks.ProjectsStore, cells *cellsmock.Cells) {
-				mockStore.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).Return([]store.Project{{ID: "proj-1"}}, nil)
-				mockStore.EXPECT().ListBranches(mock.Anything, apitest.TestOrganization, "proj-1").Return([]store.Branch{
-					{ID: "branch-1", CellID: "cell-1"},
-				}, nil)
-				cellClient := cellsmock.NewCellClient(t)
-				cells.EXPECT().GetCellConnection(mock.Anything, apitest.TestOrganization, "cell-1").Return(cellClient, nil)
-				cellClient.EXPECT().Close().Return(nil)
-				cellClient.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
-					Id: "branch-1",
-				}).Return(&clustersv1.DescribePostgresClusterResponse{
-					Id: "branch-1",
-					Status: &clustersv1.ClusterStatus{
-						StatusType: clustersv1.ClusterStatus_STATUS_TYPE_HIBERNATED,
-					},
-					Configuration: &clustersv1.ClusterConfiguration{
-						Hibernate: true,
-						ScaleToZero: &clustersv1.ScaleToZero{
-							Enabled:                 false,
-							InactivityPeriodMinutes: 30,
-						},
-					},
-				}, nil)
-				cellClient.EXPECT().UpdatePostgresCluster(mock.Anything, &clustersv1.UpdatePostgresClusterRequest{
-					Id: "branch-1",
-					UpdateConfiguration: &clustersv1.UpdateClusterConfiguration{
-						Hibernate: new(false),
-						ScaleToZero: &clustersv1.ScaleToZero{
-							Enabled:                 true,
-							InactivityPeriodMinutes: 30,
-						},
-					},
-				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil)
-			},
-			authRequest: &projectsv1.UpdateOrganizationStatusRequest{
-				OrganizationId: apitest.TestOrganization,
-				Disabled:       false,
-			},
-		},
-		"re-enable org skips S2Z on branch that never had it": {
-			setupMock: func(mockStore *mocks.ProjectsStore, cells *cellsmock.Cells) {
-				mockStore.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).Return([]store.Project{{ID: "proj-1"}}, nil)
-				mockStore.EXPECT().ListBranches(mock.Anything, apitest.TestOrganization, "proj-1").Return([]store.Branch{
-					{ID: "branch-1", CellID: "cell-1"},
-				}, nil)
-				cellClient := cellsmock.NewCellClient(t)
-				cells.EXPECT().GetCellConnection(mock.Anything, apitest.TestOrganization, "cell-1").Return(cellClient, nil)
-				cellClient.EXPECT().Close().Return(nil)
-				cellClient.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
-					Id: "branch-1",
-				}).Return(&clustersv1.DescribePostgresClusterResponse{
-					Id: "branch-1",
-					Status: &clustersv1.ClusterStatus{
-						StatusType: clustersv1.ClusterStatus_STATUS_TYPE_HIBERNATED,
-					},
-					Configuration: &clustersv1.ClusterConfiguration{
-						Hibernate: true,
-					},
-				}, nil)
-				cellClient.EXPECT().UpdatePostgresCluster(mock.Anything, &clustersv1.UpdatePostgresClusterRequest{
-					Id: "branch-1",
-					UpdateConfiguration: &clustersv1.UpdateClusterConfiguration{
-						Hibernate: new(false),
-					},
-				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil)
-			},
-			authRequest: &projectsv1.UpdateOrganizationStatusRequest{
-				OrganizationId: apitest.TestOrganization,
-				Disabled:       false,
-			},
-		},
-	}
+// fakeNudger records whether the handler woke the orgstatus worker.
+type fakeNudger struct{ nudges int }
 
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			mockStore := mocks.NewProjectsStore(t)
-			mockCells := cellsmock.NewCells(t)
-			service := NewProjectsService(mockStore, mockCells)
-			tt.setupMock(mockStore, mockCells)
+func (f *fakeNudger) Nudge() { f.nudges++ }
 
-			got, err := service.UpdateOrganizationStatus(ctx, tt.authRequest)
-
-			require.NoError(t, err)
-			require.Equal(t, tt.authRequest.OrganizationId, got.OrganizationId)
-		})
-	}
-}
-
-func TestUpdateOrganizationStatusStopsWhenContextEnds(t *testing.T) {
+func TestUpdateOrganizationStatus(t *testing.T) {
 	request := &projectsv1.UpdateOrganizationStatusRequest{
 		OrganizationId: apitest.TestOrganization,
 		Disabled:       true,
 	}
 
-	tests := map[string]struct {
-		cancelBeforeCall bool
-		setupMock        func(*mocks.ProjectsStore, *cellsmock.Cells, context.CancelFunc) *cellsmock.CellClient
-		wantErrContains  []string
-		checkCellClient  func(*testing.T, *cellsmock.CellClient)
-	}{
-		"stops before the first branch": {
-			cancelBeforeCall: true,
-			setupMock: func(mockStore *mocks.ProjectsStore, mockCells *cellsmock.Cells, cancel context.CancelFunc) *cellsmock.CellClient {
-				mockStore.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).
-					Return([]store.Project{{ID: "proj-1"}}, nil)
-				mockStore.EXPECT().ListBranches(mock.Anything, apitest.TestOrganization, "proj-1").
-					Return([]store.Branch{
-						{ID: "branch-1", CellID: "cell-1"},
-						{ID: "branch-2", CellID: "cell-1"},
-					}, nil)
+	t.Run("records the desired state and wakes the worker", func(t *testing.T) {
+		mockStore := mocks.NewProjectsStore(t)
+		mockCells := cellsmock.NewCells(t)
+		mockStore.EXPECT().UpsertOrganizationStatus(mock.Anything, apitest.TestOrganization, true).
+			Return(&store.OrganizationStatus{OrganizationID: apitest.TestOrganization, Disabled: true, Version: 1}, nil).Once()
 
-				// No cell connection is opened and no cluster is described, so the
-				// mocks contain no expectations for either.
-				return nil
-			},
-			wantErrContains: []string{apitest.TestOrganization, "aborted after 0 branches (0 updated)"},
-		},
-		"stops at the branch after the context ends": {
-			setupMock: func(mockStore *mocks.ProjectsStore, mockCells *cellsmock.Cells, cancel context.CancelFunc) *cellsmock.CellClient {
-				mockStore.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).
-					Return([]store.Project{{ID: "proj-1"}}, nil)
-				mockStore.EXPECT().ListBranches(mock.Anything, apitest.TestOrganization, "proj-1").
-					Return([]store.Branch{
-						{ID: "branch-1", CellID: "cell-1"},
-						{ID: "branch-2", CellID: "cell-1"},
-						{ID: "branch-3", CellID: "cell-1"},
-					}, nil)
+		nudger := &fakeNudger{}
+		service := NewProjectsService(mockStore, mockCells)
+		service.SetNudger(nudger)
 
-				cellClient := cellsmock.NewCellClient(t)
-				mockCells.EXPECT().GetCellConnection(mock.Anything, apitest.TestOrganization, "cell-1").
-					Return(cellClient, nil)
-				cellClient.EXPECT().Close().Return(nil)
+		got, err := service.UpdateOrganizationStatus(context.Background(), request)
 
-				// branch-1 is already hibernated and so needs no update. Ending the
-				// context inside the call stands in for the caller giving up part way
-				// through, which is what an Orb webhook timeout does in production.
-				cellClient.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
-					Id: "branch-1",
-				}).Run(func(_ context.Context, _ *clustersv1.DescribePostgresClusterRequest, _ ...grpc.CallOption) {
-					cancel()
-				}).Return(&clustersv1.DescribePostgresClusterResponse{
-					Id:     "branch-1",
-					Status: &clustersv1.ClusterStatus{StatusType: clustersv1.ClusterStatus_STATUS_TYPE_HIBERNATED},
-					Configuration: &clustersv1.ClusterConfiguration{
-						Hibernate:   true,
-						ScaleToZero: &clustersv1.ScaleToZero{Enabled: false, InactivityPeriodMinutes: 30},
-					},
-				}, nil)
+		require.NoError(t, err)
+		require.Equal(t, apitest.TestOrganization, got.OrganizationId)
+		require.Equal(t, 1, nudger.nudges)
+	})
 
-				return cellClient
-			},
-			wantErrContains: []string{"aborted after 1 branches (0 updated)"},
-			checkCellClient: func(t *testing.T, cellClient *cellsmock.CellClient) {
-				// branch-2 and branch-3 are never described. Before this change each
-				// of them produced its own error log line.
-				cellClient.AssertNumberOfCalls(t, "DescribePostgresCluster", 1)
-			},
-		},
-	}
+	t.Run("a store failure is returned", func(t *testing.T) {
+		mockStore := mocks.NewProjectsStore(t)
+		mockCells := cellsmock.NewCells(t)
+		mockStore.EXPECT().UpsertOrganizationStatus(mock.Anything, apitest.TestOrganization, true).
+			Return(nil, errors.New("db down")).Once()
 
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			mockStore := mocks.NewProjectsStore(t)
-			mockCells := cellsmock.NewCells(t)
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			if tt.cancelBeforeCall {
-				cancel()
-			}
-			cellClient := tt.setupMock(mockStore, mockCells, cancel)
+		_, err := NewProjectsService(mockStore, mockCells).UpdateOrganizationStatus(context.Background(), request)
 
-			_, err := NewProjectsService(mockStore, mockCells).UpdateOrganizationStatus(ctx, request)
+		require.ErrorContains(t, err, apitest.TestOrganization)
+		require.ErrorContains(t, err, "db down")
+	})
 
-			require.Error(t, err)
-			require.Equal(t, codes.Canceled, status.Code(err))
-			for _, want := range tt.wantErrContains {
-				require.Contains(t, err.Error(), want)
-			}
+	t.Run("no nudger configured is not fatal", func(t *testing.T) {
+		mockStore := mocks.NewProjectsStore(t)
+		mockCells := cellsmock.NewCells(t)
+		mockStore.EXPECT().UpsertOrganizationStatus(mock.Anything, apitest.TestOrganization, true).
+			Return(&store.OrganizationStatus{OrganizationID: apitest.TestOrganization}, nil).Once()
 
-			if tt.checkCellClient != nil {
-				tt.checkCellClient(t, cellClient)
-			}
-		})
-	}
+		_, err := NewProjectsService(mockStore, mockCells).UpdateOrganizationStatus(context.Background(), request)
+
+		require.NoError(t, err)
+	})
 }

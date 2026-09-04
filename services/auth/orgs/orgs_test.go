@@ -12,7 +12,6 @@ import (
 	"xata/services/auth/keycloak"
 	keycloakMocks "xata/services/auth/keycloak/mocks"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -152,7 +151,7 @@ func TestUpdateOrganization(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:           "No projects update when general status unchanged",
+			name:           "unchanged effective status still propagates to projects",
 			organizationID: "org-123",
 			request: UpdateOrganizationOptions{
 				DisabledByAdmin: new(false),
@@ -175,6 +174,18 @@ func TestUpdateOrganization(t *testing.T) {
 						BillingReason:   new("No payment method on file"),
 					},
 				}, nil)
+
+				// The organization was disabled by an admin and is now disabled
+				// for billing instead, so the effective state does not move. The
+				// fleet is still told, because Keycloak agreeing with the request
+				// says nothing about whether the branches ever got the message.
+				mockProj.EXPECT().
+					UpdateOrganizationStatus(mock.Anything, &projectsv1.UpdateOrganizationStatusRequest{
+						OrganizationId: "org-123",
+						Disabled:       true,
+					}).
+					Return(&projectsv1.UpdateOrganizationStatusResponse{}, nil).
+					Once()
 			},
 			wantErr: false,
 		},
@@ -290,12 +301,13 @@ func TestUpdateOrganization(t *testing.T) {
 							UsageTier:       keycloak.OrganizationUsageTierT1,
 						},
 					}, nil)
-				// mockKc.UpdateOrganization and mockProj are intentionally not called
+				// The request says nothing about status, so neither Keycloak nor
+				// the projects service is called.
 			},
 			wantErr: false,
 		},
 		{
-			name:           "projects update retries and eventually fails",
+			name:           "projects update failure is returned",
 			organizationID: "org-123",
 			request:        UpdateOrganizationOptions{DisabledByAdmin: new(true)},
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
@@ -314,32 +326,45 @@ func TestUpdateOrganization(t *testing.T) {
 				mockProj.EXPECT().
 					UpdateOrganizationStatus(mock.Anything, mock.Anything).
 					Return((*projectsv1.UpdateOrganizationStatusResponse)(nil), fmt.Errorf("boom")).
-					Times(int(projectsMaxRetries) + 1) // total attempts
+					Once()
 			},
 			wantErr: true,
 		},
 		{
-			name:           "projects update retries and then succeeds",
+			name:           "a deletion request does not propagate to projects",
 			organizationID: "org-123",
-			request: UpdateOrganizationOptions{
-				DisabledByAdmin: new(true),
-			},
+			request:        UpdateOrganizationOptions{BillingStatus: new(keycloak.OrganizationBillingStatusDeletionRequested)},
 			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
 				mockKc.EXPECT().
 					GetOrganization(mock.Anything, apitest.TestRealm, "org-123", keycloak.GetOrganizationOptions{IncludeDeleted: false}).
 					Return(keycloak.Organization{
-						ID: "org-123",
-						Status: keycloak.OrganizationStatus{
-							DisabledByAdmin: false,
-							BillingStatus:   keycloak.OrganizationBillingStatusOK,
-						},
+						ID:     "org-123",
+						Status: keycloak.OrganizationStatus{BillingStatus: keycloak.OrganizationBillingStatusOK},
 					}, nil).
 					Once()
 
 				mockKc.EXPECT().
 					UpdateOrganization(mock.Anything, apitest.TestRealm, "org-123", keycloak.OrganizationUpdate{
-						DisabledByAdmin: new(true),
+						BillingStatus: new(keycloak.OrganizationBillingStatusDeletionRequested),
 					}).
+					Return(keycloak.Organization{
+						ID:     "org-123",
+						Status: keycloak.OrganizationStatus{BillingStatus: keycloak.OrganizationBillingStatusDeletionRequested},
+					}, nil).
+					Once()
+
+				// The organization has no projects by the time deletion is
+				// requested, so no status is recorded for the worker to apply.
+			},
+			wantErr: false,
+		},
+		{
+			name:           "Keycloak already at target state still propagates to projects",
+			organizationID: "org-123",
+			request:        UpdateOrganizationOptions{DisabledByAdmin: new(true)},
+			setupMock: func(mockKc *keycloakMocks.KeyCloak, mockProj *protomocks.ProjectsServiceClient) {
+				mockKc.EXPECT().
+					GetOrganization(mock.Anything, apitest.TestRealm, "org-123", keycloak.GetOrganizationOptions{IncludeDeleted: false}).
 					Return(keycloak.Organization{
 						ID: "org-123",
 						Status: keycloak.OrganizationStatus{
@@ -349,15 +374,7 @@ func TestUpdateOrganization(t *testing.T) {
 					}, nil).
 					Once()
 
-				// Fail twice, then succeed.
-				mockProj.EXPECT().
-					UpdateOrganizationStatus(mock.Anything, &projectsv1.UpdateOrganizationStatusRequest{
-						OrganizationId: "org-123",
-						Disabled:       true,
-					}).
-					Return((*projectsv1.UpdateOrganizationStatusResponse)(nil), assert.AnError).
-					Times(2)
-
+				// No Keycloak write: the record already says what the request asks for.
 				mockProj.EXPECT().
 					UpdateOrganizationStatus(mock.Anything, &projectsv1.UpdateOrganizationStatusRequest{
 						OrganizationId: "org-123",
@@ -380,7 +397,6 @@ func TestUpdateOrganization(t *testing.T) {
 
 			service, ok := NewOrganizations(apitest.TestRealm, mockKc, mockProj).(*orgsService)
 			require.True(t, ok)
-			service.newBackoff = func() backoff.BackOff { return backoff.NewConstantBackOff(0) }
 
 			resp, err := service.UpdateOrganization(context.Background(), tt.organizationID, tt.request)
 

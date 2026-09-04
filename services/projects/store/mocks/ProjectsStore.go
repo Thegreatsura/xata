@@ -930,6 +930,44 @@ func (_c *ProjectsStore_DeleteOrgLimit_Call) Return(_a0 error) *ProjectsStore_De
 	return _c
 }
 
+// DeleteOrganizationStatus provides a mock function with given fields: ctx, organizationID
+func (_m *ProjectsStore) DeleteOrganizationStatus(ctx context.Context, organizationID string) error {
+	ret := _m.Called(ctx, organizationID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, organizationID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// ProjectsStore_DeleteOrganizationStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteOrganizationStatus'
+type ProjectsStore_DeleteOrganizationStatus_Call struct {
+	*mock.Call
+}
+
+// DeleteOrganizationStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - organizationID string
+func (_e *ProjectsStore_Expecter) DeleteOrganizationStatus(ctx interface{}, organizationID interface{}) *ProjectsStore_DeleteOrganizationStatus_Call {
+	return &ProjectsStore_DeleteOrganizationStatus_Call{Call: _e.mock.On("DeleteOrganizationStatus", ctx, organizationID)}
+}
+
+func (_c *ProjectsStore_DeleteOrganizationStatus_Call) Run(run func(ctx context.Context, organizationID string)) *ProjectsStore_DeleteOrganizationStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *ProjectsStore_DeleteOrganizationStatus_Call) Return(_a0 error) *ProjectsStore_DeleteOrganizationStatus_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
 // DeleteProject provides a mock function with given fields: ctx, organizationID, projectID
 func (_m *ProjectsStore) DeleteProject(ctx context.Context, organizationID string, projectID string) error {
 	ret := _m.Called(ctx, organizationID, projectID)

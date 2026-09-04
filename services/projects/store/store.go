@@ -509,6 +509,10 @@ type ProjectsStore interface {
 	// retry time.
 	MarkOrganizationStatusFailed(ctx context.Context, organizationID string, version int64, reason string, nextRetryAt time.Time) error
 
+	// DeleteOrganizationStatus removes an organization's desired status. It is
+	// not an error when there is no row.
+	DeleteOrganizationStatus(ctx context.Context, organizationID string) error
+
 	// CountUnsyncedOrganizationStatuses reports how many organizations are
 	// pending a sync and the age of the oldest, for metrics and alerting.
 	CountUnsyncedOrganizationStatuses(ctx context.Context) (count int, oldest time.Time, err error)

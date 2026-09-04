@@ -23,6 +23,7 @@ import (
 	"xata/services/projects/api"
 	"xata/services/projects/api/spec"
 	"xata/services/projects/cells"
+	"xata/services/projects/orgstatus"
 	"xata/services/projects/provisioner"
 	"xata/services/projects/rpc"
 	"xata/services/projects/store"
@@ -38,6 +39,9 @@ var _ service.HTTPService = (*ProjectsService)(nil)
 // ensure ProjectService implements GRPCService interface
 var _ service.GRPCService = (*ProjectsService)(nil)
 
+// ensure ProjectService implements RunnerService interface
+var _ service.RunnerService = (*ProjectsService)(nil)
+
 type ProjectsService struct {
 	config                      Config
 	store                       store.ProjectsStore
@@ -47,6 +51,7 @@ type ProjectsService struct {
 	authConn                    *internalgrpc.ClientConnection // connection to the auth service
 	cells                       cells.Cells                    // pooled gRPC connections to cells
 	githubInstallationValidator api.GithubInstallationValidator
+	orgStatusWorker             *orgstatus.Worker
 }
 
 func NewProjectsService() *ProjectsService {
@@ -156,6 +161,10 @@ func (s *ProjectsService) Init(ctx context.Context) error {
 	// Initialize the pooled gRPC connections to cells
 	s.cells = cells.New(s.store)
 
+	// Applies organization enable/disable to branches out of band, so a slow
+	// fan-out cannot be cut short by whatever called the RPC.
+	s.orgStatusWorker = orgstatus.NewWorker(s.store, s.cells, orgstatus.Config{})
+
 	// Initialize the scheduler
 	cfgFile, err := os.Open(s.config.SchedulerConfigPath)
 	if err != nil {
@@ -233,5 +242,13 @@ func (s *ProjectsService) Cells() cells.Cells {
 
 // RegisterGRPCHandlers implements service.GRPCService.
 func (s *ProjectsService) RegisterGRPCHandlers(o *o11y.O, server *grpc.Server) {
-	projectsv1.RegisterProjectsServiceServer(server, rpc.NewProjectsService(s.store, s.cells))
+	rpcService := rpc.NewProjectsService(s.store, s.cells)
+	rpcService.SetNudger(s.orgStatusWorker)
+	projectsv1.RegisterProjectsServiceServer(server, rpcService)
+}
+
+// Run implements service.RunnerService. It applies pending organization status
+// changes to the fleet until ctx ends.
+func (s *ProjectsService) Run(ctx context.Context, o *o11y.O) error {
+	return s.orgStatusWorker.Run(ctx, o)
 }

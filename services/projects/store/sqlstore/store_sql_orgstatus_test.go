@@ -214,6 +214,19 @@ func TestSQLStoreOrganizationStatuses(t *testing.T) {
 		}
 	})
 
+	t.Run("delete removes the row and is safe to repeat", func(t *testing.T) {
+		_, err := sqlStore.UpsertOrganizationStatus(ctx, "org-delete", true)
+		require.NoError(t, err)
+
+		require.NoError(t, sqlStore.DeleteOrganizationStatus(ctx, "org-delete"))
+
+		pending := claimAll(t, ctx, sqlStore, claimAfter, time.Minute)
+		require.False(t, containsOrg(pending, "org-delete"))
+
+		// The cleanup job may run again for an organization already gone.
+		require.NoError(t, sqlStore.DeleteOrganizationStatus(ctx, "org-delete"))
+	})
+
 	t.Run("backlog is countable for alerting", func(t *testing.T) {
 		count, _, err := sqlStore.CountUnsyncedOrganizationStatuses(ctx)
 		require.NoError(t, err)

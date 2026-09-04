@@ -1919,6 +1919,17 @@ func (s *sqlProjectStore) MarkOrganizationStatusFailed(ctx context.Context, orga
 	return nil
 }
 
+// DeleteOrganizationStatus implements store.ProjectsStore.
+func (s *sqlProjectStore) DeleteOrganizationStatus(ctx context.Context, organizationID string) error {
+	_, err := s.sql.ExecContext(ctx, `
+		DELETE FROM organization_statuses WHERE organization_id = $1
+	`, organizationID)
+	if err != nil {
+		return fmt.Errorf("delete organization status: %w", err)
+	}
+	return nil
+}
+
 // CountUnsyncedOrganizationStatuses implements store.ProjectsStore.
 func (s *sqlProjectStore) CountUnsyncedOrganizationStatuses(ctx context.Context) (int, time.Time, error) {
 	var (
