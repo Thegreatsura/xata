@@ -11,6 +11,10 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // Defaults chosen so a status is applied within seconds of the webhook in the
@@ -75,21 +79,32 @@ type Worker struct {
 	// tick. It is buffered with capacity one: a pending wake-up already covers
 	// any number of writes, so sends never block.
 	nudge chan struct{}
+
+	// tracer starts one span per organization sync. The worker's context has
+	// no request span, so without this every outbound call to a cell would be
+	// its own root trace with nothing to tie them together.
+	tracer trace.Tracer
 }
 
 // NewWorker builds a worker. Pass the zero value Config for the defaults.
 func NewWorker(projectsStore store.ProjectsStore, cellConns cells.Cells, cfg Config) *Worker {
 	return &Worker{
-		store: projectsStore,
-		cells: cellConns,
-		cfg:   cfg.withDefaults(),
-		now:   func() time.Time { return time.Now().UTC() },
-		nudge: make(chan struct{}, 1),
+		store:  projectsStore,
+		cells:  cellConns,
+		cfg:    cfg.withDefaults(),
+		now:    func() time.Time { return time.Now().UTC() },
+		nudge:  make(chan struct{}, 1),
+		tracer: noop.NewTracerProvider().Tracer(instrumentationName),
 	}
 }
 
+const instrumentationName = "xata/services/projects/orgstatus"
+
 // setClock replaces the worker's clock. For tests.
 func (w *Worker) setClock(now func() time.Time) { w.now = now }
+
+// setTracer replaces the worker's tracer. For tests.
+func (w *Worker) setTracer(tracer trace.Tracer) { w.tracer = tracer }
 
 // Nudge asks the worker to run a pass now rather than at the next tick. It never
 // blocks, so a caller on a request path is never held up by a busy worker.
@@ -133,7 +148,21 @@ func (w *Worker) ProcessOnce(ctx context.Context) (int, error) {
 // syncOne applies one organization and records the outcome. It returns an error
 // only when the bookkeeping write fails; a failed fan-out is recorded on the row
 // so the next pass retries it.
-func (w *Worker) syncOne(ctx context.Context, pending store.OrganizationStatus) error {
+func (w *Worker) syncOne(ctx context.Context, pending store.OrganizationStatus) (err error) {
+	ctx, span := w.tracer.Start(ctx, "orgstatus.sync", trace.WithAttributes(
+		attribute.String("xata.organization.id", pending.OrganizationID),
+		attribute.Bool("xata.organization.disabled", pending.Disabled),
+		attribute.Int64("xata.orgstatus.version", pending.Version),
+		attribute.Int("xata.orgstatus.attempts", pending.Attempts),
+	))
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+	}()
+
 	syncCtx, cancel := context.WithTimeout(ctx, w.cfg.SyncTimeout)
 	defer cancel()
 
@@ -148,10 +177,16 @@ func (w *Worker) syncOne(ctx context.Context, pending store.OrganizationStatus) 
 		if ctx.Err() != nil {
 			// The service is stopping so the next replica takes the row immediately.
 			retryAt = w.now()
+			span.AddEvent("sync interrupted by shutdown")
 			log.Ctx(ctx).Info().
 				Str("organization", pending.OrganizationID).
 				Msg("Organization status sync interrupted, releasing the lease")
 		} else {
+			// A failed fan-out is the outcome of this span even though it is not
+			// returned: the row records it and the next pass retries.
+			span.RecordError(syncErr)
+			span.SetStatus(codes.Error, syncErr.Error())
+
 			unsyncedFor := w.now().Sub(pending.UpdatedAt)
 			log.Ctx(ctx).WithLevel(failureLevel(unsyncedFor)).Err(syncErr).
 				Str("organization", pending.OrganizationID).
@@ -170,6 +205,7 @@ func (w *Worker) syncOne(ctx context.Context, pending store.OrganizationStatus) 
 	if err != nil {
 		return fmt.Errorf("record sync success for %s: %w", pending.OrganizationID, err)
 	}
+	span.SetAttributes(attribute.Bool("xata.orgstatus.version_moved", !marked))
 	if !marked {
 		// The desired state changed while this sync ran, so the row is still
 		// owed a pass. Leaving synced_at NULL is what makes the next claim pick
@@ -202,7 +238,12 @@ func (w *Worker) backoff(attempts int) time.Duration {
 }
 
 // Run implements service.RunnerService.
-func (w *Worker) Run(ctx context.Context, _ *o11y.O) error {
+func (w *Worker) Run(ctx context.Context, o *o11y.O) error {
+	w.tracer = o.Tracer(instrumentationName)
+	if err := w.registerBacklogMetrics(o.Meter(instrumentationName)); err != nil {
+		return fmt.Errorf("register organization status metrics: %w", err)
+	}
+
 	ticker := time.NewTicker(w.cfg.PollInterval)
 	defer ticker.Stop()
 
@@ -227,7 +268,7 @@ func (w *Worker) Run(ctx context.Context, _ *o11y.O) error {
 }
 
 // reportBacklog logs how many organizations are waiting and how stale the oldest
-// is. A half-updated fleet used to be invisible; this is the signal to alert on.
+// is.
 func (w *Worker) reportBacklog(ctx context.Context) {
 	count, oldest, err := w.store.CountUnsyncedOrganizationStatuses(ctx)
 	if err != nil {
@@ -239,8 +280,15 @@ func (w *Worker) reportBacklog(ctx context.Context) {
 	if count == 0 {
 		return
 	}
-	log.Ctx(ctx).Warn().
+	// A row younger than one lease is still explainable as work in flight, and
+	// a nudge makes every status change produce one such pass.
+	oldestAge := w.now().Sub(oldest)
+	level := zerolog.InfoLevel
+	if oldestAge >= w.cfg.Lease {
+		level = zerolog.WarnLevel
+	}
+	log.Ctx(ctx).WithLevel(level).
 		Int("unsynced_organizations", count).
-		Dur("oldest_age", w.now().Sub(oldest)).
+		Dur("oldest_age", oldestAge).
 		Msg("Organizations awaiting status sync")
 }

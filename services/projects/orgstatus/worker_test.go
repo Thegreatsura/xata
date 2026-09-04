@@ -16,6 +16,12 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 // fixedNow keeps retry scheduling assertable. Run is never started in these
@@ -280,4 +286,166 @@ func TestWorkerRun(t *testing.T) {
 			t.Fatal("Run did not return after its context was cancelled")
 		}
 	})
+}
+
+// TestWorkerSyncSpan checks that each organization sync is one span, that a
+// failed fan-out is recorded as an error on it even though syncOne returns
+// nil, and that a clean sync is not. The incident this package answers was
+// invisible in traces because nothing set a status on the failing span.
+func TestReportBacklogLevel(t *testing.T) {
+	cfg := Config{}.withDefaults()
+
+	tests := map[string]struct {
+		oldest time.Time
+		want   zerolog.Level
+	}{
+		"a row younger than one lease is work in flight": {
+			oldest: fixedNow.Add(-time.Second),
+			want:   zerolog.InfoLevel,
+		},
+		"a row older than one lease is a backlog": {
+			oldest: fixedNow.Add(-cfg.Lease),
+			want:   zerolog.WarnLevel,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			var got zerolog.Level
+			logger := zerolog.New(zerolog.Nop()).Hook(zerolog.HookFunc(
+				func(_ *zerolog.Event, level zerolog.Level, _ string) { got = level },
+			))
+
+			w, mockStore, _ := newTestWorker(t, Config{})
+			mockStore.EXPECT().CountUnsyncedOrganizationStatuses(mock.Anything).
+				Return(1, tt.oldest, nil).Once()
+
+			w.reportBacklog(logger.WithContext(context.Background()))
+
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestBacklogMetrics(t *testing.T) {
+	tests := map[string]struct {
+		count       int
+		oldest      time.Time
+		wantCount   int64
+		wantAgeSecs float64
+	}{
+		"empty backlog reports zero for both": {
+			count: 0, oldest: time.Time{},
+			wantCount: 0, wantAgeSecs: 0,
+		},
+		"a waiting organization reports its age": {
+			count: 3, oldest: fixedNow.Add(-90 * time.Second),
+			wantCount: 3, wantAgeSecs: 90,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			reader := sdkmetric.NewManualReader()
+			provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+			t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
+
+			w, mockStore, _ := newTestWorker(t, Config{})
+			mockStore.EXPECT().CountUnsyncedOrganizationStatuses(mock.Anything).
+				Return(tt.count, tt.oldest, nil).Once()
+			require.NoError(t, w.registerBacklogMetrics(provider.Meter(instrumentationName)))
+
+			var rm metricdata.ResourceMetrics
+			require.NoError(t, reader.Collect(context.Background(), &rm))
+
+			got := map[string]float64{}
+			for _, sm := range rm.ScopeMetrics {
+				for _, m := range sm.Metrics {
+					switch d := m.Data.(type) {
+					case metricdata.Gauge[int64]:
+						got[m.Name] = float64(d.DataPoints[0].Value)
+					case metricdata.Gauge[float64]:
+						got[m.Name] = d.DataPoints[0].Value
+					}
+				}
+			}
+
+			require.Equal(t, float64(tt.wantCount), got["xata.projects.orgstatus.unsynced_organizations"])
+			require.Equal(t, tt.wantAgeSecs, got["xata.projects.orgstatus.oldest_unsynced_age_seconds"])
+		})
+	}
+}
+
+func TestWorkerSyncSpan(t *testing.T) {
+	pending := store.OrganizationStatus{
+		OrganizationID: apitest.TestOrganization,
+		Disabled:       true,
+		Version:        7,
+		Attempts:       1,
+	}
+
+	tests := map[string]struct {
+		setupMock    func(*mocks.ProjectsStore)
+		cancelParent bool
+		wantStatus   codes.Code
+	}{
+		"clean sync leaves the span unset": {
+			setupMock: func(s *mocks.ProjectsStore) {
+				s.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).Return(nil, nil).Once()
+				s.EXPECT().MarkOrganizationStatusSynced(mock.Anything, apitest.TestOrganization, int64(7), fixedNow).
+					Return(true, nil).Once()
+			},
+			wantStatus: codes.Unset,
+		},
+		"a shutdown is not an error on the span": {
+			setupMock: func(s *mocks.ProjectsStore) {
+				s.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).
+					Return(nil, context.Canceled).Once()
+				s.EXPECT().MarkOrganizationStatusFailed(mock.Anything, apitest.TestOrganization, int64(7), mock.Anything, mock.Anything).
+					Return(nil).Once()
+			},
+			cancelParent: true,
+			wantStatus:   codes.Unset,
+		},
+		"failed fan-out marks the span as an error": {
+			setupMock: func(s *mocks.ProjectsStore) {
+				s.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).
+					Return(nil, errors.New("cell unreachable")).Once()
+				s.EXPECT().MarkOrganizationStatusFailed(mock.Anything, apitest.TestOrganization, int64(7), mock.Anything, mock.Anything).
+					Return(nil).Once()
+			},
+			wantStatus: codes.Error,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			exporter := tracetest.NewInMemoryExporter()
+			provider := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
+			t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
+
+			w, mockStore, _ := newTestWorker(t, Config{})
+			w.setTracer(provider.Tracer(instrumentationName))
+			tt.setupMock(mockStore)
+
+			ctx := context.Background()
+			if tt.cancelParent {
+				cancelled, cancel := context.WithCancel(ctx)
+				cancel()
+				ctx = cancelled
+			}
+
+			require.NoError(t, w.syncOne(ctx, pending))
+
+			spans := exporter.GetSpans()
+			require.Len(t, spans, 1, "one span per organization sync")
+			got := spans[0]
+			require.Equal(t, "orgstatus.sync", got.Name)
+			require.Equal(t, tt.wantStatus, got.Status.Code)
+			require.Contains(t, got.Attributes, attribute.String("xata.organization.id", apitest.TestOrganization))
+			if tt.wantStatus == codes.Error {
+				require.NotEmpty(t, got.Events, "the error is recorded as a span event")
+			}
+		})
+	}
 }
