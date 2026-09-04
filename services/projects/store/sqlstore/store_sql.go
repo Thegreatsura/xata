@@ -19,6 +19,9 @@ import (
 	"xata/services/projects/store"
 
 	"github.com/lib/pq"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 //go:embed migrations/*.json
@@ -1303,23 +1306,88 @@ func (s *sqlProjectStore) CountProjectsCreatedInLastHour(ctx context.Context, or
 // the connection to the pool. Using context.Background() for the unlock ensures
 // the lock is released even if the request context has been cancelled.
 func (s *sqlProjectStore) AcquireProjectLock(ctx context.Context, projectID string) (func() error, error) {
-	conn, err := s.sql.Conn(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get database connection: %w", err)
+	return s.acquireProjectLock(ctx, projectID, false)
+}
+
+// TryAcquireProjectLock attempts to acquire a PostgreSQL advisory lock for the
+// given projectID without waiting for another holder to release it.
+func (s *sqlProjectStore) TryAcquireProjectLock(ctx context.Context, projectID string) (func() error, error) {
+	return s.acquireProjectLock(ctx, projectID, true)
+}
+
+func (s *sqlProjectStore) acquireProjectLock(ctx context.Context, projectID string, try bool) (func() error, error) {
+	mode := "blocking"
+	if try {
+		mode = "try"
 	}
 
-	_, err = conn.ExecContext(ctx, `SELECT pg_advisory_lock(hashtextextended($1, 0))`, projectID)
-	if err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("acquire project lock: %w", err)
+	acquireStarted := time.Now()
+	_, span := o11y.Ctx(ctx).Tracer("xata.projects.store").Start(ctx, "Project lock",
+		trace.WithAttributes(
+			attribute.String("project.id", projectID),
+			attribute.String("project.lock.mode", mode),
+		),
+	)
+
+	finishWithError := func(err error) (func() error, error) {
+		span.SetAttributes(
+			attribute.String("project.lock.outcome", "error"),
+			attribute.Float64("project.lock.acquire_duration_ms", durationMilliseconds(time.Since(acquireStarted))),
+		)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "")
+		span.End()
+		return nil, err
 	}
+
+	conn, err := s.sql.Conn(ctx)
+	if err != nil {
+		return finishWithError(fmt.Errorf("get database connection: %w", err))
+	}
+
+	if try {
+		var acquired bool
+		err = conn.QueryRowContext(ctx, `SELECT pg_try_advisory_lock(hashtextextended($1, 0))`, projectID).Scan(&acquired)
+		if err == nil && !acquired {
+			_ = conn.Close()
+			span.SetAttributes(
+				attribute.String("project.lock.outcome", "contended"),
+				attribute.Float64("project.lock.acquire_duration_ms", durationMilliseconds(time.Since(acquireStarted))),
+			)
+			span.End()
+			return nil, store.ErrProjectBusy{ProjectID: projectID}
+		}
+	} else {
+		_, err = conn.ExecContext(ctx, `SELECT pg_advisory_lock(hashtextextended($1, 0))`, projectID)
+	}
+	if err != nil {
+		_ = conn.Close()
+		return finishWithError(fmt.Errorf("acquire project lock: %w", err))
+	}
+
+	acquiredAt := time.Now()
+	span.SetAttributes(
+		attribute.String("project.lock.outcome", "acquired"),
+		attribute.Float64("project.lock.acquire_duration_ms", durationMilliseconds(acquiredAt.Sub(acquireStarted))),
+	)
 
 	release := func() error {
 		_, _ = conn.ExecContext(context.Background(), `SELECT pg_advisory_unlock(hashtextextended($1, 0))`, projectID)
-		return conn.Close()
+		err := conn.Close()
+		span.SetAttributes(attribute.Float64("project.lock.hold_duration_ms", durationMilliseconds(time.Since(acquiredAt))))
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "")
+		}
+		span.End()
+		return err
 	}
 
 	return release, nil
+}
+
+func durationMilliseconds(duration time.Duration) float64 {
+	return float64(duration) / float64(time.Millisecond)
 }
 
 func (s *sqlProjectStore) enforceProjectCreationLimits(ctx context.Context, organizationID, usageTier string) error {

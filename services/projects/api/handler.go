@@ -51,6 +51,7 @@ const (
 	DefaultBackupFrequency       = "weekly"
 	BackupMethodBarman           = "barman"
 	BackupMethodPgBackRest       = "pgbackrest"
+	projectLockRetryAfter        = "1"
 )
 
 type Permission int
@@ -133,6 +134,19 @@ func NewAPIHandler(feat openfeature.Client, store store.ProjectsStore, cells cel
 		opt(h)
 	}
 	return h
+}
+
+func (s *handler) tryAcquireProjectLock(c echo.Context, projectID string) (func() error, error) {
+	release, err := s.store.TryAcquireProjectLock(c.Request().Context(), projectID)
+	if err == nil {
+		return release, nil
+	}
+
+	if _, ok := errors.AsType[store.ErrProjectBusy](err); ok {
+		c.Response().Header().Set("Retry-After", projectLockRetryAfter)
+	}
+
+	return nil, fmt.Errorf("acquire project lock: %w", err)
 }
 
 // maxMetricsPerRequest bounds the per-request fan-out to the backend (one
@@ -500,9 +514,9 @@ func (s *handler) UpdateProject(c echo.Context, organizationID spec.Organization
 		// If IP filtering is being updated, acquire project lock to prevent race conditions
 		// with branch creation.
 		if updateConfig.IPFiltering != nil {
-			releaseLock, err := s.store.AcquireProjectLock(ctx, projectID)
+			releaseLock, err := s.tryAcquireProjectLock(c, projectID)
 			if err != nil {
-				return fmt.Errorf("failed to acquire project lock: %w", err)
+				return err
 			}
 			defer releaseLock()
 		}
@@ -819,9 +833,9 @@ func (s *handler) CreateBranch(c echo.Context, organizationID spec.OrganizationI
 		}
 
 		// Acquire project lock BEFORE creating the branch to prevent race conditions with IP filtering updates
-		releaseLock, err := s.store.AcquireProjectLock(ctx, projectID)
+		releaseLock, err := s.tryAcquireProjectLock(c, projectID)
 		if err != nil {
-			return fmt.Errorf("failed to acquire project lock: %w", err)
+			return err
 		}
 		defer releaseLock()
 
@@ -2168,9 +2182,9 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 			return ErrorInvalidParam{BranchName: body.Name, Param: "backupConfiguration", Message: "backup configuration cannot be specified when backups are disabled in the selected region"}
 		}
 
-		releaseLock, err := s.store.AcquireProjectLock(ctx, projectID)
+		releaseLock, err := s.tryAcquireProjectLock(c, projectID)
 		if err != nil {
-			return fmt.Errorf("failed to acquire project lock: %w", err)
+			return err
 		}
 		defer releaseLock()
 

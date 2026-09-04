@@ -30,6 +30,68 @@ func TestSQLStore(t *testing.T) {
 	ctx := context.Background()
 	sqlStore := setupSQLStore(ctx, t, maxDepth)
 
+	t.Run("project locks", func(t *testing.T) {
+		const projectID = "project-lock-test"
+
+		release, err := sqlStore.AcquireProjectLock(ctx, projectID)
+		require.NoError(t, err)
+
+		connectionsInUse := sqlStore.sql.Stats().InUse
+		started := time.Now()
+		contendedRelease, err := sqlStore.TryAcquireProjectLock(ctx, projectID)
+		require.Error(t, err)
+		require.Nil(t, contendedRelease)
+		require.Less(t, time.Since(started), time.Second)
+		var projectBusy store.ErrProjectBusy
+		require.ErrorAs(t, err, &projectBusy)
+		require.Equal(t, projectID, projectBusy.ProjectID)
+		require.Equal(t, connectionsInUse, sqlStore.sql.Stats().InUse)
+
+		otherRelease, err := sqlStore.TryAcquireProjectLock(ctx, "other-project-lock-test")
+		require.NoError(t, err)
+		require.NotNil(t, otherRelease)
+		require.NoError(t, otherRelease())
+
+		require.NoError(t, release())
+		retryRelease, err := sqlStore.TryAcquireProjectLock(ctx, projectID)
+		require.NoError(t, err)
+		require.NotNil(t, retryRelease)
+		require.NoError(t, retryRelease())
+	})
+
+	t.Run("blocking project lock", func(t *testing.T) {
+		const projectID = "blocking-project-lock-test"
+
+		release, err := sqlStore.AcquireProjectLock(ctx, projectID)
+		require.NoError(t, err)
+
+		type lockResult struct {
+			release func() error
+			err     error
+		}
+		result := make(chan lockResult, 1)
+		go func() {
+			secondRelease, secondErr := sqlStore.AcquireProjectLock(ctx, projectID)
+			result <- lockResult{release: secondRelease, err: secondErr}
+		}()
+
+		select {
+		case lock := <-result:
+			require.Failf(t, "lock did not block", "result: %+v", lock)
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		require.NoError(t, release())
+		select {
+		case lock := <-result:
+			require.NoError(t, lock.err)
+			require.NotNil(t, lock.release)
+			require.NoError(t, lock.release())
+		case <-time.After(2 * time.Second):
+			require.Fail(t, "blocking lock did not acquire after release")
+		}
+	})
+
 	t.Run("projects", func(t *testing.T) {
 		// create project with empty name fails
 		_, err := sqlStore.CreateProject(ctx, "organizationID", createProjectConfig("", nil))

@@ -1983,6 +1983,53 @@ func (_c *ProjectsStore_Setup_Call) Return(_a0 error) *ProjectsStore_Setup_Call 
 	return _c
 }
 
+// TryAcquireProjectLock provides a mock function with given fields: ctx, projectID
+func (_m *ProjectsStore) TryAcquireProjectLock(ctx context.Context, projectID string) (func() error, error) {
+	ret := _m.Called(ctx, projectID)
+
+	var r0 func() error
+	if rf, ok := ret.Get(0).(func(context.Context, string) func() error); ok {
+		r0 = rf(ctx, projectID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(func() error)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, projectID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProjectsStore_TryAcquireProjectLock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TryAcquireProjectLock'
+type ProjectsStore_TryAcquireProjectLock_Call struct {
+	*mock.Call
+}
+
+// TryAcquireProjectLock is a helper method to define mock.On call
+//   - ctx context.Context
+//   - projectID string
+func (_e *ProjectsStore_Expecter) TryAcquireProjectLock(ctx interface{}, projectID interface{}) *ProjectsStore_TryAcquireProjectLock_Call {
+	return &ProjectsStore_TryAcquireProjectLock_Call{Call: _e.mock.On("TryAcquireProjectLock", ctx, projectID)}
+}
+
+func (_c *ProjectsStore_TryAcquireProjectLock_Call) Run(run func(ctx context.Context, projectID string)) *ProjectsStore_TryAcquireProjectLock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *ProjectsStore_TryAcquireProjectLock_Call) Return(release func() error, err error) *ProjectsStore_TryAcquireProjectLock_Call {
+	_c.Call.Return(release, err)
+	return _c
+}
+
 // UpdateBranch provides a mock function with given fields: ctx, organizationID, projectID, branchID, config, updateFn
 func (_m *ProjectsStore) UpdateBranch(ctx context.Context, organizationID string, projectID string, branchID string, config *store.UpdateBranchConfiguration, updateFn func(*store.Branch) error) (*store.Branch, error) {
 	ret := _m.Called(ctx, organizationID, projectID, branchID, config, updateFn)

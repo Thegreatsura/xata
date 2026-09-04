@@ -211,6 +211,19 @@ func (e ErrProjectRateLimitExceeded) StatusCode() int {
 	return http.StatusTooManyRequests
 }
 
+// ErrProjectBusy is returned when another operation holds the project lock.
+type ErrProjectBusy struct {
+	ProjectID string
+}
+
+func (e ErrProjectBusy) Error() string {
+	return fmt.Sprintf("project [%s] is busy; retry later", e.ProjectID)
+}
+
+func (e ErrProjectBusy) StatusCode() int {
+	return http.StatusTooManyRequests
+}
+
 type ErrMaxDepthExceeded struct {
 	BranchID string
 	MaxDepth int32

@@ -75,6 +75,22 @@ func TestMain(m *testing.M) {
 
 const defaultStorage = int32(250)
 
+func TestTryAcquireProjectLockBusy(t *testing.T) {
+	mockStore := mocks.NewProjectsStore(t)
+	mockStore.EXPECT().TryAcquireProjectLock(mock.Anything, "project_id").
+		Return(nil, store.ErrProjectBusy{ProjectID: "project_id"}).Once()
+	handler := &handler{store: mockStore}
+	e := apitest.New(t)
+	c, rec := e.GET("/").Context()
+
+	release, err := handler.tryAcquireProjectLock(c, "project_id")
+
+	require.Nil(t, release)
+	require.Error(t, err)
+	require.Equal(t, http.StatusTooManyRequests, api.GetErrorStatusCode(err))
+	require.Equal(t, projectLockRetryAfter, rec.Header().Get("Retry-After"))
+}
+
 func testClaimsWithMarketplace(marketplace string) token.Claims {
 	return token.Claims{
 		ID:    apitest.TestUserID,
@@ -605,7 +621,7 @@ func TestUpdateProject(t *testing.T) {
 		},
 	}
 	mockIPFilteringLock := func(mockStore *mocks.ProjectsStore) {
-		mockStore.EXPECT().AcquireProjectLock(mock.Anything, "123").Return(func() error { return nil }, nil)
+		mockStore.EXPECT().TryAcquireProjectLock(mock.Anything, "123").Return(func() error { return nil }, nil)
 		mockStore.EXPECT().ListBranches(mock.Anything, apitest.TestOrganization, "123").Return(nil, nil)
 	}
 
@@ -700,7 +716,7 @@ func TestUpdateProject(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
-				mockStore.EXPECT().AcquireProjectLock(mock.Anything, "123").Return(func() error { return nil }, nil)
+				mockStore.EXPECT().TryAcquireProjectLock(mock.Anything, "123").Return(func() error { return nil }, nil)
 				mockStore.EXPECT().UpdateProject(mock.Anything, apitest.TestOrganization, "123", updateProjectConfig(new("existing-project"), nil, &store.IPFiltering{
 					Enabled: false,
 					CIDRs:   []store.CIDREntry{},
@@ -1826,7 +1842,7 @@ func TestCreateBranch(t *testing.T) {
 			if tt.setupMocks != nil {
 				tt.setupMocks(&capturedPayload)
 			}
-			mockStore.EXPECT().AcquireProjectLock(mock.Anything, "project_id").Return(func() error { return nil }, nil).Maybe()
+			mockStore.EXPECT().TryAcquireProjectLock(mock.Anything, "project_id").Return(func() error { return nil }, nil).Maybe()
 
 			c, rec := e.POST("/organizations/" + apitest.TestOrganization + "/projects/project_id/branches").WithJSONBody(tt.jsonBody).Context()
 			err := handler.CreateBranch(c, apitest.TestOrganization, "project_id")
@@ -2199,7 +2215,7 @@ func TestRestoreFromBackup(t *testing.T) {
 			e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
 
 			tt.setupMocks(mockStore, mockClusters, mockPostgresConfig, mockImageProvider)
-			mockStore.EXPECT().AcquireProjectLock(mock.Anything, "project_id").Return(func() error { return nil }, nil).Maybe()
+			mockStore.EXPECT().TryAcquireProjectLock(mock.Anything, "project_id").Return(func() error { return nil }, nil).Maybe()
 			mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
 
 			var body map[string]any

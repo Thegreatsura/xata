@@ -610,6 +610,11 @@ type ProjectsStore interface {
 	// Returns an error if the lock cannot be acquired (e.g., timeout).
 	// The lock is held on a dedicated connection that is closed when the release function is called.
 	AcquireProjectLock(ctx context.Context, projectID string) (release func() error, err error)
+
+	// TryAcquireProjectLock attempts to acquire a PostgreSQL advisory lock for the given projectID.
+	// It returns ErrProjectBusy immediately if another operation holds the lock.
+	// The lock is held on a dedicated connection that is closed when the release function is called.
+	TryAcquireProjectLock(ctx context.Context, projectID string) (release func() error, err error)
 	// CleanupTerminatedBranches hard-deletes terminated branches in a cell that have been terminated for at least the given duration
 	CleanupTerminatedBranches(ctx context.Context, cellID string, terminatedFor time.Duration) (int64, error)
 
