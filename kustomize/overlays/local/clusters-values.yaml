@@ -5,7 +5,6 @@ image:
 config:
   clusters:
     storageClass: "csi-hostpath-sc"
-    tolerations: "xata.io/workload=dataplane:NoSchedule"
     useOperatorForNewBranches: "true"
     volumeSnapshotClass: "csi-hostpath-snapclass"
     openebs:
