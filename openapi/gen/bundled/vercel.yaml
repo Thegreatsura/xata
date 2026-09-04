@@ -70,6 +70,41 @@ paths:
         - Vercel
       x-excluded: true
       x-operation-kind: destructive
+  /v1/products/{productSlug}/plans:
+    get:
+      operationId: listBillingPlansForProduct
+      summary: List billing plans for a product
+      description: |
+        Return the product's available billing plans, rendered into Vercel's
+        billingPlan shape. Vercel calls this to show plans when a customer creates
+        a resource; it may be called before any installation exists, so the signed
+        token can carry no installation or account id. Plans are billing SKUs only
+        and do not change Xata entitlements (every Vercel org is T2).
+      parameters:
+        - $ref: '#/components/parameters/ProductSlug'
+        - name: metadata
+          in: query
+          description: Opaque metadata forwarded by Vercel.
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The product's billing plans.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListBillingPlansResponse'
+        '400':
+          $ref: '#/components/responses/VercelError'
+        '403':
+          $ref: '#/components/responses/VercelError'
+        '404':
+          $ref: '#/components/responses/VercelError'
+      tags:
+        - Vercel
+      x-excluded: true
+      x-operation-kind: read
 components:
   parameters:
     InstallationId:
@@ -77,6 +112,13 @@ components:
       in: path
       required: true
       description: Vercel installation id (icfg_...).
+      schema:
+        type: string
+    ProductSlug:
+      name: productSlug
+      in: path
+      required: true
+      description: Vercel product slug (e.g. xata-postgres).
       schema:
         type: string
   schemas:
@@ -152,6 +194,93 @@ components:
         reason:
           description: The reason for deleting the installation.
           type: string
+      x-excluded: true
+      x-internal: true
+    ListBillingPlansResponse:
+      description: The billing plans available for a product.
+      type: object
+      properties:
+        plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillingPlan'
+      required:
+        - plans
+      x-excluded: true
+      x-internal: true
+    BillingPlan:
+      description: A Vercel Marketplace billing plan. Billing SKU only; it does not change Xata entitlements.
+      type: object
+      properties:
+        id:
+          description: Partner-provided billing plan id.
+          type: string
+        type:
+          description: 'Plan type: "subscription" or "prepayment".'
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        scope:
+          description: Plan scope; installation-level plans require enablement on the integration.
+          type: string
+        paymentMethodRequired:
+          description: Subscription plans only. false means the plan is completely free.
+          type: boolean
+        preauthorizationAmount:
+          description: Subscription + paymentMethodRequired. Amount used to test the payment method; never charged.
+          type: number
+        initialCharge:
+          description: Subscription + paymentMethodRequired. Amount invoiced immediately at sign-up (decimal USD string).
+          type: string
+        cost:
+          description: Display cost for fixed-cost plans, e.g. "$20.00/month". Omitted for usage-based plans.
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanDetail'
+        highlightedDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanDetail'
+        quote:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanQuoteLine'
+        effectiveDate:
+          type: string
+        disabled:
+          type: boolean
+      required:
+        - id
+        - type
+        - name
+        - description
+      x-excluded: true
+      x-internal: true
+    PlanDetail:
+      type: object
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+      required:
+        - label
+      x-excluded: true
+      x-internal: true
+    PlanQuoteLine:
+      type: object
+      properties:
+        line:
+          type: string
+        amount:
+          type: string
+      required:
+        - line
+        - amount
       x-excluded: true
       x-internal: true
     VercelError:
