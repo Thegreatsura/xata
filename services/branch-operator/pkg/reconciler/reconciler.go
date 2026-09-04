@@ -48,6 +48,7 @@ type BranchReconciler struct {
 	ClustersNamespace                    string
 	BackupsBucket                        string
 	BackupsEndpoint                      string
+	BackupsAWSRoleARN                    string
 	BackupsCredentialsSecretName         string
 	BackupsCredentialsAccessKeyIDKey     string
 	BackupsCredentialsSecretAccessKeyKey string

@@ -44,6 +44,7 @@ func (r *BranchReconciler) reconcileCluster(
 		Tolerations:       r.Tolerations,
 		EnforceZone:       r.EnforceZone,
 		ImagePullSecrets:  r.ImagePullSecrets,
+		BackupsAWSRoleARN: r.BackupsAWSRoleARN,
 		BackupCredentials: resources.BackupCredentials{
 			SecretName:         r.BackupsCredentialsSecretName,
 			AccessKeyIDKey:     r.BackupsCredentialsAccessKeyIDKey,

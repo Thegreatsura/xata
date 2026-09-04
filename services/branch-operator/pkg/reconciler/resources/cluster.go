@@ -21,10 +21,17 @@ const (
 
 	// pgBackRestGCSKeyTypeAuto selects GKE Workload Identity for the GCS repo.
 	pgBackRestGCSKeyTypeAuto = "auto"
+	// TODO(Martin): Change this to "web-id" after every existing AWS CNPG
+	// instance pod using pgBackRest has restarted with AWS_ROLE_ARN and
+	// AWS_WEB_IDENTITY_TOKEN_FILE.
+	pgBackRestAWSS3KeyType = "auto"
 
 	// gkeServiceAccountAnnotation maps the cluster's pod ServiceAccount to a GCP
 	// service account via Workload Identity.
 	gkeServiceAccountAnnotation = "iam.gke.io/gcp-service-account"
+	// eksRoleARNAnnotation maps the cluster's pod ServiceAccount to an AWS IAM
+	// role through IRSA.
+	eksRoleARNAnnotation = "eks.amazonaws.com/role-arn"
 )
 
 // InheritedAnnotations are defined on the Cluster; CNPG will propagate them to
@@ -135,6 +142,9 @@ type ClusterConfig struct {
 	Tolerations       []corev1.Toleration
 	EnforceZone       bool
 	ImagePullSecrets  []string
+	// BackupsAWSRoleARN is the shared IRSA role for pgBackRest backup and restore
+	// workloads in the clusters namespace.
+	BackupsAWSRoleARN string
 	// BackupCredentials references the Secret holding static S3 credentials,
 	// used for pgbackrest when targeting a non-AWS S3-compatible endpoint
 	// (Cloudflare R2, or MinIO for local dev). Mirrors the barman ObjectStore.
@@ -233,7 +243,8 @@ func ClusterSpec(
 			WithServices(apiv1ac.ManagedServices().
 				WithDisabledDefaultServices(
 					apiv1.ServiceSelectorTypeR,
-					apiv1.ServiceSelectorTypeRO)).
+					apiv1.ServiceSelectorTypeRO,
+				)).
 			WithRoles(shared.XataRoleConfiguration(branchName))).
 		WithMonitoring(apiv1ac.MonitoringConfiguration().
 			WithTLSConfig(apiv1ac.ClusterMonitoringTLSConfiguration().
@@ -518,11 +529,17 @@ func legacyS3Spec(pgb *v1alpha1.PgBackRestSpec) *v1alpha1.PgBackRestS3Spec {
 // store is a non-AWS S3-compatible endpoint (Cloudflare R2, or MinIO for local
 // dev) with no IAM role to inherit, so it switches to static credentials from
 // the configured Secret.
-func pgbackrestS3(s3 *v1alpha1.PgBackRestS3Spec, creds BackupCredentials) *apiv1ac.PgBackRestS3ApplyConfiguration {
+func pgbackrestS3(
+	s3 *v1alpha1.PgBackRestS3Spec,
+	creds BackupCredentials,
+) *apiv1ac.PgBackRestS3ApplyConfiguration {
 	ac := apiv1ac.PgBackRestS3().
 		WithBucket(s3.Bucket).
 		WithRegion(s3.Region).
 		WithInheritFromIAMRole(s3.InheritFromIAMRole)
+	if s3.Endpoint == "" && s3.InheritFromIAMRole {
+		ac = ac.WithKeyType(pgBackRestAWSS3KeyType)
+	}
 
 	if s3.Endpoint != "" {
 		// The branch-stamped Secret wins over the operator-wide default, so
@@ -556,17 +573,30 @@ func pgbackrestGCS(gcs *v1alpha1.PgBackRestGCSSpec) *apiv1ac.PgBackRestGCSApplyC
 		WithKeyType(pgBackRestGCSKeyTypeAuto)
 }
 
-// serviceAccountTemplate stamps the GKE Workload Identity annotation on the
-// cluster's pod ServiceAccount for the GCS backend. Returns nil otherwise.
+// serviceAccountTemplate maps each cluster-specific Kubernetes ServiceAccount
+// to the cell-wide cloud identity.
 func serviceAccountTemplate(cfg ClusterConfig) *apiv1ac.ServiceAccountTemplateApplyConfiguration {
-	if !cfg.IsPgBackRest() || cfg.PgBackRest.GCS == nil {
+	if !cfg.IsPgBackRest() {
 		return nil
 	}
+
+	annotations := map[string]string{}
+	if cfg.PgBackRest.GCS != nil {
+		annotations[gkeServiceAccountAnnotation] = cfg.PgBackRest.GCS.ServiceAccountEmail
+	} else {
+		s3 := cfg.PgBackRest.S3
+		if s3 == nil {
+			s3 = legacyS3Spec(cfg.PgBackRest)
+		}
+		if cfg.BackupsAWSRoleARN == "" || s3.Endpoint != "" || !s3.InheritFromIAMRole {
+			return nil
+		}
+		annotations[eksRoleARNAnnotation] = cfg.BackupsAWSRoleARN
+	}
+
 	return apiv1ac.ServiceAccountTemplate().
 		WithMetadata(apiv1ac.Metadata().
-			WithAnnotations(map[string]string{
-				gkeServiceAccountAnnotation: cfg.PgBackRest.GCS.ServiceAccountEmail,
-			}))
+			WithAnnotations(annotations))
 }
 
 // LabelsFromInheritedMetadata extracts labels from InheritedMetadata, handling nil

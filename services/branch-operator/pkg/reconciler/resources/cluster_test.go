@@ -421,7 +421,8 @@ func TestClusterSpec(t *testing.T) {
 							WithS3(apiv1ac.PgBackRestS3().
 								WithBucket("test-bucket").
 								WithRegion("us-east-1").
-								WithInheritFromIAMRole(true))).
+								WithInheritFromIAMRole(true).
+								WithKeyType("auto"))).
 						WithOptions(apiv1ac.PgBackRestOptions().
 							WithCompressType("lz4").
 							WithArchiveAsync(true).
@@ -469,7 +470,8 @@ func TestClusterSpec(t *testing.T) {
 							WithS3(apiv1ac.PgBackRestS3().
 								WithBucket("test-bucket").
 								WithRegion("us-east-1").
-								WithInheritFromIAMRole(true))).
+								WithInheritFromIAMRole(true).
+								WithKeyType("auto"))).
 						WithOptions(apiv1ac.PgBackRestOptions().
 							WithCompressType("lz4").
 							WithArchiveAsync(true).
@@ -488,6 +490,7 @@ func TestClusterSpec(t *testing.T) {
 		{
 			name: "pgbackrest backup with minio endpoint",
 			cfgModifier: func(cfg *resources.ClusterConfig) {
+				cfg.BackupsAWSRoleARN = "arn:aws:iam::123456789012:role/cell-1-cnpg-backups"
 				cfg.BackupSpec = &v1alpha1.BackupSpec{
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
@@ -699,7 +702,8 @@ func TestClusterSpec(t *testing.T) {
 							WithS3(apiv1ac.PgBackRestS3().
 								WithBucket("test-bucket").
 								WithRegion("us-east-1").
-								WithInheritFromIAMRole(true))).
+								WithInheritFromIAMRole(true).
+								WithKeyType("auto"))).
 						WithOptions(apiv1ac.PgBackRestOptions().
 							WithCompressType("").
 							WithArchiveAsync(false).
@@ -727,7 +731,8 @@ func TestClusterSpec(t *testing.T) {
 								WithS3(apiv1ac.PgBackRestS3().
 									WithBucket("test-bucket").
 									WithRegion("us-east-1").
-									WithInheritFromIAMRole(true))).
+									WithInheritFromIAMRole(true).
+									WithKeyType("auto"))).
 							WithOptions(apiv1ac.PgBackRestOptions().
 								WithRepoPath("source-cluster"))),
 				),
@@ -765,7 +770,8 @@ func TestClusterSpec(t *testing.T) {
 							WithS3(apiv1ac.PgBackRestS3().
 								WithBucket("test-bucket").
 								WithRegion("us-east-1").
-								WithInheritFromIAMRole(true))).
+								WithInheritFromIAMRole(true).
+								WithKeyType("auto"))).
 						WithOptions(apiv1ac.PgBackRestOptions().
 							WithCompressType("lz4").
 							WithArchiveAsync(true).
@@ -987,6 +993,44 @@ func TestClusterSpecPgBackRestCipherReferences(t *testing.T) {
 	require.Equal(t, new("aes-256-cbc"), restoreCipher.Type)
 	require.Equal(t, "branch-pgbackrest", restoreCipher.Passphrase.Name)
 	require.Equal(t, "restore-cipher-passphrase", restoreCipher.Passphrase.Key)
+}
+
+func TestClusterSpecAWSRoleAppliesToBackupAndRestore(t *testing.T) {
+	t.Parallel()
+
+	const roleARN = "arn:aws:iam::123456789012:role/cell-1-cnpg-backups"
+	cfg := baseClusterConfig()
+	cfg.BackupsAWSRoleARN = roleARN
+	cfg.BackupSpec = &v1alpha1.BackupSpec{
+		Method: v1alpha1.BackupMethodPgBackRest,
+		PgBackRest: &v1alpha1.PgBackRestSpec{
+			S3: &v1alpha1.PgBackRestS3Spec{
+				Bucket:             "backup-bucket",
+				Region:             "us-east-1",
+				InheritFromIAMRole: true,
+			},
+		},
+	}
+	cfg.RestoreSpec = &v1alpha1.RestoreSpec{
+		Type: v1alpha1.RestoreTypeObjectStore,
+		Name: "source-branch",
+	}
+
+	spec := resources.ClusterSpec(testBranchName, testBranchName, cfg)
+	require.Equal(t, roleARN, spec.ServiceAccountTemplate.Metadata.Annotations["eks.amazonaws.com/role-arn"])
+	require.Equal(t, new("auto"), spec.Backup.PgBackRest.Repository.S3.KeyType)
+	require.Equal(t, new("auto"), spec.ExternalClusters[0].PgBackRest.Repository.S3.KeyType)
+}
+
+func TestClusterSpecAWSIRSADoesNotApplyToBarman(t *testing.T) {
+	t.Parallel()
+
+	const roleARN = "arn:aws:iam::123456789012:role/cell-1-cnpg-backups"
+	cfg := baseClusterConfig()
+	cfg.BackupsAWSRoleARN = roleARN
+
+	spec := resources.ClusterSpec(testBranchName, testBranchName, cfg)
+	require.Nil(t, spec.ServiceAccountTemplate)
 }
 
 func TestGeneratePostInitSQL(t *testing.T) {

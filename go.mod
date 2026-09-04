@@ -1,6 +1,6 @@
 module xata
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/Nerzal/gocloak/v13 v13.9.0
@@ -57,7 +57,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.43.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0
 	github.com/xataio/pgroll v0.16.2
-	github.com/xataio/xata-cnpg v1.28.1-0.20260804140208-02038896b562
+	github.com/xataio/xata-cnpg v1.28.1-0.20260902091002-e88fa1b8719b
 	github.com/ziflex/lecho/v3 v3.11.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.67.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0

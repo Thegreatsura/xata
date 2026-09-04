@@ -10,6 +10,7 @@ type Config struct {
 	ClustersNamespace string `env:"XATA_CLUSTERS_NAMESPACE" env-default:"xata-clusters" env-description:"namespace where the operator creates managed resources"`
 	BackupsBucket     string `env:"XATA_BACKUPS_BUCKET" env-description:"bucket for storing the cluster backups"`
 	BackupsEndpoint   string `env:"XATA_BACKUPS_ENDPOINT" env-description:"endpoint for reaching the backups bucket; set for a non-AWS S3-compatible store such as Cloudflare R2"`
+	BackupsAWSRoleARN string `env:"XATA_BACKUPS_AWS_ROLE_ARN" env-description:"shared IRSA role used by pgbackrest backup and restore workloads in the clusters namespace"`
 	// When BackupsEndpoint is set (non-AWS S3-compatible store), backups
 	// authenticate with static credentials from this Secret instead of an IAM
 	// role. Defaults match the local-dev MinIO secret.
