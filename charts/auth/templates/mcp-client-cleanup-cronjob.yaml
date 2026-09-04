@@ -37,7 +37,6 @@ spec:
               command: ["/server"]
               args:
                 - cleanup_mcp_clients
-                - --required-scope={{ .Values.mcpClientCleanup.requiredScope }}
                 - --dry-run={{ .Values.mcpClientCleanup.dryRun }}
               env:
                 - name: KEYCLOAK_ADMIN_USERNAME
