@@ -1362,12 +1362,18 @@ func (s *handler) resolveGatewayHostPort(region *store.Region) string {
 
 // branchEndpoint returns the hostname and port clients use to reach a branch
 // through the region's gateway. hostLabel is normally the branch ID, optionally
-// decorated with a suffix the gateway understands.
-func (s *handler) branchEndpoint(region *store.Region, hostLabel string) (string, int, error) {
+// decorated with a suffix the gateway understands. A non-nil subdomain
+// qualifies the hostname with the branch's cell (<label>.<subdomain>.<host>)
+func (s *handler) branchEndpoint(region *store.Region, subdomain *string, hostLabel string) (string, int, error) {
 	hostPort := s.resolveGatewayHostPort(region)
 	if hostPort == "" {
 		return "", 0, errors.New("no gateway host:port configured")
 	}
+
+	if subdomain != nil {
+		hostPort = *subdomain + "." + hostPort
+	}
+
 	// Regions may register a host-only gateway address (ie us-east-1.xata.tech),
 	// in that case connections use the default postgres port.
 	if !strings.Contains(hostPort, ":") {
@@ -1398,6 +1404,11 @@ func (s *handler) getConnectionString(c echo.Context, organizationID string, bra
 		return "", err
 	}
 
+	cell, err := s.store.GetCell(c.Request().Context(), organizationID, branch.CellID)
+	if err != nil {
+		return "", err
+	}
+
 	creds, err := client.GetPostgresClusterCredentials(c.Request().Context(), &clustersv1.GetPostgresClusterCredentialsRequest{
 		Id:       branch.ID,
 		Username: "app",
@@ -1408,7 +1419,7 @@ func (s *handler) getConnectionString(c echo.Context, organizationID string, bra
 
 	// The deprecated marker keeps the connection routable while letting the
 	// gateway log which clients still use this connection string.
-	hostname, port, err := s.branchEndpoint(region, branch.ID+deprecatedHostSuffix)
+	hostname, port, err := s.branchEndpoint(region, cell.Subdomain, branch.ID+deprecatedHostSuffix)
 	if err != nil {
 		return "", err
 	}
@@ -1453,7 +1464,12 @@ func (s *handler) GetBranchCredentials(c echo.Context, organizationID spec.Organ
 			return err
 		}
 
-		hostname, port, err := s.branchEndpoint(region, branch.ID)
+		cell, err := s.store.GetCell(c.Request().Context(), organizationID, branch.CellID)
+		if err != nil {
+			return err
+		}
+
+		hostname, port, err := s.branchEndpoint(region, cell.Subdomain, branch.ID)
 		if err != nil {
 			return err
 		}

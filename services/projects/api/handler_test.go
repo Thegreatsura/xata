@@ -885,6 +885,7 @@ func hiddenMajorPostgresImage(t *testing.T) (string, string) {
 
 func TestCreateBranch(t *testing.T) {
 	mockStore := mocks.NewProjectsStore(t)
+	mockStore.EXPECT().GetCell(mock.Anything, mock.Anything, mock.Anything).Return(&store.Cell{ID: "cell_id"}, nil).Maybe()
 	mockClusters := protomocks.NewClustersServiceClient(t)
 	mockCells := cellsmock.NewCellsMock(t, mockClusters)
 	mockPostgresConfig := postgrescfgmocks.NewPostgresConfigProvider(t)
@@ -2191,6 +2192,7 @@ func TestRestoreFromBackup(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStore := mocks.NewProjectsStore(t)
+			mockStore.EXPECT().GetCell(mock.Anything, mock.Anything, mock.Anything).Return(&store.Cell{ID: "cell_id"}, nil).Maybe()
 			mockClusters := protomocks.NewClustersServiceClient(t)
 			mockPostgresConfig := postgrescfgmocks.NewPostgresConfigProvider(t)
 			mockImageProvider := postgresversionsmocks.NewImageProvider(t)
@@ -2249,6 +2251,7 @@ func TestListBranches(t *testing.T) {
 	time, _ := time.Parse(time.RFC3339, "2021-01-01T00:00:00Z")
 
 	mockStore := mocks.NewProjectsStore(t)
+	mockStore.EXPECT().GetCell(mock.Anything, mock.Anything, mock.Anything).Return(&store.Cell{ID: "cell_id"}, nil).Maybe()
 	mockClusters := protomocks.NewClustersServiceClient(t)
 	mockCells := cellsmock.NewCellsMock(t, mockClusters)
 
@@ -2330,6 +2333,7 @@ func TestListBranchesFiltersByClaims(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			mockStore := mocks.NewProjectsStore(t)
+			mockStore.EXPECT().GetCell(mock.Anything, mock.Anything, mock.Anything).Return(&store.Cell{ID: "cell_id"}, nil).Maybe()
 			mockClusters := protomocks.NewClustersServiceClient(t)
 			mockCells := cellsmock.NewCellsMock(t, mockClusters)
 			feat := openfeaturetest.NewClient(nil)
@@ -2577,6 +2581,7 @@ func TestGetBackupErrorTypes(t *testing.T) {
 
 func TestDescribeBranch(t *testing.T) {
 	mockStore := mocks.NewProjectsStore(t)
+	mockStore.EXPECT().GetCell(mock.Anything, mock.Anything, mock.Anything).Return(&store.Cell{ID: "cell_id"}, nil).Maybe()
 	mockClusters := protomocks.NewClustersServiceClient(t)
 	mockCells := cellsmock.NewCellsMock(t, mockClusters)
 	mockPostgresConfig := postgrescfgmocks.NewPostgresConfigProvider(t)
@@ -3006,6 +3011,7 @@ func TestDescribeBranch(t *testing.T) {
 
 func TestDescribeBranchXataUser(t *testing.T) {
 	mockStore := mocks.NewProjectsStore(t)
+	mockStore.EXPECT().GetCell(mock.Anything, mock.Anything, mock.Anything).Return(&store.Cell{ID: "cell_id"}, nil).Maybe()
 	mockClusters := protomocks.NewClustersServiceClient(t)
 	mockCells := cellsmock.NewCellsMock(t, mockClusters)
 	mockPostgresConfig := postgrescfgmocks.NewPostgresConfigProvider(t)
@@ -3865,6 +3871,7 @@ func TestBranchLogs(t *testing.T) {
 
 func TestGetBranchCredentials(t *testing.T) {
 	mockStore := mocks.NewProjectsStore(t)
+	mockStore.EXPECT().GetCell(mock.Anything, mock.Anything, mock.Anything).Return(&store.Cell{ID: "cell_id"}, nil).Maybe()
 	mockClusters := protomocks.NewClustersServiceClient(t)
 	mockCells := cellsmock.NewCellsMock(t, mockClusters)
 
@@ -3996,6 +4003,7 @@ func TestBranchEndpoint(t *testing.T) {
 	tests := map[string]struct {
 		regionHostPort  string
 		defaultHostPort string
+		subdomain       string // "" means no cell subdomain (region-only hostname)
 		wantHostname    string
 		wantPort        int
 		wantError       bool
@@ -4015,7 +4023,29 @@ func TestBranchEndpoint(t *testing.T) {
 			wantHostname:    "br-1.testdomain",
 			wantPort:        5432,
 		},
+		"subdomain qualifies a host-only region": {
+			regionHostPort: "us-east-1.xata.tech",
+			subdomain:      "cell-2",
+			wantHostname:   "br-1.cell-2.us-east-1.xata.tech",
+			wantPort:       5432,
+		},
+		"subdomain qualifies a host:port region": {
+			regionHostPort: "eu-central-1.xata.tech:7654",
+			subdomain:      "cell-2",
+			wantHostname:   "br-1.cell-2.eu-central-1.xata.tech",
+			wantPort:       7654,
+		},
+		"subdomain qualifies the handler default": {
+			defaultHostPort: "testdomain:5432",
+			subdomain:       "cell-2",
+			wantHostname:    "br-1.cell-2.testdomain",
+			wantPort:        5432,
+		},
 		"no gateway configured at all fails": {
+			wantError: true,
+		},
+		"no gateway configured fails even with a subdomain": {
+			subdomain: "cell-2",
 			wantError: true,
 		},
 		"non-numeric port fails": {
@@ -4026,8 +4056,12 @@ func TestBranchEndpoint(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
+			var subdomain *string
+			if tt.subdomain != "" {
+				subdomain = &tt.subdomain
+			}
 			h := &handler{defaultGatewayHostPort: tt.defaultHostPort}
-			gotHostname, gotPort, err := h.branchEndpoint(&store.Region{GatewayHostPort: tt.regionHostPort}, "br-1")
+			gotHostname, gotPort, err := h.branchEndpoint(&store.Region{GatewayHostPort: tt.regionHostPort}, subdomain, "br-1")
 			if tt.wantError {
 				require.Error(t, err)
 				return
@@ -4117,6 +4151,7 @@ func TestRotateBranchCredentials(t *testing.T) {
 
 func TestUpdateBranch(t *testing.T) {
 	mockStore := mocks.NewProjectsStore(t)
+	mockStore.EXPECT().GetCell(mock.Anything, mock.Anything, mock.Anything).Return(&store.Cell{ID: "cell_id"}, nil).Maybe()
 	mockClusters := protomocks.NewClustersServiceClient(t)
 	mockCells := cellsmock.NewCellsMock(t, mockClusters)
 	mockPostgresConfig := postgrescfgmocks.NewPostgresConfigProvider(t)
