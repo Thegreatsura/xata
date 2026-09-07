@@ -1,0 +1,19 @@
+{
+  "operations": [
+    {
+      "add_column": {
+        "table": "cells",
+        "column": {
+          "name": "subdomain",
+          "type": "text",
+          "nullable": true,
+          "check": {
+            "name": "cells_subdomain_label",
+            "constraint": "subdomain ~ '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'"
+          },
+          "comment": "Optional per-cell DNS label. When set, connection-string hostnames become <branch>.<subdomain>.<region hostport> instead of <branch>.<region hostport>. Wildcard DNS and a gateway TLS SAN for *.<subdomain>.<region hostport> must exist before setting this. NULL means the cell uses region-only hostnames."
+        }
+      }
+    }
+  ]
+}
