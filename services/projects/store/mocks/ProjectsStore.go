@@ -439,13 +439,13 @@ func (_c *ProjectsStore_CreateBranch_Call) Return(_a0 *store.Branch, _a1 error) 
 	return _c
 }
 
-// CreateCell provides a mock function with given fields: ctx, regionID, cellID, grpcURL, isPrimary
-func (_m *ProjectsStore) CreateCell(ctx context.Context, regionID string, cellID string, grpcURL string, isPrimary bool) (*store.Cell, error) {
-	ret := _m.Called(ctx, regionID, cellID, grpcURL, isPrimary)
+// CreateCell provides a mock function with given fields: ctx, regionID, cellID, grpcURL, isPrimary, subdomain
+func (_m *ProjectsStore) CreateCell(ctx context.Context, regionID string, cellID string, grpcURL string, isPrimary bool, subdomain *string) (*store.Cell, error) {
+	ret := _m.Called(ctx, regionID, cellID, grpcURL, isPrimary, subdomain)
 
 	var r0 *store.Cell
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, bool) *store.Cell); ok {
-		r0 = rf(ctx, regionID, cellID, grpcURL, isPrimary)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, bool, *string) *store.Cell); ok {
+		r0 = rf(ctx, regionID, cellID, grpcURL, isPrimary, subdomain)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*store.Cell)
@@ -453,8 +453,8 @@ func (_m *ProjectsStore) CreateCell(ctx context.Context, regionID string, cellID
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, bool) error); ok {
-		r1 = rf(ctx, regionID, cellID, grpcURL, isPrimary)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, bool, *string) error); ok {
+		r1 = rf(ctx, regionID, cellID, grpcURL, isPrimary, subdomain)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -473,13 +473,14 @@ type ProjectsStore_CreateCell_Call struct {
 //   - cellID string
 //   - grpcURL string
 //   - isPrimary bool
-func (_e *ProjectsStore_Expecter) CreateCell(ctx interface{}, regionID interface{}, cellID interface{}, grpcURL interface{}, isPrimary interface{}) *ProjectsStore_CreateCell_Call {
-	return &ProjectsStore_CreateCell_Call{Call: _e.mock.On("CreateCell", ctx, regionID, cellID, grpcURL, isPrimary)}
+//   - subdomain *string
+func (_e *ProjectsStore_Expecter) CreateCell(ctx interface{}, regionID interface{}, cellID interface{}, grpcURL interface{}, isPrimary interface{}, subdomain interface{}) *ProjectsStore_CreateCell_Call {
+	return &ProjectsStore_CreateCell_Call{Call: _e.mock.On("CreateCell", ctx, regionID, cellID, grpcURL, isPrimary, subdomain)}
 }
 
-func (_c *ProjectsStore_CreateCell_Call) Run(run func(ctx context.Context, regionID string, cellID string, grpcURL string, isPrimary bool)) *ProjectsStore_CreateCell_Call {
+func (_c *ProjectsStore_CreateCell_Call) Run(run func(ctx context.Context, regionID string, cellID string, grpcURL string, isPrimary bool, subdomain *string)) *ProjectsStore_CreateCell_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(bool))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(bool), args[5].(*string))
 	})
 	return _c
 }

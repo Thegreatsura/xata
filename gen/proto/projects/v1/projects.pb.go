@@ -426,6 +426,7 @@ type Cell struct {
 	RegionId        string                 `protobuf:"bytes,2,opt,name=region_id,json=regionId,proto3" json:"region_id,omitempty"`
 	ClustersGrpcUrl string                 `protobuf:"bytes,3,opt,name=clusters_grpc_url,json=clustersGrpcUrl,proto3" json:"clusters_grpc_url,omitempty"`
 	IsPrimary       bool                   `protobuf:"varint,4,opt,name=is_primary,json=isPrimary,proto3" json:"is_primary,omitempty"`
+	Subdomain       *string                `protobuf:"bytes,5,opt,name=subdomain,proto3,oneof" json:"subdomain,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -488,12 +489,20 @@ func (x *Cell) GetIsPrimary() bool {
 	return false
 }
 
+func (x *Cell) GetSubdomain() string {
+	if x != nil && x.Subdomain != nil {
+		return *x.Subdomain
+	}
+	return ""
+}
+
 type CreateCellRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	RegionId        string                 `protobuf:"bytes,2,opt,name=region_id,json=regionId,proto3" json:"region_id,omitempty"`
 	ClustersGrpcUrl string                 `protobuf:"bytes,3,opt,name=clusters_grpc_url,json=clustersGrpcUrl,proto3" json:"clusters_grpc_url,omitempty"`
 	IsPrimary       bool                   `protobuf:"varint,4,opt,name=is_primary,json=isPrimary,proto3" json:"is_primary,omitempty"`
+	Subdomain       *string                `protobuf:"bytes,5,opt,name=subdomain,proto3,oneof" json:"subdomain,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -554,6 +563,13 @@ func (x *CreateCellRequest) GetIsPrimary() bool {
 		return x.IsPrimary
 	}
 	return false
+}
+
+func (x *CreateCellRequest) GetSubdomain() string {
+	if x != nil && x.Subdomain != nil {
+		return *x.Subdomain
+	}
+	return ""
 }
 
 // ValidateHierarchyRequest is the request object for ValidateHierarchy
@@ -1325,19 +1341,25 @@ const file_projects_v1_projects_proto_rawDesc = "" +
 	"\x10ListCellsRequest\"<\n" +
 	"\x11ListCellsResponse\x12'\n" +
 	"\x05cells\x18\x01 \x03(\v2\x11.projects.v1.CellR\x05cells\"\x14\n" +
-	"\x12CreateCellResponse\"~\n" +
+	"\x12CreateCellResponse\"\xaf\x01\n" +
 	"\x04Cell\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tregion_id\x18\x02 \x01(\tR\bregionId\x12*\n" +
 	"\x11clusters_grpc_url\x18\x03 \x01(\tR\x0fclustersGrpcUrl\x12\x1d\n" +
 	"\n" +
-	"is_primary\x18\x04 \x01(\bR\tisPrimary\"\x8b\x01\n" +
+	"is_primary\x18\x04 \x01(\bR\tisPrimary\x12!\n" +
+	"\tsubdomain\x18\x05 \x01(\tH\x00R\tsubdomain\x88\x01\x01B\f\n" +
+	"\n" +
+	"_subdomain\"\xbc\x01\n" +
 	"\x11CreateCellRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tregion_id\x18\x02 \x01(\tR\bregionId\x12*\n" +
 	"\x11clusters_grpc_url\x18\x03 \x01(\tR\x0fclustersGrpcUrl\x12\x1d\n" +
 	"\n" +
-	"is_primary\x18\x04 \x01(\bR\tisPrimary\"\x85\x01\n" +
+	"is_primary\x18\x04 \x01(\bR\tisPrimary\x12!\n" +
+	"\tsubdomain\x18\x05 \x01(\tH\x00R\tsubdomain\x88\x01\x01B\f\n" +
+	"\n" +
+	"_subdomain\"\x85\x01\n" +
 	"\x18ValidateHierarchyRequest\x12)\n" +
 	"\x10organization_ids\x18\x01 \x03(\tR\x0forganizationIds\x12\x1f\n" +
 	"\vproject_ids\x18\x02 \x03(\tR\n" +
@@ -1489,6 +1511,8 @@ func file_projects_v1_projects_proto_init() {
 	}
 	file_projects_v1_projects_proto_msgTypes[2].OneofWrappers = []any{}
 	file_projects_v1_projects_proto_msgTypes[3].OneofWrappers = []any{}
+	file_projects_v1_projects_proto_msgTypes[8].OneofWrappers = []any{}
+	file_projects_v1_projects_proto_msgTypes[9].OneofWrappers = []any{}
 	file_projects_v1_projects_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

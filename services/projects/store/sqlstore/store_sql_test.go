@@ -1136,7 +1136,7 @@ func createRegionAndCell(t testing.TB, sqlStore *sqlProjectStore, regionID, cell
 	})
 
 	isPrimaryCell := true
-	cell, err := sqlStore.CreateCell(ctx, regionID, cellID, "grpc://localhost:50051", isPrimaryCell)
+	cell, err := sqlStore.CreateCell(ctx, regionID, cellID, "grpc://localhost:50051", isPrimaryCell, nil)
 	if err != nil {
 		t.Fatalf("failed to create cell: %v", err)
 	}

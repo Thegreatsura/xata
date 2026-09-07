@@ -86,6 +86,7 @@ message Cell {
   string region_id = 2;
   string clusters_grpc_url = 3;
   bool is_primary = 4;
+  optional string subdomain = 5;
 }
 
 message CreateCellRequest {
@@ -93,6 +94,7 @@ message CreateCellRequest {
   string region_id = 2;
   string clusters_grpc_url = 3;
   bool is_primary = 4;
+  optional string subdomain = 5;
 }
 
 // ValidateHierarchyRequest is the request object for ValidateHierarchy
