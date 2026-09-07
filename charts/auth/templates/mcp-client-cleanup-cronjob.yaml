@@ -37,6 +37,7 @@ spec:
               command: ["/server"]
               args:
                 - cleanup_mcp_clients
+                - --min-age={{ .Values.mcpClientCleanup.minAge }}
                 - --dry-run={{ .Values.mcpClientCleanup.dryRun }}
               env:
                 - name: KEYCLOAK_ADMIN_USERNAME

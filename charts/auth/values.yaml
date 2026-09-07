@@ -93,8 +93,15 @@ resourceCleanup:
 # Periodic sweep of stale MCP clients (dynamically-registered Keycloak clients
 # with no sessions). Suspended and dry-run by default; unsuspend per env and
 # review the dry-run logs before turning dryRun off. See cleanup_mcp_clients.
+#
+# minAge spares clients registered within the window: a client that registered but
+# has not completed the authorization code flow yet has no sessions and is otherwise
+# indistinguishable from a stale one. The age comes from Keycloak CLIENT_REGISTER
+# events, so minAge must stay below the realm's eventsExpiration (14d) - the job
+# refuses to run otherwise.
 mcpClientCleanup:
   schedule: "0 4 * * *"
+  minAge: "168h"
   dryRun: true
   suspend: true
   resources:
