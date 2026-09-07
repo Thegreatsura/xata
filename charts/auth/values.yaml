@@ -105,6 +105,18 @@ mcpClientCleanup:
       cpu: 50m
       memory: 64Mi
 
+manualInvoiceReadyAlerts:
+  schedule: "0 9 * * *"
+  timeZone: "Europe/Berlin"
+  suspend: true
+  resources:
+    limits:
+      cpu: 100m
+      memory: 64Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
 trialExpiryEmails:
   schedule: "0 9 * * *"
   timeZone: "Etc/UTC"
