@@ -2,11 +2,11 @@ package session
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -15,8 +15,10 @@ import (
 
 	"github.com/elastic/go-concert/ctxtool"
 	"github.com/elastic/go-concert/unison"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/sys/unix"
 )
 
 type Session interface {
@@ -44,21 +46,30 @@ type session struct {
 }
 
 const (
-	directionBackendToFrontend = "postgres -> client"
-	directionFrontendToBackend = "client -> postgres"
-	sideFrontend               = "frontend"
+	observedAtClient  = "client"
+	observedAtServer  = "server"
+	observedAtGateway = "gateway"
+)
+
+type copyDirection uint8
+
+const (
+	directionServerToClient copyDirection = iota
+	directionClientToServer
 )
 
 type copyResult struct {
-	direction        string
+	direction        copyDirection
 	err              error
 	contextCancelled bool
 }
 
 type terminationDetails struct {
-	reason    string
-	side      string
-	operation string
+	// observedAt is the connection boundary that exposed the first copy
+	// result. It does not claim that endpoint initiated the termination.
+	observedAt string
+	errorType  string
+	operation  string
 }
 
 // New creates a session proxying between a client and a backend connection.
@@ -115,10 +126,10 @@ func (s *session) ServeSQLSession(ctx context.Context) error {
 		event.Msg("End serving SQL session")
 	}()
 	if ctx.Err() != nil {
-		logger.Info().
-			Str("termination_reason", "context_cancelled").
-			Str("termination_side", "gateway").
-			Msg("SQL session terminated")
+		logSessionTermination(logger, terminationDetails{
+			observedAt: observedAtGateway,
+			errorType:  "context.Canceled",
+		}, nil)
 		return nil
 	}
 
@@ -130,7 +141,7 @@ func (s *session) ServeSQLSession(ctx context.Context) error {
 		s.bytesToClient.Store(n)
 		s.metrics.RecordBytesForwarded(ctx, metrics.DirectionBackendToClient, n)
 		results <- copyResult{
-			direction:        directionBackendToFrontend,
+			direction:        directionServerToClient,
 			err:              err,
 			contextCancelled: closeCtx.Err() != nil,
 		}
@@ -141,7 +152,7 @@ func (s *session) ServeSQLSession(ctx context.Context) error {
 		s.bytesToBackend.Store(n)
 		s.metrics.RecordBytesForwarded(ctx, metrics.DirectionClientToBackend, n)
 		results <- copyResult{
-			direction:        directionFrontendToBackend,
+			direction:        directionClientToServer,
 			err:              err,
 			contextCancelled: closeCtx.Err() != nil,
 		}
@@ -157,26 +168,33 @@ func (s *session) ServeSQLSession(ctx context.Context) error {
 	cancel()
 	tg.Wait()
 	if !received {
-		logger.Info().
-			Str("termination_reason", "context_cancelled").
-			Str("termination_side", "gateway").
-			Msg("SQL session terminated")
+		logSessionTermination(logger, terminationDetails{
+			observedAt: observedAtGateway,
+			errorType:  "context.Canceled",
+		}, nil)
 		return nil
 	}
 
 	details := classifyTermination(first.direction, first.err, first.contextCancelled)
+	logSessionTermination(logger, details, first.err)
+	return nil
+}
+
+func logSessionTermination(logger zerolog.Logger, details terminationDetails, err error) {
 	event := logger.Info().
-		Str("direction", first.direction).
-		Str("termination_reason", details.reason).
-		Str("termination_side", details.side)
-	if details.operation != "" {
-		event = event.Str("socket_operation", details.operation)
+		Str("network.transport", "tcp").
+		Str("network.protocol.name", "postgresql").
+		Str("gateway.session.end.observed_at", details.observedAt)
+	if details.errorType != "" {
+		event = event.Str("error.type", details.errorType)
 	}
-	if first.err != nil {
-		event = event.Err(first.err)
+	if details.operation != "" {
+		event = event.Str("gateway.session.end.operation", details.operation)
+	}
+	if err != nil {
+		event = event.Err(err)
 	}
 	event.Msg("SQL session terminated")
-	return nil
 }
 
 // captureBackendTCPInfo snapshots what the kernel knows about the backend
@@ -236,65 +254,49 @@ func copyLoop(to io.Writer, from io.Reader) (int64, error) {
 	return n, nil
 }
 
-func classifyTermination(direction string, err error, contextCancelled bool) terminationDetails {
+func classifyTermination(direction copyDirection, err error, contextCancelled bool) terminationDetails {
 	operation := socketOperation(err)
 	if contextCancelled {
 		return terminationDetails{
-			reason:    "context_cancelled",
-			side:      "gateway",
-			operation: operation,
+			observedAt: observedAtGateway,
+			errorType:  "context.Canceled",
+			operation:  operation,
 		}
 	}
 
-	side := terminationSide(direction, operation)
-	if err == nil || errors.Is(err, io.EOF) {
-		return terminationDetails{
-			reason:    side + "_fin",
-			side:      side,
-			operation: operation,
-		}
-	}
-	if side == sideFrontend && errors.Is(err, io.ErrUnexpectedEOF) {
-		return terminationDetails{
-			reason:    "frontend_tls_unexpected_eof",
-			side:      side,
-			operation: operation,
-		}
-	}
-	if errors.Is(err, syscall.ECONNRESET) || strings.Contains(err.Error(), "connection reset by peer") {
-		return terminationDetails{
-			reason:    side + "_reset",
-			side:      side,
-			operation: operation,
-		}
-	}
-	if isTimeout(err) {
-		return terminationDetails{
-			reason:    side + "_timeout",
-			side:      side,
-			operation: operation,
-		}
-	}
-	if errors.Is(err, syscall.EPIPE) {
-		return terminationDetails{
-			reason:    side + "_broken_pipe",
-			side:      side,
-			operation: operation,
-		}
-	}
-	if errors.Is(err, net.ErrClosed) || strings.Contains(err.Error(), "use of closed network connection") {
-		return terminationDetails{
-			reason:    "gateway_close",
-			side:      "gateway",
-			operation: operation,
-		}
+	observedAt := terminationObservedAt(direction, operation)
+	errnoType := errnoName(err)
+	var recordHeaderError tls.RecordHeaderError
+	errorType := "_OTHER"
+	switch {
+	case err == nil || errors.Is(err, io.EOF):
+		errorType = ""
+	case errors.Is(err, io.ErrUnexpectedEOF):
+		errorType = "io.ErrUnexpectedEOF"
+	case errors.Is(err, net.ErrClosed):
+		observedAt = observedAtGateway
+		errorType = "net.ErrClosed"
+	case errnoType != "":
+		errorType = errnoType
+	case isTimeout(err):
+		errorType = "timeout"
+	case errors.As(err, &recordHeaderError):
+		errorType = "crypto/tls.RecordHeaderError"
 	}
 
 	return terminationDetails{
-		reason:    side + "_io_error",
-		side:      side,
-		operation: operation,
+		observedAt: observedAt,
+		errorType:  errorType,
+		operation:  operation,
 	}
+}
+
+func errnoName(err error) string {
+	var errno syscall.Errno
+	if !errors.As(err, &errno) {
+		return ""
+	}
+	return unix.ErrnoName(errno)
 }
 
 func socketOperation(err error) string {
@@ -308,18 +310,18 @@ func socketOperation(err error) string {
 	return operation
 }
 
-func terminationSide(direction, operation string) string {
+func terminationObservedAt(direction copyDirection, operation string) string {
 	if operation == "write" {
-		if direction == directionBackendToFrontend {
-			return sideFrontend
+		if direction == directionServerToClient {
+			return observedAtClient
 		}
-		return "backend"
+		return observedAtServer
 	}
 
-	if direction == directionBackendToFrontend {
-		return "backend"
+	if direction == directionServerToClient {
+		return observedAtServer
 	}
-	return sideFrontend
+	return observedAtClient
 }
 
 func isTimeout(err error) bool {

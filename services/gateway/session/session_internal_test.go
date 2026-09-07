@@ -7,7 +7,9 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"net"
@@ -25,39 +27,44 @@ import (
 
 func TestClassifyTermination(t *testing.T) {
 	tests := map[string]struct {
-		direction        string
+		direction        copyDirection
 		err              error
 		contextCancelled bool
 		want             terminationDetails
 	}{
-		"frontend FIN": {
-			direction: directionFrontendToBackend,
+		"client EOF": {
+			direction: directionClientToServer,
 			want: terminationDetails{
-				reason: "frontend_fin",
-				side:   "frontend",
+				observedAt: observedAtClient,
 			},
 		},
-		"backend FIN": {
-			direction: directionBackendToFrontend,
+		"server EOF": {
+			direction: directionServerToClient,
 			want: terminationDetails{
-				reason: "backend_fin",
-				side:   "backend",
+				observedAt: observedAtServer,
 			},
 		},
-		"frontend read reset": {
-			direction: directionFrontendToBackend,
+		"explicit EOF": {
+			direction: directionClientToServer,
+			err:       io.EOF,
+			want: terminationDetails{
+				observedAt: observedAtClient,
+			},
+		},
+		"client read reset": {
+			direction: directionClientToServer,
 			err: &net.OpError{
 				Op:  "read",
 				Err: syscall.ECONNRESET,
 			},
 			want: terminationDetails{
-				reason:    "frontend_reset",
-				side:      "frontend",
-				operation: "read",
+				observedAt: observedAtClient,
+				errorType:  "ECONNRESET",
+				operation:  "read",
 			},
 		},
-		"frontend write reset": {
-			direction: directionBackendToFrontend,
+		"client write reset": {
+			direction: directionServerToClient,
 			err: &net.OpError{
 				Op: "readfrom",
 				Err: &net.OpError{
@@ -66,78 +73,140 @@ func TestClassifyTermination(t *testing.T) {
 				},
 			},
 			want: terminationDetails{
-				reason:    "frontend_reset",
-				side:      "frontend",
-				operation: "write",
+				observedAt: observedAtClient,
+				errorType:  "ECONNRESET",
+				operation:  "write",
 			},
 		},
-		"frontend TLS unexpected EOF": {
-			direction: directionFrontendToBackend,
+		"client TLS unexpected EOF": {
+			direction: directionClientToServer,
 			err: &net.OpError{
 				Op:  "readfrom",
 				Err: io.ErrUnexpectedEOF,
 			},
 			want: terminationDetails{
-				reason:    "frontend_tls_unexpected_eof",
-				side:      "frontend",
-				operation: "readfrom",
+				observedAt: observedAtClient,
+				errorType:  "io.ErrUnexpectedEOF",
+				operation:  "readfrom",
 			},
 		},
-		"backend timeout": {
-			direction: directionBackendToFrontend,
+		"server timeout": {
+			direction: directionServerToClient,
 			err: &net.OpError{
 				Op:  "read",
 				Err: os.ErrDeadlineExceeded,
 			},
 			want: terminationDetails{
-				reason:    "backend_timeout",
-				side:      "backend",
-				operation: "read",
+				observedAt: observedAtServer,
+				errorType:  "timeout",
+				operation:  "read",
 			},
 		},
-		"backend broken pipe": {
-			direction: directionFrontendToBackend,
+		"server system timeout": {
+			direction: directionServerToClient,
+			err: &net.OpError{
+				Op:  "read",
+				Err: syscall.ETIMEDOUT,
+			},
+			want: terminationDetails{
+				observedAt: observedAtServer,
+				errorType:  "ETIMEDOUT",
+				operation:  "read",
+			},
+		},
+		"server host unreachable": {
+			direction: directionServerToClient,
+			err: &net.OpError{
+				Op:  "read",
+				Err: syscall.EHOSTUNREACH,
+			},
+			want: terminationDetails{
+				observedAt: observedAtServer,
+				errorType:  "EHOSTUNREACH",
+				operation:  "read",
+			},
+		},
+		"server transport shutdown": {
+			direction: directionClientToServer,
+			err: &net.OpError{
+				Op:  "write",
+				Err: syscall.ESHUTDOWN,
+			},
+			want: terminationDetails{
+				observedAt: observedAtServer,
+				errorType:  "ESHUTDOWN",
+				operation:  "write",
+			},
+		},
+		"server broken pipe": {
+			direction: directionClientToServer,
 			err: &net.OpError{
 				Op:  "write",
 				Err: syscall.EPIPE,
 			},
 			want: terminationDetails{
-				reason:    "backend_broken_pipe",
-				side:      "backend",
-				operation: "write",
+				observedAt: observedAtServer,
+				errorType:  "EPIPE",
+				operation:  "write",
 			},
 		},
 		"gateway close": {
-			direction: directionFrontendToBackend,
+			direction: directionClientToServer,
 			err: &net.OpError{
 				Op:  "read",
 				Err: net.ErrClosed,
 			},
 			want: terminationDetails{
-				reason:    "gateway_close",
-				side:      "gateway",
-				operation: "read",
+				observedAt: observedAtGateway,
+				errorType:  "net.ErrClosed",
+				operation:  "read",
 			},
 		},
 		"context cancellation takes precedence": {
-			direction: directionFrontendToBackend,
+			direction: directionClientToServer,
 			err: &net.OpError{
 				Op:  "read",
 				Err: net.ErrClosed,
 			},
 			contextCancelled: true,
 			want: terminationDetails{
-				reason:    "context_cancelled",
-				side:      "gateway",
-				operation: "read",
+				observedAt: observedAtGateway,
+				errorType:  "context.Canceled",
+				operation:  "read",
 			},
 		},
-		"unknown frontend error": {
-			direction: directionFrontendToBackend,
+		"unknown client error": {
+			direction: directionClientToServer,
 			err:       errors.New("some random error"),
 			want: terminationDetails{
-				reason: "frontend_io_error",
-				side:   "frontend",
+				observedAt: observedAtClient,
+				errorType:  "_OTHER",
+			},
+		},
+		"exported concrete error": {
+			direction: directionClientToServer,
+			err: fmt.Errorf("TLS read: %w", tls.RecordHeaderError{
+				Msg: "invalid record header",
+			}),
+			want: terminationDetails{
+				observedAt: observedAtClient,
+				errorType:  "crypto/tls.RecordHeaderError",
+			},
+		},
+		"reset message without typed error": {
+			direction: directionClientToServer,
+			err:       errors.New("connection reset by peer"),
+			want: terminationDetails{
+				observedAt: observedAtClient,
+				errorType:  "_OTHER",
+			},
+		},
+		"closed message without typed error": {
+			direction: directionClientToServer,
+			err:       errors.New("use of closed network connection"),
+			want: terminationDetails{
+				observedAt: observedAtClient,
+				errorType:  "_OTHER",
 			},
 		},
 	}
@@ -153,7 +222,7 @@ func TestClassifyTermination(t *testing.T) {
 func TestAwaitCopyResult(t *testing.T) {
 	t.Run("copy result", func(t *testing.T) {
 		results := make(chan copyResult, 1)
-		want := copyResult{direction: directionFrontendToBackend}
+		want := copyResult{direction: directionClientToServer}
 		results <- want
 
 		got, received := awaitCopyResult(context.Background(), results)
@@ -165,7 +234,7 @@ func TestAwaitCopyResult(t *testing.T) {
 		for range 100 {
 			ctx, cancel := context.WithCancel(context.Background())
 			results := make(chan copyResult, 1)
-			want := copyResult{direction: directionFrontendToBackend}
+			want := copyResult{direction: directionClientToServer}
 			results <- want
 			cancel()
 
@@ -187,13 +256,13 @@ func TestAwaitCopyResult(t *testing.T) {
 
 func TestClassifyTerminationTCP(t *testing.T) {
 	tests := map[string]struct {
-		direction        string
+		direction        copyDirection
 		contextCancelled bool
 		err              func(t *testing.T) error
 		want             terminationDetails
 	}{
-		"frontend FIN": {
-			direction: directionFrontendToBackend,
+		"client EOF": {
+			direction: directionClientToServer,
 			err: func(t *testing.T) error {
 				conn, peer := newTCPPair(t)
 				require.NoError(t, peer.Close())
@@ -201,12 +270,11 @@ func TestClassifyTerminationTCP(t *testing.T) {
 				return err
 			},
 			want: terminationDetails{
-				reason: "frontend_fin",
-				side:   "frontend",
+				observedAt: observedAtClient,
 			},
 		},
-		"backend FIN": {
-			direction: directionBackendToFrontend,
+		"server EOF": {
+			direction: directionServerToClient,
 			err: func(t *testing.T) error {
 				conn, peer := newTCPPair(t)
 				require.NoError(t, peer.Close())
@@ -214,12 +282,11 @@ func TestClassifyTerminationTCP(t *testing.T) {
 				return err
 			},
 			want: terminationDetails{
-				reason: "backend_fin",
-				side:   "backend",
+				observedAt: observedAtServer,
 			},
 		},
-		"frontend reset": {
-			direction: directionFrontendToBackend,
+		"client reset": {
+			direction: directionClientToServer,
 			err: func(t *testing.T) error {
 				source, sourcePeer := newTCPPair(t)
 				require.NoError(t, sourcePeer.SetLinger(0))
@@ -228,22 +295,22 @@ func TestClassifyTerminationTCP(t *testing.T) {
 				return err
 			},
 			want: terminationDetails{
-				reason:    "frontend_reset",
-				side:      "frontend",
-				operation: "read",
+				observedAt: observedAtClient,
+				errorType:  "ECONNRESET",
+				operation:  "read",
 			},
 		},
-		"frontend TLS unexpected EOF": {
-			direction: directionFrontendToBackend,
+		"client TLS unexpected EOF": {
+			direction: directionClientToServer,
 			err:       frontendTLSUnexpectedEOF,
 			want: terminationDetails{
-				reason:    "frontend_tls_unexpected_eof",
-				side:      "frontend",
-				operation: "readfrom",
+				observedAt: observedAtClient,
+				errorType:  "io.ErrUnexpectedEOF",
+				operation:  "readfrom",
 			},
 		},
-		"backend timeout": {
-			direction: directionBackendToFrontend,
+		"server timeout": {
+			direction: directionServerToClient,
 			err: func(t *testing.T) error {
 				conn, _ := newTCPPair(t)
 				require.NoError(t, conn.SetReadDeadline(time.Now()))
@@ -251,22 +318,22 @@ func TestClassifyTerminationTCP(t *testing.T) {
 				return err
 			},
 			want: terminationDetails{
-				reason:    "backend_timeout",
-				side:      "backend",
-				operation: "read",
+				observedAt: observedAtServer,
+				errorType:  "timeout",
+				operation:  "read",
 			},
 		},
-		"backend broken pipe": {
-			direction: directionFrontendToBackend,
+		"server broken pipe": {
+			direction: directionClientToServer,
 			err:       brokenPipeError,
 			want: terminationDetails{
-				reason:    "backend_broken_pipe",
-				side:      "backend",
-				operation: "write",
+				observedAt: observedAtServer,
+				errorType:  "EPIPE",
+				operation:  "write",
 			},
 		},
 		"gateway close": {
-			direction: directionFrontendToBackend,
+			direction: directionClientToServer,
 			err: func(t *testing.T) error {
 				conn, _ := newTCPPair(t)
 				require.NoError(t, conn.Close())
@@ -274,13 +341,13 @@ func TestClassifyTerminationTCP(t *testing.T) {
 				return err
 			},
 			want: terminationDetails{
-				reason:    "gateway_close",
-				side:      "gateway",
-				operation: "read",
+				observedAt: observedAtGateway,
+				errorType:  "net.ErrClosed",
+				operation:  "read",
 			},
 		},
 		"context cancellation": {
-			direction:        directionFrontendToBackend,
+			direction:        directionClientToServer,
 			contextCancelled: true,
 			err: func(t *testing.T) error {
 				conn, _ := newTCPPair(t)
@@ -289,9 +356,9 @@ func TestClassifyTerminationTCP(t *testing.T) {
 				return err
 			},
 			want: terminationDetails{
-				reason:    "context_cancelled",
-				side:      "gateway",
-				operation: "read",
+				observedAt: observedAtGateway,
+				errorType:  "context.Canceled",
+				operation:  "read",
 			},
 		},
 	}
@@ -332,7 +399,47 @@ func TestServeSQLSession_ConnectionCloseUsesParentContext(t *testing.T) {
 		t.Fatal("session did not complete in time")
 	}
 
-	require.Contains(t, logs.String(), `"termination_reason":"frontend_fin"`)
+	var terminationLog map[string]any
+	for line := range strings.SplitSeq(strings.TrimSpace(logs.String()), "\n") {
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+		if entry["message"] == "SQL session terminated" {
+			terminationLog = entry
+			break
+		}
+	}
+
+	require.NotNil(t, terminationLog)
+	require.Equal(t, "tcp", terminationLog["network.transport"])
+	require.Equal(t, "postgresql", terminationLog["network.protocol.name"])
+	require.Equal(t, observedAtClient, terminationLog["gateway.session.end.observed_at"])
+	require.NotContains(t, terminationLog, "error.type")
+	require.NotContains(t, terminationLog, "gateway.session.end.operation")
+	require.NotContains(t, terminationLog, "direction")
+	require.NotContains(t, terminationLog, "termination_reason")
+	require.NotContains(t, terminationLog, "termination_side")
+	require.NotContains(t, terminationLog, "socket_operation")
+}
+
+func TestLogSessionTermination_ErrorAttributes(t *testing.T) {
+	var logs bytes.Buffer
+	logger := zerolog.New(&logs)
+	err := &net.OpError{Op: "read", Err: syscall.ECONNRESET}
+
+	logSessionTermination(logger, terminationDetails{
+		observedAt: observedAtClient,
+		errorType:  "ECONNRESET",
+		operation:  "read",
+	}, err)
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal(logs.Bytes(), &entry))
+	require.Equal(t, "tcp", entry["network.transport"])
+	require.Equal(t, "postgresql", entry["network.protocol.name"])
+	require.Equal(t, observedAtClient, entry["gateway.session.end.observed_at"])
+	require.Equal(t, "ECONNRESET", entry["error.type"])
+	require.Equal(t, "read", entry["gateway.session.end.operation"])
+	require.Equal(t, err.Error(), entry["error.message"])
 }
 
 func newTCPPair(t *testing.T) (*net.TCPConn, *net.TCPConn) {
