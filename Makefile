@@ -40,7 +40,7 @@ machine-destroy: ## Destroy your personal EC2 machine
 check: lint check-playbooks  ## CI code checks
 
 .PHONY: lint
-lint: lint-openapi lint-go lint-buf lint-opa lint-keycloak-turnstile lint-charts lint-kube ## Lint source code
+lint: lint-openapi lint-go lint-buf lint-opa lint-keycloak-extensions lint-charts lint-kube ## Lint source code
 	@echo "All lint tasks completed at $$(date)"
 
 .PHONY: lint-charts
@@ -68,9 +68,9 @@ lint-buf:
 lint-opa:
 	@$(DOCKER_OPA) check /policy
 
-.PHONY: lint-keycloak-turnstile
-lint-keycloak-turnstile: ## Lint Keycloak Turnstile plugin (Kotlin)
-	@cd dev/docker/keycloak/keycloak-turnstile && $(MAKE) lint
+.PHONY: lint-keycloak-extensions
+lint-keycloak-extensions: ## Lint the Keycloak extensions (Kotlin)
+	@cd dev/docker/keycloak/keycloak-extensions && $(MAKE) lint
 
 .PHONY: lint-workflows
 lint-workflows: ## Lint GitHub Actions workflows
@@ -86,7 +86,7 @@ lint-bake: ## Validate private and OSS Docker Bake definitions
 	done
 
 .PHONY: fmt
-fmt: tools fmt-openapi fmt-go fmt-buf fmt-opa fmt-json fmt-keycloak-turnstile ## Format source code
+fmt: tools fmt-openapi fmt-go fmt-buf fmt-opa fmt-json fmt-keycloak-extensions ## Format source code
 	@echo "All format tasks completed at $$(date)"
 
 .PHONY: fmt-openapi
@@ -110,9 +110,9 @@ fmt-opa:
 fmt-json:
 	@$(DOCKER_JQ) jq -L /jq -f /jq/clean-realm.jq charts/keycloak/files/realm.json > charts/keycloak/files/realm.json.tmp && mv charts/keycloak/files/realm.json.tmp charts/keycloak/files/realm.json
 
-.PHONY: fmt-keycloak-turnstile
-fmt-keycloak-turnstile: ## Format Keycloak Turnstile plugin (Kotlin)
-	@cd dev/docker/keycloak/keycloak-turnstile && $(MAKE) fmt
+.PHONY: fmt-keycloak-extensions
+fmt-keycloak-extensions: ## Format the Keycloak extensions (Kotlin)
+	@cd dev/docker/keycloak/keycloak-extensions && $(MAKE) fmt
 
 .PHONY: generate
 generate: generate-openapi generate-buf generate-go generate-agents generate-playbooks ## Generate code
@@ -150,7 +150,7 @@ check-playbooks: ## Check that the playbooks index is generated
 test: ## Run unit and integration tests
 	$(GO) test -coverprofile=coverage -timeout 5m -race -failfast -v ./...
 	$(DOCKER_OPA) test /policy
-	@cd dev/docker/keycloak/keycloak-turnstile && $(MAKE) test
+	@cd dev/docker/keycloak/keycloak-extensions && $(MAKE) test
 
 .PHONY: test-e2e
 test-e2e:

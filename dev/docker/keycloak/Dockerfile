@@ -1,7 +1,7 @@
-# Stage 1: Build keycloak-turnstile plugin from local source
-FROM maven:3.9-eclipse-temurin-17 AS turnstile-builder
+# Stage 1: Build the Keycloak extensions from local source
+FROM maven:3.9-eclipse-temurin-17 AS extensions-builder
 WORKDIR /build
-COPY keycloak-turnstile/ .
+COPY keycloak-extensions/ .
 RUN mvn clean package -DskipTests
 
 # Stage 2: Download theme
@@ -38,7 +38,7 @@ ENV KC_HEALTH_ENABLED=true
 ENV KC_METRICS_ENABLED=true
 
 COPY --from=theme-download --chown=keycloak:keycloak --chmod=644 /xata-theme.jar* /opt/keycloak/providers/xata-theme.jar
-COPY --from=turnstile-builder --chown=keycloak:keycloak --chmod=644 /build/target/keycloak-turnstile-jar-with-dependencies.jar /opt/keycloak/providers/keycloak-turnstile.jar
+COPY --from=extensions-builder --chown=keycloak:keycloak --chmod=644 /build/target/keycloak-extensions-jar-with-dependencies.jar /opt/keycloak/providers/keycloak-extensions.jar
 
 # Configure a database vendor
 ENV KC_DB=postgres
