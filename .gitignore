@@ -7,3 +7,4 @@ charts/cell-observability/charts/
 coverage
 tmp/
 .idea/
+dev/docker/keycloak/*/target/
