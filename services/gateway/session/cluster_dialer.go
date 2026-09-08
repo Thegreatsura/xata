@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
 	"syscall"
 	"time"
 
@@ -16,8 +15,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	clustersv1 "xata/gen/proto/clusters/v1"
-	internalgrpc "xata/internal/grpc"
-	"xata/internal/o11y"
 	"xata/services/gateway/metrics"
 )
 
@@ -25,19 +22,16 @@ import (
 // (scale-to-zero disabled) and cannot be auto-reactivated.
 var ErrBranchHibernated = errors.New("branch is hibernated")
 
-// ErrBranchNotFound is returned when the branch has been terminated and its
-// clusters-<branchID> Service no longer exists.
+// ErrBranchNotFound is returned when the branch has been terminated and the
+// clusters service no longer knows it.
 var ErrBranchNotFound = errors.New("branch not found")
-
-type clustersServiceClientFn func(ctx context.Context, branchID string) (clustersServiceClient, error)
 
 // ClusterDialer is responsible for dialing into a Postgres cluster, handling
 // reactivation when the cluster is hibernated.
 type ClusterDialer struct {
 	dialer dialerFn
 
-	clustersServiceClient clustersServiceClientFn
-
+	clustersService     clustersService
 	reactivateFn        reactivateClusterFn
 	reactivateTimeout   time.Duration
 	statusCheckInterval time.Duration
@@ -64,20 +58,6 @@ type clustersService interface {
 	UpdatePostgresCluster(ctx context.Context, request *clustersv1.UpdatePostgresClusterRequest, opts ...grpc.CallOption) (*clustersv1.UpdatePostgresClusterResponse, error)
 }
 
-type clustersServiceClient interface {
-	clustersService
-	Close() error
-}
-
-type clustersServiceClientImpl struct {
-	clustersv1.ClustersServiceClient
-	conn *grpc.ClientConn
-}
-
-func (c *clustersServiceClientImpl) Close() error {
-	return c.conn.Close()
-}
-
 // newNetDialer builds the dialer used for backend connections. A non-zero
 // userTimeout applies TCP_USER_TIMEOUT to each socket, so a write that is
 // never acknowledged fails the connection instead of hanging silently.
@@ -92,12 +72,14 @@ func newNetDialer(userTimeout time.Duration) dialerFn {
 }
 
 // NewClusterDialer creates a dialer for connecting to Postgres clusters.
-func NewClusterDialer(cfg ClusterDialerConfiguration, opts ...ClusterDialerOption) *ClusterDialer {
+// clusters is the cell-local clusters service used to describe and reactivate
+// a cluster when a dial fails.
+func NewClusterDialer(cfg ClusterDialerConfiguration, clusters clustersService, opts ...ClusterDialerOption) *ClusterDialer {
 	d := &ClusterDialer{
-		dialer:                newNetDialer(cfg.BackendTCPUserTimeout),
-		clustersServiceClient: defaultClustersService(),
-		reactivateTimeout:     cfg.ReactivateTimeout,
-		statusCheckInterval:   cfg.StatusCheckInterval,
+		dialer:              newNetDialer(cfg.BackendTCPUserTimeout),
+		clustersService:     clusters,
+		reactivateTimeout:   cfg.ReactivateTimeout,
+		statusCheckInterval: cfg.StatusCheckInterval,
 	}
 
 	d.reactivateFn = d.reactivateCluster
@@ -107,21 +89,6 @@ func NewClusterDialer(cfg ClusterDialerConfiguration, opts ...ClusterDialerOptio
 	}
 
 	return d
-}
-
-func defaultClustersService() clustersServiceClientFn {
-	return func(ctx context.Context, branchID string) (clustersServiceClient, error) {
-		o := o11y.Ctx(ctx)
-		conn, err := internalgrpc.NewClient(o, "clusters-"+branchID+":5002")
-		if err != nil {
-			return nil, err
-		}
-
-		return &clustersServiceClientImpl{
-			ClustersServiceClient: clustersv1.NewClustersServiceClient(conn),
-			conn:                  conn.ClientConn,
-		}, nil
-	}
 }
 
 func WithInstrumentation(gwMetrics *metrics.GatewayMetrics) ClusterDialerOption {
@@ -143,12 +110,6 @@ func WithDialer(dialer dialerFn) ClusterDialerOption {
 	}
 }
 
-func WithClustersService(factory clustersServiceClientFn) ClusterDialerOption {
-	return func(d *ClusterDialer) {
-		d.clustersServiceClient = factory
-	}
-}
-
 // Dial connects to the specified branch, handling reactivation if the cluster
 // is hibernated and the configuration allows it.
 func (d *ClusterDialer) Dial(ctx context.Context, network string, branch *Branch) (net.Conn, error) {
@@ -162,18 +123,15 @@ func (d *ClusterDialer) Dial(ctx context.Context, network string, branch *Branch
 	// decide between: reactivating (hibernated + scale-to-zero), holding the
 	// connection until the target is reachable (cluster is or will be
 	// healthy), or surfacing the error (genuinely unavailable).
-	svc, err := d.clustersServiceClient(ctx, branch.ID)
-	if err != nil {
-		dialLogger.Error().Err(err).Msg("failed to create clusters service client")
-		return nil, dialErr
-	}
-	defer svc.Close()
-
+	svc := d.clustersService
 	cluster, err := svc.DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
 		Id: branch.ID,
 	})
 	if err != nil {
-		if status.Code(err) == codes.Unavailable && strings.Contains(err.Error(), "produced zero addresses") {
+		// A terminated branch has no Branch resource, which the clusters
+		// service reports as NotFound. Hibernation keeps the Branch, so this
+		// never collides with the scale-to-zero reactivation path.
+		if status.Code(err) == codes.NotFound {
 			return nil, ErrBranchNotFound
 		}
 		dialLogger.Error().Err(err).Msg("failed to describe cluster")

@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"os"
 
+	clustersv1 "xata/gen/proto/clusters/v1"
 	"xata/internal/envcfg"
+	internalgrpc "xata/internal/grpc"
 	"xata/internal/o11y"
 	"xata/internal/service"
 	"xata/services/gateway/initiator"
@@ -107,12 +109,20 @@ func (g *GatewayService) Run(ctx context.Context, o *o11y.O) error {
 		return fmt.Errorf("create gateway metrics: %w", err)
 	}
 
+	// One connection to the cell-local clusters service is shared by every dial
+	clustersConn, err := internalgrpc.NewClient(o, g.config.ClustersGRPCURL)
+	if err != nil {
+		return fmt.Errorf("create clusters client: %w", err)
+	}
+	defer clustersConn.Close()
+
 	dialer := session.NewClusterDialer(
 		session.ClusterDialerConfiguration{
 			ReactivateTimeout:     g.config.ClusterReactivateTimeout,
 			StatusCheckInterval:   g.config.ClusterStatusCheckInterval,
 			BackendTCPUserTimeout: g.config.BackendTCPUserTimeout,
 		},
+		clustersv1.NewClustersServiceClient(clustersConn),
 		session.WithInstrumentation(gwMetrics),
 	)
 

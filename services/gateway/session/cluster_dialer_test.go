@@ -13,11 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/resolver"
-	"google.golang.org/grpc/resolver/manual"
 	"google.golang.org/grpc/status"
 )
 
@@ -29,9 +25,8 @@ func TestClusterDialer_Dial(t *testing.T) {
 	errDNS := &net.DNSError{Err: "server misbehaving", Name: "branch-rw.svc", IsTemporary: true}
 
 	tests := map[string]struct {
-		dialer          *mockDialer
-		clustersService clustersServiceClientFn
-		setupMocks      func(*protomocks.ClustersServiceClient)
+		dialer     *mockDialer
+		setupMocks func(*protomocks.ClustersServiceClient)
 
 		wantDialCalls    uint // exact expected dial count; ignored if wantMinDialCalls is set
 		wantMinDialCalls uint // for timeout-driven tests where the exact count depends on tick timing
@@ -300,25 +295,6 @@ func TestClusterDialer_Dial(t *testing.T) {
 
 			wantDialCalls: 2,
 			wantErr:       nil,
-		},
-		"error - unable to connect to clusters service, returns dial error": {
-			clustersService: clustersServiceClientFn(func(ctx context.Context, branchID string) (clustersServiceClient, error) {
-				return nil, errors.New("some error")
-			}),
-			dialer: &mockDialer{
-				dialFn: func(ctx context.Context, i uint, network, address string) (net.Conn, error) {
-					switch i {
-					case 1:
-						return nil, syscall.ECONNREFUSED
-					default:
-						return nil, errors.New("unexpected dial call")
-					}
-				},
-			},
-			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {},
-
-			wantDialCalls: 1,
-			wantErr:       syscall.ECONNREFUSED,
 		},
 		"ok - connection refused with scale to zero disabled, cluster healthy, waits then connects": {
 			dialer: &mockDialer{
@@ -792,17 +768,20 @@ func TestClusterDialer_Dial(t *testing.T) {
 			wantDialCalls: 1,
 			wantErr:       syscall.ECONNREFUSED,
 		},
-		// Real grpc client so upstream changes to "produced zero addresses" break the match in Dial.
-		"error - real grpc client resolves to zero addresses returns branch-not-found": {
+		"error - terminated branch unknown to clusters service returns ErrBranchNotFound": {
 			dialer: &mockDialer{
 				dialFn: func(_ context.Context, _ uint, _, address string) (net.Conn, error) {
 					return nil, &net.DNSError{Err: "no such host", Name: address, IsNotFound: true}
 				},
 			},
-			setupMocks:      func(mockClusters *protomocks.ClustersServiceClient) {},
-			clustersService: zeroAddressClustersService(),
-			wantDialCalls:   1,
-			wantErr:         ErrBranchNotFound,
+			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
+				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+					Id: "test-branch",
+				}).Return(nil, status.Error(codes.NotFound, "resource not found")).Once()
+			},
+
+			wantDialCalls: 1,
+			wantErr:       ErrBranchNotFound,
 		},
 	}
 
@@ -813,16 +792,10 @@ func TestClusterDialer_Dial(t *testing.T) {
 			mockClusters := protomocks.NewClustersServiceClient(t)
 			tc.setupMocks(mockClusters)
 
-			if tc.clustersService == nil {
-				tc.clustersService = clustersServiceClientFn(func(ctx context.Context, branchID string) (clustersServiceClient, error) {
-					return &mockClustersServiceClient{mockClusters}, nil
-				})
-			}
-
 			d := NewClusterDialer(ClusterDialerConfiguration{
 				ReactivateTimeout:   time.Second,
 				StatusCheckInterval: time.Millisecond * 100,
-			}, WithClustersService(tc.clustersService), WithDialer(tc.dialer.Dial))
+			}, mockClusters, WithDialer(tc.dialer.Dial))
 
 			_, err := d.Dial(ctx, "tcp", &Branch{
 				ID:      "test-branch",
@@ -853,37 +826,6 @@ func (m *mockDialer) Dial(ctx context.Context, network, address string) (net.Con
 func (m *mockDialer) DialCalls() uint {
 	return m.dialCalls
 }
-
-type mockClustersServiceClient struct {
-	*protomocks.ClustersServiceClient
-}
-
-func (m *mockClustersServiceClient) Close() error {
-	return nil
-}
-
-func zeroAddressClustersService() clustersServiceClientFn {
-	mr := manual.NewBuilderWithScheme("test-zero-addr")
-	resolver.Register(mr)
-	mr.InitialState(resolver.State{})
-	return func(ctx context.Context, branchID string) (clustersServiceClient, error) {
-		conn, err := grpc.NewClient(mr.Scheme()+":///"+branchID,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithDefaultServiceConfig(`{}`),
-		)
-		if err != nil {
-			return nil, err
-		}
-		return &realClustersClient{ClustersServiceClient: clustersv1.NewClustersServiceClient(conn), conn: conn}, nil
-	}
-}
-
-type realClustersClient struct {
-	clustersv1.ClustersServiceClient
-	conn *grpc.ClientConn
-}
-
-func (c *realClustersClient) Close() error { return c.conn.Close() }
 
 func TestNewNetDialer(t *testing.T) {
 	tests := map[string]struct {

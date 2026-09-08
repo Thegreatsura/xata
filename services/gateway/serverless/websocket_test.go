@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"xata/gen/protomocks"
 	"xata/services/gateway/metrics"
 	"xata/services/gateway/session"
 
@@ -271,7 +272,7 @@ func setupWSServer(t *testing.T, pgAddr string, opts ...func(*handler)) string {
 	dialer := session.NewClusterDialer(session.ClusterDialerConfiguration{
 		ReactivateTimeout:   time.Second,
 		StatusCheckInterval: 100 * time.Millisecond,
-	})
+	}, protomocks.NewClustersServiceClient(t))
 
 	h := &handler{resolver: resolver, dialer: dialer, tracer: tracer, metrics: gwMetrics}
 	for _, opt := range opts {

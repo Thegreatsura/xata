@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"xata/gen/protomocks"
 	"xata/services/gateway/metrics"
 	"xata/services/gateway/serverless/spec"
 	"xata/services/gateway/session"
@@ -995,6 +996,7 @@ func TestQuery_IPFilter(t *testing.T) {
 			ReactivateTimeout:   time.Second,
 			StatusCheckInterval: 100 * time.Millisecond,
 		},
+		protomocks.NewClustersServiceClient(t),
 		session.WithDialer(func(context.Context, string, string) (net.Conn, error) {
 			return nil, errors.New("stub dialer: no backend")
 		}),
@@ -1062,6 +1064,7 @@ func TestConnect(t *testing.T) {
 				ReactivateTimeout:   time.Second,
 				StatusCheckInterval: 100 * time.Millisecond,
 			},
+			protomocks.NewClustersServiceClient(t),
 			session.WithDialer(func(_ context.Context, _, address string) (net.Conn, error) {
 				dialed = append(dialed, address)
 				return nil, errors.New("stub: no backend")
@@ -1084,7 +1087,7 @@ func TestConnect(t *testing.T) {
 	}
 	for name, tc := range errCases {
 		t.Run(name, func(t *testing.T) {
-			h := &handler{dialer: session.NewClusterDialer(session.ClusterDialerConfiguration{})}
+			h := &handler{dialer: session.NewClusterDialer(session.ClusterDialerConfiguration{}, protomocks.NewClustersServiceClient(t))}
 			_, err := h.connect(context.Background(), &session.Branch{ID: "b", Address: tc.address}, info)
 			require.ErrorContains(t, err, tc.wantErr)
 		})
