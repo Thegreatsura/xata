@@ -445,6 +445,61 @@ type GithubRepoMappingWithOrg struct {
 	OrganizationID string `json:"organizationId"`
 }
 
+// VercelResourceStatus is the lifecycle state of a Vercel resource or resource
+// branch. It mirrors the installation lifecycle in the auth store: deleting is a
+// transient state kept visible while teardown finalizes; deleted is the terminal
+// soft-delete (the row is retained but no longer usable).
+type VercelResourceStatus string
+
+const (
+	VercelResourceActive   VercelResourceStatus = "active"
+	VercelResourceDeleting VercelResourceStatus = "deleting"
+	VercelResourceDeleted  VercelResourceStatus = "deleted"
+)
+
+// Fixed VercelResourceBranch scopes mirroring Vercel's environments. Scope is
+// otherwise free text: Phase 2 per-PR ephemeral branches use a dynamic
+// deployment/PR ref (namespaced, e.g. "preview:<deploymentId>") that will not
+// collide with these.
+const (
+	VercelScopeProduction  = "production"
+	VercelScopePreview     = "preview"
+	VercelScopeDevelopment = "development"
+)
+
+// VercelResource records a Vercel Marketplace resource and its link to a Xata
+// project. Its branches — including the production/main branch — live in
+// VercelResourceBranch, keyed by scope. InstallationID is a logical reference to
+// a row in auth's database (a separate store), not a foreign key.
+type VercelResource struct {
+	ResourceID     string               `json:"resourceId"`
+	InstallationID string               `json:"installationId"`
+	ProductSlug    string               `json:"productSlug"`
+	BillingPlanID  string               `json:"billingPlanId"`
+	XataProjectID  string               `json:"xataProjectId"`
+	Name           string               `json:"name"`
+	Metadata       map[string]any       `json:"metadata"`
+	Status         VercelResourceStatus `json:"status"`
+	CreatedAt      time.Time            `json:"createdAt"`
+	UpdatedAt      time.Time            `json:"updatedAt"`
+	DeletedAt      *time.Time           `json:"deletedAt,omitempty"`
+}
+
+// VercelResourceBranch is one branch of a Vercel resource, keyed by Scope. Every
+// branch is a row here, including the production/main branch (Scope
+// "production"); the extras are preview/development and, later, per-PR ephemeral
+// branches.
+type VercelResourceBranch struct {
+	ID           string               `json:"id"`
+	ResourceID   string               `json:"resourceId"`
+	Scope        string               `json:"scope"`
+	XataBranchID string               `json:"xataBranchId"`
+	Status       VercelResourceStatus `json:"status"`
+	CreatedAt    time.Time            `json:"createdAt"`
+	UpdatedAt    time.Time            `json:"updatedAt"`
+	DeletedAt    *time.Time           `json:"deletedAt,omitempty"`
+}
+
 //go:generate go run github.com/vektra/mockery/v3 --with-expecter --name ProjectsStore
 
 // OrganizationStatus is the desired enabled/disabled state of an organization
@@ -648,6 +703,34 @@ type ProjectsStore interface {
 	GetOrgLimits(ctx context.Context, orgID, projectID string) (map[LimitKey]any, error)
 	SetOrgLimit(ctx context.Context, orgID, projectID string, key LimitKey, value any) error
 	DeleteOrgLimit(ctx context.Context, orgID, projectID string, key LimitKey) error
+
+	// Vercel Marketplace resources
+
+	// CreateVercelResource inserts a resource and returns the stored row (with
+	// status and timestamps; a nil Metadata is stored as an empty object). The
+	// resource's project must be an active project in organizationID (the org
+	// resolved from the installation), otherwise ErrProjectNotFound is returned. Its
+	// branches (including the production/main branch) are added separately via
+	// AddVercelResourceBranch. The input is not modified.
+	CreateVercelResource(ctx context.Context, organizationID string, resource *VercelResource) (*VercelResource, error)
+	// GetVercelResource returns active and deleting resources (deleted rows are
+	// treated as absent). Callers must inspect Status. Every method below is scoped
+	// by installationID and filters on it, so a resource owned by another
+	// installation reads as not found — the store enforces the tenant boundary.
+	GetVercelResource(ctx context.Context, installationID, resourceID string) (*VercelResource, error)
+	// TriggerVercelResourceDeletion flags an active resource as deleting so
+	// teardown can finalize. It stays retrievable in this state.
+	TriggerVercelResourceDeletion(ctx context.Context, installationID, resourceID string) error
+
+	// AddVercelResourceBranch adds a branch (of any scope, including the production
+	// main branch) to an active resource owned by installationID and returns the
+	// stored row with its generated id. The input is not modified.
+	AddVercelResourceBranch(ctx context.Context, installationID string, branch *VercelResourceBranch) (*VercelResourceBranch, error)
+	// ListVercelResourceBranches returns a resource's non-deleted branches.
+	ListVercelResourceBranches(ctx context.Context, installationID, resourceID string) ([]VercelResourceBranch, error)
+	// TriggerVercelResourceBranchDeletion flags an active branch (by resource and
+	// scope) as deleting.
+	TriggerVercelResourceBranchDeletion(ctx context.Context, installationID, resourceID, scope string) error
 }
 
 // CanAddChild returns the child depth in the branch tree if another child branch can be added

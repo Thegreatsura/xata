@@ -1,0 +1,222 @@
+{
+    "operations": [
+        {
+            "create_table": {
+                "name": "vercel_resources",
+                "columns": [
+                    {
+                        "name": "resource_id",
+                        "type": "text",
+                        "pk": true,
+                        "comment": "Vercel resource id"
+                    },
+                    {
+                        "name": "installation_id",
+                        "type": "text",
+                        "nullable": false,
+                        "comment": "Owning Vercel installation; a logical reference to auth's vercel_installations (separate database, so no FK)"
+                    },
+                    {
+                        "name": "product_slug",
+                        "type": "text",
+                        "nullable": false,
+                        "comment": "Vercel product slug the resource was provisioned from"
+                    },
+                    {
+                        "name": "billing_plan_id",
+                        "type": "text",
+                        "nullable": false,
+                        "comment": "Selected Vercel billing plan id"
+                    },
+                    {
+                        "name": "xata_project_id",
+                        "type": "text",
+                        "nullable": false,
+                        "references": {
+                            "name": "xata_project_id",
+                            "table": "projects",
+                            "column": "id",
+                            "on_delete": "CASCADE"
+                        },
+                        "comment": "Xata project for this resource; its branches live in vercel_resource_branches. ON DELETE CASCADE so project GC removes this row"
+                    },
+                    {
+                        "name": "name",
+                        "type": "text",
+                        "nullable": false,
+                        "comment": "Resource name from Vercel"
+                    },
+                    {
+                        "name": "metadata",
+                        "type": "jsonb",
+                        "nullable": false,
+                        "default": "'{}'",
+                        "comment": "Provision-time product metadata (region, instance type)"
+                    },
+                    {
+                        "name": "status",
+                        "type": "text",
+                        "nullable": false,
+                        "default": "'active'",
+                        "comment": "active, deleting, or deleted"
+                    },
+                    {
+                        "name": "created_at",
+                        "type": "timestamp",
+                        "nullable": false,
+                        "default": "now()"
+                    },
+                    {
+                        "name": "updated_at",
+                        "type": "timestamp",
+                        "nullable": false,
+                        "default": "now()"
+                    },
+                    {
+                        "name": "deleted_at",
+                        "type": "timestamp",
+                        "nullable": true,
+                        "comment": "Set when the resource reaches the terminal deleted state"
+                    }
+                ]
+            }
+        },
+        {
+            "create_index": {
+                "table": "vercel_resources",
+                "name": "idx_vercel_resources_installation_id",
+                "columns": [
+                    { "column": "installation_id" }
+                ]
+            }
+        },
+        {
+            "create_index": {
+                "table": "vercel_resources",
+                "name": "unique_active_vercel_resource_project",
+                "columns": [
+                    { "column": "xata_project_id" }
+                ],
+                "unique": true,
+                "predicate": "status != 'deleted'"
+            }
+        },
+        {
+            "create_table": {
+                "name": "vercel_resource_branches",
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": "text",
+                        "pk": true
+                    },
+                    {
+                        "name": "resource_id",
+                        "type": "text",
+                        "nullable": false,
+                        "references": {
+                            "name": "resource_id",
+                            "table": "vercel_resources",
+                            "column": "resource_id",
+                            "on_delete": "CASCADE"
+                        },
+                        "comment": "Owning Vercel resource. ON DELETE CASCADE removes its branch rows"
+                    },
+                    {
+                        "name": "scope",
+                        "type": "text",
+                        "nullable": false,
+                        "comment": "production (the main branch), preview, or development (environment-level); a deployment/PR ref for per-PR branches"
+                    },
+                    {
+                        "name": "xata_branch_id",
+                        "type": "text",
+                        "nullable": false,
+                        "references": {
+                            "name": "xata_branch_id",
+                            "table": "branches",
+                            "column": "id",
+                            "on_delete": "CASCADE"
+                        },
+                        "comment": "Xata branch backing this scope. ON DELETE CASCADE so branch GC removes this row"
+                    },
+                    {
+                        "name": "status",
+                        "type": "text",
+                        "nullable": false,
+                        "default": "'active'",
+                        "comment": "active, deleting, or deleted"
+                    },
+                    {
+                        "name": "created_at",
+                        "type": "timestamp",
+                        "nullable": false,
+                        "default": "now()"
+                    },
+                    {
+                        "name": "updated_at",
+                        "type": "timestamp",
+                        "nullable": false,
+                        "default": "now()"
+                    },
+                    {
+                        "name": "deleted_at",
+                        "type": "timestamp",
+                        "nullable": true,
+                        "comment": "Set when the branch reaches the terminal deleted state"
+                    }
+                ]
+            }
+        },
+        {
+            "create_index": {
+                "table": "vercel_resource_branches",
+                "name": "unique_active_vercel_resource_branch_scope",
+                "columns": [
+                    { "column": "resource_id" },
+                    { "column": "scope" }
+                ],
+                "unique": true,
+                "predicate": "status != 'deleted'"
+            }
+        },
+        {
+            "create_index": {
+                "table": "vercel_resources",
+                "name": "idx_vercel_resources_xata_project_id",
+                "columns": [
+                    { "column": "xata_project_id" }
+                ]
+            }
+        },
+        {
+            "create_index": {
+                "table": "vercel_resource_branches",
+                "name": "idx_vercel_resource_branches_resource_id",
+                "columns": [
+                    { "column": "resource_id" }
+                ]
+            }
+        },
+        {
+            "create_index": {
+                "table": "vercel_resource_branches",
+                "name": "idx_vercel_resource_branches_xata_branch_id",
+                "columns": [
+                    { "column": "xata_branch_id" }
+                ]
+            }
+        },
+        {
+            "create_index": {
+                "table": "vercel_resource_branches",
+                "name": "unique_active_vercel_resource_branch_xata_branch",
+                "columns": [
+                    { "column": "xata_branch_id" }
+                ],
+                "unique": true,
+                "predicate": "status != 'deleted'"
+            }
+        }
+    ]
+}

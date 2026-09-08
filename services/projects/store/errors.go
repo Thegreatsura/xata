@@ -325,3 +325,115 @@ func (e ErrGithubRepoMappingNotFound) Error() string {
 func (e ErrGithubRepoMappingNotFound) StatusCode() int {
 	return http.StatusNotFound
 }
+
+type ErrVercelResourceNotFound struct {
+	ResourceID string
+}
+
+func (e ErrVercelResourceNotFound) Error() string {
+	return fmt.Sprintf("vercel resource [%s] not found", e.ResourceID)
+}
+
+func (e ErrVercelResourceNotFound) StatusCode() int {
+	return http.StatusNotFound
+}
+
+type ErrVercelResourceAlreadyExists struct {
+	ResourceID string
+}
+
+func (e ErrVercelResourceAlreadyExists) Error() string {
+	return fmt.Sprintf("vercel resource [%s] already exists", e.ResourceID)
+}
+
+func (e ErrVercelResourceAlreadyExists) StatusCode() int {
+	return http.StatusConflict
+}
+
+// ErrVercelResourceProjectLinked is returned when a project already backs a
+// non-deleted resource (the partial unique index on xata_project_id).
+type ErrVercelResourceProjectLinked struct {
+	XataProjectID string
+}
+
+func (e ErrVercelResourceProjectLinked) Error() string {
+	return fmt.Sprintf("xata project [%s] already has an active vercel resource", e.XataProjectID)
+}
+
+func (e ErrVercelResourceProjectLinked) StatusCode() int {
+	return http.StatusConflict
+}
+
+// ErrVercelResourceNotActive is returned when an operation requires an active
+// resource but its deletion is already in progress (deleted resources are
+// reported as ErrVercelResourceNotFound instead).
+type ErrVercelResourceNotActive struct {
+	ResourceID string
+}
+
+func (e ErrVercelResourceNotActive) Error() string {
+	return fmt.Sprintf("vercel resource [%s] is not active (deleting)", e.ResourceID)
+}
+
+func (e ErrVercelResourceNotActive) StatusCode() int {
+	return http.StatusConflict
+}
+
+type ErrVercelResourceBranchNotFound struct {
+	ResourceID string
+	Scope      string
+}
+
+func (e ErrVercelResourceBranchNotFound) Error() string {
+	return fmt.Sprintf("vercel resource branch [%s/%s] not found", e.ResourceID, e.Scope)
+}
+
+func (e ErrVercelResourceBranchNotFound) StatusCode() int {
+	return http.StatusNotFound
+}
+
+// ErrVercelResourceBranchExists is returned when a scope already backs a
+// non-deleted branch on the resource.
+type ErrVercelResourceBranchExists struct {
+	ResourceID string
+	Scope      string
+}
+
+func (e ErrVercelResourceBranchExists) Error() string {
+	return fmt.Sprintf("vercel resource [%s] already has an active branch for scope [%s]", e.ResourceID, e.Scope)
+}
+
+func (e ErrVercelResourceBranchExists) StatusCode() int {
+	return http.StatusConflict
+}
+
+// ErrVercelResourceBranchNotActive is returned when an operation requires an
+// active resource branch but its deletion is already in progress (deleted
+// branches are reported as ErrVercelResourceBranchNotFound instead).
+type ErrVercelResourceBranchNotActive struct {
+	ResourceID string
+	Scope      string
+}
+
+func (e ErrVercelResourceBranchNotActive) Error() string {
+	return fmt.Sprintf("vercel resource branch [%s/%s] is not active (deleting)", e.ResourceID, e.Scope)
+}
+
+func (e ErrVercelResourceBranchNotActive) StatusCode() int {
+	return http.StatusConflict
+}
+
+// ErrVercelResourceXataBranchLinked is returned when a Xata branch already backs
+// another non-deleted scope; a Xata branch backs at most one scope.
+type ErrVercelResourceXataBranchLinked struct {
+	ResourceID   string
+	XataBranchID string
+}
+
+func (e ErrVercelResourceXataBranchLinked) Error() string {
+	return fmt.Sprintf("vercel resource [%s]: xata branch [%s] already backs another scope", e.ResourceID, e.XataBranchID)
+}
+
+func (e ErrVercelResourceXataBranchLinked) StatusCode() int {
+	return http.StatusConflict
+}
