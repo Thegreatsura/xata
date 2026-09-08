@@ -85,6 +85,7 @@ def create_resources():
     k8s_yaml(kustomize('kustomize/overlays/local', flags=KUSTOMIZE_FLAGS))
     secret_settings(disable_scrub=True)
     update_settings(k8s_upsert_timeout_secs=600)  # 10 minutes for resource creation
+    ci_settings(readiness_timeout='10m')
 
 
     # Service containers
@@ -153,28 +154,48 @@ def create_resources():
     # Expose envoy API gateway (port 5081; avoids macOS AirPlay Receiver on 5000/5001)
     local_resource('envoy-api', labels='networking', links='http://localhost:5081', serve_cmd='''
             while true; do
-                while ! kubectl get svc -n envoy-gateway-system --selector=gateway.envoyproxy.io/owning-gateway-namespace=xata,gateway.envoyproxy.io/owning-gateway-name=eg -o jsonpath='{.items[0].metadata.name}' 2>/dev/null; do
-                    echo Waiting for envoy;
+                attempt=0;
+                while true; do
+                    err=$(kubectl get svc -n envoy-gateway-system --selector=gateway.envoyproxy.io/owning-gateway-namespace=xata,gateway.envoyproxy.io/owning-gateway-name=eg -o jsonpath='{.items[0].metadata.name}' 2>&1 >/tmp/envoy-api-svc);
+                    ENVOY_SERVICE=$(cat /tmp/envoy-api-svc);
+                    if [ -n "$ENVOY_SERVICE" ]; then break; fi;
+                    attempt=$((attempt + 1));
+                    if [ $((attempt % 15)) -eq 1 ]; then
+                        echo "Waiting for envoy (attempt $attempt): ${err:-selector matched no service}";
+                        kubectl get svc -n envoy-gateway-system 2>&1 | sed 's/^/    /';
+                    fi;
                     sleep 1;
                 done;
-
-                ENVOY_SERVICE=$(kubectl get svc -n envoy-gateway-system --selector=gateway.envoyproxy.io/owning-gateway-namespace=xata,gateway.envoyproxy.io/owning-gateway-name=eg -o jsonpath='{.items[0].metadata.name}');
                 kubectl port-forward -n envoy-gateway-system svc/$ENVOY_SERVICE 5081:80;
             done
-        ''')
+        ''',
+        readiness_probe=probe(
+            period_secs=1,
+            tcp_socket=tcp_socket_action(port=5081, host='localhost'),
+        ))
 
     # Expose envoy keycloak gateway (port 8080)
     local_resource('envoy-auth', labels='networking', links='http://localhost:8080', serve_cmd='''
             while true; do
-                while ! kubectl get svc -n envoy-gateway-system --selector=gateway.envoyproxy.io/owning-gateway-namespace=xata,gateway.envoyproxy.io/owning-gateway-name=keycloak-eg -o jsonpath='{.items[0].metadata.name}' 2>/dev/null; do
-                    echo Waiting for envoy;
+                attempt=0;
+                while true; do
+                    err=$(kubectl get svc -n envoy-gateway-system --selector=gateway.envoyproxy.io/owning-gateway-namespace=xata,gateway.envoyproxy.io/owning-gateway-name=keycloak-eg -o jsonpath='{.items[0].metadata.name}' 2>&1 >/tmp/envoy-auth-svc);
+                    ENVOY_SERVICE=$(cat /tmp/envoy-auth-svc);
+                    if [ -n "$ENVOY_SERVICE" ]; then break; fi;
+                    attempt=$((attempt + 1));
+                    if [ $((attempt % 15)) -eq 1 ]; then
+                        echo "Waiting for envoy (attempt $attempt): ${err:-selector matched no service}";
+                        kubectl get svc -n envoy-gateway-system 2>&1 | sed 's/^/    /';
+                    fi;
                     sleep 1;
                 done;
-
-                ENVOY_SERVICE=$(kubectl get svc -n envoy-gateway-system --selector=gateway.envoyproxy.io/owning-gateway-namespace=xata,gateway.envoyproxy.io/owning-gateway-name=keycloak-eg -o jsonpath='{.items[0].metadata.name}');
                 kubectl port-forward -n envoy-gateway-system svc/$ENVOY_SERVICE 8080:80;
             done
-        ''')
+        ''',
+        readiness_probe=probe(
+            period_secs=1,
+            tcp_socket=tcp_socket_action(port=8080, host='localhost'),
+        ))
 
     # Infra
     k8s_resource(workload='eg-gateway-helm-certgen', labels='infra')
