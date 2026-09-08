@@ -1,4 +1,7 @@
-DOCKER_FLAGS=--rm -v $(PWD):/build -v keycloak-turnstile-m2-cache:/root/.m2 -w /build
+# Defaults to a Docker named volume for local use. CI overrides it with a host
+# path so the dependency tree can be cached between runs.
+M2_CACHE ?= keycloak-turnstile-m2-cache
+DOCKER_FLAGS=--rm -v $(PWD):/build -v $(M2_CACHE):/root/.m2 -w /build
 MAVEN_IMAGE=maven:3.9-eclipse-temurin-17
 
 .PHONY: help build test lint fmt clean all
