@@ -2,6 +2,7 @@ package io.xata.keycloak
 
 import org.keycloak.TokenVerifier
 import org.keycloak.authentication.actiontoken.inviteorg.InviteOrgActionToken
+import org.keycloak.broker.provider.AbstractIdentityProvider
 import org.keycloak.crypto.CryptoUtils
 import org.keycloak.http.HttpRequest
 import org.keycloak.models.KeycloakSession
@@ -39,6 +40,12 @@ object OrgInvitation {
     ): Pending? {
         if (authSession == null || email == null) return null
 
+        // The address came from the review profile form rather than from the provider, so nothing
+        // vouches for it yet and a verification mail is still pending. Anyone who saw the invitation
+        // link could otherwise type the invited address and join on the spot. Keycloak reads the same
+        // note before it lets a brokered login skip e-mail verification.
+        if (authSession.getAuthNote(AbstractIdentityProvider.UPDATE_PROFILE_EMAIL_CHANGED).toBoolean()) return null
+
         val token = verify(session, authSession.getClientNote(TOKEN_NOTE)) ?: return null
         if (!email.equals(token.email, ignoreCase = true)) return null
 
@@ -49,7 +56,15 @@ object OrgInvitation {
         return if (invitation == null || invitation.isExpired) null else Pending(token, organization)
     }
 
-    /** Mirrors Organizations.parseInvitationToken, which has no String overload before #52183. */
+    /**
+     * Mirrors Organizations.parseInvitationToken, which has no String overload before #52183.
+     *
+     * The action token endpoint picks a handler by token type and so never mixes two kinds of token
+     * up; reading the token by hand skips that, hence the explicit type check. Single use is not
+     * enforced here, unlike on that endpoint: the same string is verified once when it is captured
+     * and again when the invitation is accepted. Acceptance is what consumes it, by removing the
+     * invitation the token names.
+     */
     private fun verify(
         session: KeycloakSession,
         tokenString: String?,
@@ -63,7 +78,7 @@ object OrgInvitation {
                     .withChecks(
                         TokenVerifier.IS_ACTIVE,
                         TokenVerifier.RealmUrlCheck(Urls.realmIssuer(context.uri.baseUri, context.realm.name)),
-                    )
+                    ).tokenType(listOf(InviteOrgActionToken.TOKEN_TYPE))
             verifier.verifierContext(
                 CryptoUtils.getSignatureProvider(session, verifier.header.algorithm.name)
                     .verifier(verifier.header.keyId),
