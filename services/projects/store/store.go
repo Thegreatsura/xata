@@ -15,6 +15,10 @@ const (
 	DefaultRegion        = "us-east-1"
 	BackupTypeContinuous = "continuous"
 
+	// DefaultMaxDescriptionLength is the branch description limit for both tiers.
+	// A per-organization override can raise or lower the effective limit.
+	DefaultMaxDescriptionLength = 255
+
 	// XatastorMaxBranchesPerOrg is the MaxBranchesPerOrg default for T2 orgs with UseXatastor enabled (10× T2).
 	XatastorMaxBranchesPerOrg = 10000
 	// XatastorMaxBranchesPerProject is the MaxBranchesPerProject default for T2 orgs with UseXatastor enabled (10× T2).
@@ -35,7 +39,7 @@ const (
 // T1 orgs always use these values; T2 orgs use them as a fallback when no DB override exists.
 var tierDefaults = map[UsageTier]map[LimitKey]int{
 	TierT1: {
-		LimitMaxDescriptionLength:   50,
+		LimitMaxDescriptionLength:   DefaultMaxDescriptionLength,
 		LimitMaxBranchesPerProject:  200,
 		LimitMaxBranchesPerOrg:      200,
 		LimitMaxInstancesPerBranch:  5,
@@ -47,7 +51,7 @@ var tierDefaults = map[UsageTier]map[LimitKey]int{
 		LimitMaxStorageGBPerBranch:  250,
 	},
 	TierT2: {
-		LimitMaxDescriptionLength:   50,
+		LimitMaxDescriptionLength:   DefaultMaxDescriptionLength,
 		LimitMaxBranchesPerProject:  1000,
 		LimitMaxBranchesPerOrg:      1000,
 		LimitMaxInstancesPerBranch:  5,

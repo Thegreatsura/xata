@@ -768,6 +768,48 @@ func TestSQLStore(t *testing.T) {
 		})
 	}
 
+	t.Run("branch description lifecycle", func(t *testing.T) {
+		labelPath := "company/infra/managed-by-x:3f2504e0-4f89-11d3-9a0c-0305e82c3301_v1.2"
+
+		created, err := sqlStore.CreateBranch(ctx, "organizationID", project.ID, "cell", createBranchConfig("descriptionLifecycle", nil, new(labelPath)), func(b *store.Branch) error {
+			return nil
+		})
+		require.NoError(t, err)
+		require.Equal(t, labelPath, *created.Description)
+
+		// an unrelated update must leave the description untouched
+		updated, err := sqlStore.UpdateBranch(ctx, "organizationID", project.ID, created.ID, updateBranchConfig(new("descriptionLifecycleRenamed"), nil), func(b *store.Branch) error {
+			return nil
+		})
+		require.NoError(t, err)
+		require.Equal(t, labelPath, *updated.Description)
+
+		// an empty description clears the value and is persisted as NULL
+		updated, err = sqlStore.UpdateBranch(ctx, "organizationID", project.ID, created.ID, updateBranchConfig(nil, new("")), func(b *store.Branch) error {
+			return nil
+		})
+		require.NoError(t, err)
+		require.Nil(t, updated.Description)
+
+		described, err := sqlStore.DescribeBranch(ctx, "organizationID", project.ID, created.ID)
+		require.NoError(t, err)
+		require.Nil(t, described.Description)
+
+		// the description can be set again after being cleared
+		updated, err = sqlStore.UpdateBranch(ctx, "organizationID", project.ID, created.ID, updateBranchConfig(nil, new("back again")), func(b *store.Branch) error {
+			return nil
+		})
+		require.NoError(t, err)
+		require.Equal(t, "back again", *updated.Description)
+
+		// creating with an empty description stores NULL, not an empty string
+		emptyCreated, err := sqlStore.CreateBranch(ctx, "organizationID", project.ID, "cell", createBranchConfig("descriptionEmptyOnCreate", nil, new("")), func(b *store.Branch) error {
+			return nil
+		})
+		require.NoError(t, err)
+		require.Nil(t, emptyCreated.Description)
+	})
+
 	// create a branch to delete
 	branch, err = sqlStore.CreateBranch(ctx, "organizationID", project.ID, "cell", createBranchConfig("deleteBranch", nil, nil), func(b *store.Branch) error {
 		return nil

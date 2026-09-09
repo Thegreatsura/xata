@@ -794,7 +794,7 @@ func (s *sqlProjectStore) CreateBranch(ctx context.Context, organizationID, proj
 		description,
 		cell_id,
 		depth
-	) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING
+	) VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7) RETURNING
 		id,
 		name,
 		parent_id,
@@ -985,10 +985,13 @@ func (s *sqlProjectStore) UpdateBranch(ctx context.Context, organizationID, proj
 	var args []any
 	// update if any parameters need updating
 	if config.Name != nil || config.Description != nil {
+		// A nil description keeps the current value; an empty string clears it. NULLIF
+		// stores a cleared description as NULL, so it is indistinguishable from one
+		// that was never set.
 		query = `UPDATE branches SET
 			updated_at = NOW(),
 			name=COALESCE($1, name),
-			description=COALESCE($2, description)
+			description=NULLIF(COALESCE($2, description), '')
 			WHERE id=$3 RETURNING
 			id,
 			name,

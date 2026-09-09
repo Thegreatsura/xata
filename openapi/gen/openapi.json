@@ -7221,10 +7221,10 @@
             "type": "string"
           },
           "description": {
-            "description": "Optional description for the branch purpose or contents (max 50 characters)",
+            "description": "Optional description for the branch purpose or contents. An empty string is stored as no description.",
             "type": "string",
-            "maxLength": 50,
-            "pattern": "^[a-zA-Z0-9]+[a-zA-Z0-9- ]*$"
+            "maxLength": 255,
+            "pattern": "^([a-zA-Z0-9][a-zA-Z0-9\\-_./: ]*)?$"
           },
           "scaleToZero": {
             "$ref": "#/components/schemas/ScaleToZeroConfiguration"
@@ -7270,10 +7270,10 @@
             "type": "string"
           },
           "description": {
-            "description": "New description for the branch (max 50 characters)",
+            "description": "New description for the branch. Send an empty string to clear it.",
             "type": "string",
-            "maximum": 50,
-            "pattern": "^[a-zA-Z0-9]+[a-zA-Z0-9- ]*$"
+            "maxLength": 255,
+            "pattern": "^([a-zA-Z0-9][a-zA-Z0-9\\-_./: ]*)?$"
           },
           "replicas": {
             "description": "Number of database replicas to scale to",
@@ -7456,10 +7456,10 @@
         "type": "object",
         "properties": {
           "maxDescriptionLength": {
-            "description": "Maximum character length allowed for project descriptions",
+            "description": "Maximum character length allowed for branch descriptions",
             "type": "integer",
             "minimum": 25,
-            "title": "Maximum length of a project description"
+            "title": "Maximum length of a branch description"
           },
           "maxBranchesPerProject": {
             "description": "Maximum number of branches allowed per project",

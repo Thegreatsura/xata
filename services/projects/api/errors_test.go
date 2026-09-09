@@ -1,12 +1,13 @@
 package api
 
 import (
-	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"xata/internal/xvalidator"
+	"xata/services/projects/store"
 )
 
 func TestErrorStatusCodes(t *testing.T) {
@@ -72,51 +73,106 @@ func TestErrorStatusCodes(t *testing.T) {
 func TestIsDescriptionValid(t *testing.T) {
 	t.Parallel()
 
-	longDescription := "averylongdescriptionmadefortestingaverylongdescriptionmadefortesting"
-	shortDescription := "shortokdescription-09"
-	invalidCharsDescription := "-shortinvalid"
-
-	errorMaxLength := xvalidator.ErrorMaxLength{Limit: MaxBranchDescriptionLength}
-	errorInvalid := ErrorInvalidDescription{
-		Message:     fmt.Sprintf("invalid branch description %s", invalidCharsDescription),
-		Description: invalidCharsDescription,
-	}
+	atLimitDescription := strings.Repeat("a", store.DefaultMaxDescriptionLength)
+	overLimitDescription := strings.Repeat("a", store.DefaultMaxDescriptionLength+1)
 
 	tests := []struct {
-		name         string
-		description  string
-		wantError    bool
-		errorMessage string
+		name        string
+		description string
+		wantError   error
 	}{
 		{
-			name:         "tooLong",
-			description:  longDescription,
-			wantError:    true,
-			errorMessage: errorMaxLength.Error(),
+			name:        "at the maximum length",
+			description: atLimitDescription,
 		},
 		{
-			name:        "ok",
-			description: shortDescription,
-			wantError:   false,
+			name:        "one character over the maximum length",
+			description: overLimitDescription,
+			wantError:   xvalidator.ErrorMaxLength{Limit: store.DefaultMaxDescriptionLength},
 		},
 		{
-			name:         "invalid",
-			description:  invalidCharsDescription,
-			wantError:    true,
-			errorMessage: errorInvalid.Error(),
+			name:        "plain description",
+			description: "shortokdescription-09",
+		},
+		{
+			name:        "empty description clears the value",
+			description: "",
+		},
+		{
+			name:        "underscore",
+			description: "managed_by_terraform",
+		},
+		{
+			name:        "dot",
+			description: "release.2026.09.09",
+		},
+		{
+			name:        "slash",
+			description: "company/infra/managed-by-x",
+		},
+		{
+			name:        "colon",
+			description: "owner:platform-team",
+		},
+		{
+			name:        "uuid",
+			description: "3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+		},
+		{
+			name:        "every allowed separator together",
+			description: "a-b_c.d/e:f g",
+		},
+		{
+			name:        "leading dash",
+			description: "-description",
+			wantError: ErrorInvalidDescription{
+				Message:     "invalid branch description -description",
+				Description: "-description",
+			},
+		},
+		{
+			name:        "leading slash",
+			description: "/company/infra",
+			wantError: ErrorInvalidDescription{
+				Message:     "invalid branch description /company/infra",
+				Description: "/company/infra",
+			},
+		},
+		{
+			name:        "disallowed character",
+			description: "owner@example.com",
+			wantError: ErrorInvalidDescription{
+				Message:     "invalid branch description owner@example.com",
+				Description: "owner@example.com",
+			},
+		},
+		{
+			name:        "newline",
+			description: "first line\nsecond line",
+			wantError: ErrorInvalidDescription{
+				Message:     "invalid branch description first line\nsecond line",
+				Description: "first line\nsecond line",
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := IsBranchDescriptionValid(&tt.description, MaxBranchDescriptionLength)
-			if tt.wantError == true {
-				assert.Error(t, got)
-				assert.Equal(t, tt.errorMessage, got.Error())
+			t.Parallel()
 
-			} else {
-				assert.NoError(t, got)
+			got := IsBranchDescriptionValid(&tt.description, store.DefaultMaxDescriptionLength)
+			if tt.wantError != nil {
+				require.Error(t, got)
+				assert.Equal(t, tt.wantError.Error(), got.Error())
+				return
 			}
+			assert.NoError(t, got)
 		})
 	}
+
+	t.Run("nil description is not provided", func(t *testing.T) {
+		t.Parallel()
+
+		assert.NoError(t, IsBranchDescriptionValid(nil, store.DefaultMaxDescriptionLength))
+	})
 }

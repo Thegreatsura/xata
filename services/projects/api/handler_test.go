@@ -923,7 +923,7 @@ func TestCreateBranch(t *testing.T) {
 		Region:       "region-id-1",
 	}
 
-	correctDescription := "description"
+	correctDescription := "company/infra/managed-by-x:3f2504e0-4f89-11d3-9a0c-0305e82c3301_v1.2"
 	invalidDescription := "-description"
 
 	hiddenImage := hiddenPostgresImage(t)
@@ -4208,6 +4208,97 @@ func TestUpdateBranch(t *testing.T) {
 					Region:      "region-id-1",
 				}
 				mockStore.EXPECT().UpdateBranch(mock.Anything, apitest.TestOrganization, "project_id", "123", updateBranchConfig(new("newTest"), new("newDesc")), mock.Anything).Return(&branch, nil).Once()
+				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: ""}, nil).Once()
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+					Username: "user",
+					Password: "pass",
+				}, nil).Once()
+			},
+			wantError: false,
+		},
+		{
+			name:      "update branch description accepts identifiers and label paths",
+			projectID: "project_id",
+			branchID:  "123",
+			jsonBody:  map[string]string{"description": "company/infra/managed-by-x:3f2504e0-4f89-11d3-9a0c-0305e82c3301_v1.2"},
+			setupMocks: func() {
+				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
+				branch := store.Branch{
+					ID:          "123",
+					Name:        "newTest",
+					Description: new("company/infra/managed-by-x:3f2504e0-4f89-11d3-9a0c-0305e82c3301_v1.2"),
+					Region:      "region-id-1",
+				}
+				mockStore.EXPECT().UpdateBranch(mock.Anything, apitest.TestOrganization, "project_id", "123", updateBranchConfig(nil, new("company/infra/managed-by-x:3f2504e0-4f89-11d3-9a0c-0305e82c3301_v1.2")), mock.Anything).Return(&branch, nil).Once()
+				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: ""}, nil).Once()
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+					Username: "user",
+					Password: "pass",
+				}, nil).Once()
+			},
+			wantError: false,
+		},
+		{
+			name:      "update branch description at the maximum length works",
+			projectID: "project_id",
+			branchID:  "123",
+			jsonBody:  map[string]string{"description": strings.Repeat("a", store.DefaultMaxDescriptionLength)},
+			setupMocks: func() {
+				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
+				branch := store.Branch{
+					ID:          "123",
+					Name:        "newTest",
+					Description: new(strings.Repeat("a", store.DefaultMaxDescriptionLength)),
+					Region:      "region-id-1",
+				}
+				mockStore.EXPECT().UpdateBranch(mock.Anything, apitest.TestOrganization, "project_id", "123", updateBranchConfig(nil, new(strings.Repeat("a", store.DefaultMaxDescriptionLength))), mock.Anything).Return(&branch, nil).Once()
+				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: ""}, nil).Once()
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
+					Username: "user",
+					Password: "pass",
+				}, nil).Once()
+			},
+			wantError: false,
+		},
+		{
+			name:      "update branch description over the maximum length fails",
+			projectID: "project_id",
+			branchID:  "123",
+			jsonBody:  map[string]string{"description": strings.Repeat("a", store.DefaultMaxDescriptionLength+1)},
+			setupMocks: func() {
+				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
+			},
+			wantError:     true,
+			expectedError: xvalidator.ErrorMaxLength{Limit: store.DefaultMaxDescriptionLength},
+		},
+		{
+			name:      "update branch description with a disallowed character fails",
+			projectID: "project_id",
+			branchID:  "123",
+			jsonBody:  map[string]string{"description": "owner@example.com"},
+			setupMocks: func() {
+				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
+			},
+			wantError: true,
+			expectedError: ErrorInvalidDescription{
+				Message:     "invalid branch description owner@example.com",
+				Description: "owner@example.com",
+			},
+		},
+		{
+			name:      "update branch description can be cleared with an empty string",
+			projectID: "project_id",
+			branchID:  "123",
+			jsonBody:  map[string]string{"description": ""},
+			setupMocks: func() {
+				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
+				branch := store.Branch{
+					ID:          "123",
+					Name:        "newTest",
+					Description: nil,
+					Region:      "region-id-1",
+				}
+				mockStore.EXPECT().UpdateBranch(mock.Anything, apitest.TestOrganization, "project_id", "123", updateBranchConfig(nil, new("")), mock.Anything).Return(&branch, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: ""}, nil).Once()
 				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: "123", Username: "app"}).Return(&clustersv1.GetPostgresClusterCredentialsResponse{
 					Username: "user",

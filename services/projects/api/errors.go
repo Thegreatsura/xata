@@ -9,11 +9,9 @@ import (
 	"xata/internal/xvalidator"
 )
 
-const (
-	MaxBranchDescriptionLength = 50
-)
-
-var validBranchDescriptionRegex = regexp.MustCompile(`^[a-zA-Z0-9]+[a-zA-Z0-9- ]*$`)
+// The empty string clears a description. Otherwise the separators - _ . / : are allowed
+// after the first character so identifiers and label paths fit, e.g. "company/infra/managed-by-x".
+var validBranchDescriptionRegex = regexp.MustCompile(`^([a-zA-Z0-9][a-zA-Z0-9\-_./: ]*)?$`)
 
 type ErrorInvalidDescription struct {
 	Message     string
