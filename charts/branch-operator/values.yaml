@@ -26,6 +26,9 @@ config:
       value: dummy
     xatastor:
       enabled: true
+    # Worker counts for the operator's controllers
+    branchMaxConcurrent: 1
+    wakeupMaxConcurrent: 16
 
 resources:
   limits:
