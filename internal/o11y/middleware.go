@@ -169,8 +169,9 @@ func LoggerMiddleware(logger *zerolog.Logger) echo.MiddlewareFunc {
 				apiLogger = log.Ctx(ctx)
 			}
 
+			// c.Error has already run, so the response status is final.
 			e := apiLogger.Info()
-			if err != nil || (ctx.Err() != nil && !errors.Is(ctx.Err(), context.Canceled)) {
+			if isServerError(res.Status, err) || (ctx.Err() != nil && !errors.Is(ctx.Err(), context.Canceled)) {
 				e = apiLogger.Error()
 			}
 
@@ -224,6 +225,19 @@ func isHealthCheck(c echo.Context) bool {
 	return c.Path() == "/_hello"
 }
 
+// isServerError reports whether a request failed through our own fault. An error that never made
+// it into the response status means the handler failed after committing the response, unless the
+// client gave up first and left us answering nobody.
+func isServerError(status int, err error) bool {
+	if errors.Is(err, context.Canceled) {
+		return false
+	}
+	if status >= http.StatusInternalServerError {
+		return true
+	}
+	return err != nil && status < http.StatusBadRequest
+}
+
 // RecoverMiddleware recovers from a panic in the API handler currently active.
 // The panic + stack trace is logged and an "Internal Error" is returned.
 // In comparison to the echo/middleware.Recover middleware we do not
@@ -263,6 +277,12 @@ func LoggerWithServiceName(serviceNamespace, serviceName string) echo.Middleware
 func MetricsMiddleware(o *O) echo.MiddlewareFunc {
 	return func(h echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			res := c.Response()
+			inner := res.Writer
+			defer func() { res.Writer = inner }()
+
+			var handlerErr error
+
 			// inject the context with the metrics attributes
 			httpHandlrFn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				ctx := r.Context()
@@ -270,13 +290,19 @@ func MetricsMiddleware(o *O) echo.MiddlewareFunc {
 				// c.Path from echo library produces the route (path/to/{id}) to
 				// avoid exploding the metric by using the full replaced path
 				labeler.Add(attribute.KeyValue{Key: "http_route", Value: attribute.StringValue(c.Path())})
-				h(c) // call original
+
+				// otelhttp counts the status and bytes off the writer it hands us
+				res.Writer = w
+				handlerErr = h(c) // call original
 			})
 
-			return echo.WrapHandler(otelhttp.NewHandler(httpHandlrFn, o.ServiceName(),
+			otelhttp.NewHandler(httpHandlrFn, o.ServiceName(),
 				otelhttp.WithMeterProvider(o),
 				otelhttp.WithTracerProvider(noop.NewTracerProvider()),
-				otelhttp.WithPropagators(propagation.TraceContext{})))(c)
+				otelhttp.WithPropagators(propagation.TraceContext{}),
+			).ServeHTTP(inner, c.Request())
+
+			return handlerErr
 		}
 	}
 }
@@ -435,7 +461,9 @@ func newSpanMiddleware(
 			if err != nil {
 				// register error now so status gets updated
 				c.Error(err)
-				span.RecordError(err)
+				if isServerError(c.Response().Status, err) {
+					span.RecordError(err)
+				}
 			}
 
 			// canceled requests don't throw an error
