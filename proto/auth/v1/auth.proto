@@ -64,6 +64,24 @@ message UpdateOrganizationResponse {
   Organization organization = 1;
 }
 
+message ResolveVercelInstallationRequest {
+  // token is the Vercel Partner API OIDC token carried on the inbound request.
+  // Auth verifies its signature/issuer/audience and confirms it is scoped to
+  // installation_id; the projects service forwards it without inspecting it.
+  string token = 1;
+  // installation_id is the installation id from the request path, which the
+  // token must be scoped to.
+  string installation_id = 2;
+}
+
+message ResolveVercelInstallationResponse {
+  // xata_organization_id is the Xata organization the installation is bound to.
+  string xata_organization_id = 1;
+  // status is the installation lifecycle state (active or deleting; a deleted
+  // installation is reported as not found).
+  string status = 2;
+}
+
 message GetGithubIdentityProviderTokenRequest {
   // token is the user's Keycloak access token, used both to identify the user
   // and to authorize the Keycloak identity broker token endpoint.
@@ -90,4 +108,11 @@ service AuthService {
   // Keycloak for the user identified by the given Keycloak access token.
   // Fails with FAILED_PRECONDITION if the user has no linked GitHub identity.
   rpc GetGithubIdentityProviderToken(GetGithubIdentityProviderTokenRequest) returns (GetGithubIdentityProviderTokenResponse);
+
+  // ResolveVercelInstallation verifies a Vercel Partner API token, confirms it
+  // is scoped to the given installation, and returns the Xata organization the
+  // installation is bound to. It is the cross-service seam the projects service
+  // uses to authenticate a Vercel resource request and resolve its org (the
+  // installation-to-org mapping lives only in auth's database).
+  rpc ResolveVercelInstallation(ResolveVercelInstallationRequest) returns (ResolveVercelInstallationResponse);
 }

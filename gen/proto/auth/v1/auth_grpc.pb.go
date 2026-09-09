@@ -23,6 +23,7 @@ const (
 	AuthService_GetOrganization_FullMethodName                = "/auth.v1.AuthService/GetOrganization"
 	AuthService_UpdateOrganization_FullMethodName             = "/auth.v1.AuthService/UpdateOrganization"
 	AuthService_GetGithubIdentityProviderToken_FullMethodName = "/auth.v1.AuthService/GetGithubIdentityProviderToken"
+	AuthService_ResolveVercelInstallation_FullMethodName      = "/auth.v1.AuthService/ResolveVercelInstallation"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -41,6 +42,12 @@ type AuthServiceClient interface {
 	// Keycloak for the user identified by the given Keycloak access token.
 	// Fails with FAILED_PRECONDITION if the user has no linked GitHub identity.
 	GetGithubIdentityProviderToken(ctx context.Context, in *GetGithubIdentityProviderTokenRequest, opts ...grpc.CallOption) (*GetGithubIdentityProviderTokenResponse, error)
+	// ResolveVercelInstallation verifies a Vercel Partner API token, confirms it
+	// is scoped to the given installation, and returns the Xata organization the
+	// installation is bound to. It is the cross-service seam the projects service
+	// uses to authenticate a Vercel resource request and resolve its org (the
+	// installation-to-org mapping lives only in auth's database).
+	ResolveVercelInstallation(ctx context.Context, in *ResolveVercelInstallationRequest, opts ...grpc.CallOption) (*ResolveVercelInstallationResponse, error)
 }
 
 type authServiceClient struct {
@@ -91,6 +98,16 @@ func (c *authServiceClient) GetGithubIdentityProviderToken(ctx context.Context, 
 	return out, nil
 }
 
+func (c *authServiceClient) ResolveVercelInstallation(ctx context.Context, in *ResolveVercelInstallationRequest, opts ...grpc.CallOption) (*ResolveVercelInstallationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResolveVercelInstallationResponse)
+	err := c.cc.Invoke(ctx, AuthService_ResolveVercelInstallation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -107,6 +124,12 @@ type AuthServiceServer interface {
 	// Keycloak for the user identified by the given Keycloak access token.
 	// Fails with FAILED_PRECONDITION if the user has no linked GitHub identity.
 	GetGithubIdentityProviderToken(context.Context, *GetGithubIdentityProviderTokenRequest) (*GetGithubIdentityProviderTokenResponse, error)
+	// ResolveVercelInstallation verifies a Vercel Partner API token, confirms it
+	// is scoped to the given installation, and returns the Xata organization the
+	// installation is bound to. It is the cross-service seam the projects service
+	// uses to authenticate a Vercel resource request and resolve its org (the
+	// installation-to-org mapping lives only in auth's database).
+	ResolveVercelInstallation(context.Context, *ResolveVercelInstallationRequest) (*ResolveVercelInstallationResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -128,6 +151,9 @@ func (UnimplementedAuthServiceServer) UpdateOrganization(context.Context, *Updat
 }
 func (UnimplementedAuthServiceServer) GetGithubIdentityProviderToken(context.Context, *GetGithubIdentityProviderTokenRequest) (*GetGithubIdentityProviderTokenResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetGithubIdentityProviderToken not implemented")
+}
+func (UnimplementedAuthServiceServer) ResolveVercelInstallation(context.Context, *ResolveVercelInstallationRequest) (*ResolveVercelInstallationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResolveVercelInstallation not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -222,6 +248,24 @@ func _AuthService_GetGithubIdentityProviderToken_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_ResolveVercelInstallation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResolveVercelInstallationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ResolveVercelInstallation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ResolveVercelInstallation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ResolveVercelInstallation(ctx, req.(*ResolveVercelInstallationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -244,6 +288,10 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetGithubIdentityProviderToken",
 			Handler:    _AuthService_GetGithubIdentityProviderToken_Handler,
+		},
+		{
+			MethodName: "ResolveVercelInstallation",
+			Handler:    _AuthService_ResolveVercelInstallation_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -148,6 +148,68 @@ func (_c *AuthServiceClient_GetOrganization_Call) Return(_a0 *authv1.GetOrganiza
 	return _c
 }
 
+// ResolveVercelInstallation provides a mock function with given fields: ctx, in, opts
+func (_m *AuthServiceClient) ResolveVercelInstallation(ctx context.Context, in *authv1.ResolveVercelInstallationRequest, opts ...grpc.CallOption) (*authv1.ResolveVercelInstallationResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 *authv1.ResolveVercelInstallationResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *authv1.ResolveVercelInstallationRequest, ...grpc.CallOption) *authv1.ResolveVercelInstallationResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*authv1.ResolveVercelInstallationResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *authv1.ResolveVercelInstallationRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AuthServiceClient_ResolveVercelInstallation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResolveVercelInstallation'
+type AuthServiceClient_ResolveVercelInstallation_Call struct {
+	*mock.Call
+}
+
+// ResolveVercelInstallation is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *authv1.ResolveVercelInstallationRequest
+//   - opts ...grpc.CallOption
+func (_e *AuthServiceClient_Expecter) ResolveVercelInstallation(ctx interface{}, in interface{}, opts ...interface{}) *AuthServiceClient_ResolveVercelInstallation_Call {
+	return &AuthServiceClient_ResolveVercelInstallation_Call{Call: _e.mock.On("ResolveVercelInstallation",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *AuthServiceClient_ResolveVercelInstallation_Call) Run(run func(ctx context.Context, in *authv1.ResolveVercelInstallationRequest, opts ...grpc.CallOption)) *AuthServiceClient_ResolveVercelInstallation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*authv1.ResolveVercelInstallationRequest), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *AuthServiceClient_ResolveVercelInstallation_Call) Return(_a0 *authv1.ResolveVercelInstallationResponse, _a1 error) *AuthServiceClient_ResolveVercelInstallation_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // UpdateOrganization provides a mock function with given fields: ctx, in, opts
 func (_m *AuthServiceClient) UpdateOrganization(ctx context.Context, in *authv1.UpdateOrganizationRequest, opts ...grpc.CallOption) (*authv1.UpdateOrganizationResponse, error) {
 	_va := make([]interface{}, len(opts))

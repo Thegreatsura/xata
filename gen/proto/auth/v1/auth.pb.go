@@ -546,6 +546,118 @@ func (x *UpdateOrganizationResponse) GetOrganization() *Organization {
 	return nil
 }
 
+type ResolveVercelInstallationRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// token is the Vercel Partner API OIDC token carried on the inbound request.
+	// Auth verifies its signature/issuer/audience and confirms it is scoped to
+	// installation_id; the projects service forwards it without inspecting it.
+	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	// installation_id is the installation id from the request path, which the
+	// token must be scoped to.
+	InstallationId string `protobuf:"bytes,2,opt,name=installation_id,json=installationId,proto3" json:"installation_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ResolveVercelInstallationRequest) Reset() {
+	*x = ResolveVercelInstallationRequest{}
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveVercelInstallationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveVercelInstallationRequest) ProtoMessage() {}
+
+func (x *ResolveVercelInstallationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveVercelInstallationRequest.ProtoReflect.Descriptor instead.
+func (*ResolveVercelInstallationRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ResolveVercelInstallationRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *ResolveVercelInstallationRequest) GetInstallationId() string {
+	if x != nil {
+		return x.InstallationId
+	}
+	return ""
+}
+
+type ResolveVercelInstallationResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// xata_organization_id is the Xata organization the installation is bound to.
+	XataOrganizationId string `protobuf:"bytes,1,opt,name=xata_organization_id,json=xataOrganizationId,proto3" json:"xata_organization_id,omitempty"`
+	// status is the installation lifecycle state (active or deleting; a deleted
+	// installation is reported as not found).
+	Status        string `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveVercelInstallationResponse) Reset() {
+	*x = ResolveVercelInstallationResponse{}
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveVercelInstallationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveVercelInstallationResponse) ProtoMessage() {}
+
+func (x *ResolveVercelInstallationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveVercelInstallationResponse.ProtoReflect.Descriptor instead.
+func (*ResolveVercelInstallationResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ResolveVercelInstallationResponse) GetXataOrganizationId() string {
+	if x != nil {
+		return x.XataOrganizationId
+	}
+	return ""
+}
+
+func (x *ResolveVercelInstallationResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
 type GetGithubIdentityProviderTokenRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// token is the user's Keycloak access token, used both to identify the user
@@ -557,7 +669,7 @@ type GetGithubIdentityProviderTokenRequest struct {
 
 func (x *GetGithubIdentityProviderTokenRequest) Reset() {
 	*x = GetGithubIdentityProviderTokenRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	mi := &file_auth_v1_auth_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -569,7 +681,7 @@ func (x *GetGithubIdentityProviderTokenRequest) String() string {
 func (*GetGithubIdentityProviderTokenRequest) ProtoMessage() {}
 
 func (x *GetGithubIdentityProviderTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	mi := &file_auth_v1_auth_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -582,7 +694,7 @@ func (x *GetGithubIdentityProviderTokenRequest) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use GetGithubIdentityProviderTokenRequest.ProtoReflect.Descriptor instead.
 func (*GetGithubIdentityProviderTokenRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetGithubIdentityProviderTokenRequest) GetToken() string {
@@ -602,7 +714,7 @@ type GetGithubIdentityProviderTokenResponse struct {
 
 func (x *GetGithubIdentityProviderTokenResponse) Reset() {
 	*x = GetGithubIdentityProviderTokenResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_auth_v1_auth_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -614,7 +726,7 @@ func (x *GetGithubIdentityProviderTokenResponse) String() string {
 func (*GetGithubIdentityProviderTokenResponse) ProtoMessage() {}
 
 func (x *GetGithubIdentityProviderTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_auth_v1_auth_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -627,7 +739,7 @@ func (x *GetGithubIdentityProviderTokenResponse) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use GetGithubIdentityProviderTokenResponse.ProtoReflect.Descriptor instead.
 func (*GetGithubIdentityProviderTokenResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{8}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetGithubIdentityProviderTokenResponse) GetAccessToken() string {
@@ -695,16 +807,23 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x18disabled_by_admin_reason\x18\x03 \x01(\tH\x00R\x15disabledByAdminReason\x88\x01\x01B\x1b\n" +
 	"\x19_disabled_by_admin_reason\"W\n" +
 	"\x1aUpdateOrganizationResponse\x129\n" +
-	"\forganization\x18\x01 \x01(\v2\x15.auth.v1.OrganizationR\forganization\"=\n" +
+	"\forganization\x18\x01 \x01(\v2\x15.auth.v1.OrganizationR\forganization\"a\n" +
+	" ResolveVercelInstallationRequest\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12'\n" +
+	"\x0finstallation_id\x18\x02 \x01(\tR\x0einstallationId\"m\n" +
+	"!ResolveVercelInstallationResponse\x120\n" +
+	"\x14xata_organization_id\x18\x01 \x01(\tR\x12xataOrganizationId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\"=\n" +
 	"%GetGithubIdentityProviderTokenRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\"K\n" +
 	"&GetGithubIdentityProviderTokenResponse\x12!\n" +
-	"\faccess_token\x18\x01 \x01(\tR\vaccessToken2\x99\x03\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken2\x8d\x04\n" +
 	"\vAuthService\x12Q\n" +
 	"\x0eValidateAccess\x12\x1e.auth.v1.ValidateAccessRequest\x1a\x1f.auth.v1.ValidateAccessResponse\x12T\n" +
 	"\x0fGetOrganization\x12\x1f.auth.v1.GetOrganizationRequest\x1a .auth.v1.GetOrganizationResponse\x12]\n" +
 	"\x12UpdateOrganization\x12\".auth.v1.UpdateOrganizationRequest\x1a#.auth.v1.UpdateOrganizationResponse\x12\x81\x01\n" +
-	"\x1eGetGithubIdentityProviderToken\x12..auth.v1.GetGithubIdentityProviderTokenRequest\x1a/.auth.v1.GetGithubIdentityProviderTokenResponseB|\n" +
+	"\x1eGetGithubIdentityProviderToken\x12..auth.v1.GetGithubIdentityProviderTokenRequest\x1a/.auth.v1.GetGithubIdentityProviderTokenResponse\x12r\n" +
+	"\x19ResolveVercelInstallation\x12).auth.v1.ResolveVercelInstallationRequest\x1a*.auth.v1.ResolveVercelInstallationResponseB|\n" +
 	"\vcom.auth.v1B\tAuthProtoP\x01Z%github.com/xataio/maki/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
 
 var (
@@ -719,7 +838,7 @@ func file_auth_v1_auth_proto_rawDescGZIP() []byte {
 	return file_auth_v1_auth_proto_rawDescData
 }
 
-var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_auth_v1_auth_proto_goTypes = []any{
 	(*ValidateAccessRequest)(nil),                  // 0: auth.v1.ValidateAccessRequest
 	(*ValidateAccessResponse)(nil),                 // 1: auth.v1.ValidateAccessResponse
@@ -728,28 +847,32 @@ var file_auth_v1_auth_proto_goTypes = []any{
 	(*GetOrganizationResponse)(nil),                // 4: auth.v1.GetOrganizationResponse
 	(*UpdateOrganizationRequest)(nil),              // 5: auth.v1.UpdateOrganizationRequest
 	(*UpdateOrganizationResponse)(nil),             // 6: auth.v1.UpdateOrganizationResponse
-	(*GetGithubIdentityProviderTokenRequest)(nil),  // 7: auth.v1.GetGithubIdentityProviderTokenRequest
-	(*GetGithubIdentityProviderTokenResponse)(nil), // 8: auth.v1.GetGithubIdentityProviderTokenResponse
-	nil,                           // 9: auth.v1.ValidateAccessResponse.OrganizationsEntry
-	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
+	(*ResolveVercelInstallationRequest)(nil),       // 7: auth.v1.ResolveVercelInstallationRequest
+	(*ResolveVercelInstallationResponse)(nil),      // 8: auth.v1.ResolveVercelInstallationResponse
+	(*GetGithubIdentityProviderTokenRequest)(nil),  // 9: auth.v1.GetGithubIdentityProviderTokenRequest
+	(*GetGithubIdentityProviderTokenResponse)(nil), // 10: auth.v1.GetGithubIdentityProviderTokenResponse
+	nil,                           // 11: auth.v1.ValidateAccessResponse.OrganizationsEntry
+	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
 }
 var file_auth_v1_auth_proto_depIdxs = []int32{
-	9,  // 0: auth.v1.ValidateAccessResponse.organizations:type_name -> auth.v1.ValidateAccessResponse.OrganizationsEntry
-	10, // 1: auth.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
-	10, // 2: auth.v1.Organization.deleted_at:type_name -> google.protobuf.Timestamp
+	11, // 0: auth.v1.ValidateAccessResponse.organizations:type_name -> auth.v1.ValidateAccessResponse.OrganizationsEntry
+	12, // 1: auth.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
+	12, // 2: auth.v1.Organization.deleted_at:type_name -> google.protobuf.Timestamp
 	2,  // 3: auth.v1.GetOrganizationResponse.organization:type_name -> auth.v1.Organization
 	2,  // 4: auth.v1.UpdateOrganizationResponse.organization:type_name -> auth.v1.Organization
 	2,  // 5: auth.v1.ValidateAccessResponse.OrganizationsEntry.value:type_name -> auth.v1.Organization
 	0,  // 6: auth.v1.AuthService.ValidateAccess:input_type -> auth.v1.ValidateAccessRequest
 	3,  // 7: auth.v1.AuthService.GetOrganization:input_type -> auth.v1.GetOrganizationRequest
 	5,  // 8: auth.v1.AuthService.UpdateOrganization:input_type -> auth.v1.UpdateOrganizationRequest
-	7,  // 9: auth.v1.AuthService.GetGithubIdentityProviderToken:input_type -> auth.v1.GetGithubIdentityProviderTokenRequest
-	1,  // 10: auth.v1.AuthService.ValidateAccess:output_type -> auth.v1.ValidateAccessResponse
-	4,  // 11: auth.v1.AuthService.GetOrganization:output_type -> auth.v1.GetOrganizationResponse
-	6,  // 12: auth.v1.AuthService.UpdateOrganization:output_type -> auth.v1.UpdateOrganizationResponse
-	8,  // 13: auth.v1.AuthService.GetGithubIdentityProviderToken:output_type -> auth.v1.GetGithubIdentityProviderTokenResponse
-	10, // [10:14] is the sub-list for method output_type
-	6,  // [6:10] is the sub-list for method input_type
+	9,  // 9: auth.v1.AuthService.GetGithubIdentityProviderToken:input_type -> auth.v1.GetGithubIdentityProviderTokenRequest
+	7,  // 10: auth.v1.AuthService.ResolveVercelInstallation:input_type -> auth.v1.ResolveVercelInstallationRequest
+	1,  // 11: auth.v1.AuthService.ValidateAccess:output_type -> auth.v1.ValidateAccessResponse
+	4,  // 12: auth.v1.AuthService.GetOrganization:output_type -> auth.v1.GetOrganizationResponse
+	6,  // 13: auth.v1.AuthService.UpdateOrganization:output_type -> auth.v1.UpdateOrganizationResponse
+	10, // 14: auth.v1.AuthService.GetGithubIdentityProviderToken:output_type -> auth.v1.GetGithubIdentityProviderTokenResponse
+	8,  // 15: auth.v1.AuthService.ResolveVercelInstallation:output_type -> auth.v1.ResolveVercelInstallationResponse
+	11, // [11:16] is the sub-list for method output_type
+	6,  // [6:11] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
 	6,  // [6:6] is the sub-list for extension extendee
 	0,  // [0:6] is the sub-list for field type_name
@@ -768,7 +891,7 @@ func file_auth_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_auth_proto_rawDesc), len(file_auth_v1_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

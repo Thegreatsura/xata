@@ -33,6 +33,16 @@ const githubIdentityProvider = "github"
 // Ensure AuthService implements GRPCService interface.
 var _ authv1.AuthServiceServer = (*AuthService)(nil)
 
+// VercelTokenVerifier verifies a Vercel Partner API OIDC token (signature,
+// issuer, audience) and returns the installation id carried in its signed claims
+// (empty when the token is not installation-scoped). It is the seam that keeps
+// Vercel JWKS knowledge out of OSS: the saas layer satisfies it with the real
+// verifier via SetVercelVerifier. A nil verifier means the Vercel Marketplace
+// integration is not configured on this deployment.
+type VercelTokenVerifier interface {
+	Verify(rawToken string) (installationID string, err error)
+}
+
 // AuthService is a GRPC service for interacting with auth service.
 type AuthService struct {
 	authv1.UnsafeAuthServiceServer
@@ -45,6 +55,14 @@ type AuthService struct {
 	projectsClient projectsv1.ProjectsServiceClient
 	orgs           orgs.Organizations
 	defaultOrgID   string
+	vercelVerifier VercelTokenVerifier
+}
+
+// SetVercelVerifier injects the Vercel token verifier. The saas layer calls this
+// when the Marketplace integration is configured; until then ResolveVercelInstallation
+// reports the feature as unavailable.
+func (a *AuthService) SetVercelVerifier(v VercelTokenVerifier) {
+	a.vercelVerifier = v
 }
 
 // NewAuthService creates a new AuthService.
@@ -240,6 +258,45 @@ func (a *AuthService) GetGithubIdentityProviderToken(ctx context.Context, req *a
 	}
 
 	return &authv1.GetGithubIdentityProviderTokenResponse{AccessToken: githubToken}, nil
+}
+
+// ResolveVercelInstallation verifies a Vercel Partner API token, confirms it is
+// scoped to the requested installation, and returns the Xata organization the
+// installation is bound to. The projects service calls this to authenticate a
+// Vercel resource request and resolve its org, since the installation-to-org
+// mapping lives only in auth's database.
+func (a *AuthService) ResolveVercelInstallation(ctx context.Context, req *authv1.ResolveVercelInstallationRequest) (*authv1.ResolveVercelInstallationResponse, error) {
+	if a.vercelVerifier == nil {
+		return nil, status.Error(codes.Unimplemented, "vercel marketplace is not configured")
+	}
+
+	installationID := req.GetInstallationId()
+	if req.GetToken() == "" || installationID == "" {
+		return nil, status.Error(codes.InvalidArgument, "token and installation_id are required")
+	}
+
+	tokenInstallationID, err := a.vercelVerifier.Verify(req.GetToken())
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, "invalid vercel token")
+	}
+	// Installation scoping: the signed installation_id claim must match the
+	// installation the request targets.
+	if tokenInstallationID == "" || tokenInstallationID != installationID {
+		return nil, status.Error(codes.PermissionDenied, "token is not scoped to the installation")
+	}
+
+	installation, err := a.store.GetVercelInstallation(ctx, installationID)
+	if err != nil {
+		if _, ok := errors.AsType[store.ErrVercelInstallationNotFound](err); ok {
+			return nil, status.Errorf(codes.NotFound, "vercel installation %s not found", installationID)
+		}
+		return nil, fmt.Errorf("resolve vercel installation: %w", err)
+	}
+
+	return &authv1.ResolveVercelInstallationResponse{
+		XataOrganizationId: installation.XataOrganizationID,
+		Status:             string(installation.Status),
+	}, nil
 }
 
 func (a *AuthService) GetOrganization(ctx context.Context, req *authv1.GetOrganizationRequest) (*authv1.GetOrganizationResponse, error) {
