@@ -197,3 +197,52 @@ func TestXVolCloneReconciliation(t *testing.T) {
 		})
 	})
 }
+
+func TestXVolCloneVolumeAttributesClass(t *testing.T) {
+	t.Parallel()
+
+	for name, tt := range map[string]struct {
+		vac *string
+	}{
+		"uses the child branch VAC":                  {vac: new("xatastor-large")},
+		"does not inherit the parent VAC when unset": {},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			parentBranch := NewBranchBuilder().Build()
+			parentBranch.Spec.ClusterSpec.Storage.VolumeAttributesClass = new("xatastor-micro")
+
+			withBranch(ctx, t, parentBranch, func(t *testing.T, parentBr *v1alpha1.Branch) {
+				err := retryStatusOnConflict(ctx, parentBr, func(b *v1alpha1.Branch) {
+					b.Status.PrimaryXVolName = randomString(10)
+				})
+				require.NoError(t, err)
+
+				childBranch := NewBranchBuilder().
+					WithClusterName(nil).
+					WithRestore(v1alpha1.RestoreTypeXVolClone, parentBr.Name).
+					Build()
+				childBranch.Spec.ClusterSpec.Storage.VolumeAttributesClass = tt.vac
+
+				withBranch(ctx, t, childBranch, func(t *testing.T, childBr *v1alpha1.Branch) {
+					clone := &unstructured.Unstructured{}
+					clone.SetGroupVersionKind(xvolGVK)
+					cloneName := v1alpha1.XVolCloneName(parentBr.Name, childBr.Name)
+					requireEventuallyNoErr(t, func() error {
+						return k8sClient.Get(ctx, client.ObjectKey{Name: cloneName}, clone)
+					})
+
+					got, found, err := unstructured.NestedString(clone.Object, "spec", "volumeAttributesClassName")
+					require.NoError(t, err)
+					if tt.vac == nil {
+						require.False(t, found)
+					} else {
+						require.True(t, found)
+						require.Equal(t, *tt.vac, got)
+					}
+				})
+			})
+		})
+	}
+}

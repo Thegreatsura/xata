@@ -95,6 +95,13 @@ func (r *BranchReconciler) createClonedXVol(
 		return controllerutil.OperationResultNone, err
 	}
 
+	// The XVol controller needs the child's VAC before marking the clone available.
+	if vac := branch.Spec.ClusterSpec.Storage.VolumeAttributesClass; vac != nil {
+		if err := unstructured.SetNestedField(xvol.Object, *vac, "spec", "volumeAttributesClassName"); err != nil {
+			return controllerutil.OperationResultNone, err
+		}
+	}
+
 	// Set the owner reference on the cloned XVol to be the child Branch
 	if err := controllerutil.SetOwnerReference(branch, xvol, r.Scheme); err != nil {
 		return controllerutil.OperationResultNone, err
