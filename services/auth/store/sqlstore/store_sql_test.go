@@ -9,11 +9,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"xata/internal/api/key"
+	"xata/internal/pgtestutil"
 	"xata/services/auth/store"
 )
 
@@ -650,26 +648,8 @@ func jsonNumberToInt(v any) any {
 }
 
 func setupSQLStore(ctx context.Context, t *testing.T) *sqlAuthStore {
-	// launch postgres container with testcontainers (TODO abstract this with a helper)
-	postgresContainer, err := postgres.Run(ctx,
-		"postgres:16-alpine", // TODO parametrize version
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(30*time.Second)),
-	)
-	if err != nil {
-		t.Fatalf("failed to start container: %s", err)
-	}
-
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(postgresContainer); err != nil {
-			log.Printf("failed to terminate container: %s", err)
-		}
-	})
-
 	// create a new SQL sqlStore
-	config, err := ConfigFromConnectionString(postgresContainer.MustConnectionString(ctx, "sslmode=disable"))
+	config, err := ConfigFromConnectionString(pgtestutil.DSN(ctx, t))
 	require.NoError(t, err)
 	sqlStore, err := NewSQLAuthStore(ctx, config)
 	if err != nil {

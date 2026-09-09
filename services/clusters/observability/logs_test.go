@@ -24,6 +24,15 @@ func (f *fakeLogsBackend) Query(_ context.Context, query string, _, _ time.Time,
 
 // boundedLogsBackend honours the cursor's `_time:<=` clause and the row limit,
 // like VictoriaLogs, so the querier's pagination can be exercised end to end.
+// The byte-budget tests scale both production limits down by the same factor,
+// so the page/message arithmetic they exercise is identical while the messages
+// stay kilobytes rather than megabytes.
+const (
+	budgetScale      = 1024
+	testPageBytes    = maxLogPageBytes / budgetScale
+	testMessageBytes = maxLogMessageBytes / budgetScale
+)
+
 type boundedLogsBackend struct {
 	rows []LogRow
 }
@@ -210,15 +219,16 @@ func TestLogsQuerier_DecodesEntriesAndSetsCursor(t *testing.T) {
 func TestLogsQuerier_Query(t *testing.T) {
 	base := time.Date(2025, 5, 1, 12, 0, 0, 0, time.UTC)
 
-	// 1 MiB each; the 9th would exceed the 8 MiB budget.
+	// One testMessageBytes message each; the 9th would exceed testPageBytes.
 	budgetRows := make([]LogRow, 10)
 	for i := range budgetRows {
-		budgetRows[i] = LogRow{Timestamp: base.Add(-time.Duration(i) * time.Minute), Pod: "br-1-0", Message: strings.Repeat("x", maxLogMessageBytes)}
+		budgetRows[i] = LogRow{Timestamp: base.Add(-time.Duration(i) * time.Minute), Pod: "br-1-0", Message: strings.Repeat("x", testMessageBytes)}
 	}
 
 	tests := map[string]struct {
 		rows        []LogRow
 		limit       int
+		pageBytes   int
 		wantEntries int
 		wantCursor  bool
 		check       func(t *testing.T, res *LogsResult)
@@ -232,6 +242,7 @@ func TestLogsQuerier_Query(t *testing.T) {
 		"stops on byte budget": {
 			rows:        budgetRows,
 			limit:       1000,
+			pageBytes:   testPageBytes,
 			wantEntries: 8,
 			wantCursor:  true,
 			check: func(t *testing.T, res *LogsResult) {
@@ -255,6 +266,9 @@ func TestLogsQuerier_Query(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			backend := &fakeLogsBackend{rows: tt.rows}
 			q := NewLogsQuerier(backend, "xata-clusters")
+			if tt.pageBytes != 0 {
+				q.pageBytes = tt.pageBytes
+			}
 
 			res, err := q.Query(context.Background(), "br-1", base.Add(-time.Hour), base, nil, tt.limit, "")
 			require.NoError(t, err)
@@ -279,10 +293,10 @@ func TestLogsQuerier_PaginatesWithoutGaps(t *testing.T) {
 		rows  []LogRow
 		limit int
 	}{
-		// ~1 MiB messages, so the 8 MiB byte budget cuts the page inside the
-		// timestamp shared by rows 7..9.
+		// Messages just under testMessageBytes, so testPageBytes cuts the page
+		// inside the timestamp shared by rows 7..9.
 		"collision straddles byte-budget boundary": {
-			rows:  collidingRows(base, 12, 7, 9, maxLogMessageBytes-16),
+			rows:  collidingRows(base, 12, 7, 9, testMessageBytes-16),
 			limit: 1000,
 		},
 		// Small messages, so the row limit cuts the page inside the timestamp
@@ -299,6 +313,7 @@ func TestLogsQuerier_PaginatesWithoutGaps(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			q := NewLogsQuerier(&boundedLogsBackend{rows: tt.rows}, "xata-clusters")
+			q.pageBytes = testPageBytes
 
 			got := map[string]int{}
 			cursor := ""

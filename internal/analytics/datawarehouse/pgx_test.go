@@ -5,11 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"xata/internal/pgtestutil"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func TestNewPGXRejectsHeldAdvisoryLock(t *testing.T) {
@@ -59,14 +58,5 @@ func TestPGXReconnectWaitsForAdvisoryLock(t *testing.T) {
 
 func startPostgres(t *testing.T, ctx context.Context) string {
 	t.Helper()
-	container, err := postgres.Run(ctx,
-		"postgres:16-alpine",
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(30*time.Second)),
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, testcontainers.TerminateContainer(container)) })
-	return container.MustConnectionString(ctx, "sslmode=disable")
+	return pgtestutil.DSN(ctx, t)
 }

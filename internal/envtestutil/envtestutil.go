@@ -14,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -78,7 +79,7 @@ func Setup(opts Options) *Env {
 		CRDDirectoryPaths:           opts.CRDDirectoryPaths,
 		ErrorIfCRDPathMissing:       true,
 		DownloadBinaryAssets:        true,
-		DownloadBinaryAssetsVersion: "v1.33.0",
+		DownloadBinaryAssetsVersion: envtestAssetsVersion,
 		BinaryAssetsDirectory:       path,
 		Scheme:                      scheme,
 	}
@@ -88,10 +89,7 @@ func Setup(opts Options) *Env {
 	testEnv.ControlPlane.GetAPIServer().
 		Configure().Set("service-cluster-ip-range", "10.96.0.0/12")
 
-	// Start the test environment
-	unlock := acquireEnvtestAssetsLock(path)
-	cfg, err := testEnv.Start()
-	unlock()
+	cfg, err := startControlPlane(path, testEnv)
 	if err != nil {
 		log.Fatalf("start test environment: %v", err)
 	}
@@ -154,28 +152,70 @@ func Setup(opts Options) *Env {
 	}
 }
 
-func acquireEnvtestAssetsLock(binaryAssetsDirectory string) func() {
+// envtestAssetsVersion is the control plane version envtest downloads.
+const envtestAssetsVersion = "v1.33.0"
+
+// envtestReadyMarker names the file recording that the binaries in a directory
+// finished downloading. It sits beside them so it is cached and restored with
+// them.
+const envtestReadyMarker = ".envtest-" + envtestAssetsVersion + "-ready"
+
+// startControlPlane starts testEnv, serialising only what has to be.
+//
+// The binaries are downloaded on first use, and a package must not exec one
+// while another package is still writing it (#2072, "text file busy"). The
+// download therefore holds the lock exclusively. Starting against binaries that
+// are already complete takes it shared instead, so those control planes still
+// come up in parallel rather than one at a time.
+//
+// Whether the binaries exist on disk cannot tell those two cases apart: a half
+// written binary exists too, which is why checking for the files is not enough.
+// Completion is recorded by a marker written only after a start has succeeded,
+// by which point the downloading process has closed them.
+func startControlPlane(binaryAssetsDirectory string, testEnv *envtest.Environment) (*rest.Config, error) {
 	if err := os.MkdirAll(binaryAssetsDirectory, 0o700); err != nil {
 		log.Fatalf("create envtest assets directory: %v", err)
 	}
 
+	marker := filepath.Join(binaryAssetsDirectory, envtestReadyMarker)
 	lockFile, err := os.OpenFile(filepath.Join(binaryAssetsDirectory, ".envtest.lock"), os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		log.Fatalf("open envtest assets lock: %v", err)
 	}
+	defer lockFile.Close()
 
-	if err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX); err != nil {
-		_ = lockFile.Close()
-		log.Fatalf("lock envtest assets: %v", err)
+	if !fileExists(marker) {
+		flockOrDie(lockFile, syscall.LOCK_EX)
+
+		// Another package may have downloaded while we waited for the lock.
+		if !fileExists(marker) {
+			cfg, err := testEnv.Start()
+			if err == nil {
+				if err := os.WriteFile(marker, nil, 0o600); err != nil {
+					log.Fatalf("record envtest assets as ready: %v", err)
+				}
+			}
+			flockOrDie(lockFile, syscall.LOCK_UN)
+			return cfg, err
+		}
+
+		flockOrDie(lockFile, syscall.LOCK_UN)
 	}
 
-	return func() {
-		if err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN); err != nil {
-			log.Fatalf("unlock envtest assets: %v", err)
-		}
-		if err := lockFile.Close(); err != nil {
-			log.Fatalf("close envtest assets lock: %v", err)
-		}
+	flockOrDie(lockFile, syscall.LOCK_SH)
+	defer flockOrDie(lockFile, syscall.LOCK_UN)
+
+	return testEnv.Start()
+}
+
+func fileExists(name string) bool {
+	_, err := os.Stat(name)
+	return err == nil
+}
+
+func flockOrDie(lockFile *os.File, how int) {
+	if err := syscall.Flock(int(lockFile.Fd()), how); err != nil {
+		log.Fatalf("lock envtest assets: %v", err)
 	}
 }
 

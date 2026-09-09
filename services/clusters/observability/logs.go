@@ -71,10 +71,13 @@ type LogsResult struct {
 type LogsQuerier struct {
 	backend   LogsBackend
 	namespace string
+	// pageBytes bounds a page by message bytes. Tests scale it down so they can
+	// cross the budget without building megabyte messages to do it.
+	pageBytes int
 }
 
 func NewLogsQuerier(backend LogsBackend, namespace string) *LogsQuerier {
-	return &LogsQuerier{backend: backend, namespace: namespace}
+	return &LogsQuerier{backend: backend, namespace: namespace, pageBytes: maxLogPageBytes}
 }
 
 // schemaLevelToSeverities is the user-facing → CNPG/Postgres severity mapping.
@@ -131,7 +134,7 @@ func (q *LogsQuerier) Query(ctx context.Context, branchID string, start, end tim
 	}
 
 	out := &LogsResult{Entries: make([]LogEntry, 0, len(rows))}
-	page := pagination.New(maxLogPageBytes)
+	page := pagination.New(q.pageBytes)
 	// Rows are _time DESC, so the oldest emitted timestamp's rows sit at the
 	// tail; collect their keys for the resume cursor.
 	var boundaryNanos int64

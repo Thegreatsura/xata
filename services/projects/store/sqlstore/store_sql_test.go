@@ -14,11 +14,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"xata/internal/pgtestutil"
 	"xata/services/projects/store"
-
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -1072,27 +1069,25 @@ func deleteBranches(t *testing.T, ctx context.Context, sqlStore *sqlProjectStore
 	}
 }
 
-func setupSQLStore(ctx context.Context, t *testing.T, maxDepth int32) *sqlProjectStore {
-	// launch postgres container with testcontainers (TODO abstract this with a helper)
-	postgresContainer, err := postgres.Run(ctx,
-		"postgres:16-alpine", // TODO parametrize version
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(30*time.Second)),
-	)
+// migratedStore prepares one database with the migrations applied; every
+// setupSQLStore after that gets a copy rather than replaying them.
+var migratedStore = pgtestutil.NewTemplate(func(ctx context.Context, dsn string) error {
+	config, err := ConfigFromConnectionString(dsn)
 	if err != nil {
-		t.Fatalf("failed to start container: %s", err)
+		return err
 	}
+	sqlStore, err := NewSQLProjectStore(ctx, config, 1)
+	if err != nil {
+		return err
+	}
+	defer sqlStore.Close(ctx)
 
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(postgresContainer); err != nil {
-			log.Printf("failed to terminate container: %s", err)
-		}
-	})
+	return sqlStore.Setup(ctx)
+})
 
+func setupSQLStore(ctx context.Context, t *testing.T, maxDepth int32) *sqlProjectStore {
 	// create a new SQL sqlStore
-	config, err := ConfigFromConnectionString(postgresContainer.MustConnectionString(ctx, "sslmode=disable"))
+	config, err := ConfigFromConnectionString(migratedStore.DSN(ctx, t))
 	require.NoError(t, err)
 	sqlStore, err := NewSQLProjectStore(ctx, config, maxDepth)
 	if err != nil {
@@ -1103,10 +1098,6 @@ func setupSQLStore(ctx context.Context, t *testing.T, maxDepth int32) *sqlProjec
 			log.Printf("failed to close store: %s", err)
 		}
 	})
-
-	// run migrations
-	err = sqlStore.Setup(ctx)
-	require.NoError(t, err)
 
 	return sqlStore
 }
