@@ -1102,6 +1102,44 @@ func (_c *Client_ListInvoices_Call) Return(_a0 *billing.InvoicesPage, _a1 error)
 	return _c
 }
 
+// MarkInvoicePaid provides a mock function with given fields: ctx, opts
+func (_m *Client) MarkInvoicePaid(ctx context.Context, opts billing.MarkInvoicePaidOptions) error {
+	ret := _m.Called(ctx, opts)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, billing.MarkInvoicePaidOptions) error); ok {
+		r0 = rf(ctx, opts)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Client_MarkInvoicePaid_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkInvoicePaid'
+type Client_MarkInvoicePaid_Call struct {
+	*mock.Call
+}
+
+// MarkInvoicePaid is a helper method to define mock.On call
+//   - ctx context.Context
+//   - opts billing.MarkInvoicePaidOptions
+func (_e *Client_Expecter) MarkInvoicePaid(ctx interface{}, opts interface{}) *Client_MarkInvoicePaid_Call {
+	return &Client_MarkInvoicePaid_Call{Call: _e.mock.On("MarkInvoicePaid", ctx, opts)}
+}
+
+func (_c *Client_MarkInvoicePaid_Call) Run(run func(ctx context.Context, opts billing.MarkInvoicePaidOptions)) *Client_MarkInvoicePaid_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(billing.MarkInvoicePaidOptions))
+	})
+	return _c
+}
+
+func (_c *Client_MarkInvoicePaid_Call) Return(_a0 error) *Client_MarkInvoicePaid_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
 // ReconcileBankTransfer provides a mock function with given fields: ctx, stripeCustomerID, transactionID
 func (_m *Client) ReconcileBankTransfer(ctx context.Context, stripeCustomerID string, transactionID string) (billing.BankTransferReconciliation, error) {
 	ret := _m.Called(ctx, stripeCustomerID, transactionID)

@@ -241,6 +241,14 @@ type InvoiceListOptions struct {
 	Statuses []InvoiceStatus
 }
 
+type MarkInvoicePaidOptions struct {
+	InvoiceID           string
+	PaymentReceivedDate time.Time
+	ExternalID          string
+	IdempotencyKey      string
+	Note                string
+}
+
 type InvoicesPage struct {
 	Data       []Invoice
 	HasMore    bool
@@ -433,6 +441,8 @@ type Client interface {
 	HasValidDefaultPaymentMethod(ctx context.Context, stripeCustomerID string) (bool, error)
 	// VoidInvoice voids an invoice in the billing system.
 	VoidInvoice(ctx context.Context, invoiceID string) error
+	// MarkInvoicePaid marks an issued invoice as paid in the billing system.
+	MarkInvoicePaid(ctx context.Context, opts MarkInvoicePaidOptions) error
 	// CountPendingInvoices returns the number of issued (unpaid) invoices that have had at least one payment attempt for the given external customer ID.
 	CountPendingInvoices(ctx context.Context, externalCustomerID string) (int, error)
 	// HasOutstandingInvoices returns true if the customer has any issued invoices or draft invoices with a non-zero total.
@@ -489,6 +499,10 @@ func (n *NoopBilling) ListCustomersCreatedAfter(_ context.Context, _ time.Time) 
 
 func (n *NoopBilling) FetchInvoice(_ context.Context, _ string) (*Invoice, error) {
 	return nil, nil
+}
+
+func (n *NoopBilling) MarkInvoicePaid(_ context.Context, _ MarkInvoicePaidOptions) error {
+	return nil
 }
 
 func (n *NoopBilling) FetchStripeCustomer(_ context.Context, _ string) (*StripeCustomer, error) {
