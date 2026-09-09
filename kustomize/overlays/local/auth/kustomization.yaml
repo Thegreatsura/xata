@@ -26,3 +26,16 @@ resources:
   - slack-secret.yaml
   - slack-config.yaml
   - tackle-secret.yaml
+
+# Use keycloak's own EnvoyProxy so its Envoy Service name does not collide with
+# the envoy-api name that overlays/local/api-gateway pins on the shared one.
+patches:
+  - target:
+      group: gateway.networking.k8s.io
+      version: v1
+      kind: Gateway
+      name: keycloak-eg
+    patch: |
+      - op: replace
+        path: /spec/infrastructure/parametersRef/name
+        value: keycloak-eg-custom-proxy-config
