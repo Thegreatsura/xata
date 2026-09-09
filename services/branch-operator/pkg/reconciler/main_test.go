@@ -27,7 +27,6 @@ const (
 	ThirdPartyCRDsPath       = "./testutils/crds/"
 	SharedThirdPartyCRDsPath = "../../testutils/crds/"
 	XataClustersNamespace    = "xata-clusters"
-	XataNamespace            = "xata"
 )
 
 // k8sClient is a live Kubernetes client connected to the test environment.
@@ -55,7 +54,7 @@ func TestMain(m *testing.M) {
 				barmanPluginApi.AddToScheme,
 				snapshotv1.AddToScheme,
 			},
-			Namespaces: []string{XataNamespace, XataClustersNamespace},
+			Namespaces: []string{XataClustersNamespace},
 			ReconcilerSetup: func(ctx context.Context, mgr ctrl.Manager) error {
 				r := &reconciler.BranchReconciler{
 					Client:                 mgr.GetClient(),
@@ -103,11 +102,6 @@ func withBranch(ctx context.Context, t *testing.T, branch v1alpha1.Branch,
 // getK8SObject retrieves a Kubernetes object by name in the XataClustersNamespace.
 func getK8SObject(ctx context.Context, name string, obj client.Object) error {
 	return envtestutil.GetObject(ctx, k8sClient, name, XataClustersNamespace, obj)
-}
-
-// getK8SObjectInNamespace retrieves a Kubernetes object by name in the specified namespace.
-func getK8SObjectInNamespace(ctx context.Context, name, namespace string, obj client.Object) error {
-	return envtestutil.GetObject(ctx, k8sClient, name, namespace, obj)
 }
 
 // retryOnConflict tries to update the given object using the provided mutate function,

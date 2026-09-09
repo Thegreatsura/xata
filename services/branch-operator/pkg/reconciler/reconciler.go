@@ -219,13 +219,6 @@ func (r *BranchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	// Reconcile the clusters Service for the branch
-	_, err = r.reconcileClustersService(ctx, branch)
-	if err != nil {
-		log.Error(err, "reconciling clusters Service")
-		return ctrl.Result{}, err
-	}
-
 	// Set the Branch Ready condition to True
 	setReadyCondition(branch, metav1.ConditionTrue, v1alpha1.ResourcesReadyReason)
 

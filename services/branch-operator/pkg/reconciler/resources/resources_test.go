@@ -71,29 +71,6 @@ func TestNetworkPolicySpec(t *testing.T) {
 	}
 }
 
-func TestClustersServiceSpec(t *testing.T) {
-	t.Parallel()
-
-	spec := resources.ClustersServiceSpec()
-
-	expected := v1.ServiceSpec{
-		Type: v1.ServiceTypeClusterIP,
-		Ports: []v1.ServicePort{
-			{
-				Name:       "grpc",
-				Port:       5002,
-				TargetPort: intstr.FromInt(5002),
-				Protocol:   v1.ProtocolTCP,
-			},
-		},
-		Selector: map[string]string{
-			"app": "clusters",
-		},
-	}
-
-	require.Equal(t, expected, spec)
-}
-
 func TestAdditionalServiceSpec(t *testing.T) {
 	t.Parallel()
 

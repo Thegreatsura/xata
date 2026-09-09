@@ -55,33 +55,6 @@ func NetworkPolicySpec(clusterName string) networkingv1.NetworkPolicySpec {
 	}
 }
 
-// ClustersServiceSpec defines the ServiceSpec for a branch-specific clusters
-// Service.
-//
-// Each `Branch` needs a branch-specific `clusters` Service to be created
-// in the `xata` namespace. The service routes traffic to the `clusters`
-// service.
-//
-// This service is duplicated into the primary cell on branch creation,
-// orchestrated by the control plane, so that cross-cell access to the
-// correct `clusters` service for each branch is possible.
-func ClustersServiceSpec() v1.ServiceSpec {
-	return v1.ServiceSpec{
-		Type: v1.ServiceTypeClusterIP,
-		Ports: []v1.ServicePort{
-			{
-				Name:       "grpc",
-				Port:       5002,
-				TargetPort: intstr.FromInt(5002),
-				Protocol:   v1.ProtocolTCP,
-			},
-		},
-		Selector: map[string]string{
-			"app": "clusters",
-		},
-	}
-}
-
 // AdditionalServiceSpec defines the ServiceSpec for a branch-specific
 // additional service that routes directly to CNPG PostgreSQL pods.
 //

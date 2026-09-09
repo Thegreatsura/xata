@@ -11,7 +11,6 @@ import (
 	barmanPluginApi "github.com/cloudnative-pg/plugin-barman-cloud/api/v1"
 	"github.com/stretchr/testify/require"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
-	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -49,18 +48,6 @@ func TestInheritedMetadataLabels(t *testing.T) {
 			// Ensure the labels are present on the Cluster
 			require.Equal(t, "some-org-id", cluster.Labels[orgIDLabelKey])
 			require.Equal(t, "some-project-id", cluster.Labels[projectIDLabelKey])
-
-			// Expect the clusters Service to be created
-			svc := corev1.Service{}
-			requireEventuallyNoErr(t, func() error {
-				svcName := reconciler.ClustersServiceNamePrefix + br.Name
-
-				return getK8SObjectInNamespace(ctx, svcName, XataNamespace, &svc)
-			})
-
-			// Ensure the labels are present on the Service
-			require.Equal(t, "some-org-id", svc.Labels[orgIDLabelKey])
-			require.Equal(t, "some-project-id", svc.Labels[projectIDLabelKey])
 
 			// Expect the NetworkPolicy to be created
 			np := networkingv1.NetworkPolicy{}
