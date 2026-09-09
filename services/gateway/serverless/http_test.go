@@ -605,6 +605,10 @@ func TestIsPgxClientError(t *testing.T) {
 			msg:  "expected 1 arguments, got 2",
 			want: true,
 		},
+		"encode failure": {
+			msg:  "failed to encode args[0]: unable to encode 28 into binary format for date (OID 1082): cannot find encode plan",
+			want: true,
+		},
 		"connection error": {
 			msg:  "connection refused",
 			want: false,
@@ -641,6 +645,11 @@ func TestHandlePgError(t *testing.T) {
 		},
 		"pgx client error - expected arguments": {
 			err:            errors.New("expected 1 arguments, got 2"),
+			wantStatusCode: http.StatusBadRequest,
+			wantCode:       "08P01",
+		},
+		"pgx client error - encode failure": {
+			err:            errors.New("failed to encode args[0]: unable to encode 28 into binary format for date (OID 1082): cannot find encode plan"),
 			wantStatusCode: http.StatusBadRequest,
 			wantCode:       "08P01",
 		},
@@ -837,6 +846,10 @@ func TestClassifyError(t *testing.T) {
 		},
 		"client error - expected arguments": {
 			err:  errors.New("expected 1 arguments, got 2"),
+			want: "client",
+		},
+		"client error - encode failure": {
+			err:  errors.New("failed to encode args[0]: unable to encode 28 into binary format for date (OID 1082): cannot find encode plan"),
 			want: "client",
 		},
 		"connection refused": {

@@ -151,11 +151,14 @@ func handlePgError(c echo.Context, err error) error {
 
 // isPgxClientError detects parameter binding errors raised by pgx before the
 // query reaches PostgreSQL. These are definitively client errors (wrong number
-// of parameters, etc.) that should return 400.
+// of parameters, a value that cannot be encoded as the inferred type, etc.)
+// that should return 400. pgx wraps encode failures as
+// "failed to encode args[N]: ..." in extended_query_builder.go.
 func isPgxClientError(err error) bool {
 	msg := err.Error()
 	return strings.HasPrefix(msg, "expected ") ||
-		strings.HasPrefix(msg, "unused argument")
+		strings.HasPrefix(msg, "unused argument") ||
+		strings.HasPrefix(msg, "failed to encode args[")
 }
 
 // classifyError returns a short category string for an error, suitable for
