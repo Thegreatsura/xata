@@ -38,6 +38,16 @@ func (e ErrOwnerGroupLastMember) StatusCode() int {
 	return http.StatusConflict
 }
 
+type ErrNotOwner struct{}
+
+func (e ErrNotOwner) Error() string {
+	return fmt.Sprintf("only members of the %q group can change its membership", OwnerGroupName)
+}
+
+func (e ErrNotOwner) StatusCode() int {
+	return http.StatusForbidden
+}
+
 type ErrUserNotOrganizationMember struct {
 	UserID string
 }

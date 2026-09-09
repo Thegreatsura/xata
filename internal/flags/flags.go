@@ -65,6 +65,11 @@ var (
 		Name:           "organizationGroups",
 		DefaultEnabled: false,
 	}
+	// OrganizationCustomGroups gates defining groups beyond the Owner group.
+	OrganizationCustomGroups = openfeature.FeatureFlag{
+		Name:           "organizationCustomGroups",
+		DefaultEnabled: false,
+	}
 	// WARNING: Feature Flags should have positive names. Avoid disabled suffix in future
 )
 

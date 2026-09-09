@@ -157,6 +157,8 @@ func TestAddMember(t *testing.T) {
 	}{
 		"rejects users who are not organization members": {
 			setup: func(kc *keycloakMocks.KeyCloak) {
+				kc.EXPECT().GetGroup(mock.Anything, apitest.TestRealm, testOrgID, testGroupID).
+					Return(regularGroup(), nil).Maybe()
 				kc.EXPECT().ListMembers(mock.Anything, apitest.TestRealm, testOrgID).
 					Return([]keycloak.OrganizationMember{{ID: "someone-else"}}, nil).Once()
 			},
@@ -166,6 +168,8 @@ func TestAddMember(t *testing.T) {
 		},
 		"adds an organization member to the group": {
 			setup: func(kc *keycloakMocks.KeyCloak) {
+				kc.EXPECT().GetGroup(mock.Anything, apitest.TestRealm, testOrgID, testGroupID).
+					Return(regularGroup(), nil).Maybe()
 				kc.EXPECT().ListMembers(mock.Anything, apitest.TestRealm, testOrgID).
 					Return([]keycloak.OrganizationMember{{ID: testUserID}}, nil).Once()
 				kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, testGroupID, testUserID).Return(nil).Once()
@@ -177,19 +181,21 @@ func TestAddMember(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			tt.check(t, newService(t, tt.setup).AddMember(context.Background(), testOrgID, testGroupID, testUserID))
+			tt.check(t, newService(t, tt.setup).AddMember(context.Background(), testOrgID, testGroupID, testUserID, "anyone"))
 		})
 	}
 }
 
 func TestRemoveMember(t *testing.T) {
 	tests := map[string]struct {
-		groupID string
-		setup   func(*keycloakMocks.KeyCloak)
-		check   func(t *testing.T, err error)
+		groupID  string
+		callerID string
+		setup    func(*keycloakMocks.KeyCloak)
+		check    func(t *testing.T, err error)
 	}{
 		"blocks removing the last Owner member": {
-			groupID: ownerID,
+			groupID:  ownerID,
+			callerID: testUserID,
 			setup: func(kc *keycloakMocks.KeyCloak) {
 				kc.EXPECT().GetGroup(mock.Anything, apitest.TestRealm, testOrgID, ownerID).Return(ownerGroup(), nil).Once()
 				kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, ownerID).
@@ -202,7 +208,8 @@ func TestRemoveMember(t *testing.T) {
 			},
 		},
 		"allows removing an Owner member when others remain": {
-			groupID: ownerID,
+			groupID:  ownerID,
+			callerID: "user-2",
 			setup: func(kc *keycloakMocks.KeyCloak) {
 				kc.EXPECT().GetGroup(mock.Anything, apitest.TestRealm, testOrgID, ownerID).Return(ownerGroup(), nil).Once()
 				kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, ownerID).
@@ -216,7 +223,8 @@ func TestRemoveMember(t *testing.T) {
 			},
 		},
 		"does not block a no-op removal of a non-member from the Owner group": {
-			groupID: ownerID,
+			groupID:  ownerID,
+			callerID: "the-only-owner",
 			setup: func(kc *keycloakMocks.KeyCloak) {
 				kc.EXPECT().GetGroup(mock.Anything, apitest.TestRealm, testOrgID, ownerID).Return(ownerGroup(), nil).Once()
 				kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, ownerID).
@@ -230,7 +238,8 @@ func TestRemoveMember(t *testing.T) {
 			},
 		},
 		"removes a member from a regular group without checks": {
-			groupID: testGroupID,
+			groupID:  testGroupID,
+			callerID: "anyone",
 			setup: func(kc *keycloakMocks.KeyCloak) {
 				kc.EXPECT().GetGroup(mock.Anything, apitest.TestRealm, testOrgID, testGroupID).Return(regularGroup(), nil).Once()
 				kc.EXPECT().RemoveGroupMember(mock.Anything, apitest.TestRealm, testOrgID, testGroupID, testUserID).Return(nil).Once()
@@ -242,7 +251,7 @@ func TestRemoveMember(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			tt.check(t, newService(t, tt.setup).RemoveMember(context.Background(), testOrgID, tt.groupID, testUserID))
+			tt.check(t, newService(t, tt.setup).RemoveMember(context.Background(), testOrgID, tt.groupID, testUserID, tt.callerID))
 		})
 	}
 }
@@ -318,8 +327,82 @@ func TestEnsureOwnerGroup(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			group, err := newService(t, tt.setup).EnsureOwnerGroup(context.Background(), testOrgID, tt.seedMemberIDs)
+			var seed SeedMembers
+			if tt.seedMemberIDs != nil {
+				seed = func(context.Context) ([]string, error) { return tt.seedMemberIDs, nil }
+			}
+			group, err := newService(t, tt.setup).EnsureOwnerGroup(context.Background(), testOrgID, seed)
 			tt.check(t, group, err)
+		})
+	}
+}
+
+func TestOwnerMembershipRequiresAnOwnerCaller(t *testing.T) {
+	const owner, other = "an-owner", "not-an-owner"
+
+	tests := map[string]struct {
+		groupID    string
+		callerID   string
+		ownerGroup []keycloak.OrganizationMember
+		orgMembers []keycloak.OrganizationMember
+		wantErr    bool
+	}{
+		"any caller may change a regular group": {
+			groupID:  testGroupID,
+			callerID: other,
+		},
+		"a non-owner may not change the Owner group": {
+			groupID:    ownerID,
+			callerID:   other,
+			ownerGroup: []keycloak.OrganizationMember{{ID: owner}, {ID: testUserID}},
+			orgMembers: []keycloak.OrganizationMember{{ID: owner}, {ID: testUserID}},
+			wantErr:    true,
+		},
+		"an owner who has left the organization may not": {
+			groupID:    ownerID,
+			callerID:   owner,
+			ownerGroup: []keycloak.OrganizationMember{{ID: owner}, {ID: testUserID}},
+			orgMembers: []keycloak.OrganizationMember{{ID: testUserID}},
+			wantErr:    true,
+		},
+		"an organization API key carries no identity and is never an owner": {
+			groupID:    ownerID,
+			callerID:   "",
+			ownerGroup: []keycloak.OrganizationMember{{ID: owner}, {ID: testUserID}},
+			orgMembers: []keycloak.OrganizationMember{{ID: owner}, {ID: testUserID}},
+			wantErr:    true,
+		},
+		"an active owner may": {
+			groupID:    ownerID,
+			callerID:   owner,
+			ownerGroup: []keycloak.OrganizationMember{{ID: owner}, {ID: testUserID}},
+			orgMembers: []keycloak.OrganizationMember{{ID: owner}, {ID: testUserID}},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			s := newService(t, func(kc *keycloakMocks.KeyCloak) {
+				group := regularGroup()
+				if tt.groupID == ownerID {
+					group = ownerGroup()
+				}
+				kc.EXPECT().GetGroup(mock.Anything, apitest.TestRealm, testOrgID, tt.groupID).Return(group, nil).Maybe()
+				kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, tt.groupID).
+					Return(tt.ownerGroup, nil).Maybe()
+				kc.EXPECT().ListMembers(mock.Anything, apitest.TestRealm, testOrgID).Return(tt.orgMembers, nil).Maybe()
+				kc.EXPECT().RemoveGroupMember(mock.Anything, apitest.TestRealm, testOrgID, tt.groupID, testUserID).
+					Return(nil).Maybe()
+			})
+
+			got := s.RemoveMember(context.Background(), testOrgID, tt.groupID, testUserID, tt.callerID)
+
+			if tt.wantErr {
+				var want ErrNotOwner
+				require.ErrorAs(t, got, &want)
+				return
+			}
+			require.NoError(t, got)
 		})
 	}
 }
