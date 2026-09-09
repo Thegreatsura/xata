@@ -244,7 +244,9 @@ func (d *ClusterDialer) waitUntilReachable(ctx context.Context, svc clustersServ
 	logger := log.Ctx(ctx).With().Str("cluster", clusterID).Str("address", address).Logger()
 	reactivateTimeout := time.NewTimer(d.reactivateTimeout)
 	defer reactivateTimeout.Stop()
-	statusChecker := time.NewTicker(d.statusCheckInterval)
+	waitStarted := time.Now()
+	statusInterval := d.statusCheckInterval
+	statusChecker := time.NewTicker(statusInterval)
 	defer statusChecker.Stop()
 
 	clusterReady := false
@@ -263,10 +265,18 @@ func (d *ClusterDialer) waitUntilReachable(ctx context.Context, svc clustersServ
 					return nil, fmt.Errorf("checking cluster status: %w", err)
 				}
 				if !d.isClusterAvailable(cluster.Status) {
-					logger.Debug().Msgf("waiting for cluster to be available, current status: %s, next check: %s", cluster.Status.StatusType, d.statusCheckInterval)
+					next := statusPollInterval(d.statusCheckInterval, time.Since(waitStarted))
+					if next != statusInterval {
+						statusInterval = next
+						statusChecker.Reset(statusInterval)
+					}
+					logger.Debug().Msgf("waiting for cluster to be available, current status: %s, next check: %s", cluster.Status.StatusType, statusInterval)
 					continue
 				}
 				clusterReady = true
+				if statusInterval != d.statusCheckInterval {
+					statusChecker.Reset(d.statusCheckInterval)
+				}
 			}
 
 			conn, err := d.dialer(ctx, network, address)
