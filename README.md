@@ -48,7 +48,6 @@ There are two major use cases for self-hosting the Xata open source platform:
 Xata is built on top of two key open-source cloud-native technologies:
 
 - [CloudNativePG](https://github.com/cloudnative-pg/cloudnative-pg) is a Postgres operator for Kubernetes. It handles most of the typical production concerns: high-availability, failover/switchover, upgrades, connection pooling, backups, etc.
-- [OpenEBS](https://github.com/openebs/openebs), is a a cloud native storage project, offering both local storage (i.e. local NVMe disks) as well as a replicated storage engine (Mayastor - NVMe-of).
 
 On top of these two, the Xata platform adds:
 

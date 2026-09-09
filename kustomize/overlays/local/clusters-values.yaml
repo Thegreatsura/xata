@@ -7,9 +7,6 @@ config:
     storageClass: "csi-hostpath-sc"
     useOperatorForNewBranches: "true"
     volumeSnapshotClass: "csi-hostpath-snapclass"
-    openebs:
-      enabled: false
-      namespace: openebs
     pgbackrest:
       bucket: "backups"
       region: "us-east-1"
