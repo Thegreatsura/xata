@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"testing"
 
-	"xata/services/clusters/internal/connectors/cnpg/resources"
-
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/stretchr/testify/assert"
@@ -56,31 +54,6 @@ func Test_RegisterCluster(t *testing.T) {
 		return services
 	}
 
-	testClustersService := func(clusterName, namespace string) *v1.Service {
-		return &v1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            resources.ClustersServicePrefix + clusterName,
-				Namespace:       namespace,
-				ResourceVersion: "1",
-				Annotations: map[string]string{
-					"service.cilium.io/global": "true",
-				},
-			},
-			Spec: v1.ServiceSpec{
-				Type: v1.ServiceTypeClusterIP,
-				Ports: []v1.ServicePort{
-					{
-						Name: "grpc",
-						Port: 5002,
-
-						TargetPort: intstr.FromInt(5002),
-						Protocol:   v1.ProtocolTCP,
-					},
-				},
-			},
-		}
-	}
-
 	errTest := errors.New("some random error")
 
 	tests := []struct {
@@ -90,40 +63,27 @@ func Test_RegisterCluster(t *testing.T) {
 		xataNamespace string
 		fakeClient    client.Client
 
-		wantCNPGServices    []*v1.Service
-		wantClustersService *v1.Service
-		wantError           error
-		errorMessage        string
+		wantCNPGServices []*v1.Service
+		wantError        error
+		errorMessage     string
 	}{
 		{
-			name:                "RegisterCluster works",
-			clusterName:         "test-cluster",
-			namespace:           "xata-clusters",
-			xataNamespace:       "xata",
-			fakeClient:          fake.NewClientBuilder().WithScheme(scheme).Build(),
-			wantCNPGServices:    testCNPGServices("test-cluster", "xata-clusters"),
-			wantClustersService: testClustersService("test-cluster", "xata"),
-			wantError:           nil,
+			name:             "RegisterCluster works",
+			clusterName:      "test-cluster",
+			namespace:        "xata-clusters",
+			xataNamespace:    "xata",
+			fakeClient:       fake.NewClientBuilder().WithScheme(scheme).Build(),
+			wantCNPGServices: testCNPGServices("test-cluster", "xata-clusters"),
+			wantError:        nil,
 		},
 		{
-			name:                "RegisterCluster works with a different clusters namespace",
-			clusterName:         "another-cluster",
-			namespace:           "another-namespace",
-			xataNamespace:       "xata",
-			fakeClient:          fake.NewClientBuilder().WithScheme(scheme).Build(),
-			wantCNPGServices:    testCNPGServices("another-cluster", "another-namespace"),
-			wantClustersService: testClustersService("another-cluster", "xata"),
-			wantError:           nil,
-		},
-		{
-			name:                "RegisterCluster works with a different xata namespace",
-			clusterName:         "another-cluster",
-			namespace:           "xata-clusters",
-			xataNamespace:       "another-namespace",
-			fakeClient:          fake.NewClientBuilder().WithScheme(scheme).Build(),
-			wantCNPGServices:    testCNPGServices("another-cluster", "xata-clusters"),
-			wantClustersService: testClustersService("another-cluster", "another-namespace"),
-			wantError:           nil,
+			name:             "RegisterCluster works with a different clusters namespace",
+			clusterName:      "another-cluster",
+			namespace:        "another-namespace",
+			xataNamespace:    "xata",
+			fakeClient:       fake.NewClientBuilder().WithScheme(scheme).Build(),
+			wantCNPGServices: testCNPGServices("another-cluster", "another-namespace"),
+			wantError:        nil,
 		},
 		{
 			name:          "RegisterCluster fails for existing service",
@@ -194,15 +154,6 @@ func Test_RegisterCluster(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.wantCNPGServices[i], createdService, "CNPG service branch-%s should match expected configuration", suffix)
 			}
-
-			// Verify the clusters service was created with correct configuration
-			createdClustersService := &v1.Service{}
-			err = tt.fakeClient.Get(context.Background(), types.NamespacedName{
-				Namespace: tt.xataNamespace,
-				Name:      resources.ClustersServicePrefix + tt.clusterName,
-			}, createdClustersService)
-			require.NoError(t, err)
-			require.Equal(t, tt.wantClustersService, createdClustersService)
 		})
 	}
 }
@@ -239,29 +190,6 @@ func Test_DeregisterCluster(t *testing.T) {
 		return services
 	}
 
-	testClustersService := func(clusterName, namespace string) *v1.Service {
-		return &v1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      resources.ClustersServicePrefix + clusterName,
-				Namespace: namespace,
-				Annotations: map[string]string{
-					"service.cilium.io/global": "true",
-				},
-			},
-			Spec: v1.ServiceSpec{
-				Type: v1.ServiceTypeClusterIP,
-				Ports: []v1.ServicePort{
-					{
-						Name:       "grpc",
-						Port:       5002,
-						TargetPort: intstr.FromInt(5002),
-						Protocol:   v1.ProtocolTCP,
-					},
-				},
-			},
-		}
-	}
-
 	errTest := errors.New("some random error")
 
 	tests := []struct {
@@ -271,40 +199,36 @@ func Test_DeregisterCluster(t *testing.T) {
 		xataNamespace     string
 		fakeClient        client.Client
 
-		existingCNPGServices    []*v1.Service
-		existingClustersService *v1.Service
-		wantError               error
-		errorMessage            string
+		existingCNPGServices []*v1.Service
+		wantError            error
+		errorMessage         string
 	}{
 		{
-			name:                    "DeregisterCluster works",
-			clusterName:             "test-cluster",
-			clustersNamespace:       "xata-clusters",
-			xataNamespace:           "xata",
-			fakeClient:              fake.NewClientBuilder().WithScheme(scheme).Build(),
-			existingCNPGServices:    testCNPGServices("test-cluster", "xata-clusters"),
-			existingClustersService: testClustersService("test-cluster", "xata"),
-			wantError:               nil,
+			name:                 "DeregisterCluster works",
+			clusterName:          "test-cluster",
+			clustersNamespace:    "xata-clusters",
+			xataNamespace:        "xata",
+			fakeClient:           fake.NewClientBuilder().WithScheme(scheme).Build(),
+			existingCNPGServices: testCNPGServices("test-cluster", "xata-clusters"),
+			wantError:            nil,
 		},
 		{
-			name:                    "DeregisterCluster works with different namespace",
-			clusterName:             "another-cluster",
-			clustersNamespace:       "another-namespace",
-			xataNamespace:           "xata2",
-			fakeClient:              fake.NewClientBuilder().WithScheme(scheme).Build(),
-			existingCNPGServices:    testCNPGServices("another-cluster", "another-namespace"),
-			existingClustersService: testClustersService("test-cluster", "xata2"),
-			wantError:               nil,
+			name:                 "DeregisterCluster works with different namespace",
+			clusterName:          "another-cluster",
+			clustersNamespace:    "another-namespace",
+			xataNamespace:        "xata2",
+			fakeClient:           fake.NewClientBuilder().WithScheme(scheme).Build(),
+			existingCNPGServices: testCNPGServices("another-cluster", "another-namespace"),
+			wantError:            nil,
 		},
 		{
-			name:                    "DeregisterCluster succeeds when service doesn't exist",
-			clusterName:             "test-cluster",
-			clustersNamespace:       "xata-clusters",
-			xataNamespace:           "xata",
-			fakeClient:              fake.NewClientBuilder().WithScheme(scheme).Build(),
-			existingCNPGServices:    nil, // No existing CNPG services
-			existingClustersService: nil, // No existing clusters service
-			wantError:               nil,
+			name:                 "DeregisterCluster succeeds when service doesn't exist",
+			clusterName:          "test-cluster",
+			clustersNamespace:    "xata-clusters",
+			xataNamespace:        "xata",
+			fakeClient:           fake.NewClientBuilder().WithScheme(scheme).Build(),
+			existingCNPGServices: nil, // No existing CNPG services
+			wantError:            nil,
 		},
 		{
 			name:                 "DeregisterCluster fails for deletion error",
@@ -334,12 +258,6 @@ func Test_DeregisterCluster(t *testing.T) {
 				}
 			}
 
-			// Create the existing clusters service if needed
-			if tt.existingClustersService != nil {
-				err := tt.fakeClient.Create(context.Background(), tt.existingClustersService)
-				require.NoError(t, err)
-			}
-
 			connector := &DefaultConnector{
 				KubernetesClient: tt.fakeClient,
 			}
@@ -365,15 +283,6 @@ func Test_DeregisterCluster(t *testing.T) {
 				require.Error(t, err)
 				require.True(t, k8serrors.IsNotFound(err), "CNPG service branch-%s%s should be deleted", tt.clusterName, suffix)
 			}
-
-			// Verify the clusters service was deleted
-			deletedService := &v1.Service{}
-			err = tt.fakeClient.Get(context.Background(), types.NamespacedName{
-				Namespace: tt.xataNamespace,
-				Name:      resources.ClustersServicePrefix + tt.clusterName,
-			}, deletedService)
-			require.Error(t, err)
-			require.True(t, k8serrors.IsNotFound(err), "clusters service should be deleted")
 		})
 	}
 }

@@ -7,10 +7,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-const (
-	ClustersServicePrefix = "clusters-"
-)
-
 // GlobalCNPGServices creates ClusterIP services for a CNPG cluster, with the
 // required Cilium annotations to make the service a global service.
 func GlobalCNPGServices(clusterID, namespace string) []v1.Service {
@@ -73,36 +69,6 @@ func GlobalPoolerService(clusterID, namespace string) v1.Service {
 					Protocol:   v1.ProtocolTCP,
 				},
 			},
-		},
-	}
-}
-
-// GlobalClustersService creates a service called clusters-<clusterID> with no
-// selector.
-func GlobalClustersService(clusterID, namespace string) v1.Service {
-	return clustersService(clusterID, namespace, map[string]string{})
-}
-
-func clustersService(clusterID, namespace string, selector map[string]string) v1.Service {
-	return v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ClustersServicePrefix + clusterID,
-			Namespace: namespace,
-			Annotations: map[string]string{
-				"service.cilium.io/global": "true",
-			},
-		},
-		Spec: v1.ServiceSpec{
-			Type: v1.ServiceTypeClusterIP,
-			Ports: []v1.ServicePort{
-				{
-					Name:       "grpc",
-					Port:       5002,
-					TargetPort: intstr.FromInt(5002),
-					Protocol:   v1.ProtocolTCP,
-				},
-			},
-			Selector: selector,
 		},
 	}
 }

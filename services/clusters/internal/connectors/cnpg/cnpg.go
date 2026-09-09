@@ -81,12 +81,7 @@ func (c *DefaultConnector) RegisterCluster(ctx context.Context, clusterID, clust
 	}
 
 	poolerSvc := resources.GlobalPoolerService(clusterID, clustersNamespace)
-	if err := c.KubernetesClient.Create(ctx, &poolerSvc); err != nil {
-		return err
-	}
-
-	svc := resources.GlobalClustersService(clusterID, xataNamespace)
-	return c.KubernetesClient.Create(ctx, &svc)
+	return c.KubernetesClient.Create(ctx, &poolerSvc)
 }
 
 func (c *DefaultConnector) DeregisterCluster(ctx context.Context, clusterID, clustersNamespace, xataNamespace string) error {
@@ -118,18 +113,7 @@ func (c *DefaultConnector) DeregisterCluster(ctx context.Context, clusterID, clu
 		}
 	}
 
-	// Deregister the clusters service for the branch
-	svc := &v1.Service{}
-	err := c.KubernetesClient.Get(ctx, types.NamespacedName{
-		Namespace: xataNamespace,
-		Name:      resources.ClustersServicePrefix + clusterID,
-	}, svc)
-	if err != nil {
-		// If the service doesn't exist, consider it already deregistered
-		return nil
-	}
-
-	return c.KubernetesClient.Delete(ctx, svc)
+	return nil
 }
 
 func (c *DefaultConnector) GetObjectStore(ctx context.Context, id, namespace string) (*barmanPluginApi.ObjectStore, error) {
