@@ -38,7 +38,7 @@ fmt: tools ## Format specs
 .PHONY: generate-bundled-json
 generate-bundled-json: tools ## Generate JSON versions of bundled specs
 	for f in $(shell ls *.yaml); do \
-		$(REDOCLY_CLI) bundle --ext json -o gen/bundled-json/$${f%.yaml}.json $$f; \
+		$(REDOCLY_CLI) bundle --ext json -o gen/bundled-json/$${f%.yaml}.json $$f || exit 1; \
 	done
 .PHONY: generate-public-json
 generate-public-json: tools ## Generate joined public OpenAPI spec in JSON format

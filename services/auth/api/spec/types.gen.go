@@ -375,6 +375,12 @@ type CreateAPIKeyRequest struct {
 	Scopes *[]string `json:"scopes,omitempty"`
 }
 
+// CreateOrganizationGroupRequest Request payload for creating an organization group
+type CreateOrganizationGroupRequest struct {
+	// Name Name for the new group
+	Name string `json:"name"`
+}
+
 // CreateOrganizationInvitationRequest defines model for CreateOrganizationInvitationRequest.
 type CreateOrganizationInvitationRequest struct {
 	// Email Email address of the user to invite
@@ -450,6 +456,21 @@ type Organization struct {
 	// Name Human-readable name of the organization
 	Name   string             `json:"name"`
 	Status OrganizationStatus `json:"status"`
+}
+
+// OrganizationGroup A group within an organization
+type OrganizationGroup struct {
+	// Id Unique identifier for the group
+	Id string `json:"id"`
+
+	// IsOwner Whether this is the predefined "Owner" group, which cannot be edited or deleted and must always retain at least one member
+	IsOwner bool `json:"is_owner"`
+
+	// Name Human-readable name of the group
+	Name string `json:"name"`
+
+	// Path Hierarchical path of the group within the organization
+	Path *string `json:"path,omitempty"`
 }
 
 // OrganizationID defines model for OrganizationID.
@@ -542,6 +563,12 @@ type UpdateBillingCustomerRequest struct {
 	BillingEmail openapi_types.Email `json:"billing_email"`
 }
 
+// UpdateOrganizationGroupRequest Request payload for updating an organization group
+type UpdateOrganizationGroupRequest struct {
+	// Name New name for the group
+	Name string `json:"name"`
+}
+
 // User User information including email, full name, and profile image
 type User struct {
 	// Email Email address associated with the user account
@@ -565,6 +592,9 @@ type UserWithID struct {
 	// Name Name of the user
 	Name string `json:"name"`
 }
+
+// GroupIDParam defines model for GroupIDParam.
+type GroupIDParam = string
 
 // InvitationIDParam defines model for InvitationIDParam.
 type InvitationIDParam = string
@@ -681,6 +711,12 @@ type CreateOrganizationAPIKeyJSONRequestBody = CreateAPIKeyRequest
 
 // UpdateBillingCustomerJSONRequestBody defines body for UpdateBillingCustomer for application/json ContentType.
 type UpdateBillingCustomerJSONRequestBody = UpdateBillingCustomerRequest
+
+// CreateOrganizationGroupJSONRequestBody defines body for CreateOrganizationGroup for application/json ContentType.
+type CreateOrganizationGroupJSONRequestBody = CreateOrganizationGroupRequest
+
+// UpdateOrganizationGroupJSONRequestBody defines body for UpdateOrganizationGroup for application/json ContentType.
+type UpdateOrganizationGroupJSONRequestBody = UpdateOrganizationGroupRequest
 
 // CreateOrganizationInvitationJSONRequestBody defines body for CreateOrganizationInvitation for application/json ContentType.
 type CreateOrganizationInvitationJSONRequestBody = CreateOrganizationInvitationRequest

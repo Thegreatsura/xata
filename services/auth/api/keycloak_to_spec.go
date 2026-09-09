@@ -2,6 +2,7 @@ package api
 
 import (
 	"xata/services/auth/api/spec"
+	"xata/services/auth/groups"
 	"xata/services/auth/keycloak"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -49,6 +50,26 @@ func ToSpecOrganizationMembers(members []keycloak.OrganizationMember) []spec.Use
 			Name:  member.Name,
 			Id:    member.ID,
 		}
+	}
+	return result
+}
+
+func ToSpecOrganizationGroup(group keycloak.Group) spec.OrganizationGroup {
+	result := spec.OrganizationGroup{
+		Id:      group.ID,
+		Name:    group.Name,
+		IsOwner: group.Name == groups.OwnerGroupName,
+	}
+	if group.Path != "" {
+		result.Path = &group.Path
+	}
+	return result
+}
+
+func ToSpecOrganizationGroups(groups []keycloak.Group) []spec.OrganizationGroup {
+	result := make([]spec.OrganizationGroup, len(groups))
+	for i, group := range groups {
+		result[i] = ToSpecOrganizationGroup(group)
 	}
 	return result
 }

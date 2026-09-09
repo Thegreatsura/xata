@@ -320,6 +320,38 @@ func (s *publicHandler) ResendOrganizationInvitation(ctx echo.Context, organizat
 	return echo.ErrNotImplemented
 }
 
+func (s *publicHandler) ListOrganizationGroups(ctx echo.Context, organizationID spec.OrganizationIDParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) CreateOrganizationGroup(ctx echo.Context, organizationID spec.OrganizationIDParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) GetOrganizationGroup(ctx echo.Context, organizationID spec.OrganizationIDParam, groupID spec.GroupIDParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) UpdateOrganizationGroup(ctx echo.Context, organizationID spec.OrganizationIDParam, groupID spec.GroupIDParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) DeleteOrganizationGroup(ctx echo.Context, organizationID spec.OrganizationIDParam, groupID spec.GroupIDParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) ListOrganizationGroupMembers(ctx echo.Context, organizationID spec.OrganizationIDParam, groupID spec.GroupIDParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) AddOrganizationGroupMember(ctx echo.Context, organizationID spec.OrganizationIDParam, groupID spec.GroupIDParam, userID spec.UserIDParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) RemoveOrganizationGroupMember(ctx echo.Context, organizationID spec.OrganizationIDParam, groupID spec.GroupIDParam, userID spec.UserIDParam) error {
+	return echo.ErrNotImplemented
+}
+
 // createAPIKey handles the logic for creating API keys (both user and organization)
 func (s *publicHandler) createAPIKey(ctx echo.Context, targetType store.KeyTargetType, targetID string, name string, expiry *time.Time, providedScopes *[]string, providedProjects *[]string, providedBranches *[]string) error {
 	if name == "" {

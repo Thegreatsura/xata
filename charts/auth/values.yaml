@@ -42,7 +42,7 @@ httpRoute:
       type: RegularExpression
     - path: /marketplace
       type: PathPrefix
-    - path: "^/organizations(/*)$|^/organizations/([^/]+)(/api-keys|/members.*|/invitations.*|/deletion-request|/membership-limits|/billing/(checkout-session|payment-method-session|customer|invoices(/upcoming)?))?$"
+    - path: "^/organizations(/*)$|^/organizations/([^/]+)(/api-keys|/members.*|/groups.*|/invitations.*|/deletion-request|/membership-limits|/billing/(checkout-session|payment-method-session|customer|invoices(/upcoming)?))?$"
       type: RegularExpression
 
 resources:

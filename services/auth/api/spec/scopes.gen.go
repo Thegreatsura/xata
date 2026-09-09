@@ -15,6 +15,10 @@ func GetScopes(method, path string) []string {
 			return []string{"org:write"}
 		case "/organizations/:organizationID/api-keys":
 			return []string{"keys:write"}
+		case "/organizations/:organizationID/groups/:groupID":
+			return []string{"group:write"}
+		case "/organizations/:organizationID/groups/:groupID/members/:userID":
+			return []string{"group:write"}
 		case "/organizations/:organizationID/invitations/:invitationID":
 			return []string{"invite:write"}
 		case "/organizations/:organizationID/members/:userID":
@@ -46,6 +50,12 @@ func GetScopes(method, path string) []string {
 			return []string{"org:read"}
 		case "/organizations/:organizationID/githubapp/installations":
 			return []string{"project:read"}
+		case "/organizations/:organizationID/groups":
+			return []string{"group:read"}
+		case "/organizations/:organizationID/groups/:groupID":
+			return []string{"group:read"}
+		case "/organizations/:organizationID/groups/:groupID/members":
+			return []string{"group:read"}
 		case "/organizations/:organizationID/images":
 			return []string{"org:read"}
 		case "/organizations/:organizationID/instanceTypes":
@@ -110,6 +120,8 @@ func GetScopes(method, path string) []string {
 			return []string{"org:write"}
 		case "/organizations/:organizationID/githubapp/installations":
 			return []string{"org:write"}
+		case "/organizations/:organizationID/groups":
+			return []string{"group:write"}
 		case "/organizations/:organizationID/invitations":
 			return []string{"invite:write"}
 		case "/organizations/:organizationID/invitations/:invitationID/resend":
@@ -135,6 +147,10 @@ func GetScopes(method, path string) []string {
 			return []string{"org:write"}
 		case "/organizations/:organizationID/githubapp/installations/:githubInstallationID":
 			return []string{"org:write"}
+		case "/organizations/:organizationID/groups/:groupID":
+			return []string{"group:write"}
+		case "/organizations/:organizationID/groups/:groupID/members/:userID":
+			return []string{"group:write"}
 		case "/organizations/:organizationID/projects/:projectID/branches/:branchID/githubapp/repository":
 			return []string{"project:write"}
 		}
@@ -149,6 +165,8 @@ func GetAllScopes() []string {
 		"branch:write",
 		"credentials:read",
 		"credentials:write",
+		"group:read",
+		"group:write",
 		"invite:read",
 		"invite:write",
 		"keys:read",

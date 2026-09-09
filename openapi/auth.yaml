@@ -316,11 +316,275 @@ paths:
       responses:
         '204':
           description: Member removed
+        '400':
+          $ref: '#/components/responses/SimpleError'
+        '409':
+          $ref: '#/components/responses/SimpleError'
       security:
         - xata:
             - 'org:write'
       tags:
         - Organizations
+      x-operation-kind: destructive
+  '/organizations/{organizationID}/groups':
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+    get:
+      operationId: listOrganizationGroups
+      summary: List groups of an organization
+      description: 'Retrieve all groups belonging to an organization. Each organization owns an isolated group hierarchy, including a predefined "Owner" group that governs dangerous operations such as billing and organization deletion.'
+      responses:
+        '200':
+          description: List of organization groups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groups:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrganizationGroup'
+                required:
+                  - groups
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'group:read'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: read
+    post:
+      operationId: createOrganizationGroup
+      summary: Create a group in an organization
+      description: Create a new group within an organization. The reserved name "Owner" cannot be used.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationGroupRequest'
+      responses:
+        '201':
+          description: Group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationGroup'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        '409':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'group:write'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: write
+  '/organizations/{organizationID}/groups/{groupID}':
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+      - $ref: '#/components/parameters/GroupIDParam'
+    get:
+      operationId: getOrganizationGroup
+      summary: Get details of an organization group
+      responses:
+        '200':
+          description: Group details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationGroup'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'group:read'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: read
+    put:
+      operationId: updateOrganizationGroup
+      summary: Update an organization group
+      description: Rename an organization group. The predefined "Owner" group cannot be edited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationGroupRequest'
+      responses:
+        '200':
+          description: Group updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationGroup'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        '409':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'group:write'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: write
+    delete:
+      operationId: deleteOrganizationGroup
+      summary: Delete an organization group
+      description: Delete an organization group. The predefined "Owner" group cannot be deleted.
+      responses:
+        '204':
+          description: Group deleted successfully
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'group:write'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: destructive
+  '/organizations/{organizationID}/groups/{groupID}/members':
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+      - $ref: '#/components/parameters/GroupIDParam'
+    get:
+      operationId: listOrganizationGroupMembers
+      summary: List members of an organization group
+      responses:
+        '200':
+          description: List of group members
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  members:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserWithID'
+                required:
+                  - members
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'group:read'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: read
+  '/organizations/{organizationID}/groups/{groupID}/members/{userID}':
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+      - $ref: '#/components/parameters/GroupIDParam'
+      - $ref: '#/components/parameters/UserIDParam'
+    put:
+      operationId: addOrganizationGroupMember
+      summary: Add a member to an organization group
+      description: Add an existing organization member to a group. The user must already be a member of the organization.
+      responses:
+        '204':
+          description: Member added to the group
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'group:write'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: write
+    delete:
+      operationId: removeOrganizationGroupMember
+      summary: Remove a member from an organization group
+      description: Remove a member from a group. The predefined "Owner" group must always retain at least one member.
+      responses:
+        '204':
+          description: Member removed from the group
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        '409':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'group:write'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
       x-operation-kind: destructive
   '/organizations/{organizationID}/invitations':
     parameters:
@@ -907,6 +1171,13 @@ paths:
       x-operation-kind: destructive
 components:
   parameters:
+    GroupIDParam:
+      name: groupID
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Unique identifier for an organization group
     InvitationIDParam:
       name: invitationID
       in: path
@@ -1566,6 +1837,44 @@ components:
       required:
         - maxMembers
         - maxInvites
+    OrganizationGroup:
+      description: A group within an organization
+      type: object
+      properties:
+        id:
+          description: Unique identifier for the group
+          type: string
+        name:
+          description: Human-readable name of the group
+          type: string
+        path:
+          description: Hierarchical path of the group within the organization
+          type: string
+        is_owner:
+          description: 'Whether this is the predefined "Owner" group, which cannot be edited or deleted and must always retain at least one member'
+          type: boolean
+      required:
+        - id
+        - name
+        - is_owner
+    CreateOrganizationGroupRequest:
+      description: Request payload for creating an organization group
+      type: object
+      properties:
+        name:
+          description: Name for the new group
+          type: string
+      required:
+        - name
+    UpdateOrganizationGroupRequest:
+      description: Request payload for updating an organization group
+      type: object
+      properties:
+        name:
+          description: New name for the group
+          type: string
+      required:
+        - name
   responses:
     BadRequestError:
       description: Error returned when the request is malformed or contains invalid parameters

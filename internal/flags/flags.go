@@ -58,6 +58,13 @@ var (
 		Name:           "usePgBackRest",
 		DefaultEnabled: false,
 	}
+	// OrganizationGroups gates the organization groups feature (group CRUD,
+	// membership, and the predefined Owner group). Off by default; while off the
+	// group endpoints are unavailable and no existing flow changes behaviour.
+	OrganizationGroups = openfeature.FeatureFlag{
+		Name:           "organizationGroups",
+		DefaultEnabled: false,
+	}
 	// WARNING: Feature Flags should have positive names. Avoid disabled suffix in future
 )
 
