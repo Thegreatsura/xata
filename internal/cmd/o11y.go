@@ -27,7 +27,9 @@ func WithO11y(ctx context.Context, name string, fn func(context.Context, *o11y.O
 	o := monitoring.ForService(ctx, name, name)
 	logger := o.Logger()
 	defer logger.Info().Msg("Monitoring stopped")
-	defer o.Close()
+	// ctx is cancelled by the time the service closes, and the final metrics
+	// export must still go out. Keep the values, drop the cancellation.
+	defer func() { o.Close(context.WithoutCancel(ctx)) }()
 	defer logger.Info().Msg("Monitoring closing")
 
 	ctx = o.WithContext(ctx)

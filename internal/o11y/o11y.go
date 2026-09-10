@@ -282,11 +282,16 @@ func ForServiceFromContext(ctx context.Context, serviceNamespace, serviceName st
 	return o.ForService(ctx, serviceNamespace, serviceName), nil
 }
 
-func (o *O) Close() {
+// Close stops collecting metrics for this service and exports what it recorded
+// since the last collect. Services close their provider after their own
+// context is cancelled, so ctx must not be that context: use one that outlives
+// it, such as context.WithoutCancel(ctx). The export is bounded by the metrics
+// flush timeout.
+func (o *O) Close(ctx context.Context) {
 	if o == nil {
 		return
 	}
-	o.system.metrics.unregister(o.meterProvider)
+	o.system.metrics.unregister(ctx, o.meterProvider)
 }
 
 func (o *O) WithContext(ctx context.Context) context.Context {

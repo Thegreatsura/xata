@@ -82,8 +82,19 @@ func initMetrics(
 		return nil
 	}
 
+	return newMetrics(logger, res, metricsExporter, period)
+}
+
+// newMetrics wires the collection loop around the given exporter and starts
+// collecting every period.
+func newMetrics(
+	logger *zerolog.Logger,
+	res *resource.Resource,
+	out metricExporter,
+	period time.Duration,
+) *metrics {
 	m := &metrics{
-		out:             metricsExporter,
+		out:             out,
 		logger:          logger,
 		defaultResource: res,
 		controllersStop: ctxtool.WithCancelContext(context.Background()),
@@ -112,25 +123,38 @@ func (m *metrics) ticker(period time.Duration) {
 	}
 }
 
-func (m *metrics) shutdown(ctx context.Context) (err error) {
+// flushTimeout bounds the export of pending metrics when a provider is closed,
+// and the whole shutdown of the collection loop.
+const flushTimeout = 5 * time.Second
+
+// shutdown stops the periodic collection, exports what the remaining providers
+// recorded since the last collect and then shuts the exporter down. Without
+// that final export, anything recorded in the last collection period is lost
+// when the process exits.
+func (m *metrics) shutdown(ctx context.Context) error {
 	if m == nil {
 		return nil
 	}
 
-	m.controllersStop.Cancel()
-	if m.out != nil {
-		err = m.out.Shutdown(ctx)
-	}
+	flushCtx, cancel := context.WithTimeout(ctx, flushTimeout)
+	defer cancel()
 
+	// Wait for an in-flight periodic collect so the final export below does
+	// not race with it.
+	m.controllersStop.Cancel()
 	select {
 	case <-m.chDone:
-	case <-ctx.Done():
-		if err == nil {
-			err = ctx.Err()
-		}
+	case <-flushCtx.Done():
+		return flushCtx.Err()
 	}
 
-	return err
+	if m.out == nil {
+		return nil
+	}
+
+	m.collect(flushCtx)
+
+	return m.out.Shutdown(flushCtx)
 }
 
 func (m *metrics) collect(ctx context.Context) {
@@ -208,12 +232,40 @@ func (m *metrics) register(mc *metricsController) {
 	m.controllers.idx[mc.id] = idx
 }
 
-func (m *metrics) unregister(mp metric.MeterProvider) {
+// unregister removes the provider from the periodic collection and exports
+// what it recorded since the last collect, so closing a provider does not drop
+// its most recent data points.
+func (m *metrics) unregister(ctx context.Context, mp metric.MeterProvider) {
+	if m == nil {
+		return
+	}
+
 	mc, ok := mp.(*metricsController)
 	if !ok {
 		return
 	}
 
+	m.remove(mc)
+
+	if m.out == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, flushTimeout)
+	defer cancel()
+
+	// This may overlap with a periodic collect that still holds the
+	// controller. That is safe: ManualReader.Collect is concurrency-safe, the
+	// OTLP exporter serializes Export, and the readers use cumulative
+	// temporality, so at worst the same values are sent twice.
+	if err := mc.CollectAndExport(ctx, m.out); err != nil {
+		m.logger.Warn().Err(err).Msg("export pending metrics on close")
+	}
+}
+
+// remove takes the controller out of the collection list. While a collect is
+// in flight, the removal is deferred until it finishes.
+func (m *metrics) remove(mc *metricsController) {
 	m.controllers.mu.Lock()
 	defer m.controllers.mu.Unlock()
 
