@@ -43,17 +43,14 @@ func TestCreateBranch(t *testing.T) {
 		},
 	}
 
-	branchOnPrimary := store.Branch{ID: "branch-1", CellID: "primary_cell", Region: "us-east-1"}
+	mainBranch := store.Branch{ID: "branch-1", CellID: "cell-1", Region: "us-east-1"}
 	parentID := "parent-1"
-	childBranch := store.Branch{ID: "branch-2", ParentID: &parentID, CellID: "primary_cell", Region: "us-east-1"}
-	branchOnSecondary := store.Branch{ID: "branch-3", CellID: "secondary_cell", Region: "us-east-1"}
-
-	primaryCell := &store.Cell{ID: "primary_cell", RegionID: "us-east-1", Primary: true}
+	childBranch := store.Branch{ID: "branch-2", ParentID: &parentID, CellID: "cell-1", Region: "us-east-1"}
 
 	basePayload := func() *ClusterServicePayload {
 		return &ClusterServicePayload{
 			Configuration: clustersv1.ClusterConfiguration{NumInstances: 1, ImageName: "postgres:17"},
-			CellID:        "primary_cell",
+			CellID:        "cell-1",
 			Region:        "us-east-1",
 			BackupConfig:  &clustersv1.BackupConfiguration{BackupsEnabled: true},
 		}
@@ -88,17 +85,16 @@ func TestCreateBranch(t *testing.T) {
 		setupMocks func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient)
 		wantErr    error
 	}{
-		"main branch on primary cell succeeds": {
+		"main branch succeeds": {
 			payload: basePayload,
-			branch:  branchOnPrimary,
+			branch:  mainBranch,
 			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
 				mockStore.EXPECT().GetProject(mock.Anything, orgID, projectID).Return(project, nil).Once()
-				mockCreateBranch(mockStore, branchOnPrimary)
+				mockCreateBranch(mockStore, mainBranch)
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.MatchedBy(func(req *clustersv1.CreatePostgresClusterRequest) bool {
 					return req.GetIdempotencyKey() != ""
 				})).
 					Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(primaryCell, nil).Once()
 			},
 		},
 		"child branch sets ClusterSnapshot data source": {
@@ -115,7 +111,6 @@ func TestCreateBranch(t *testing.T) {
 					snap, ok := req.DataSource.(*clustersv1.CreatePostgresClusterRequest_ClusterSnapshot)
 					return ok && snap.ClusterSnapshot.ClusterId == parentID
 				})).Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(primaryCell, nil).Once()
 			},
 		},
 		"UsePool flag is forwarded": {
@@ -124,14 +119,13 @@ func TestCreateBranch(t *testing.T) {
 				p.Flags.UsePool = true
 				return p
 			},
-			branch: branchOnPrimary,
+			branch: mainBranch,
 			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
 				mockStore.EXPECT().GetProject(mock.Anything, orgID, projectID).Return(project, nil).Once()
-				mockCreateBranch(mockStore, branchOnPrimary)
+				mockCreateBranch(mockStore, mainBranch)
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.MatchedBy(func(req *clustersv1.CreatePostgresClusterRequest) bool {
 					return req.UsePool != nil && *req.UsePool
 				})).Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(primaryCell, nil).Once()
 			},
 		},
 		"UseXatastor flag is forwarded for main branch": {
@@ -140,14 +134,13 @@ func TestCreateBranch(t *testing.T) {
 				p.Flags.UseXatastor = true
 				return p
 			},
-			branch: branchOnPrimary,
+			branch: mainBranch,
 			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
 				mockStore.EXPECT().GetProject(mock.Anything, orgID, projectID).Return(project, nil).Once()
-				mockCreateBranch(mockStore, branchOnPrimary)
+				mockCreateBranch(mockStore, mainBranch)
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.MatchedBy(func(req *clustersv1.CreatePostgresClusterRequest) bool {
 					return req.UseXatastor != nil && *req.UseXatastor
 				})).Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(primaryCell, nil).Once()
 			},
 		},
 		"UseXatastor flag is not set for child branch": {
@@ -164,20 +157,18 @@ func TestCreateBranch(t *testing.T) {
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.MatchedBy(func(req *clustersv1.CreatePostgresClusterRequest) bool {
 					return req.UseXatastor == nil
 				})).Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(primaryCell, nil).Once()
 			},
 		},
 		"IP filtering is applied when project has it": {
 			payload: basePayload,
-			branch:  branchOnPrimary,
+			branch:  mainBranch,
 			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
 				mockStore.EXPECT().GetProject(mock.Anything, orgID, projectID).Return(projectWithIPFiltering, nil).Once()
-				mockCreateBranch(mockStore, branchOnPrimary)
+				mockCreateBranch(mockStore, mainBranch)
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.Anything).
 					Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(primaryCell, nil).Once()
 				mockClusters.EXPECT().SetBranchIPFiltering(mock.Anything, &clustersv1.SetBranchIPFilteringRequest{
-					BranchId: branchOnPrimary.ID,
+					BranchId: mainBranch.ID,
 					IpFiltering: &clustersv1.IPFilteringConfig{
 						Enabled: true,
 						Allowed: []string{"10.0.0.0/8"},
@@ -185,35 +176,17 @@ func TestCreateBranch(t *testing.T) {
 				}).Return(nil, nil).Once()
 			},
 		},
-		"secondary cell registers on primary": {
-			payload: func() *ClusterServicePayload {
-				p := basePayload()
-				p.CellID = "secondary_cell"
-				return p
-			},
-			branch: branchOnSecondary,
-			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
-				mockStore.EXPECT().GetProject(mock.Anything, orgID, projectID).Return(project, nil).Once()
-				mockCreateBranch(mockStore, branchOnSecondary)
-				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.Anything).
-					Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(primaryCell, nil).Once()
-				mockClusters.EXPECT().RegisterPostgresCluster(mock.Anything, &clustersv1.RegisterPostgresClusterRequest{Id: branchOnSecondary.ID}).
-					Return(&clustersv1.RegisterPostgresClusterResponse{}, nil).Once()
-			},
-		},
 		"scale-to-zero defaults from project base branch settings": {
 			payload: basePayload,
-			branch:  branchOnPrimary,
+			branch:  mainBranch,
 			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
 				mockStore.EXPECT().GetProject(mock.Anything, orgID, projectID).Return(project, nil).Once()
-				mockCreateBranch(mockStore, branchOnPrimary)
+				mockCreateBranch(mockStore, mainBranch)
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.MatchedBy(func(req *clustersv1.CreatePostgresClusterRequest) bool {
 					return req.Configuration.ScaleToZero != nil &&
 						req.Configuration.ScaleToZero.Enabled == false &&
 						req.Configuration.ScaleToZero.InactivityPeriodMinutes == 30
 				})).Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(primaryCell, nil).Once()
 			},
 		},
 		"scale-to-zero defaults from project child branch settings": {
@@ -231,7 +204,6 @@ func TestCreateBranch(t *testing.T) {
 						req.Configuration.ScaleToZero.Enabled == true &&
 						req.Configuration.ScaleToZero.InactivityPeriodMinutes == 15
 				})).Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(primaryCell, nil).Once()
 			},
 		},
 		"explicit scale-to-zero is not overridden by project defaults": {
@@ -243,16 +215,15 @@ func TestCreateBranch(t *testing.T) {
 				}
 				return p
 			},
-			branch: branchOnPrimary,
+			branch: mainBranch,
 			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
 				mockStore.EXPECT().GetProject(mock.Anything, orgID, projectID).Return(project, nil).Once()
-				mockCreateBranch(mockStore, branchOnPrimary)
+				mockCreateBranch(mockStore, mainBranch)
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.MatchedBy(func(req *clustersv1.CreatePostgresClusterRequest) bool {
 					return req.Configuration.ScaleToZero != nil &&
 						req.Configuration.ScaleToZero.Enabled == true &&
 						req.Configuration.ScaleToZero.InactivityPeriodMinutes == 60
 				})).Return(&clustersv1.CreatePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(primaryCell, nil).Once()
 			},
 		},
 		"GetProject error is returned": {
@@ -288,10 +259,10 @@ func TestCreateBranch(t *testing.T) {
 		},
 		"InvalidArgument maps to ErrInvalidConfiguration": {
 			payload: basePayload,
-			branch:  branchOnPrimary,
+			branch:  mainBranch,
 			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
 				mockStore.EXPECT().GetProject(mock.Anything, orgID, projectID).Return(project, nil).Once()
-				mockCreateBranch(mockStore, branchOnPrimary)
+				mockCreateBranch(mockStore, mainBranch)
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.Anything).
 					Return(nil, status.Error(codes.InvalidArgument, "bad config")).Once()
 			},
@@ -339,15 +310,9 @@ func TestCreateBranch(t *testing.T) {
 }
 
 func TestDeleteBranch(t *testing.T) {
-	primaryBranch := store.Branch{
+	testBranch := store.Branch{
 		ID:     "branch-1",
-		CellID: "primary_cell",
-		Region: "us-east-1",
-	}
-
-	secondaryBranch := store.Branch{
-		ID:     "branch-2",
-		CellID: "secondary_cell",
+		CellID: "cell-1",
 		Region: "us-east-1",
 	}
 
@@ -356,88 +321,45 @@ func TestDeleteBranch(t *testing.T) {
 		setupMocks func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient)
 		wantErr    string
 	}{
-		"delete on primary cell succeeds": {
-			branch: primaryBranch,
+		"delete succeeds": {
+			branch: testBranch,
 			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: primaryBranch.ID}).
+				mockClusters.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: testBranch.ID}).
 					Return(&clustersv1.DeletePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").
-					Return(&store.Cell{ID: "primary_cell", RegionID: "us-east-1", Primary: true}, nil).Once()
-				mockClusters.EXPECT().DeleteBranchIPFiltering(mock.Anything, &clustersv1.DeleteBranchIPFilteringRequest{BranchId: primaryBranch.ID}).
+				mockClusters.EXPECT().DeleteBranchIPFiltering(mock.Anything, &clustersv1.DeleteBranchIPFilteringRequest{BranchId: testBranch.ID}).
 					Return(nil, nil).Once()
-			},
-		},
-		"delete on secondary cell deregisters from primary": {
-			branch: secondaryBranch,
-			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: secondaryBranch.ID}).
-					Return(&clustersv1.DeletePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").
-					Return(&store.Cell{ID: "primary_cell", RegionID: "us-east-1", Primary: true}, nil).Once()
-				mockClusters.EXPECT().DeleteBranchIPFiltering(mock.Anything, &clustersv1.DeleteBranchIPFilteringRequest{BranchId: secondaryBranch.ID}).
-					Return(nil, nil).Once()
-				mockClusters.EXPECT().DeregisterPostgresCluster(mock.Anything, &clustersv1.DeregisterPostgresClusterRequest{Id: secondaryBranch.ID}).
-					Return(&clustersv1.DeregisterPostgresClusterResponse{}, nil).Once()
 			},
 		},
 		"cluster not found in kubernetes proceeds with deletion": {
-			branch: primaryBranch,
+			branch: testBranch,
 			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: primaryBranch.ID}).
-					Return(nil, clusters.ClusterNotFoundError(primaryBranch.ID)).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").
-					Return(&store.Cell{ID: "primary_cell", RegionID: "us-east-1", Primary: true}, nil).Once()
-				mockClusters.EXPECT().DeleteBranchIPFiltering(mock.Anything, &clustersv1.DeleteBranchIPFilteringRequest{BranchId: primaryBranch.ID}).
+				mockClusters.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: testBranch.ID}).
+					Return(nil, clusters.ClusterNotFoundError(testBranch.ID)).Once()
+				mockClusters.EXPECT().DeleteBranchIPFiltering(mock.Anything, &clustersv1.DeleteBranchIPFilteringRequest{BranchId: testBranch.ID}).
 					Return(nil, nil).Once()
 			},
 		},
 		"cluster delete error is returned": {
-			branch: primaryBranch,
+			branch: testBranch,
 			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: primaryBranch.ID}).
+				mockClusters.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: testBranch.ID}).
 					Return(nil, fmt.Errorf("infra error")).Once()
 			},
 			wantErr: "infra error",
 		},
 		"store delete error is returned": {
-			branch:     primaryBranch,
+			branch:     testBranch,
 			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {},
 			wantErr:    "store error",
 		},
 		"IP filtering cleanup failure does not fail deletion": {
-			branch: primaryBranch,
+			branch: testBranch,
 			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: primaryBranch.ID}).
+				mockClusters.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: testBranch.ID}).
 					Return(&clustersv1.DeletePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").
-					Return(&store.Cell{ID: "primary_cell", RegionID: "us-east-1", Primary: true}, nil).Once()
-				mockClusters.EXPECT().DeleteBranchIPFiltering(mock.Anything, &clustersv1.DeleteBranchIPFilteringRequest{BranchId: primaryBranch.ID}).
+				mockClusters.EXPECT().DeleteBranchIPFiltering(mock.Anything, &clustersv1.DeleteBranchIPFilteringRequest{BranchId: testBranch.ID}).
 					Return(nil, fmt.Errorf("ip filtering error")).Once()
 			},
-		},
-		"GetPrimaryCell failure is returned": {
-			branch: primaryBranch,
-			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: primaryBranch.ID}).
-					Return(&clustersv1.DeletePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").
-					Return(nil, fmt.Errorf("cell not found")).Once()
-			},
-			wantErr: "get primary cell",
-		},
-		"deregister failure is returned": {
-			branch: secondaryBranch,
-			setupMocks: func(mockStore *storemocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: secondaryBranch.ID}).
-					Return(&clustersv1.DeletePostgresClusterResponse{}, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").
-					Return(&store.Cell{ID: "primary_cell", RegionID: "us-east-1", Primary: true}, nil).Once()
-				mockClusters.EXPECT().DeleteBranchIPFiltering(mock.Anything, &clustersv1.DeleteBranchIPFilteringRequest{BranchId: secondaryBranch.ID}).
-					Return(nil, nil).Once()
-				mockClusters.EXPECT().DeregisterPostgresCluster(mock.Anything, &clustersv1.DeregisterPostgresClusterRequest{Id: secondaryBranch.ID}).
-					Return(nil, fmt.Errorf("deregister failed")).Once()
-			},
-			wantErr: "deregister from primary cell",
 		},
 	}
 

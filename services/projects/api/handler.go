@@ -525,7 +525,7 @@ func (s *handler) UpdateProject(c echo.Context, organizationID spec.Organization
 			if updateConfig.IPFiltering == nil {
 				return nil
 			}
-			return s.applyIPFilteringToPrimaryCells(ctx, organizationID, projectID, updateConfig.IPFiltering)
+			return s.applyIPFilteringToBranchCells(ctx, organizationID, projectID, updateConfig.IPFiltering)
 		})
 		if err != nil {
 			return err
@@ -547,9 +547,10 @@ func (s *handler) UpdateProject(c echo.Context, organizationID spec.Organization
 	})
 }
 
-// applyIPFilteringToPrimaryCells applies IP filtering settings to the primary cell of each branch's region
-// before saving to the DB. Returns an error if any call fails.
-func (s *handler) applyIPFilteringToPrimaryCells(ctx context.Context, organizationID string, projectID string, ipFiltering *store.IPFiltering) error {
+// applyIPFilteringToBranchCells applies IP filtering settings to each branch
+// on the cell it runs in, before saving to the DB. Returns an error if any
+// call fails.
+func (s *handler) applyIPFilteringToBranchCells(ctx context.Context, organizationID string, projectID string, ipFiltering *store.IPFiltering) error {
 	// Get all branches for the project
 	branches, err := s.store.ListBranches(ctx, organizationID, projectID)
 	if err != nil {
@@ -561,44 +562,35 @@ func (s *handler) applyIPFilteringToPrimaryCells(ctx context.Context, organizati
 		return nil
 	}
 
-	// Group branches by region
-	regionToBranches := make(map[string][]string)
+	// Group branches by cell
+	cellToBranches := make(map[string][]string)
 	for _, branch := range branches {
-		regionID := branch.Region
-		if regionID == "" {
-			return fmt.Errorf("branch %s has no region", branch.ID)
+		cellID := branch.CellID
+		if cellID == "" {
+			return fmt.Errorf("branch %s has no cell", branch.ID)
 		}
-		regionToBranches[regionID] = append(regionToBranches[regionID], branch.ID)
+		cellToBranches[cellID] = append(cellToBranches[cellID], branch.ID)
 	}
 
-	if len(regionToBranches) == 0 {
-		return fmt.Errorf("no valid regions found for branches")
-	}
-
-	regionToCellClient := make(map[string]cells.CellClient)
+	cellToClient := make(map[string]cells.CellClient)
 
 	// Clean up cell connections when done
 	defer func() {
-		for _, client := range regionToCellClient {
+		for _, client := range cellToClient {
 			if client != nil {
 				client.Close()
 			}
 		}
 	}()
 
-	// Get primary cell and connection for each unique region
-	for regionID := range regionToBranches {
-		primaryCell, err := s.store.GetPrimaryCell(ctx, organizationID, regionID)
+	// Get a connection for each unique cell
+	for cellID := range cellToBranches {
+		cellClient, err := s.cells.GetCellConnection(ctx, organizationID, cellID)
 		if err != nil {
-			return fmt.Errorf("getting primary cell for region %s: %w", regionID, err)
+			return fmt.Errorf("connecting to cell %s: %w", cellID, err)
 		}
 
-		cellClient, err := s.cells.GetCellConnection(ctx, organizationID, primaryCell.ID)
-		if err != nil {
-			return fmt.Errorf("connecting to primary cell %s for region %s: %w", primaryCell.ID, regionID, err)
-		}
-
-		regionToCellClient[regionID] = cellClient
+		cellToClient[cellID] = cellClient
 	}
 
 	ipFilteringConfig := &clustersv1.IPFilteringConfig{
@@ -606,19 +598,14 @@ func (s *handler) applyIPFilteringToPrimaryCells(ctx context.Context, organizati
 		Allowed: ipFiltering.CIDRStrings(),
 	}
 
-	// Apply IP filtering to all branches in each region with a single call per region
-	for regionID, branchIDs := range regionToBranches {
-		cellClient, exists := regionToCellClient[regionID]
-		if !exists {
-			return fmt.Errorf("no cell client found for region %s", regionID)
-		}
-
-		_, err := cellClient.SetBranchesIPFiltering(ctx, &clustersv1.SetBranchesIPFilteringRequest{
+	// Apply IP filtering to all branches in each cell with a single call per cell
+	for cellID, branchIDs := range cellToBranches {
+		_, err := cellToClient[cellID].SetBranchesIPFiltering(ctx, &clustersv1.SetBranchesIPFilteringRequest{
 			BranchIds:   branchIDs,
 			IpFiltering: ipFilteringConfig,
 		})
 		if err != nil {
-			return fmt.Errorf("setting IP filtering for branches in region %s: %w", regionID, err)
+			return fmt.Errorf("setting IP filtering for branches in cell %s: %w", cellID, err)
 		}
 	}
 
@@ -2242,7 +2229,7 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 					return err
 				}
 
-				return s.setupBranchOnPrimaryCell(ctx, organizationID, createClusterPayload.Region, createClusterPayload.CellID, branch.ID, project)
+				return cells.ApplyProjectIPFiltering(ctx, client, branch.ID, project)
 			})
 			if err != nil {
 				st, _ := status.FromError(err)
@@ -2338,50 +2325,6 @@ func (s *handler) validateBranchInstances(ctx context.Context, organizationID sp
 			return ErrorInvalidParam{BranchName: branch.ID, Param: "instances", Message: fmt.Sprintf("unknown instance [%s]", inst)}
 		}
 	}
-	return nil
-}
-
-// setupBranchOnPrimaryCell registers a cluster with the primary cell if it was
-// created on a secondary cell, and applies IP filtering settings from the project.
-func (s *handler) setupBranchOnPrimaryCell(ctx context.Context, organizationID spec.OrganizationID, region, cellID, branchID string, project *store.Project) error {
-	primaryCell, err := s.store.GetPrimaryCell(ctx, organizationID, region)
-	if err != nil {
-		return err
-	}
-
-	hasIPFiltering := project.IPFiltering.Enabled || len(project.IPFiltering.CIDRs) > 0
-	needsRegistration := primaryCell.ID != cellID
-
-	if !hasIPFiltering && !needsRegistration {
-		return nil
-	}
-
-	client, err := s.cells.GetCellConnection(ctx, organizationID, primaryCell.ID)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	if hasIPFiltering {
-		_, err = client.SetBranchIPFiltering(ctx, &clustersv1.SetBranchIPFilteringRequest{
-			BranchId: branchID,
-			IpFiltering: &clustersv1.IPFilteringConfig{
-				Enabled: project.IPFiltering.Enabled,
-				Allowed: project.IPFiltering.CIDRStrings(),
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("setting IP filtering for branch: %w", err)
-		}
-	}
-
-	if needsRegistration {
-		_, err = client.RegisterPostgresCluster(ctx, &clustersv1.RegisterPostgresClusterRequest{Id: branchID})
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

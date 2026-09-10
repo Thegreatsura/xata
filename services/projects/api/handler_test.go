@@ -1955,7 +1955,6 @@ func TestRestoreFromBackup(t *testing.T) {
 					err := provisionFn(&restoredBranch)
 					assert.Nil(t, err)
 				}).Return(&restoredBranch, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Cell{ID: "cell_id", RegionID: "region-id-1", Primary: true}, nil).Once()
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.MatchedBy(func(req *clustersv1.CreatePostgresClusterRequest) bool {
 					if cb, ok := req.DataSource.(*clustersv1.CreatePostgresClusterRequest_ContinuousBackup); ok {
 						return cb.ContinuousBackup.ClusterId == sourceBranchID && req.GetIdempotencyKey() != ""
@@ -1973,7 +1972,6 @@ func TestRestoreFromBackup(t *testing.T) {
 			mode: "clone",
 			setupMocks: func(mockStore *mocks.ProjectsStore, mockClusters *protomocks.ClustersServiceClient, mockPostgresConfig *postgrescfgmocks.PostgresConfigProvider, mockImageProvider *postgresversionsmocks.ImageProvider) {
 				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, "project_id", sourceBranch.ID).Return(&sourceBranch, nil).Twice()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Cell{ID: "cell_id", RegionID: "region-id-1", Primary: true}, nil).Once()
 				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: "region-id-1", GatewayHostPort: "", BackupsEnabled: true}, nil).Once()
 				mockStore.EXPECT().CreateBranch(mock.Anything, apitest.TestOrganization, "project_id", "cell_id", createBranchConfig(restoredBranch.Name, &sourceBranchID, nil), mock.Anything).Run(func(ctx context.Context, organizationID, projectID, cellID string, cfg *store.CreateBranchConfiguration, provisionFn func(*store.Branch) error) {
 					err := provisionFn(&restoredBranch)
@@ -2175,7 +2173,6 @@ func TestRestoreFromBackup(t *testing.T) {
 					err := provisionFn(&restoredBranch)
 					assert.Nil(t, err)
 				}).Return(&restoredBranch, nil).Once()
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Cell{ID: "cell_id", RegionID: "region-id-1", Primary: true}, nil).Once()
 				mockClusters.EXPECT().CreatePostgresCluster(mock.Anything, mock.MatchedBy(func(req *clustersv1.CreatePostgresClusterRequest) bool {
 					if cb, ok := req.DataSource.(*clustersv1.CreatePostgresClusterRequest_ContinuousBackup); ok {
 						return cb.ContinuousBackup.ClusterId == sourceBranchID

@@ -297,22 +297,6 @@ func (s *sqlProjectStore) GetCell(ctx context.Context, organizationID string, ce
 	return cell, nil
 }
 
-func (s *sqlProjectStore) GetPrimaryCell(ctx context.Context, organizationID string, regionID string) (*store.Cell, error) {
-	res := s.sql.QueryRowContext(ctx, "SELECT c.id, c.region_id, c.grpc_url, c.created_at, c.is_primary, c.subdomain FROM cells c INNER JOIN regions ON c.region_id = regions.id WHERE c.region_id = $1 AND c.is_primary = true AND (regions.organization_id = $2 OR regions.organization_id IS NULL)", regionID, organizationID)
-
-	var cell store.Cell
-	err := res.Scan(&cell.ID, &cell.RegionID, &cell.ClustersGRPCURL, &cell.CreatedAt, &cell.Primary, &cell.Subdomain)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, store.ErrCellNotFound{ID: regionID}
-		}
-
-		return nil, err
-	}
-
-	return &cell, nil
-}
-
 func (s *sqlProjectStore) DeleteCell(ctx context.Context, cellID string) error {
 	res, err := s.sql.ExecContext(ctx, "DELETE FROM cells WHERE id = $1", cellID)
 	if err != nil {

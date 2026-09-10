@@ -189,7 +189,7 @@ func (p *BranchProvisioner) CreateBranch(ctx context.Context, projectID, organiz
 			return err
 		}
 
-		return p.setupBranchOnPrimaryCell(ctx, organizationID, payload.Region, payload.CellID, branch.ID, project)
+		return cells.ApplyProjectIPFiltering(ctx, client, branch.ID, project)
 	})
 	if err != nil {
 		st, _ := status.FromError(err)
@@ -209,50 +209,6 @@ func (p *BranchProvisioner) CreateBranch(ctx context.Context, projectID, organiz
 
 func (p *BranchProvisioner) DeleteBranch(ctx context.Context, organizationID, projectID, branchID string) error {
 	return p.store.DeleteBranch(ctx, organizationID, projectID, branchID, func(branch *store.Branch) error {
-		return cells.DeprovisionBranch(ctx, organizationID, p.store, p.cells, branch)
+		return cells.DeprovisionBranch(ctx, organizationID, p.cells, branch)
 	})
-}
-
-// setupBranchOnPrimaryCell registers a cluster with the primary cell if it was
-// created on a secondary cell, and applies IP filtering settings from the project.
-func (p *BranchProvisioner) setupBranchOnPrimaryCell(ctx context.Context, organizationID, region, cellID, branchID string, project *store.Project) error {
-	primaryCell, err := p.store.GetPrimaryCell(ctx, organizationID, region)
-	if err != nil {
-		return err
-	}
-
-	hasIPFiltering := project.IPFiltering.Enabled || len(project.IPFiltering.CIDRs) > 0
-	needsRegistration := primaryCell.ID != cellID
-
-	if !hasIPFiltering && !needsRegistration {
-		return nil
-	}
-
-	client, err := p.cells.GetCellConnection(ctx, organizationID, primaryCell.ID)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	if hasIPFiltering {
-		_, err = client.SetBranchIPFiltering(ctx, &clustersv1.SetBranchIPFilteringRequest{
-			BranchId: branchID,
-			IpFiltering: &clustersv1.IPFilteringConfig{
-				Enabled: project.IPFiltering.Enabled,
-				Allowed: project.IPFiltering.CIDRStrings(),
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("setting IP filtering for branch: %w", err)
-		}
-	}
-
-	if needsRegistration {
-		_, err = client.RegisterPostgresCluster(ctx, &clustersv1.RegisterPostgresClusterRequest{Id: branchID})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

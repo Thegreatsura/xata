@@ -615,10 +615,6 @@ type ProjectsStore interface {
 	// organizationID is used to filter the cells by organization
 	GetCell(ctx context.Context, organizationID, cellID string) (*Cell, error)
 
-	// GetPrimaryCell returns the primary cell in the region
-	// organizationID is used to filter the cells by organization
-	GetPrimaryCell(ctx context.Context, organizationID, regionID string) (*Cell, error)
-
 	// ListProjects returns a list of projects in the organization
 	ListProjects(ctx context.Context, organizationID string) ([]Project, error)
 

@@ -168,7 +168,7 @@ func (p *ProjectsService) DeleteProjectsInOrg(ctx context.Context, req *projects
 
 		for _, branch := range branches {
 			err := p.store.DeleteBranch(ctx, req.OrganizationId, project.ID, branch.ID, func(b *store.Branch) error {
-				return cells.DeprovisionBranch(ctx, req.OrganizationId, p.store, p.cells, b)
+				return cells.DeprovisionBranch(ctx, req.OrganizationId, p.cells, b)
 			})
 			if err != nil {
 				projectErrors = append(projectErrors, fmt.Sprintf("delete branch %s: %v", branch.ID, err))

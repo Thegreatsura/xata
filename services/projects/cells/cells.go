@@ -110,7 +110,29 @@ func (s *cellsImpl) Close() error {
 	return errors.Join(errs...)
 }
 
-func DeprovisionBranch(ctx context.Context, organizationID string, s store.ProjectsStore, c Cells, b *store.Branch) error {
+// ApplyProjectIPFiltering applies the project's IP filtering settings to a
+// branch on the cell it was created in. It is a no-op when the project has
+// no IP filtering configured.
+func ApplyProjectIPFiltering(ctx context.Context, client CellClient, branchID string, project *store.Project) error {
+	if !project.IPFiltering.Enabled && len(project.IPFiltering.CIDRs) == 0 {
+		return nil
+	}
+
+	_, err := client.SetBranchIPFiltering(ctx, &clustersv1.SetBranchIPFilteringRequest{
+		BranchId: branchID,
+		IpFiltering: &clustersv1.IPFilteringConfig{
+			Enabled: project.IPFiltering.Enabled,
+			Allowed: project.IPFiltering.CIDRStrings(),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("set ip filtering for branch: %w", err)
+	}
+
+	return nil
+}
+
+func DeprovisionBranch(ctx context.Context, organizationID string, c Cells, b *store.Branch) error {
 	client, err := c.GetCellConnection(ctx, organizationID, b.CellID)
 	if err != nil {
 		return fmt.Errorf("get cell connection: %w", err)
@@ -128,42 +150,14 @@ func DeprovisionBranch(ctx context.Context, organizationID string, s store.Proje
 		log.Ctx(ctx).Warn().Msgf("branch [%s] not found in Kubernetes, proceeding with deletion", b.ID)
 	}
 
-	primaryCell, err := s.GetPrimaryCell(ctx, organizationID, b.Region)
-	if err != nil {
-		return fmt.Errorf("get primary cell: %w", err)
-	}
-
-	// IP filtering is always managed on the primary cell, so we need to clean it up there
-	// Get a connection to the primary cell (reuse if branch is already on primary cell)
-	var primaryCellClient CellClient
-	needsPrimaryCellConnection := primaryCell.ID != b.CellID
-	if needsPrimaryCellConnection {
-		primaryCellClient, err = c.GetCellConnection(ctx, organizationID, primaryCell.ID)
-		if err != nil {
-			return fmt.Errorf("get primary cell connection: %w", err)
-		}
-		defer primaryCellClient.Close()
-	} else {
-		primaryCellClient = client
-	}
-
-	// Clean up IP filtering settings on the primary cell
-	_, err = primaryCellClient.DeleteBranchIPFiltering(ctx, &clustersv1.DeleteBranchIPFilteringRequest{
+	// Clean up the branch's IP filtering settings on its cell
+	_, err = client.DeleteBranchIPFiltering(ctx, &clustersv1.DeleteBranchIPFilteringRequest{
 		BranchId: b.ID,
 	})
 	if err != nil {
 		// Log the error but don't fail the deletion if IP filtering cleanup fails
 		// The branch is already deleted, so this is best-effort cleanup
 		log.Ctx(ctx).Warn().Err(err).Msgf("Failed to delete IP filtering for branch [%s]", b.ID)
-	}
-
-	// If the cluster was scheduled on a secondary cell, deregister it from
-	// the primary cell
-	if needsPrimaryCellConnection {
-		_, err = primaryCellClient.DeregisterPostgresCluster(ctx, &clustersv1.DeregisterPostgresClusterRequest{Id: b.ID})
-		if err != nil {
-			return fmt.Errorf("deregister from primary cell: %w", err)
-		}
 	}
 
 	return nil

@@ -224,7 +224,7 @@ func TestDeleteProjectsInOrg(t *testing.T) {
 			},
 			wantErrors: []string{"delete organization status: test error"},
 		},
-		"single project with single branch on primary cell": {
+		"single project with single branch": {
 			setupMock: func(mockStore *mocks.ProjectsStore, mockCells *cellsmock.Cells) {
 				mockStore.EXPECT().ListProjects(mock.Anything, orgID).Return([]store.Project{{ID: "proj-1"}}, nil)
 				mockStore.EXPECT().ListBranches(mock.Anything, orgID, "proj-1").Return([]store.Branch{
@@ -236,40 +236,10 @@ func TestDeleteProjectsInOrg(t *testing.T) {
 				cellClient.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: "branch-1"}).Return(&clustersv1.DeletePostgresClusterResponse{}, nil)
 				cellClient.EXPECT().DeleteBranchIPFiltering(mock.Anything, &clustersv1.DeleteBranchIPFilteringRequest{BranchId: "branch-1"}).Return(&clustersv1.DeleteBranchIPFilteringResponse{}, nil)
 				cellClient.EXPECT().Close().Return(nil)
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(&store.Cell{ID: "cell-1"}, nil)
 
 				mockStore.EXPECT().DeleteBranch(mock.Anything, orgID, "proj-1", "branch-1", mock.AnythingOfType("func(*store.Branch) error")).
 					Run(func(_ context.Context, _, _, _ string, fn func(*store.Branch) error) {
 						_ = fn(&store.Branch{ID: "branch-1", CellID: "cell-1", Region: "us-east-1"})
-					}).Return(nil)
-				mockStore.EXPECT().DeleteProject(mock.Anything, orgID, "proj-1").Return(nil)
-			},
-			wantProjectsDel: 1,
-			wantBranchesDel: 1,
-		},
-		"branch on non-primary cell triggers deregister": {
-			setupMock: func(mockStore *mocks.ProjectsStore, mockCells *cellsmock.Cells) {
-				mockStore.EXPECT().ListProjects(mock.Anything, orgID).Return([]store.Project{{ID: "proj-1"}}, nil)
-				mockStore.EXPECT().ListBranches(mock.Anything, orgID, "proj-1").Return([]store.Branch{
-					{ID: "branch-1", CellID: "cell-2", Region: "us-east-1"},
-				}, nil)
-
-				cellClient := cellsmock.NewCellClient(t)
-				mockCells.EXPECT().GetCellConnection(mock.Anything, orgID, "cell-2").Return(cellClient, nil)
-				cellClient.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: "branch-1"}).Return(&clustersv1.DeletePostgresClusterResponse{}, nil)
-				cellClient.EXPECT().Close().Return(nil)
-
-				mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(&store.Cell{ID: "cell-1"}, nil)
-
-				primaryClient := cellsmock.NewCellClient(t)
-				mockCells.EXPECT().GetCellConnection(mock.Anything, orgID, "cell-1").Return(primaryClient, nil)
-				primaryClient.EXPECT().DeleteBranchIPFiltering(mock.Anything, &clustersv1.DeleteBranchIPFilteringRequest{BranchId: "branch-1"}).Return(&clustersv1.DeleteBranchIPFilteringResponse{}, nil)
-				primaryClient.EXPECT().DeregisterPostgresCluster(mock.Anything, &clustersv1.DeregisterPostgresClusterRequest{Id: "branch-1"}).Return(&clustersv1.DeregisterPostgresClusterResponse{}, nil)
-				primaryClient.EXPECT().Close().Return(nil)
-
-				mockStore.EXPECT().DeleteBranch(mock.Anything, orgID, "proj-1", "branch-1", mock.AnythingOfType("func(*store.Branch) error")).
-					Run(func(_ context.Context, _, _, _ string, fn func(*store.Branch) error) {
-						_ = fn(&store.Branch{ID: "branch-1", CellID: "cell-2", Region: "us-east-1"})
 					}).Return(nil)
 				mockStore.EXPECT().DeleteProject(mock.Anything, orgID, "proj-1").Return(nil)
 			},
@@ -302,7 +272,6 @@ func TestDeleteProjectsInOrg(t *testing.T) {
 					if bid == "branch-3" {
 						projectID = "proj-2"
 					}
-					mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(&store.Cell{ID: "cell-1"}, nil).Once()
 					mockStore.EXPECT().DeleteBranch(mock.Anything, orgID, projectID, bid, mock.AnythingOfType("func(*store.Branch) error")).
 						Run(func(_ context.Context, _, _, _ string, fn func(*store.Branch) error) {
 							_ = fn(&store.Branch{ID: bid, CellID: "cell-1", Region: "us-east-1"})
@@ -348,7 +317,6 @@ func TestDeleteProjectsInOrg(t *testing.T) {
 					cellClient.EXPECT().DeletePostgresCluster(mock.Anything, &clustersv1.DeletePostgresClusterRequest{Id: branchID}).Return(&clustersv1.DeletePostgresClusterResponse{}, nil)
 					cellClient.EXPECT().DeleteBranchIPFiltering(mock.Anything, &clustersv1.DeleteBranchIPFilteringRequest{BranchId: branchID}).Return(&clustersv1.DeleteBranchIPFilteringResponse{}, nil)
 					cellClient.EXPECT().Close().Return(nil)
-					mockStore.EXPECT().GetPrimaryCell(mock.Anything, orgID, "us-east-1").Return(&store.Cell{ID: "cell-1"}, nil).Once()
 				}
 
 				mockStore.EXPECT().DeleteBranch(mock.Anything, orgID, "proj-1", "branch-1", mock.AnythingOfType("func(*store.Branch) error")).

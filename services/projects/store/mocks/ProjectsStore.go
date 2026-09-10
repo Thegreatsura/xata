@@ -1431,54 +1431,6 @@ func (_c *ProjectsStore_GetOrgLimits_Call) Return(_a0 map[store.LimitKey]interfa
 	return _c
 }
 
-// GetPrimaryCell provides a mock function with given fields: ctx, organizationID, regionID
-func (_m *ProjectsStore) GetPrimaryCell(ctx context.Context, organizationID string, regionID string) (*store.Cell, error) {
-	ret := _m.Called(ctx, organizationID, regionID)
-
-	var r0 *store.Cell
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) *store.Cell); ok {
-		r0 = rf(ctx, organizationID, regionID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*store.Cell)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, organizationID, regionID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ProjectsStore_GetPrimaryCell_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPrimaryCell'
-type ProjectsStore_GetPrimaryCell_Call struct {
-	*mock.Call
-}
-
-// GetPrimaryCell is a helper method to define mock.On call
-//   - ctx context.Context
-//   - organizationID string
-//   - regionID string
-func (_e *ProjectsStore_Expecter) GetPrimaryCell(ctx interface{}, organizationID interface{}, regionID interface{}) *ProjectsStore_GetPrimaryCell_Call {
-	return &ProjectsStore_GetPrimaryCell_Call{Call: _e.mock.On("GetPrimaryCell", ctx, organizationID, regionID)}
-}
-
-func (_c *ProjectsStore_GetPrimaryCell_Call) Run(run func(ctx context.Context, organizationID string, regionID string)) *ProjectsStore_GetPrimaryCell_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
-	})
-	return _c
-}
-
-func (_c *ProjectsStore_GetPrimaryCell_Call) Return(_a0 *store.Cell, _a1 error) *ProjectsStore_GetPrimaryCell_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
 // GetProject provides a mock function with given fields: ctx, organizationID, projectID
 func (_m *ProjectsStore) GetProject(ctx context.Context, organizationID string, projectID string) (*store.Project, error) {
 	ret := _m.Called(ctx, organizationID, projectID)
