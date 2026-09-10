@@ -978,6 +978,28 @@ func TestSQLStore(t *testing.T) {
 		})
 	}
 
+	t.Run("ListBranches returns the branch description", func(t *testing.T) {
+		description := "listed description"
+
+		described, err := sqlStore.CreateBranch(ctx, "organizationID", project.ID, "cell", createBranchConfig("listedWithDescription", nil, new(description)), func(b *store.Branch) error {
+			return nil
+		})
+		require.NoError(t, err)
+
+		branches, err := sqlStore.ListBranches(ctx, "organizationID", project.ID)
+		require.NoError(t, err)
+
+		var listed *store.Branch
+		for i := range branches {
+			if branches[i].ID == described.ID {
+				listed = &branches[i]
+			}
+		}
+		require.NotNil(t, listed, "created branch missing from ListBranches")
+		require.NotNil(t, listed.Description, "ListBranches did not return the description")
+		require.Equal(t, description, *listed.Description)
+	})
+
 	t.Run("org_limits", func(t *testing.T) {
 		const orgID = "test-org"
 		const projectID = "test-project"
