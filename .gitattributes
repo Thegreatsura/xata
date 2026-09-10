@@ -1,0 +1,13 @@
+# Generated output. GitHub collapses these in pull request diffs and leaves them
+# out of the repository's language statistics. They are still tracked, still
+# reviewable, and still fail CI when they drift from their source.
+
+openapi/gen/**                                  linguist-generated=true
+e2e/client.go                                   linguist-generated=true
+services/branch-operator/applyconfiguration/**  linguist-generated=true
+
+*.gen.go                                        linguist-generated=true
+*.pb.go                                         linguist-generated=true
+
+**/*mock/**                                     linguist-generated=true
+**/*mocks/**                                    linguist-generated=true
