@@ -1,1 +1,2 @@
 io.xata.keycloak.RegistrationTurnstile
+io.xata.keycloak.RegistrationRequireDomainSso

@@ -11,40 +11,54 @@ import org.keycloak.organization.OrganizationProvider
 import org.keycloak.organization.utils.Organizations
 
 /**
- * Resolves the identity provider an organization redirects an email domain to.
- *
- * Mirrors the matching
+ * Resolves the identity provider an organization redirects an email domain to, matching what
  * [org.keycloak.organization.authentication.authenticators.browser.OrganizationAuthenticator] does
- * on the identity-first login page, so a domain resolves to the same provider however the user got
- * here.
+ * on the identity-first login page.
  *
  * See [RequireDomainSso].
  */
 object DomainSso {
     private val LOGGER: Logger = Logger.getLogger(DomainSso::class.java)
 
-    /**
-     * The provider the organization owning [domain] redirects that domain to, or null when no
-     * organization claims the domain or none of its providers redirects on an email match.
-     */
+    /** What to tell somebody whose address belongs to [required], and what to do instead. */
+    fun useYourProvider(
+        required: IdentityProviderModel,
+        then: String,
+    ): String {
+        val name = required.displayName.orEmpty().ifBlank { required.alias }
+        return "Your organization signs in through $name. $then"
+    }
+
+    /** The provider the organization owning [domain] redirects it to, or null if none does. */
     fun requiredBroker(
         session: KeycloakSession,
         domain: String?,
     ): IdentityProviderModel? {
-        if (domain == null) return null
+        val canonical = domain?.lowercase() ?: return null
 
-        val organization = organizationFor(session, domain) ?: return null
-        val matching = Organizations.getMatchingDomain(domain, organization) ?: return null
+        val organization = organizationFor(session, canonical) ?: return null
+        val matching = Organizations.getMatchingDomain(canonical, organization) ?: return null
 
         return organization.identityProviders
-            .filter { it.isEnabled && redirectsDomain(it, domain, matching.name) }
+            .filter { it.isEnabled && redirectsDomain(it, canonical, matching.name) }
             .findFirst()
             .orElse(null)
     }
 
     /**
-     * Whether [broker] takes [domain], which its organization holds as [organizationDomain].
+     * The provider a login by [email] has to be held for, or null when none does or [currentAlias]
+     * already is it. [currentAlias] is null outside a broker flow, where nothing has been proven.
      */
+    fun mismatchedBroker(
+        session: KeycloakSession,
+        email: String?,
+        currentAlias: String?,
+    ): IdentityProviderModel? {
+        val required = requiredBroker(session, Organizations.getEmailDomain(email)) ?: return null
+        return if (required.alias == currentAlias) null else required
+    }
+
+    /** Whether [broker] takes [domain], which its organization holds as [organizationDomain]. */
     fun redirectsDomain(
         broker: IdentityProviderModel,
         domain: String,
@@ -59,6 +73,27 @@ object DomainSso {
         return brokerDomain == ANY_DOMAIN || brokerDomain == organizationDomain
     }
 
+    /**
+     * Whether [alias] is entitled to assert [email]. Keycloak's trustEmail does not check this and
+     * first broker login links on the result, so without it one organization's provider could
+     * claim another's account. A provider bound to no domain is shared and not covered.
+     */
+    fun assertsOwnDomain(
+        session: KeycloakSession,
+        alias: String?,
+        email: String?,
+    ): Boolean {
+        if (alias == null) return true
+        val idp = session.identityProviders().getByAlias(alias) ?: return true
+        val bound = idp.config[OrganizationModel.ORGANIZATION_DOMAIN_ATTRIBUTE] ?: return true
+
+        val domain = Organizations.getEmailDomain(email)?.lowercase() ?: return false
+        if (bound != ANY_DOMAIN) return Organizations.isSameDomain(domain, bound)
+
+        val organization = organizationFor(session, domain) ?: return false
+        return organization.identityProviders.anyMatch { it.alias == alias }
+    }
+
     private fun organizationFor(
         session: KeycloakSession,
         domain: String,
@@ -66,15 +101,11 @@ object DomainSso {
         val provider = session.getProvider(OrganizationProvider::class.java)
         if (!Organizations.isEnabledAndOrganizationsPresent(provider)) return null
 
-        // Ask only for the domain itself. getByDomainName widens the search on its own, adding
-        // *.<domain> and each parent suffix when the exact name misses, and it stops short of the
-        // bare TLD; handing it a wildcard we built ourselves reaches a name it validates and
-        // rejects, which for an unclaimed domain is every login.
+        // getByDomainName widens the search itself and rejects a wildcard on a bare TLD, so ask
+        // it for the domain and nothing else.
         return try {
             provider.getByDomainName(domain)?.takeIf { it.isEnabled }
         } catch (e: ModelValidationException) {
-            // Nothing an organization could hold, so nobody redirects it. Refusing the login over
-            // an address Keycloak will not parse is never the right answer here.
             LOGGER.debugf(e, "Not a usable email domain: '%s'", domain)
             null
         }
