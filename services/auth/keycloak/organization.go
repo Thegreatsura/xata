@@ -15,6 +15,10 @@ const (
 
 	OrganizationDeletedAtKey = "deletedAt"
 
+	OrganizationSSODomainsMissingSinceKey = "ssoDomainsMissingSince"
+
+	OrganizationSSOPendingDomainsKey = "ssoPendingDomains"
+
 	OrganizationUsageTierKey = "usageTier"
 
 	OrganizationMarketplaceKey   = "marketplace"
@@ -58,7 +62,8 @@ const (
 )
 
 type Domain struct {
-	Name string `json:"name"`
+	Name     string `json:"name"`
+	Verified bool   `json:"verified"`
 }
 
 // MaxOrganizationMembers is the maximum number of users allowed in an organization
@@ -98,6 +103,8 @@ type OrganizationUpdate struct {
 	ResourcesCleanedAt      *string                              `json:"resourcesCleanedAt,omitempty"`
 	UsageTier               *OrganizationUsageTier               `json:"usageTier,omitempty"`
 	BillingCollectionMethod *OrganizationBillingCollectionMethod `json:"billingCollectionMethod,omitempty"`
+	SSOPendingDomains       *string                              `json:"ssoPendingDomains,omitempty"`
+	SSODomainsMissingSince  *string                              `json:"ssoDomainsMissingSince,omitempty"`
 }
 
 type OrganizationInvitation struct {
@@ -163,4 +170,10 @@ func (s OrganizationStatus) EffectiveState() OrganizationState {
 		return OrganizationStateEnabled
 	}
 	return OrganizationStateDisabled
+}
+
+type SSOOrganization struct {
+	Alias               string
+	Domains             []Domain
+	DomainsMissingSince string
 }

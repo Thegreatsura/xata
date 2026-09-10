@@ -276,6 +276,45 @@ func (_c *KeyCloak_DeleteGroup_Call) Return(_a0 error) *KeyCloak_DeleteGroup_Cal
 	return _c
 }
 
+// DeleteIdentityProvider provides a mock function with given fields: ctx, realm, alias
+func (_m *KeyCloak) DeleteIdentityProvider(ctx context.Context, realm string, alias string) error {
+	ret := _m.Called(ctx, realm, alias)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, realm, alias)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// KeyCloak_DeleteIdentityProvider_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteIdentityProvider'
+type KeyCloak_DeleteIdentityProvider_Call struct {
+	*mock.Call
+}
+
+// DeleteIdentityProvider is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - alias string
+func (_e *KeyCloak_Expecter) DeleteIdentityProvider(ctx interface{}, realm interface{}, alias interface{}) *KeyCloak_DeleteIdentityProvider_Call {
+	return &KeyCloak_DeleteIdentityProvider_Call{Call: _e.mock.On("DeleteIdentityProvider", ctx, realm, alias)}
+}
+
+func (_c *KeyCloak_DeleteIdentityProvider_Call) Run(run func(ctx context.Context, realm string, alias string)) *KeyCloak_DeleteIdentityProvider_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_DeleteIdentityProvider_Call) Return(_a0 error) *KeyCloak_DeleteIdentityProvider_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
 // DeleteInvitation provides a mock function with given fields: c, realm, organizationID, invitationID
 func (_m *KeyCloak) DeleteInvitation(c context.Context, realm string, organizationID string, invitationID string) error {
 	ret := _m.Called(c, realm, organizationID, invitationID)
@@ -543,6 +582,102 @@ func (_c *KeyCloak_GetOrganization_Call) Return(_a0 keycloak.Organization, _a1 e
 	return _c
 }
 
+// GetOrganizationDomains provides a mock function with given fields: ctx, realm, organizationID
+func (_m *KeyCloak) GetOrganizationDomains(ctx context.Context, realm string, organizationID string) ([]keycloak.Domain, error) {
+	ret := _m.Called(ctx, realm, organizationID)
+
+	var r0 []keycloak.Domain
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) []keycloak.Domain); ok {
+		r0 = rf(ctx, realm, organizationID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]keycloak.Domain)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, realm, organizationID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// KeyCloak_GetOrganizationDomains_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetOrganizationDomains'
+type KeyCloak_GetOrganizationDomains_Call struct {
+	*mock.Call
+}
+
+// GetOrganizationDomains is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+func (_e *KeyCloak_Expecter) GetOrganizationDomains(ctx interface{}, realm interface{}, organizationID interface{}) *KeyCloak_GetOrganizationDomains_Call {
+	return &KeyCloak_GetOrganizationDomains_Call{Call: _e.mock.On("GetOrganizationDomains", ctx, realm, organizationID)}
+}
+
+func (_c *KeyCloak_GetOrganizationDomains_Call) Run(run func(ctx context.Context, realm string, organizationID string)) *KeyCloak_GetOrganizationDomains_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_GetOrganizationDomains_Call) Return(_a0 []keycloak.Domain, _a1 error) *KeyCloak_GetOrganizationDomains_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// GetSSOPendingDomains provides a mock function with given fields: ctx, realm, organizationID
+func (_m *KeyCloak) GetSSOPendingDomains(ctx context.Context, realm string, organizationID string) ([]string, error) {
+	ret := _m.Called(ctx, realm, organizationID)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) []string); ok {
+		r0 = rf(ctx, realm, organizationID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, realm, organizationID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// KeyCloak_GetSSOPendingDomains_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSSOPendingDomains'
+type KeyCloak_GetSSOPendingDomains_Call struct {
+	*mock.Call
+}
+
+// GetSSOPendingDomains is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+func (_e *KeyCloak_Expecter) GetSSOPendingDomains(ctx interface{}, realm interface{}, organizationID interface{}) *KeyCloak_GetSSOPendingDomains_Call {
+	return &KeyCloak_GetSSOPendingDomains_Call{Call: _e.mock.On("GetSSOPendingDomains", ctx, realm, organizationID)}
+}
+
+func (_c *KeyCloak_GetSSOPendingDomains_Call) Run(run func(ctx context.Context, realm string, organizationID string)) *KeyCloak_GetSSOPendingDomains_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_GetSSOPendingDomains_Call) Return(_a0 []string, _a1 error) *KeyCloak_GetSSOPendingDomains_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // GetUserRepresentation provides a mock function with given fields: c, realm, userID
 func (_m *KeyCloak) GetUserRepresentation(c context.Context, realm string, userID string) (keycloak.User, error) {
 	ret := _m.Called(c, realm, userID)
@@ -586,6 +721,46 @@ func (_c *KeyCloak_GetUserRepresentation_Call) Run(run func(c context.Context, r
 
 func (_c *KeyCloak_GetUserRepresentation_Call) Return(_a0 keycloak.User, _a1 error) *KeyCloak_GetUserRepresentation_Call {
 	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// LinkIdentityProviderToOrganization provides a mock function with given fields: ctx, realm, organizationID, alias
+func (_m *KeyCloak) LinkIdentityProviderToOrganization(ctx context.Context, realm string, organizationID string, alias string) error {
+	ret := _m.Called(ctx, realm, organizationID, alias)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
+		r0 = rf(ctx, realm, organizationID, alias)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// KeyCloak_LinkIdentityProviderToOrganization_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LinkIdentityProviderToOrganization'
+type KeyCloak_LinkIdentityProviderToOrganization_Call struct {
+	*mock.Call
+}
+
+// LinkIdentityProviderToOrganization is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+//   - alias string
+func (_e *KeyCloak_Expecter) LinkIdentityProviderToOrganization(ctx interface{}, realm interface{}, organizationID interface{}, alias interface{}) *KeyCloak_LinkIdentityProviderToOrganization_Call {
+	return &KeyCloak_LinkIdentityProviderToOrganization_Call{Call: _e.mock.On("LinkIdentityProviderToOrganization", ctx, realm, organizationID, alias)}
+}
+
+func (_c *KeyCloak_LinkIdentityProviderToOrganization_Call) Run(run func(ctx context.Context, realm string, organizationID string, alias string)) *KeyCloak_LinkIdentityProviderToOrganization_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_LinkIdentityProviderToOrganization_Call) Return(_a0 error) *KeyCloak_LinkIdentityProviderToOrganization_Call {
+	_c.Call.Return(_a0)
 	return _c
 }
 
@@ -831,6 +1006,54 @@ func (_c *KeyCloak_ListMembers_Call) Return(_a0 []keycloak.OrganizationMember, _
 	return _c
 }
 
+// ListOrganizationIdentityProviders provides a mock function with given fields: ctx, realm, organizationID
+func (_m *KeyCloak) ListOrganizationIdentityProviders(ctx context.Context, realm string, organizationID string) ([]keycloak.IdentityProvider, error) {
+	ret := _m.Called(ctx, realm, organizationID)
+
+	var r0 []keycloak.IdentityProvider
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) []keycloak.IdentityProvider); ok {
+		r0 = rf(ctx, realm, organizationID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]keycloak.IdentityProvider)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, realm, organizationID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// KeyCloak_ListOrganizationIdentityProviders_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListOrganizationIdentityProviders'
+type KeyCloak_ListOrganizationIdentityProviders_Call struct {
+	*mock.Call
+}
+
+// ListOrganizationIdentityProviders is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+func (_e *KeyCloak_Expecter) ListOrganizationIdentityProviders(ctx interface{}, realm interface{}, organizationID interface{}) *KeyCloak_ListOrganizationIdentityProviders_Call {
+	return &KeyCloak_ListOrganizationIdentityProviders_Call{Call: _e.mock.On("ListOrganizationIdentityProviders", ctx, realm, organizationID)}
+}
+
+func (_c *KeyCloak_ListOrganizationIdentityProviders_Call) Run(run func(ctx context.Context, realm string, organizationID string)) *KeyCloak_ListOrganizationIdentityProviders_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_ListOrganizationIdentityProviders_Call) Return(_a0 []keycloak.IdentityProvider, _a1 error) *KeyCloak_ListOrganizationIdentityProviders_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // ListOrganizations provides a mock function with given fields: c, realm, userID
 func (_m *KeyCloak) ListOrganizations(c context.Context, realm string, userID string) ([]keycloak.Organization, error) {
 	ret := _m.Called(c, realm, userID)
@@ -875,6 +1098,53 @@ func (_c *KeyCloak_ListOrganizations_Call) Run(run func(c context.Context, realm
 }
 
 func (_c *KeyCloak_ListOrganizations_Call) Return(_a0 []keycloak.Organization, _a1 error) *KeyCloak_ListOrganizations_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// ListSSOOrganizations provides a mock function with given fields: ctx, realm
+func (_m *KeyCloak) ListSSOOrganizations(ctx context.Context, realm string) ([]keycloak.SSOOrganization, error) {
+	ret := _m.Called(ctx, realm)
+
+	var r0 []keycloak.SSOOrganization
+	if rf, ok := ret.Get(0).(func(context.Context, string) []keycloak.SSOOrganization); ok {
+		r0 = rf(ctx, realm)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]keycloak.SSOOrganization)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, realm)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// KeyCloak_ListSSOOrganizations_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListSSOOrganizations'
+type KeyCloak_ListSSOOrganizations_Call struct {
+	*mock.Call
+}
+
+// ListSSOOrganizations is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+func (_e *KeyCloak_Expecter) ListSSOOrganizations(ctx interface{}, realm interface{}) *KeyCloak_ListSSOOrganizations_Call {
+	return &KeyCloak_ListSSOOrganizations_Call{Call: _e.mock.On("ListSSOOrganizations", ctx, realm)}
+}
+
+func (_c *KeyCloak_ListSSOOrganizations_Call) Run(run func(ctx context.Context, realm string)) *KeyCloak_ListSSOOrganizations_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_ListSSOOrganizations_Call) Return(_a0 []keycloak.SSOOrganization, _a1 error) *KeyCloak_ListSSOOrganizations_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
@@ -996,6 +1266,86 @@ func (_c *KeyCloak_ResendInvitation_Call) Run(run func(c context.Context, realm 
 }
 
 func (_c *KeyCloak_ResendInvitation_Call) Return(_a0 error) *KeyCloak_ResendInvitation_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+// SetOrganizationDomains provides a mock function with given fields: ctx, realm, organizationID, domains
+func (_m *KeyCloak) SetOrganizationDomains(ctx context.Context, realm string, organizationID string, domains []keycloak.Domain) error {
+	ret := _m.Called(ctx, realm, organizationID, domains)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, []keycloak.Domain) error); ok {
+		r0 = rf(ctx, realm, organizationID, domains)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// KeyCloak_SetOrganizationDomains_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetOrganizationDomains'
+type KeyCloak_SetOrganizationDomains_Call struct {
+	*mock.Call
+}
+
+// SetOrganizationDomains is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+//   - domains []keycloak.Domain
+func (_e *KeyCloak_Expecter) SetOrganizationDomains(ctx interface{}, realm interface{}, organizationID interface{}, domains interface{}) *KeyCloak_SetOrganizationDomains_Call {
+	return &KeyCloak_SetOrganizationDomains_Call{Call: _e.mock.On("SetOrganizationDomains", ctx, realm, organizationID, domains)}
+}
+
+func (_c *KeyCloak_SetOrganizationDomains_Call) Run(run func(ctx context.Context, realm string, organizationID string, domains []keycloak.Domain)) *KeyCloak_SetOrganizationDomains_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].([]keycloak.Domain))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_SetOrganizationDomains_Call) Return(_a0 error) *KeyCloak_SetOrganizationDomains_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+// SetSSOPendingDomains provides a mock function with given fields: ctx, realm, organizationID, domains
+func (_m *KeyCloak) SetSSOPendingDomains(ctx context.Context, realm string, organizationID string, domains []string) error {
+	ret := _m.Called(ctx, realm, organizationID, domains)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, []string) error); ok {
+		r0 = rf(ctx, realm, organizationID, domains)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// KeyCloak_SetSSOPendingDomains_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetSSOPendingDomains'
+type KeyCloak_SetSSOPendingDomains_Call struct {
+	*mock.Call
+}
+
+// SetSSOPendingDomains is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+//   - domains []string
+func (_e *KeyCloak_Expecter) SetSSOPendingDomains(ctx interface{}, realm interface{}, organizationID interface{}, domains interface{}) *KeyCloak_SetSSOPendingDomains_Call {
+	return &KeyCloak_SetSSOPendingDomains_Call{Call: _e.mock.On("SetSSOPendingDomains", ctx, realm, organizationID, domains)}
+}
+
+func (_c *KeyCloak_SetSSOPendingDomains_Call) Run(run func(ctx context.Context, realm string, organizationID string, domains []string)) *KeyCloak_SetSSOPendingDomains_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].([]string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_SetSSOPendingDomains_Call) Return(_a0 error) *KeyCloak_SetSSOPendingDomains_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
@@ -1131,6 +1481,45 @@ func (_c *KeyCloak_UpdateUserAttributes_Call) Run(run func(ctx context.Context, 
 }
 
 func (_c *KeyCloak_UpdateUserAttributes_Call) Return(_a0 error) *KeyCloak_UpdateUserAttributes_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+// UpsertIdentityProvider provides a mock function with given fields: ctx, realm, idp
+func (_m *KeyCloak) UpsertIdentityProvider(ctx context.Context, realm string, idp keycloak.IdentityProvider) error {
+	ret := _m.Called(ctx, realm, idp)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, keycloak.IdentityProvider) error); ok {
+		r0 = rf(ctx, realm, idp)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// KeyCloak_UpsertIdentityProvider_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertIdentityProvider'
+type KeyCloak_UpsertIdentityProvider_Call struct {
+	*mock.Call
+}
+
+// UpsertIdentityProvider is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - idp keycloak.IdentityProvider
+func (_e *KeyCloak_Expecter) UpsertIdentityProvider(ctx interface{}, realm interface{}, idp interface{}) *KeyCloak_UpsertIdentityProvider_Call {
+	return &KeyCloak_UpsertIdentityProvider_Call{Call: _e.mock.On("UpsertIdentityProvider", ctx, realm, idp)}
+}
+
+func (_c *KeyCloak_UpsertIdentityProvider_Call) Run(run func(ctx context.Context, realm string, idp keycloak.IdentityProvider)) *KeyCloak_UpsertIdentityProvider_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(keycloak.IdentityProvider))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_UpsertIdentityProvider_Call) Return(_a0 error) *KeyCloak_UpsertIdentityProvider_Call {
 	_c.Call.Return(_a0)
 	return _c
 }

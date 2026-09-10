@@ -131,6 +131,29 @@ func (e ErrIdentityProviderTokenForbidden) StatusCode() int {
 	return http.StatusForbidden
 }
 
+// ErrDomainAlreadyClaimed is returned when another organization in the realm
+// already holds the domain. Keycloak owns this check; see SetOrganizationDomains.
+type ErrDomainAlreadyClaimed struct{}
+
+func (e ErrDomainAlreadyClaimed) Error() string {
+	return "domain is already claimed by another organization"
+}
+
+func (e ErrDomainAlreadyClaimed) StatusCode() int {
+	return http.StatusConflict
+}
+
+// ErrInvalidDomain is returned when Keycloak rejects the domain as malformed.
+type ErrInvalidDomain struct{}
+
+func (e ErrInvalidDomain) Error() string {
+	return "domain is not a valid email domain"
+}
+
+func (e ErrInvalidDomain) StatusCode() int {
+	return http.StatusBadRequest
+}
+
 type ErrInvitationNotFound struct {
 	ID string
 }

@@ -64,4 +64,22 @@ type KeyCloak interface {
 	AddGroupMember(ctx context.Context, realm, organizationID, groupID, userID string) error
 	// RemoveGroupMember removes a member from an organization group.
 	RemoveGroupMember(ctx context.Context, realm, organizationID, groupID, userID string) error
+	// UpsertIdentityProvider creates the provider, or replaces an existing alias.
+	UpsertIdentityProvider(ctx context.Context, realm string, idp IdentityProvider) error
+	// DeleteIdentityProvider removes an identity provider. Idempotent.
+	DeleteIdentityProvider(ctx context.Context, realm, alias string) error
+	// LinkIdentityProviderToOrganization associates a provider with an organization. Idempotent.
+	LinkIdentityProviderToOrganization(ctx context.Context, realm, organizationID, alias string) error
+	// ListOrganizationIdentityProviders returns the providers linked to the organization.
+	ListOrganizationIdentityProviders(ctx context.Context, realm, organizationID string) ([]IdentityProvider, error)
+	// GetSSOPendingDomains returns domains claimed for SSO but not yet verified.
+	GetSSOPendingDomains(ctx context.Context, realm, organizationID string) ([]string, error)
+	// SetSSOPendingDomains replaces the pending claim set.
+	SetSSOPendingDomains(ctx context.Context, realm, organizationID string, domains []string) error
+	// GetOrganizationDomains returns the domains claimed by the organization.
+	GetOrganizationDomains(ctx context.Context, realm, organizationID string) ([]Domain, error)
+	// SetOrganizationDomains replaces the organization's domain set.
+	SetOrganizationDomains(ctx context.Context, realm, organizationID string, domains []Domain) error
+	// ListSSOOrganizations returns every organization holding a verified domain.
+	ListSSOOrganizations(ctx context.Context, realm string) ([]SSOOrganization, error)
 }

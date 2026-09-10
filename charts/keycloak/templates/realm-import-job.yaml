@@ -34,6 +34,14 @@ spec:
               value: /keycloak-realm/realm.json
             - name: IMPORT_VARSUBSTITUTION_ENABLED
               value: "true"
+            # Organizations register their own identity provider through the SSO API, so the
+            # realm holds providers this file has never heard of. keycloak-config-cli defaults
+            # both of these to "full", which deletes anything absent from the import, and this
+            # Job re-runs on every realm.json change.
+            - name: IMPORT_MANAGED_IDENTITY_PROVIDER
+              value: no-delete
+            - name: IMPORT_MANAGED_IDENTITY_PROVIDER_MAPPER
+              value: no-delete
             {{- with .Values.realmImport.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

@@ -467,6 +467,15 @@ func (r *restKC) UpdateOrganization(
 	if update.BillingCollectionMethod != nil {
 		updates[OrganizationBillingCollectionMethodKey] = []string{string(*update.BillingCollectionMethod)}
 	}
+	var deleteSSOPendingDomains bool
+	if update.SSOPendingDomains != nil {
+		if *update.SSOPendingDomains == "" {
+			deleteSSOPendingDomains = true
+		} else {
+			updates[OrganizationSSOPendingDomainsKey] = []string{*update.SSOPendingDomains}
+		}
+	}
+
 	var deleteResourcesCleanedAt bool
 	if update.ResourcesCleanedAt != nil {
 		if *update.ResourcesCleanedAt == "" {
@@ -475,8 +484,16 @@ func (r *restKC) UpdateOrganization(
 			updates[OrganizationResourcesCleanedAtKey] = []string{*update.ResourcesCleanedAt}
 		}
 	}
+	var deleteSSODomainsMissingSince bool
+	if update.SSODomainsMissingSince != nil {
+		if *update.SSODomainsMissingSince == "" {
+			deleteSSODomainsMissingSince = true
+		} else {
+			updates[OrganizationSSODomainsMissingSinceKey] = []string{*update.SSODomainsMissingSince}
+		}
+	}
 
-	if len(updates) == 0 && !deleteResourcesCleanedAt {
+	if len(updates) == 0 && !deleteResourcesCleanedAt && !deleteSSODomainsMissingSince && !deleteSSOPendingDomains {
 		return r.GetOrganization(ctx, realm, organizationID, GetOrganizationOptions{IncludeDeleted: true})
 	}
 
@@ -489,6 +506,12 @@ func (r *restKC) UpdateOrganization(
 
 	if deleteResourcesCleanedAt {
 		delete(organization.Attributes, OrganizationResourcesCleanedAtKey)
+	}
+	if deleteSSODomainsMissingSince {
+		delete(organization.Attributes, OrganizationSSODomainsMissingSinceKey)
+	}
+	if deleteSSOPendingDomains {
+		delete(organization.Attributes, OrganizationSSOPendingDomainsKey)
 	}
 	organization.Attributes[OrganizationLastUpdatedKey] = []string{
 		time.Now().UTC().Format(time.RFC3339),
