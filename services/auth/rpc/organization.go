@@ -22,6 +22,13 @@ func keycloakOrganizationToProto(org keycloak.Organization) *authv1.Organization
 		BillingCollectionMethod: string(org.BillingCollectionMethod),
 		Marketplace:             string(ptr.Deref(org.Marketplace, "")),
 	}
+	if org.AWSMarketplace != nil {
+		resp.AwsMarketplace = &authv1.AWSMarketplace{
+			CustomerId: org.AWSMarketplace.CustomerID,
+			ProductId:  org.AWSMarketplace.ProductID,
+			AccountId:  org.AWSMarketplace.AccountID,
+		}
+	}
 	if org.Status.CreatedAt != nil {
 		resp.CreatedAt = timestamppb.New(*org.Status.CreatedAt)
 	}

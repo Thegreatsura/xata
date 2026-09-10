@@ -29,6 +29,11 @@ func TestKeycloakOrganizationToProto(t *testing.T) {
 				Name:                    "Enabled organization",
 				BillingCollectionMethod: keycloak.OrganizationBillingCollectionMethodMarketplace,
 				Marketplace:             &marketplace,
+				AWSMarketplace: &keycloak.AWSMarketplace{
+					CustomerID: "customer-123",
+					ProductID:  "product-456",
+					AccountID:  "123456789012",
+				},
 				Status: keycloak.OrganizationStatus{
 					BillingStatus: keycloak.OrganizationBillingStatusOK,
 					CreatedAt:     &createdAt,
@@ -44,6 +49,29 @@ func TestKeycloakOrganizationToProto(t *testing.T) {
 				UsageTier:               string(keycloak.OrganizationUsageTierT2),
 				BillingCollectionMethod: string(keycloak.OrganizationBillingCollectionMethodMarketplace),
 				Marketplace:             string(keycloak.OrganizationMarketplaceProviderAWS),
+				AwsMarketplace: &authv1.AWSMarketplace{
+					CustomerId: "customer-123",
+					ProductId:  "product-456",
+					AccountId:  "123456789012",
+				},
+			},
+		},
+		"aws marketplace attributes absent": {
+			org: keycloak.Organization{
+				Marketplace: &marketplace,
+			},
+			want: &authv1.Organization{
+				Status:      string(keycloak.OrganizationStateDisabled),
+				Marketplace: string(keycloak.OrganizationMarketplaceProviderAWS),
+			},
+		},
+		"aws marketplace attributes present but empty": {
+			org: keycloak.Organization{
+				AWSMarketplace: &keycloak.AWSMarketplace{},
+			},
+			want: &authv1.Organization{
+				Status:         string(keycloak.OrganizationStateDisabled),
+				AwsMarketplace: &authv1.AWSMarketplace{},
 			},
 		},
 		"bank transfer collection method": {

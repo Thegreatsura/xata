@@ -228,6 +228,7 @@ type Organization struct {
 	DeletedAt               *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
 	BillingCollectionMethod string                 `protobuf:"bytes,11,opt,name=billing_collection_method,json=billingCollectionMethod,proto3" json:"billing_collection_method,omitempty"`
 	Name                    string                 `protobuf:"bytes,12,opt,name=name,proto3" json:"name,omitempty"`
+	AwsMarketplace          *AWSMarketplace        `protobuf:"bytes,13,opt,name=aws_marketplace,json=awsMarketplace,proto3" json:"aws_marketplace,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -346,6 +347,73 @@ func (x *Organization) GetName() string {
 	return ""
 }
 
+func (x *Organization) GetAwsMarketplace() *AWSMarketplace {
+	if x != nil {
+		return x.AwsMarketplace
+	}
+	return nil
+}
+
+type AWSMarketplace struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CustomerId    string                 `protobuf:"bytes,1,opt,name=customer_id,json=customerId,proto3" json:"customer_id,omitempty"`
+	ProductId     string                 `protobuf:"bytes,2,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
+	AccountId     string                 `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AWSMarketplace) Reset() {
+	*x = AWSMarketplace{}
+	mi := &file_auth_v1_auth_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AWSMarketplace) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AWSMarketplace) ProtoMessage() {}
+
+func (x *AWSMarketplace) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AWSMarketplace.ProtoReflect.Descriptor instead.
+func (*AWSMarketplace) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *AWSMarketplace) GetCustomerId() string {
+	if x != nil {
+		return x.CustomerId
+	}
+	return ""
+}
+
+func (x *AWSMarketplace) GetProductId() string {
+	if x != nil {
+		return x.ProductId
+	}
+	return ""
+}
+
+func (x *AWSMarketplace) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
 type GetOrganizationRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	OrganizationId string                 `protobuf:"bytes,1,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
@@ -356,7 +424,7 @@ type GetOrganizationRequest struct {
 
 func (x *GetOrganizationRequest) Reset() {
 	*x = GetOrganizationRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[3]
+	mi := &file_auth_v1_auth_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -368,7 +436,7 @@ func (x *GetOrganizationRequest) String() string {
 func (*GetOrganizationRequest) ProtoMessage() {}
 
 func (x *GetOrganizationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[3]
+	mi := &file_auth_v1_auth_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -381,7 +449,7 @@ func (x *GetOrganizationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrganizationRequest.ProtoReflect.Descriptor instead.
 func (*GetOrganizationRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{3}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetOrganizationRequest) GetOrganizationId() string {
@@ -407,7 +475,7 @@ type GetOrganizationResponse struct {
 
 func (x *GetOrganizationResponse) Reset() {
 	*x = GetOrganizationResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[4]
+	mi := &file_auth_v1_auth_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -419,7 +487,7 @@ func (x *GetOrganizationResponse) String() string {
 func (*GetOrganizationResponse) ProtoMessage() {}
 
 func (x *GetOrganizationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[4]
+	mi := &file_auth_v1_auth_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -432,7 +500,7 @@ func (x *GetOrganizationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrganizationResponse.ProtoReflect.Descriptor instead.
 func (*GetOrganizationResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{4}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetOrganizationResponse) GetOrganization() *Organization {
@@ -453,7 +521,7 @@ type UpdateOrganizationRequest struct {
 
 func (x *UpdateOrganizationRequest) Reset() {
 	*x = UpdateOrganizationRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[5]
+	mi := &file_auth_v1_auth_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -465,7 +533,7 @@ func (x *UpdateOrganizationRequest) String() string {
 func (*UpdateOrganizationRequest) ProtoMessage() {}
 
 func (x *UpdateOrganizationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[5]
+	mi := &file_auth_v1_auth_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -478,7 +546,7 @@ func (x *UpdateOrganizationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateOrganizationRequest.ProtoReflect.Descriptor instead.
 func (*UpdateOrganizationRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{5}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UpdateOrganizationRequest) GetOrganizationId() string {
@@ -511,7 +579,7 @@ type UpdateOrganizationResponse struct {
 
 func (x *UpdateOrganizationResponse) Reset() {
 	*x = UpdateOrganizationResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[6]
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -523,7 +591,7 @@ func (x *UpdateOrganizationResponse) String() string {
 func (*UpdateOrganizationResponse) ProtoMessage() {}
 
 func (x *UpdateOrganizationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[6]
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -536,7 +604,7 @@ func (x *UpdateOrganizationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateOrganizationResponse.ProtoReflect.Descriptor instead.
 func (*UpdateOrganizationResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{6}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UpdateOrganizationResponse) GetOrganization() *Organization {
@@ -561,7 +629,7 @@ type ResolveVercelInstallationRequest struct {
 
 func (x *ResolveVercelInstallationRequest) Reset() {
 	*x = ResolveVercelInstallationRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -573,7 +641,7 @@ func (x *ResolveVercelInstallationRequest) String() string {
 func (*ResolveVercelInstallationRequest) ProtoMessage() {}
 
 func (x *ResolveVercelInstallationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -586,7 +654,7 @@ func (x *ResolveVercelInstallationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveVercelInstallationRequest.ProtoReflect.Descriptor instead.
 func (*ResolveVercelInstallationRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ResolveVercelInstallationRequest) GetToken() string {
@@ -616,7 +684,7 @@ type ResolveVercelInstallationResponse struct {
 
 func (x *ResolveVercelInstallationResponse) Reset() {
 	*x = ResolveVercelInstallationResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_auth_v1_auth_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -628,7 +696,7 @@ func (x *ResolveVercelInstallationResponse) String() string {
 func (*ResolveVercelInstallationResponse) ProtoMessage() {}
 
 func (x *ResolveVercelInstallationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_auth_v1_auth_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -641,7 +709,7 @@ func (x *ResolveVercelInstallationResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ResolveVercelInstallationResponse.ProtoReflect.Descriptor instead.
 func (*ResolveVercelInstallationResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{8}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ResolveVercelInstallationResponse) GetXataOrganizationId() string {
@@ -669,7 +737,7 @@ type GetGithubIdentityProviderTokenRequest struct {
 
 func (x *GetGithubIdentityProviderTokenRequest) Reset() {
 	*x = GetGithubIdentityProviderTokenRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[9]
+	mi := &file_auth_v1_auth_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -681,7 +749,7 @@ func (x *GetGithubIdentityProviderTokenRequest) String() string {
 func (*GetGithubIdentityProviderTokenRequest) ProtoMessage() {}
 
 func (x *GetGithubIdentityProviderTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[9]
+	mi := &file_auth_v1_auth_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -694,7 +762,7 @@ func (x *GetGithubIdentityProviderTokenRequest) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use GetGithubIdentityProviderTokenRequest.ProtoReflect.Descriptor instead.
 func (*GetGithubIdentityProviderTokenRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{9}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetGithubIdentityProviderTokenRequest) GetToken() string {
@@ -714,7 +782,7 @@ type GetGithubIdentityProviderTokenResponse struct {
 
 func (x *GetGithubIdentityProviderTokenResponse) Reset() {
 	*x = GetGithubIdentityProviderTokenResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[10]
+	mi := &file_auth_v1_auth_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -726,7 +794,7 @@ func (x *GetGithubIdentityProviderTokenResponse) String() string {
 func (*GetGithubIdentityProviderTokenResponse) ProtoMessage() {}
 
 func (x *GetGithubIdentityProviderTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[10]
+	mi := &file_auth_v1_auth_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -739,7 +807,7 @@ func (x *GetGithubIdentityProviderTokenResponse) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use GetGithubIdentityProviderTokenResponse.ProtoReflect.Descriptor instead.
 func (*GetGithubIdentityProviderTokenResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{10}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetGithubIdentityProviderTokenResponse) GetAccessToken() string {
@@ -776,7 +844,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"api_key_id\x18\t \x01(\tR\bapiKeyId\x1aW\n" +
 	"\x12OrganizationsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.auth.v1.OrganizationR\x05value:\x028\x01J\x04\b\x05\x10\x06\"\xaa\x04\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.auth.v1.OrganizationR\x05value:\x028\x01J\x04\b\x05\x10\x06\"\xec\x04\n" +
 	"\fOrganization\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12*\n" +
@@ -793,9 +861,17 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"deleted_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\x12:\n" +
 	"\x19billing_collection_method\x18\v \x01(\tR\x17billingCollectionMethod\x12\x12\n" +
-	"\x04name\x18\f \x01(\tR\x04nameB\x1b\n" +
+	"\x04name\x18\f \x01(\tR\x04name\x12@\n" +
+	"\x0faws_marketplace\x18\r \x01(\v2\x17.auth.v1.AWSMarketplaceR\x0eawsMarketplaceB\x1b\n" +
 	"\x19_disabled_by_admin_reasonB\x11\n" +
-	"\x0f_billing_reason\"j\n" +
+	"\x0f_billing_reason\"o\n" +
+	"\x0eAWSMarketplace\x12\x1f\n" +
+	"\vcustomer_id\x18\x01 \x01(\tR\n" +
+	"customerId\x12\x1d\n" +
+	"\n" +
+	"product_id\x18\x02 \x01(\tR\tproductId\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x03 \x01(\tR\taccountId\"j\n" +
 	"\x16GetOrganizationRequest\x12'\n" +
 	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\x12'\n" +
 	"\x0finclude_deleted\x18\x02 \x01(\bR\x0eincludeDeleted\"T\n" +
@@ -838,44 +914,46 @@ func file_auth_v1_auth_proto_rawDescGZIP() []byte {
 	return file_auth_v1_auth_proto_rawDescData
 }
 
-var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_auth_v1_auth_proto_goTypes = []any{
 	(*ValidateAccessRequest)(nil),                  // 0: auth.v1.ValidateAccessRequest
 	(*ValidateAccessResponse)(nil),                 // 1: auth.v1.ValidateAccessResponse
 	(*Organization)(nil),                           // 2: auth.v1.Organization
-	(*GetOrganizationRequest)(nil),                 // 3: auth.v1.GetOrganizationRequest
-	(*GetOrganizationResponse)(nil),                // 4: auth.v1.GetOrganizationResponse
-	(*UpdateOrganizationRequest)(nil),              // 5: auth.v1.UpdateOrganizationRequest
-	(*UpdateOrganizationResponse)(nil),             // 6: auth.v1.UpdateOrganizationResponse
-	(*ResolveVercelInstallationRequest)(nil),       // 7: auth.v1.ResolveVercelInstallationRequest
-	(*ResolveVercelInstallationResponse)(nil),      // 8: auth.v1.ResolveVercelInstallationResponse
-	(*GetGithubIdentityProviderTokenRequest)(nil),  // 9: auth.v1.GetGithubIdentityProviderTokenRequest
-	(*GetGithubIdentityProviderTokenResponse)(nil), // 10: auth.v1.GetGithubIdentityProviderTokenResponse
-	nil,                           // 11: auth.v1.ValidateAccessResponse.OrganizationsEntry
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
+	(*AWSMarketplace)(nil),                         // 3: auth.v1.AWSMarketplace
+	(*GetOrganizationRequest)(nil),                 // 4: auth.v1.GetOrganizationRequest
+	(*GetOrganizationResponse)(nil),                // 5: auth.v1.GetOrganizationResponse
+	(*UpdateOrganizationRequest)(nil),              // 6: auth.v1.UpdateOrganizationRequest
+	(*UpdateOrganizationResponse)(nil),             // 7: auth.v1.UpdateOrganizationResponse
+	(*ResolveVercelInstallationRequest)(nil),       // 8: auth.v1.ResolveVercelInstallationRequest
+	(*ResolveVercelInstallationResponse)(nil),      // 9: auth.v1.ResolveVercelInstallationResponse
+	(*GetGithubIdentityProviderTokenRequest)(nil),  // 10: auth.v1.GetGithubIdentityProviderTokenRequest
+	(*GetGithubIdentityProviderTokenResponse)(nil), // 11: auth.v1.GetGithubIdentityProviderTokenResponse
+	nil,                           // 12: auth.v1.ValidateAccessResponse.OrganizationsEntry
+	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
 }
 var file_auth_v1_auth_proto_depIdxs = []int32{
-	11, // 0: auth.v1.ValidateAccessResponse.organizations:type_name -> auth.v1.ValidateAccessResponse.OrganizationsEntry
-	12, // 1: auth.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
-	12, // 2: auth.v1.Organization.deleted_at:type_name -> google.protobuf.Timestamp
-	2,  // 3: auth.v1.GetOrganizationResponse.organization:type_name -> auth.v1.Organization
-	2,  // 4: auth.v1.UpdateOrganizationResponse.organization:type_name -> auth.v1.Organization
-	2,  // 5: auth.v1.ValidateAccessResponse.OrganizationsEntry.value:type_name -> auth.v1.Organization
-	0,  // 6: auth.v1.AuthService.ValidateAccess:input_type -> auth.v1.ValidateAccessRequest
-	3,  // 7: auth.v1.AuthService.GetOrganization:input_type -> auth.v1.GetOrganizationRequest
-	5,  // 8: auth.v1.AuthService.UpdateOrganization:input_type -> auth.v1.UpdateOrganizationRequest
-	9,  // 9: auth.v1.AuthService.GetGithubIdentityProviderToken:input_type -> auth.v1.GetGithubIdentityProviderTokenRequest
-	7,  // 10: auth.v1.AuthService.ResolveVercelInstallation:input_type -> auth.v1.ResolveVercelInstallationRequest
-	1,  // 11: auth.v1.AuthService.ValidateAccess:output_type -> auth.v1.ValidateAccessResponse
-	4,  // 12: auth.v1.AuthService.GetOrganization:output_type -> auth.v1.GetOrganizationResponse
-	6,  // 13: auth.v1.AuthService.UpdateOrganization:output_type -> auth.v1.UpdateOrganizationResponse
-	10, // 14: auth.v1.AuthService.GetGithubIdentityProviderToken:output_type -> auth.v1.GetGithubIdentityProviderTokenResponse
-	8,  // 15: auth.v1.AuthService.ResolveVercelInstallation:output_type -> auth.v1.ResolveVercelInstallationResponse
-	11, // [11:16] is the sub-list for method output_type
-	6,  // [6:11] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	12, // 0: auth.v1.ValidateAccessResponse.organizations:type_name -> auth.v1.ValidateAccessResponse.OrganizationsEntry
+	13, // 1: auth.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
+	13, // 2: auth.v1.Organization.deleted_at:type_name -> google.protobuf.Timestamp
+	3,  // 3: auth.v1.Organization.aws_marketplace:type_name -> auth.v1.AWSMarketplace
+	2,  // 4: auth.v1.GetOrganizationResponse.organization:type_name -> auth.v1.Organization
+	2,  // 5: auth.v1.UpdateOrganizationResponse.organization:type_name -> auth.v1.Organization
+	2,  // 6: auth.v1.ValidateAccessResponse.OrganizationsEntry.value:type_name -> auth.v1.Organization
+	0,  // 7: auth.v1.AuthService.ValidateAccess:input_type -> auth.v1.ValidateAccessRequest
+	4,  // 8: auth.v1.AuthService.GetOrganization:input_type -> auth.v1.GetOrganizationRequest
+	6,  // 9: auth.v1.AuthService.UpdateOrganization:input_type -> auth.v1.UpdateOrganizationRequest
+	10, // 10: auth.v1.AuthService.GetGithubIdentityProviderToken:input_type -> auth.v1.GetGithubIdentityProviderTokenRequest
+	8,  // 11: auth.v1.AuthService.ResolveVercelInstallation:input_type -> auth.v1.ResolveVercelInstallationRequest
+	1,  // 12: auth.v1.AuthService.ValidateAccess:output_type -> auth.v1.ValidateAccessResponse
+	5,  // 13: auth.v1.AuthService.GetOrganization:output_type -> auth.v1.GetOrganizationResponse
+	7,  // 14: auth.v1.AuthService.UpdateOrganization:output_type -> auth.v1.UpdateOrganizationResponse
+	11, // 15: auth.v1.AuthService.GetGithubIdentityProviderToken:output_type -> auth.v1.GetGithubIdentityProviderTokenResponse
+	9,  // 16: auth.v1.AuthService.ResolveVercelInstallation:output_type -> auth.v1.ResolveVercelInstallationResponse
+	12, // [12:17] is the sub-list for method output_type
+	7,  // [7:12] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_auth_proto_init() }
@@ -884,14 +962,14 @@ func file_auth_v1_auth_proto_init() {
 		return
 	}
 	file_auth_v1_auth_proto_msgTypes[2].OneofWrappers = []any{}
-	file_auth_v1_auth_proto_msgTypes[5].OneofWrappers = []any{}
+	file_auth_v1_auth_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_auth_proto_rawDesc), len(file_auth_v1_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

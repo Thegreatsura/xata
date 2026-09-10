@@ -43,6 +43,13 @@ message Organization {
   google.protobuf.Timestamp deleted_at = 10;
   string billing_collection_method = 11;
   string name = 12;
+  AWSMarketplace aws_marketplace = 13;
+}
+
+message AWSMarketplace {
+  string customer_id = 1;
+  string product_id = 2;
+  string account_id = 3;
 }
 
 message GetOrganizationRequest {
