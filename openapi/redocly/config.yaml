@@ -31,8 +31,15 @@ apis:
     rules:
       xata/has-at-least-one-xata-scope: off
 
-  vercel:
-    root: ../vercel.yaml
+  vercel-auth:
+    root: ../vercel-auth.yaml
+    decorators:
+      xata/add-public-servers: off
+    rules:
+      xata/has-at-least-one-xata-scope: off
+
+  vercel-projects:
+    root: ../vercel-projects.yaml
     decorators:
       xata/add-public-servers: off
     rules:

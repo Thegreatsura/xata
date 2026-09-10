@@ -1,0 +1,126 @@
+openapi: 3.0.0
+info:
+  title: Vercel Marketplace Resources API
+  version: '1.0'
+  contact:
+    name: support@xata.io
+  description: |
+    Inbound Vercel Native Marketplace Partner API for resources, implemented by
+    the Xata projects service. A resource is a Xata project and its branches.
+    These endpoints are called by Vercel and authenticated via a signed OIDC JWT
+    (verified in the auth service via the ResolveVercelInstallation RPC), not the
+    normal Xata API authentication.
+paths:
+  '/v1/installations/{installationId}/resources/{resourceId}':
+    get:
+      operationId: getResource
+      summary: Get a Vercel Marketplace resource
+      description: |
+        Return a provisioned resource. Scoped to the installation in the signed
+        token; a resource owned by another installation is reported as not found.
+      parameters:
+        - $ref: '#/components/parameters/InstallationId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '403':
+          $ref: '#/components/responses/ResourceError'
+        '404':
+          $ref: '#/components/responses/ResourceError'
+        '500':
+          $ref: '#/components/responses/ResourceError'
+      tags:
+        - Vercel Resources
+      x-excluded: true
+      x-operation-kind: read
+components:
+  parameters:
+    InstallationId:
+      name: installationId
+      in: path
+      required: true
+      description: Vercel installation id (icfg_...).
+      schema:
+        type: string
+    ResourceId:
+      name: resourceId
+      in: path
+      required: true
+      description: Vercel resource id.
+      schema:
+        type: string
+  schemas:
+    Resource:
+      description: |
+        A provisioned Vercel Marketplace resource. Matches Vercel's Partner API
+        "Get Resource" response. Secrets/connection info are returned by Provision
+        Resource, not here. The optional billingPlan, protocolSettings, and
+        notification fields are not yet populated.
+      type: object
+      properties:
+        id:
+          description: The partner-specific resource id.
+          type: string
+        productId:
+          description: The partner-specific product id/slug.
+          type: string
+        name:
+          description: User-inputted resource name.
+          type: string
+        metadata:
+          description: User-inputted metadata based on the registered metadata schema.
+          type: object
+          additionalProperties: true
+        status:
+          description: 'Resource lifecycle status. One of Vercel''s values: ready, pending, onboarding, suspended, resumed, uninstalled, error.'
+          type: string
+      required:
+        - id
+        - productId
+        - name
+        - metadata
+        - status
+      x-excluded: true
+      x-internal: true
+    ResourceError:
+      description: Vercel Partner API error envelope.
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              description: 'Machine-readable error code (e.g. validation_error, conflict).'
+              type: string
+            message:
+              description: Human-readable (system) error message.
+              type: string
+            user:
+              description: 'User-facing error details, if applicable.'
+              type: object
+              properties:
+                message:
+                  description: User-facing error message.
+                  type: string
+                url:
+                  description: URL to a help article or dashboard page for resolution.
+                  type: string
+          required:
+            - code
+            - message
+      required:
+        - error
+      x-excluded: true
+      x-internal: true
+  responses:
+    ResourceError:
+      description: Error response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ResourceError'
