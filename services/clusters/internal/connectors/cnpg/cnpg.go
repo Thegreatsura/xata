@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"xata/services/clusters/internal/connectors/cnpg/resources"
 	"xata/services/clusters/internal/kubernetes"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -22,8 +21,6 @@ import (
 // Connector is an interface for interacting with the cnpg operator
 type Connector interface {
 	GetObjectStore(ctx context.Context, id, namespace string) (*barmanPluginApi.ObjectStore, error)
-	RegisterCluster(ctx context.Context, clusterID, clustersNamespace, xataNamespace string) error
-	DeregisterCluster(ctx context.Context, clusterID, clustersNamespace, xataNamespace string) error
 	GetClusterCredentials(ctx context.Context, id, namespace, username string) (*Credentials, error)
 }
 
@@ -69,51 +66,6 @@ func NewConnector(kubeConfig string) (*DefaultConnector, error) {
 	}
 
 	return &DefaultConnector{KubernetesClient: clientK8s}, nil
-}
-
-func (c *DefaultConnector) RegisterCluster(ctx context.Context, clusterID, clustersNamespace, xataNamespace string) error {
-	svcs := resources.GlobalCNPGServices(clusterID, clustersNamespace)
-
-	for _, svc := range svcs {
-		if err := c.KubernetesClient.Create(ctx, &svc); err != nil {
-			return err
-		}
-	}
-
-	poolerSvc := resources.GlobalPoolerService(clusterID, clustersNamespace)
-	return c.KubernetesClient.Create(ctx, &poolerSvc)
-}
-
-func (c *DefaultConnector) DeregisterCluster(ctx context.Context, clusterID, clustersNamespace, xataNamespace string) error {
-	svcs := resources.GlobalCNPGServices(clusterID, clustersNamespace)
-
-	// Remove the global CNPG services for the branch.
-	for _, svc := range svcs {
-		err := c.KubernetesClient.Get(ctx, types.NamespacedName{
-			Namespace: svc.Namespace,
-			Name:      svc.Name,
-		}, &svc)
-		if err != nil {
-			continue
-		}
-
-		if err := c.KubernetesClient.Delete(ctx, &svc); err != nil {
-			return err
-		}
-	}
-
-	// Remove the global pooler service for the branch.
-	poolerSvc := resources.GlobalPoolerService(clusterID, clustersNamespace)
-	if err := c.KubernetesClient.Get(ctx, types.NamespacedName{
-		Namespace: poolerSvc.Namespace,
-		Name:      poolerSvc.Name,
-	}, &poolerSvc); err == nil {
-		if err := c.KubernetesClient.Delete(ctx, &poolerSvc); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (c *DefaultConnector) GetObjectStore(ctx context.Context, id, namespace string) (*barmanPluginApi.ObjectStore, error) {

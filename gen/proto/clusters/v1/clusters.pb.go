@@ -80,7 +80,7 @@ func (x ClusterStatus_StatusType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ClusterStatus_StatusType.Descriptor instead.
 func (ClusterStatus_StatusType) EnumDescriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{21, 0}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{17, 0}
 }
 
 // CreatePostgresClusterRequest is the request object for CreatePostgresCluster
@@ -822,166 +822,6 @@ func (*RotatePostgresClusterCredentialsResponse) Descriptor() ([]byte, []int) {
 	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{11}
 }
 
-type RegisterPostgresClusterRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RegisterPostgresClusterRequest) Reset() {
-	*x = RegisterPostgresClusterRequest{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RegisterPostgresClusterRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RegisterPostgresClusterRequest) ProtoMessage() {}
-
-func (x *RegisterPostgresClusterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RegisterPostgresClusterRequest.ProtoReflect.Descriptor instead.
-func (*RegisterPostgresClusterRequest) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *RegisterPostgresClusterRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-type RegisterPostgresClusterResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RegisterPostgresClusterResponse) Reset() {
-	*x = RegisterPostgresClusterResponse{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RegisterPostgresClusterResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RegisterPostgresClusterResponse) ProtoMessage() {}
-
-func (x *RegisterPostgresClusterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RegisterPostgresClusterResponse.ProtoReflect.Descriptor instead.
-func (*RegisterPostgresClusterResponse) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{13}
-}
-
-type DeregisterPostgresClusterRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DeregisterPostgresClusterRequest) Reset() {
-	*x = DeregisterPostgresClusterRequest{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DeregisterPostgresClusterRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeregisterPostgresClusterRequest) ProtoMessage() {}
-
-func (x *DeregisterPostgresClusterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeregisterPostgresClusterRequest.ProtoReflect.Descriptor instead.
-func (*DeregisterPostgresClusterRequest) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *DeregisterPostgresClusterRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-type DeregisterPostgresClusterResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DeregisterPostgresClusterResponse) Reset() {
-	*x = DeregisterPostgresClusterResponse{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[15]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DeregisterPostgresClusterResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeregisterPostgresClusterResponse) ProtoMessage() {}
-
-func (x *DeregisterPostgresClusterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[15]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeregisterPostgresClusterResponse.ProtoReflect.Descriptor instead.
-func (*DeregisterPostgresClusterResponse) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{15}
-}
-
 type ClusterConfiguration struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	NumInstances int32                  `protobuf:"varint,1,opt,name=num_instances,json=numInstances,proto3" json:"num_instances,omitempty"`
@@ -1003,7 +843,7 @@ type ClusterConfiguration struct {
 
 func (x *ClusterConfiguration) Reset() {
 	*x = ClusterConfiguration{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[16]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1015,7 +855,7 @@ func (x *ClusterConfiguration) String() string {
 func (*ClusterConfiguration) ProtoMessage() {}
 
 func (x *ClusterConfiguration) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[16]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1028,7 +868,7 @@ func (x *ClusterConfiguration) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClusterConfiguration.ProtoReflect.Descriptor instead.
 func (*ClusterConfiguration) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{16}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ClusterConfiguration) GetNumInstances() int32 {
@@ -1138,7 +978,7 @@ type UpdateClusterConfiguration struct {
 
 func (x *UpdateClusterConfiguration) Reset() {
 	*x = UpdateClusterConfiguration{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[17]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1150,7 +990,7 @@ func (x *UpdateClusterConfiguration) String() string {
 func (*UpdateClusterConfiguration) ProtoMessage() {}
 
 func (x *UpdateClusterConfiguration) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[17]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1163,7 +1003,7 @@ func (x *UpdateClusterConfiguration) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateClusterConfiguration.ProtoReflect.Descriptor instead.
 func (*UpdateClusterConfiguration) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{17}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *UpdateClusterConfiguration) GetNumInstances() int32 {
@@ -1270,7 +1110,7 @@ type ScaleToZero struct {
 
 func (x *ScaleToZero) Reset() {
 	*x = ScaleToZero{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[18]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1282,7 +1122,7 @@ func (x *ScaleToZero) String() string {
 func (*ScaleToZero) ProtoMessage() {}
 
 func (x *ScaleToZero) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[18]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1295,7 +1135,7 @@ func (x *ScaleToZero) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScaleToZero.ProtoReflect.Descriptor instead.
 func (*ScaleToZero) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{18}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ScaleToZero) GetEnabled() bool {
@@ -1325,7 +1165,7 @@ type LifeCycle struct {
 
 func (x *LifeCycle) Reset() {
 	*x = LifeCycle{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[19]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1337,7 +1177,7 @@ func (x *LifeCycle) String() string {
 func (*LifeCycle) ProtoMessage() {}
 
 func (x *LifeCycle) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[19]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1350,7 +1190,7 @@ func (x *LifeCycle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LifeCycle.ProtoReflect.Descriptor instead.
 func (*LifeCycle) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{19}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *LifeCycle) GetState() string {
@@ -1388,7 +1228,7 @@ type InstanceStatus struct {
 
 func (x *InstanceStatus) Reset() {
 	*x = InstanceStatus{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[20]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1400,7 +1240,7 @@ func (x *InstanceStatus) String() string {
 func (*InstanceStatus) ProtoMessage() {}
 
 func (x *InstanceStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[20]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1413,7 +1253,7 @@ func (x *InstanceStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstanceStatus.ProtoReflect.Descriptor instead.
 func (*InstanceStatus) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{20}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *InstanceStatus) GetStatus() string {
@@ -1457,7 +1297,7 @@ type ClusterStatus struct {
 
 func (x *ClusterStatus) Reset() {
 	*x = ClusterStatus{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[21]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1469,7 +1309,7 @@ func (x *ClusterStatus) String() string {
 func (*ClusterStatus) ProtoMessage() {}
 
 func (x *ClusterStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[21]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1482,7 +1322,7 @@ func (x *ClusterStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClusterStatus.ProtoReflect.Descriptor instead.
 func (*ClusterStatus) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{21}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ClusterStatus) GetStatus() string {
@@ -1541,7 +1381,7 @@ type BackupConfiguration struct {
 
 func (x *BackupConfiguration) Reset() {
 	*x = BackupConfiguration{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[22]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1553,7 +1393,7 @@ func (x *BackupConfiguration) String() string {
 func (*BackupConfiguration) ProtoMessage() {}
 
 func (x *BackupConfiguration) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[22]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1566,7 +1406,7 @@ func (x *BackupConfiguration) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BackupConfiguration.ProtoReflect.Descriptor instead.
 func (*BackupConfiguration) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{22}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *BackupConfiguration) GetBackupSchedule() string {
@@ -1610,7 +1450,7 @@ type GetObjectStoreRequest struct {
 
 func (x *GetObjectStoreRequest) Reset() {
 	*x = GetObjectStoreRequest{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[23]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1622,7 +1462,7 @@ func (x *GetObjectStoreRequest) String() string {
 func (*GetObjectStoreRequest) ProtoMessage() {}
 
 func (x *GetObjectStoreRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[23]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1635,7 +1475,7 @@ func (x *GetObjectStoreRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetObjectStoreRequest.ProtoReflect.Descriptor instead.
 func (*GetObjectStoreRequest) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{23}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetObjectStoreRequest) GetId() string {
@@ -1658,7 +1498,7 @@ type GetObjectStoreResponse struct {
 
 func (x *GetObjectStoreResponse) Reset() {
 	*x = GetObjectStoreResponse{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[24]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1670,7 +1510,7 @@ func (x *GetObjectStoreResponse) String() string {
 func (*GetObjectStoreResponse) ProtoMessage() {}
 
 func (x *GetObjectStoreResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[24]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1683,7 +1523,7 @@ func (x *GetObjectStoreResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetObjectStoreResponse.ProtoReflect.Descriptor instead.
 func (*GetObjectStoreResponse) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{24}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetObjectStoreResponse) GetStatus() *ObjectStoreStatus {
@@ -1706,7 +1546,7 @@ type ObjectStoreStatus struct {
 
 func (x *ObjectStoreStatus) Reset() {
 	*x = ObjectStoreStatus{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[25]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1718,7 +1558,7 @@ func (x *ObjectStoreStatus) String() string {
 func (*ObjectStoreStatus) ProtoMessage() {}
 
 func (x *ObjectStoreStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[25]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1731,7 +1571,7 @@ func (x *ObjectStoreStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObjectStoreStatus.ProtoReflect.Descriptor instead.
 func (*ObjectStoreStatus) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{25}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ObjectStoreStatus) GetServerRecoveryWindow() map[string]*RecoveryWindow {
@@ -1758,7 +1598,7 @@ type RecoveryWindow struct {
 
 func (x *RecoveryWindow) Reset() {
 	*x = RecoveryWindow{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[26]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1770,7 +1610,7 @@ func (x *RecoveryWindow) String() string {
 func (*RecoveryWindow) ProtoMessage() {}
 
 func (x *RecoveryWindow) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[26]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1783,7 +1623,7 @@ func (x *RecoveryWindow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoveryWindow.ProtoReflect.Descriptor instead.
 func (*RecoveryWindow) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{26}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *RecoveryWindow) GetFirstRecoverabilityPoint() string {
@@ -1817,7 +1657,7 @@ type GetRecoveryWindowRequest struct {
 
 func (x *GetRecoveryWindowRequest) Reset() {
 	*x = GetRecoveryWindowRequest{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[27]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1829,7 +1669,7 @@ func (x *GetRecoveryWindowRequest) String() string {
 func (*GetRecoveryWindowRequest) ProtoMessage() {}
 
 func (x *GetRecoveryWindowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[27]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1842,7 +1682,7 @@ func (x *GetRecoveryWindowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRecoveryWindowRequest.ProtoReflect.Descriptor instead.
 func (*GetRecoveryWindowRequest) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{27}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetRecoveryWindowRequest) GetId() string {
@@ -1870,7 +1710,7 @@ type GetRecoveryWindowResponse struct {
 
 func (x *GetRecoveryWindowResponse) Reset() {
 	*x = GetRecoveryWindowResponse{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[28]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1882,7 +1722,7 @@ func (x *GetRecoveryWindowResponse) String() string {
 func (*GetRecoveryWindowResponse) ProtoMessage() {}
 
 func (x *GetRecoveryWindowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[28]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1895,7 +1735,7 @@ func (x *GetRecoveryWindowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRecoveryWindowResponse.ProtoReflect.Descriptor instead.
 func (*GetRecoveryWindowResponse) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{28}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetRecoveryWindowResponse) GetFirstRecoverabilityPoint() string {
@@ -1937,7 +1777,7 @@ type ClusterSnapshot struct {
 
 func (x *ClusterSnapshot) Reset() {
 	*x = ClusterSnapshot{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[29]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1949,7 +1789,7 @@ func (x *ClusterSnapshot) String() string {
 func (*ClusterSnapshot) ProtoMessage() {}
 
 func (x *ClusterSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[29]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1962,7 +1802,7 @@ func (x *ClusterSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClusterSnapshot.ProtoReflect.Descriptor instead.
 func (*ClusterSnapshot) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{29}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ClusterSnapshot) GetClusterId() string {
@@ -1985,7 +1825,7 @@ type ContinuousBackup struct {
 
 func (x *ContinuousBackup) Reset() {
 	*x = ContinuousBackup{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[30]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1997,7 +1837,7 @@ func (x *ContinuousBackup) String() string {
 func (*ContinuousBackup) ProtoMessage() {}
 
 func (x *ContinuousBackup) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[30]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2010,7 +1850,7 @@ func (x *ContinuousBackup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContinuousBackup.ProtoReflect.Descriptor instead.
 func (*ContinuousBackup) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{30}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ContinuousBackup) GetClusterId() string {
@@ -2037,7 +1877,7 @@ type BaseBackup struct {
 
 func (x *BaseBackup) Reset() {
 	*x = BaseBackup{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[31]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2049,7 +1889,7 @@ func (x *BaseBackup) String() string {
 func (*BaseBackup) ProtoMessage() {}
 
 func (x *BaseBackup) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[31]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2062,7 +1902,7 @@ func (x *BaseBackup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BaseBackup.ProtoReflect.Descriptor instead.
 func (*BaseBackup) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{31}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *BaseBackup) GetBackupId() string {
@@ -2085,7 +1925,7 @@ type SetBranchIPFilteringRequest struct {
 
 func (x *SetBranchIPFilteringRequest) Reset() {
 	*x = SetBranchIPFilteringRequest{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[32]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2097,7 +1937,7 @@ func (x *SetBranchIPFilteringRequest) String() string {
 func (*SetBranchIPFilteringRequest) ProtoMessage() {}
 
 func (x *SetBranchIPFilteringRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[32]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2110,7 +1950,7 @@ func (x *SetBranchIPFilteringRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetBranchIPFilteringRequest.ProtoReflect.Descriptor instead.
 func (*SetBranchIPFilteringRequest) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{32}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *SetBranchIPFilteringRequest) GetBranchId() string {
@@ -2136,7 +1976,7 @@ type SetBranchIPFilteringResponse struct {
 
 func (x *SetBranchIPFilteringResponse) Reset() {
 	*x = SetBranchIPFilteringResponse{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[33]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2148,7 +1988,7 @@ func (x *SetBranchIPFilteringResponse) String() string {
 func (*SetBranchIPFilteringResponse) ProtoMessage() {}
 
 func (x *SetBranchIPFilteringResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[33]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2161,7 +2001,7 @@ func (x *SetBranchIPFilteringResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetBranchIPFilteringResponse.ProtoReflect.Descriptor instead.
 func (*SetBranchIPFilteringResponse) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{33}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{29}
 }
 
 // SetBranchesIPFilteringRequest is the request object for SetBranchesIPFiltering
@@ -2177,7 +2017,7 @@ type SetBranchesIPFilteringRequest struct {
 
 func (x *SetBranchesIPFilteringRequest) Reset() {
 	*x = SetBranchesIPFilteringRequest{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[34]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2189,7 +2029,7 @@ func (x *SetBranchesIPFilteringRequest) String() string {
 func (*SetBranchesIPFilteringRequest) ProtoMessage() {}
 
 func (x *SetBranchesIPFilteringRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[34]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2202,7 +2042,7 @@ func (x *SetBranchesIPFilteringRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetBranchesIPFilteringRequest.ProtoReflect.Descriptor instead.
 func (*SetBranchesIPFilteringRequest) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{34}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *SetBranchesIPFilteringRequest) GetBranchIds() []string {
@@ -2228,7 +2068,7 @@ type SetBranchesIPFilteringResponse struct {
 
 func (x *SetBranchesIPFilteringResponse) Reset() {
 	*x = SetBranchesIPFilteringResponse{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[35]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2240,7 +2080,7 @@ func (x *SetBranchesIPFilteringResponse) String() string {
 func (*SetBranchesIPFilteringResponse) ProtoMessage() {}
 
 func (x *SetBranchesIPFilteringResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[35]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2253,7 +2093,7 @@ func (x *SetBranchesIPFilteringResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetBranchesIPFilteringResponse.ProtoReflect.Descriptor instead.
 func (*SetBranchesIPFilteringResponse) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{35}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{31}
 }
 
 // GetBranchIPFilteringRequest is the request object for GetBranchIPFiltering
@@ -2267,7 +2107,7 @@ type GetBranchIPFilteringRequest struct {
 
 func (x *GetBranchIPFilteringRequest) Reset() {
 	*x = GetBranchIPFilteringRequest{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[36]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2279,7 +2119,7 @@ func (x *GetBranchIPFilteringRequest) String() string {
 func (*GetBranchIPFilteringRequest) ProtoMessage() {}
 
 func (x *GetBranchIPFilteringRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[36]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2292,7 +2132,7 @@ func (x *GetBranchIPFilteringRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBranchIPFilteringRequest.ProtoReflect.Descriptor instead.
 func (*GetBranchIPFilteringRequest) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{36}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetBranchIPFilteringRequest) GetBranchId() string {
@@ -2313,7 +2153,7 @@ type GetBranchIPFilteringResponse struct {
 
 func (x *GetBranchIPFilteringResponse) Reset() {
 	*x = GetBranchIPFilteringResponse{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[37]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2325,7 +2165,7 @@ func (x *GetBranchIPFilteringResponse) String() string {
 func (*GetBranchIPFilteringResponse) ProtoMessage() {}
 
 func (x *GetBranchIPFilteringResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[37]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2338,7 +2178,7 @@ func (x *GetBranchIPFilteringResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBranchIPFilteringResponse.ProtoReflect.Descriptor instead.
 func (*GetBranchIPFilteringResponse) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{37}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GetBranchIPFilteringResponse) GetIpFiltering() *IPFilteringConfig {
@@ -2361,7 +2201,7 @@ type IPFilteringConfig struct {
 
 func (x *IPFilteringConfig) Reset() {
 	*x = IPFilteringConfig{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[38]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2373,7 +2213,7 @@ func (x *IPFilteringConfig) String() string {
 func (*IPFilteringConfig) ProtoMessage() {}
 
 func (x *IPFilteringConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[38]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2386,7 +2226,7 @@ func (x *IPFilteringConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IPFilteringConfig.ProtoReflect.Descriptor instead.
 func (*IPFilteringConfig) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{38}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *IPFilteringConfig) GetEnabled() bool {
@@ -2414,7 +2254,7 @@ type DeleteBranchIPFilteringRequest struct {
 
 func (x *DeleteBranchIPFilteringRequest) Reset() {
 	*x = DeleteBranchIPFilteringRequest{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[39]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2426,7 +2266,7 @@ func (x *DeleteBranchIPFilteringRequest) String() string {
 func (*DeleteBranchIPFilteringRequest) ProtoMessage() {}
 
 func (x *DeleteBranchIPFilteringRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[39]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2439,7 +2279,7 @@ func (x *DeleteBranchIPFilteringRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteBranchIPFilteringRequest.ProtoReflect.Descriptor instead.
 func (*DeleteBranchIPFilteringRequest) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{39}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *DeleteBranchIPFilteringRequest) GetBranchId() string {
@@ -2458,7 +2298,7 @@ type DeleteBranchIPFilteringResponse struct {
 
 func (x *DeleteBranchIPFilteringResponse) Reset() {
 	*x = DeleteBranchIPFilteringResponse{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[40]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2470,7 +2310,7 @@ func (x *DeleteBranchIPFilteringResponse) String() string {
 func (*DeleteBranchIPFilteringResponse) ProtoMessage() {}
 
 func (x *DeleteBranchIPFilteringResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[40]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2483,7 +2323,7 @@ func (x *DeleteBranchIPFilteringResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteBranchIPFilteringResponse.ProtoReflect.Descriptor instead.
 func (*DeleteBranchIPFilteringResponse) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{40}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{36}
 }
 
 // GetBranchMetricsRequest is the request object for GetBranchMetrics.
@@ -2507,7 +2347,7 @@ type GetBranchMetricsRequest struct {
 
 func (x *GetBranchMetricsRequest) Reset() {
 	*x = GetBranchMetricsRequest{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[41]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2519,7 +2359,7 @@ func (x *GetBranchMetricsRequest) String() string {
 func (*GetBranchMetricsRequest) ProtoMessage() {}
 
 func (x *GetBranchMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[41]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2532,7 +2372,7 @@ func (x *GetBranchMetricsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBranchMetricsRequest.ProtoReflect.Descriptor instead.
 func (*GetBranchMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{41}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *GetBranchMetricsRequest) GetBranchId() string {
@@ -2590,7 +2430,7 @@ type GetBranchMetricsResponse struct {
 
 func (x *GetBranchMetricsResponse) Reset() {
 	*x = GetBranchMetricsResponse{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[42]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2602,7 +2442,7 @@ func (x *GetBranchMetricsResponse) String() string {
 func (*GetBranchMetricsResponse) ProtoMessage() {}
 
 func (x *GetBranchMetricsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[42]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2615,7 +2455,7 @@ func (x *GetBranchMetricsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBranchMetricsResponse.ProtoReflect.Descriptor instead.
 func (*GetBranchMetricsResponse) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{42}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *GetBranchMetricsResponse) GetStart() *timestamppb.Timestamp {
@@ -2652,7 +2492,7 @@ type BranchMetricResult struct {
 
 func (x *BranchMetricResult) Reset() {
 	*x = BranchMetricResult{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[43]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2664,7 +2504,7 @@ func (x *BranchMetricResult) String() string {
 func (*BranchMetricResult) ProtoMessage() {}
 
 func (x *BranchMetricResult) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[43]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2677,7 +2517,7 @@ func (x *BranchMetricResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BranchMetricResult.ProtoReflect.Descriptor instead.
 func (*BranchMetricResult) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{43}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *BranchMetricResult) GetMetric() string {
@@ -2713,7 +2553,7 @@ type MetricSeries struct {
 
 func (x *MetricSeries) Reset() {
 	*x = MetricSeries{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[44]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2725,7 +2565,7 @@ func (x *MetricSeries) String() string {
 func (*MetricSeries) ProtoMessage() {}
 
 func (x *MetricSeries) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[44]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2738,7 +2578,7 @@ func (x *MetricSeries) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetricSeries.ProtoReflect.Descriptor instead.
 func (*MetricSeries) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{44}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *MetricSeries) GetAggregation() string {
@@ -2773,7 +2613,7 @@ type MetricValue struct {
 
 func (x *MetricValue) Reset() {
 	*x = MetricValue{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[45]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2785,7 +2625,7 @@ func (x *MetricValue) String() string {
 func (*MetricValue) ProtoMessage() {}
 
 func (x *MetricValue) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[45]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2798,7 +2638,7 @@ func (x *MetricValue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetricValue.ProtoReflect.Descriptor instead.
 func (*MetricValue) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{45}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *MetricValue) GetTimestamp() *timestamppb.Timestamp {
@@ -2836,7 +2676,7 @@ type GetBranchLogsRequest struct {
 
 func (x *GetBranchLogsRequest) Reset() {
 	*x = GetBranchLogsRequest{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[46]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2848,7 +2688,7 @@ func (x *GetBranchLogsRequest) String() string {
 func (*GetBranchLogsRequest) ProtoMessage() {}
 
 func (x *GetBranchLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[46]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2861,7 +2701,7 @@ func (x *GetBranchLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBranchLogsRequest.ProtoReflect.Descriptor instead.
 func (*GetBranchLogsRequest) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{46}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *GetBranchLogsRequest) GetBranchId() string {
@@ -2923,7 +2763,7 @@ type LogFilter struct {
 
 func (x *LogFilter) Reset() {
 	*x = LogFilter{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[47]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2935,7 +2775,7 @@ func (x *LogFilter) String() string {
 func (*LogFilter) ProtoMessage() {}
 
 func (x *LogFilter) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[47]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2948,7 +2788,7 @@ func (x *LogFilter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogFilter.ProtoReflect.Descriptor instead.
 func (*LogFilter) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{47}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *LogFilter) GetField() string {
@@ -2993,7 +2833,7 @@ type GetBranchLogsResponse struct {
 
 func (x *GetBranchLogsResponse) Reset() {
 	*x = GetBranchLogsResponse{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[48]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3005,7 +2845,7 @@ func (x *GetBranchLogsResponse) String() string {
 func (*GetBranchLogsResponse) ProtoMessage() {}
 
 func (x *GetBranchLogsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[48]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3018,7 +2858,7 @@ func (x *GetBranchLogsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBranchLogsResponse.ProtoReflect.Descriptor instead.
 func (*GetBranchLogsResponse) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{48}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *GetBranchLogsResponse) GetStart() *timestamppb.Timestamp {
@@ -3065,7 +2905,7 @@ type LogEntry struct {
 
 func (x *LogEntry) Reset() {
 	*x = LogEntry{}
-	mi := &file_clusters_v1_clusters_proto_msgTypes[49]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3077,7 +2917,7 @@ func (x *LogEntry) String() string {
 func (*LogEntry) ProtoMessage() {}
 
 func (x *LogEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_clusters_v1_clusters_proto_msgTypes[49]
+	mi := &file_clusters_v1_clusters_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3090,7 +2930,7 @@ func (x *LogEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogEntry.ProtoReflect.Descriptor instead.
 func (*LogEntry) Descriptor() ([]byte, []int) {
-	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{49}
+	return file_clusters_v1_clusters_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *LogEntry) GetTimestamp() *timestamppb.Timestamp {
@@ -3182,13 +3022,7 @@ const file_clusters_v1_clusters_proto_rawDesc = "" +
 	"'RotatePostgresClusterCredentialsRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04user\x18\x02 \x01(\tR\x04user\"*\n" +
-	"(RotatePostgresClusterCredentialsResponse\"0\n" +
-	"\x1eRegisterPostgresClusterRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"!\n" +
-	"\x1fRegisterPostgresClusterResponse\"2\n" +
-	" DeregisterPostgresClusterRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"#\n" +
-	"!DeregisterPostgresClusterResponse\"\xa8\x05\n" +
+	"(RotatePostgresClusterCredentialsResponse\"\xa8\x05\n" +
 	"\x14ClusterConfiguration\x12#\n" +
 	"\rnum_instances\x18\x01 \x01(\x05R\fnumInstances\x12!\n" +
 	"\fstorage_size\x18\x02 \x01(\x05R\vstorageSize\x12\x1d\n" +
@@ -3378,16 +3212,14 @@ const file_clusters_v1_clusters_proto_rawDesc = "" +
 	"\aprocess\x18\x05 \x01(\tH\x01R\aprocess\x88\x01\x01B\b\n" +
 	"\x06_levelB\n" +
 	"\n" +
-	"\b_process2\xc2\x0e\n" +
+	"\b_process2\xcc\f\n" +
 	"\x0fClustersService\x12p\n" +
 	"\x15CreatePostgresCluster\x12).clusters.v1.CreatePostgresClusterRequest\x1a*.clusters.v1.CreatePostgresClusterResponse\"\x00\x12v\n" +
 	"\x17DescribePostgresCluster\x12+.clusters.v1.DescribePostgresClusterRequest\x1a,.clusters.v1.DescribePostgresClusterResponse\"\x00\x12\x88\x01\n" +
 	"\x1dGetPostgresClusterCredentials\x121.clusters.v1.GetPostgresClusterCredentialsRequest\x1a2.clusters.v1.GetPostgresClusterCredentialsResponse\"\x00\x12\x91\x01\n" +
 	" RotatePostgresClusterCredentials\x124.clusters.v1.RotatePostgresClusterCredentialsRequest\x1a5.clusters.v1.RotatePostgresClusterCredentialsResponse\"\x00\x12p\n" +
 	"\x15UpdatePostgresCluster\x12).clusters.v1.UpdatePostgresClusterRequest\x1a*.clusters.v1.UpdatePostgresClusterResponse\"\x00\x12p\n" +
-	"\x15DeletePostgresCluster\x12).clusters.v1.DeletePostgresClusterRequest\x1a*.clusters.v1.DeletePostgresClusterResponse\"\x00\x12v\n" +
-	"\x17RegisterPostgresCluster\x12+.clusters.v1.RegisterPostgresClusterRequest\x1a,.clusters.v1.RegisterPostgresClusterResponse\"\x00\x12|\n" +
-	"\x19DeregisterPostgresCluster\x12-.clusters.v1.DeregisterPostgresClusterRequest\x1a..clusters.v1.DeregisterPostgresClusterResponse\"\x00\x12^\n" +
+	"\x15DeletePostgresCluster\x12).clusters.v1.DeletePostgresClusterRequest\x1a*.clusters.v1.DeletePostgresClusterResponse\"\x00\x12^\n" +
 	"\x0eGetObjectStore\x12\".clusters.v1.GetObjectStoreRequest\x1a#.clusters.v1.GetObjectStoreResponse\"\x03\x88\x02\x01\x12d\n" +
 	"\x11GetRecoveryWindow\x12%.clusters.v1.GetRecoveryWindowRequest\x1a&.clusters.v1.GetRecoveryWindowResponse\"\x00\x12m\n" +
 	"\x14SetBranchIPFiltering\x12(.clusters.v1.SetBranchIPFilteringRequest\x1a).clusters.v1.SetBranchIPFilteringResponse\"\x00\x12s\n" +
@@ -3411,7 +3243,7 @@ func file_clusters_v1_clusters_proto_rawDescGZIP() []byte {
 }
 
 var file_clusters_v1_clusters_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_clusters_v1_clusters_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
+var file_clusters_v1_clusters_proto_msgTypes = make([]protoimpl.MessageInfo, 50)
 var file_clusters_v1_clusters_proto_goTypes = []any{
 	(ClusterStatus_StatusType)(0),                    // 0: clusters.v1.ClusterStatus.StatusType
 	(*CreatePostgresClusterRequest)(nil),             // 1: clusters.v1.CreatePostgresClusterRequest
@@ -3426,125 +3258,117 @@ var file_clusters_v1_clusters_proto_goTypes = []any{
 	(*GetPostgresClusterCredentialsResponse)(nil),    // 10: clusters.v1.GetPostgresClusterCredentialsResponse
 	(*RotatePostgresClusterCredentialsRequest)(nil),  // 11: clusters.v1.RotatePostgresClusterCredentialsRequest
 	(*RotatePostgresClusterCredentialsResponse)(nil), // 12: clusters.v1.RotatePostgresClusterCredentialsResponse
-	(*RegisterPostgresClusterRequest)(nil),           // 13: clusters.v1.RegisterPostgresClusterRequest
-	(*RegisterPostgresClusterResponse)(nil),          // 14: clusters.v1.RegisterPostgresClusterResponse
-	(*DeregisterPostgresClusterRequest)(nil),         // 15: clusters.v1.DeregisterPostgresClusterRequest
-	(*DeregisterPostgresClusterResponse)(nil),        // 16: clusters.v1.DeregisterPostgresClusterResponse
-	(*ClusterConfiguration)(nil),                     // 17: clusters.v1.ClusterConfiguration
-	(*UpdateClusterConfiguration)(nil),               // 18: clusters.v1.UpdateClusterConfiguration
-	(*ScaleToZero)(nil),                              // 19: clusters.v1.ScaleToZero
-	(*LifeCycle)(nil),                                // 20: clusters.v1.LifeCycle
-	(*InstanceStatus)(nil),                           // 21: clusters.v1.InstanceStatus
-	(*ClusterStatus)(nil),                            // 22: clusters.v1.ClusterStatus
-	(*BackupConfiguration)(nil),                      // 23: clusters.v1.BackupConfiguration
-	(*GetObjectStoreRequest)(nil),                    // 24: clusters.v1.GetObjectStoreRequest
-	(*GetObjectStoreResponse)(nil),                   // 25: clusters.v1.GetObjectStoreResponse
-	(*ObjectStoreStatus)(nil),                        // 26: clusters.v1.ObjectStoreStatus
-	(*RecoveryWindow)(nil),                           // 27: clusters.v1.RecoveryWindow
-	(*GetRecoveryWindowRequest)(nil),                 // 28: clusters.v1.GetRecoveryWindowRequest
-	(*GetRecoveryWindowResponse)(nil),                // 29: clusters.v1.GetRecoveryWindowResponse
-	(*ClusterSnapshot)(nil),                          // 30: clusters.v1.ClusterSnapshot
-	(*ContinuousBackup)(nil),                         // 31: clusters.v1.ContinuousBackup
-	(*BaseBackup)(nil),                               // 32: clusters.v1.BaseBackup
-	(*SetBranchIPFilteringRequest)(nil),              // 33: clusters.v1.SetBranchIPFilteringRequest
-	(*SetBranchIPFilteringResponse)(nil),             // 34: clusters.v1.SetBranchIPFilteringResponse
-	(*SetBranchesIPFilteringRequest)(nil),            // 35: clusters.v1.SetBranchesIPFilteringRequest
-	(*SetBranchesIPFilteringResponse)(nil),           // 36: clusters.v1.SetBranchesIPFilteringResponse
-	(*GetBranchIPFilteringRequest)(nil),              // 37: clusters.v1.GetBranchIPFilteringRequest
-	(*GetBranchIPFilteringResponse)(nil),             // 38: clusters.v1.GetBranchIPFilteringResponse
-	(*IPFilteringConfig)(nil),                        // 39: clusters.v1.IPFilteringConfig
-	(*DeleteBranchIPFilteringRequest)(nil),           // 40: clusters.v1.DeleteBranchIPFilteringRequest
-	(*DeleteBranchIPFilteringResponse)(nil),          // 41: clusters.v1.DeleteBranchIPFilteringResponse
-	(*GetBranchMetricsRequest)(nil),                  // 42: clusters.v1.GetBranchMetricsRequest
-	(*GetBranchMetricsResponse)(nil),                 // 43: clusters.v1.GetBranchMetricsResponse
-	(*BranchMetricResult)(nil),                       // 44: clusters.v1.BranchMetricResult
-	(*MetricSeries)(nil),                             // 45: clusters.v1.MetricSeries
-	(*MetricValue)(nil),                              // 46: clusters.v1.MetricValue
-	(*GetBranchLogsRequest)(nil),                     // 47: clusters.v1.GetBranchLogsRequest
-	(*LogFilter)(nil),                                // 48: clusters.v1.LogFilter
-	(*GetBranchLogsResponse)(nil),                    // 49: clusters.v1.GetBranchLogsResponse
-	(*LogEntry)(nil),                                 // 50: clusters.v1.LogEntry
-	nil,                                              // 51: clusters.v1.ClusterConfiguration.PostgresConfigurationParametersEntry
-	nil,                                              // 52: clusters.v1.UpdateClusterConfiguration.PostgresConfigurationParametersEntry
-	nil,                                              // 53: clusters.v1.ClusterStatus.InstancesEntry
-	nil,                                              // 54: clusters.v1.ObjectStoreStatus.ServerRecoveryWindowEntry
-	(*timestamppb.Timestamp)(nil),                    // 55: google.protobuf.Timestamp
+	(*ClusterConfiguration)(nil),                     // 13: clusters.v1.ClusterConfiguration
+	(*UpdateClusterConfiguration)(nil),               // 14: clusters.v1.UpdateClusterConfiguration
+	(*ScaleToZero)(nil),                              // 15: clusters.v1.ScaleToZero
+	(*LifeCycle)(nil),                                // 16: clusters.v1.LifeCycle
+	(*InstanceStatus)(nil),                           // 17: clusters.v1.InstanceStatus
+	(*ClusterStatus)(nil),                            // 18: clusters.v1.ClusterStatus
+	(*BackupConfiguration)(nil),                      // 19: clusters.v1.BackupConfiguration
+	(*GetObjectStoreRequest)(nil),                    // 20: clusters.v1.GetObjectStoreRequest
+	(*GetObjectStoreResponse)(nil),                   // 21: clusters.v1.GetObjectStoreResponse
+	(*ObjectStoreStatus)(nil),                        // 22: clusters.v1.ObjectStoreStatus
+	(*RecoveryWindow)(nil),                           // 23: clusters.v1.RecoveryWindow
+	(*GetRecoveryWindowRequest)(nil),                 // 24: clusters.v1.GetRecoveryWindowRequest
+	(*GetRecoveryWindowResponse)(nil),                // 25: clusters.v1.GetRecoveryWindowResponse
+	(*ClusterSnapshot)(nil),                          // 26: clusters.v1.ClusterSnapshot
+	(*ContinuousBackup)(nil),                         // 27: clusters.v1.ContinuousBackup
+	(*BaseBackup)(nil),                               // 28: clusters.v1.BaseBackup
+	(*SetBranchIPFilteringRequest)(nil),              // 29: clusters.v1.SetBranchIPFilteringRequest
+	(*SetBranchIPFilteringResponse)(nil),             // 30: clusters.v1.SetBranchIPFilteringResponse
+	(*SetBranchesIPFilteringRequest)(nil),            // 31: clusters.v1.SetBranchesIPFilteringRequest
+	(*SetBranchesIPFilteringResponse)(nil),           // 32: clusters.v1.SetBranchesIPFilteringResponse
+	(*GetBranchIPFilteringRequest)(nil),              // 33: clusters.v1.GetBranchIPFilteringRequest
+	(*GetBranchIPFilteringResponse)(nil),             // 34: clusters.v1.GetBranchIPFilteringResponse
+	(*IPFilteringConfig)(nil),                        // 35: clusters.v1.IPFilteringConfig
+	(*DeleteBranchIPFilteringRequest)(nil),           // 36: clusters.v1.DeleteBranchIPFilteringRequest
+	(*DeleteBranchIPFilteringResponse)(nil),          // 37: clusters.v1.DeleteBranchIPFilteringResponse
+	(*GetBranchMetricsRequest)(nil),                  // 38: clusters.v1.GetBranchMetricsRequest
+	(*GetBranchMetricsResponse)(nil),                 // 39: clusters.v1.GetBranchMetricsResponse
+	(*BranchMetricResult)(nil),                       // 40: clusters.v1.BranchMetricResult
+	(*MetricSeries)(nil),                             // 41: clusters.v1.MetricSeries
+	(*MetricValue)(nil),                              // 42: clusters.v1.MetricValue
+	(*GetBranchLogsRequest)(nil),                     // 43: clusters.v1.GetBranchLogsRequest
+	(*LogFilter)(nil),                                // 44: clusters.v1.LogFilter
+	(*GetBranchLogsResponse)(nil),                    // 45: clusters.v1.GetBranchLogsResponse
+	(*LogEntry)(nil),                                 // 46: clusters.v1.LogEntry
+	nil,                                              // 47: clusters.v1.ClusterConfiguration.PostgresConfigurationParametersEntry
+	nil,                                              // 48: clusters.v1.UpdateClusterConfiguration.PostgresConfigurationParametersEntry
+	nil,                                              // 49: clusters.v1.ClusterStatus.InstancesEntry
+	nil,                                              // 50: clusters.v1.ObjectStoreStatus.ServerRecoveryWindowEntry
+	(*timestamppb.Timestamp)(nil),                    // 51: google.protobuf.Timestamp
 }
 var file_clusters_v1_clusters_proto_depIdxs = []int32{
-	17, // 0: clusters.v1.CreatePostgresClusterRequest.configuration:type_name -> clusters.v1.ClusterConfiguration
-	23, // 1: clusters.v1.CreatePostgresClusterRequest.backup_configuration:type_name -> clusters.v1.BackupConfiguration
-	30, // 2: clusters.v1.CreatePostgresClusterRequest.cluster_snapshot:type_name -> clusters.v1.ClusterSnapshot
-	31, // 3: clusters.v1.CreatePostgresClusterRequest.continuous_backup:type_name -> clusters.v1.ContinuousBackup
-	32, // 4: clusters.v1.CreatePostgresClusterRequest.base_backup:type_name -> clusters.v1.BaseBackup
-	17, // 5: clusters.v1.DescribePostgresClusterResponse.configuration:type_name -> clusters.v1.ClusterConfiguration
-	22, // 6: clusters.v1.DescribePostgresClusterResponse.status:type_name -> clusters.v1.ClusterStatus
-	23, // 7: clusters.v1.DescribePostgresClusterResponse.backup_configuration:type_name -> clusters.v1.BackupConfiguration
-	18, // 8: clusters.v1.UpdatePostgresClusterRequest.update_configuration:type_name -> clusters.v1.UpdateClusterConfiguration
-	19, // 9: clusters.v1.ClusterConfiguration.scale_to_zero:type_name -> clusters.v1.ScaleToZero
-	51, // 10: clusters.v1.ClusterConfiguration.postgres_configuration_parameters:type_name -> clusters.v1.ClusterConfiguration.PostgresConfigurationParametersEntry
-	19, // 11: clusters.v1.UpdateClusterConfiguration.scale_to_zero:type_name -> clusters.v1.ScaleToZero
-	52, // 12: clusters.v1.UpdateClusterConfiguration.postgres_configuration_parameters:type_name -> clusters.v1.UpdateClusterConfiguration.PostgresConfigurationParametersEntry
-	23, // 13: clusters.v1.UpdateClusterConfiguration.backup_configuration:type_name -> clusters.v1.BackupConfiguration
-	20, // 14: clusters.v1.ClusterStatus.phase:type_name -> clusters.v1.LifeCycle
-	53, // 15: clusters.v1.ClusterStatus.instances:type_name -> clusters.v1.ClusterStatus.InstancesEntry
+	13, // 0: clusters.v1.CreatePostgresClusterRequest.configuration:type_name -> clusters.v1.ClusterConfiguration
+	19, // 1: clusters.v1.CreatePostgresClusterRequest.backup_configuration:type_name -> clusters.v1.BackupConfiguration
+	26, // 2: clusters.v1.CreatePostgresClusterRequest.cluster_snapshot:type_name -> clusters.v1.ClusterSnapshot
+	27, // 3: clusters.v1.CreatePostgresClusterRequest.continuous_backup:type_name -> clusters.v1.ContinuousBackup
+	28, // 4: clusters.v1.CreatePostgresClusterRequest.base_backup:type_name -> clusters.v1.BaseBackup
+	13, // 5: clusters.v1.DescribePostgresClusterResponse.configuration:type_name -> clusters.v1.ClusterConfiguration
+	18, // 6: clusters.v1.DescribePostgresClusterResponse.status:type_name -> clusters.v1.ClusterStatus
+	19, // 7: clusters.v1.DescribePostgresClusterResponse.backup_configuration:type_name -> clusters.v1.BackupConfiguration
+	14, // 8: clusters.v1.UpdatePostgresClusterRequest.update_configuration:type_name -> clusters.v1.UpdateClusterConfiguration
+	15, // 9: clusters.v1.ClusterConfiguration.scale_to_zero:type_name -> clusters.v1.ScaleToZero
+	47, // 10: clusters.v1.ClusterConfiguration.postgres_configuration_parameters:type_name -> clusters.v1.ClusterConfiguration.PostgresConfigurationParametersEntry
+	15, // 11: clusters.v1.UpdateClusterConfiguration.scale_to_zero:type_name -> clusters.v1.ScaleToZero
+	48, // 12: clusters.v1.UpdateClusterConfiguration.postgres_configuration_parameters:type_name -> clusters.v1.UpdateClusterConfiguration.PostgresConfigurationParametersEntry
+	19, // 13: clusters.v1.UpdateClusterConfiguration.backup_configuration:type_name -> clusters.v1.BackupConfiguration
+	16, // 14: clusters.v1.ClusterStatus.phase:type_name -> clusters.v1.LifeCycle
+	49, // 15: clusters.v1.ClusterStatus.instances:type_name -> clusters.v1.ClusterStatus.InstancesEntry
 	0,  // 16: clusters.v1.ClusterStatus.status_type:type_name -> clusters.v1.ClusterStatus.StatusType
-	26, // 17: clusters.v1.GetObjectStoreResponse.status:type_name -> clusters.v1.ObjectStoreStatus
-	54, // 18: clusters.v1.ObjectStoreStatus.server_recovery_window:type_name -> clusters.v1.ObjectStoreStatus.ServerRecoveryWindowEntry
-	55, // 19: clusters.v1.ContinuousBackup.timestamp:type_name -> google.protobuf.Timestamp
-	39, // 20: clusters.v1.SetBranchIPFilteringRequest.ip_filtering:type_name -> clusters.v1.IPFilteringConfig
-	39, // 21: clusters.v1.SetBranchesIPFilteringRequest.ip_filtering:type_name -> clusters.v1.IPFilteringConfig
-	39, // 22: clusters.v1.GetBranchIPFilteringResponse.ip_filtering:type_name -> clusters.v1.IPFilteringConfig
-	55, // 23: clusters.v1.GetBranchMetricsRequest.start:type_name -> google.protobuf.Timestamp
-	55, // 24: clusters.v1.GetBranchMetricsRequest.end:type_name -> google.protobuf.Timestamp
-	55, // 25: clusters.v1.GetBranchMetricsResponse.start:type_name -> google.protobuf.Timestamp
-	55, // 26: clusters.v1.GetBranchMetricsResponse.end:type_name -> google.protobuf.Timestamp
-	44, // 27: clusters.v1.GetBranchMetricsResponse.results:type_name -> clusters.v1.BranchMetricResult
-	45, // 28: clusters.v1.BranchMetricResult.series:type_name -> clusters.v1.MetricSeries
-	46, // 29: clusters.v1.MetricSeries.values:type_name -> clusters.v1.MetricValue
-	55, // 30: clusters.v1.MetricValue.timestamp:type_name -> google.protobuf.Timestamp
-	55, // 31: clusters.v1.GetBranchLogsRequest.start:type_name -> google.protobuf.Timestamp
-	55, // 32: clusters.v1.GetBranchLogsRequest.end:type_name -> google.protobuf.Timestamp
-	48, // 33: clusters.v1.GetBranchLogsRequest.filters:type_name -> clusters.v1.LogFilter
-	55, // 34: clusters.v1.GetBranchLogsResponse.start:type_name -> google.protobuf.Timestamp
-	55, // 35: clusters.v1.GetBranchLogsResponse.end:type_name -> google.protobuf.Timestamp
-	50, // 36: clusters.v1.GetBranchLogsResponse.logs:type_name -> clusters.v1.LogEntry
-	55, // 37: clusters.v1.LogEntry.timestamp:type_name -> google.protobuf.Timestamp
-	21, // 38: clusters.v1.ClusterStatus.InstancesEntry.value:type_name -> clusters.v1.InstanceStatus
-	27, // 39: clusters.v1.ObjectStoreStatus.ServerRecoveryWindowEntry.value:type_name -> clusters.v1.RecoveryWindow
+	22, // 17: clusters.v1.GetObjectStoreResponse.status:type_name -> clusters.v1.ObjectStoreStatus
+	50, // 18: clusters.v1.ObjectStoreStatus.server_recovery_window:type_name -> clusters.v1.ObjectStoreStatus.ServerRecoveryWindowEntry
+	51, // 19: clusters.v1.ContinuousBackup.timestamp:type_name -> google.protobuf.Timestamp
+	35, // 20: clusters.v1.SetBranchIPFilteringRequest.ip_filtering:type_name -> clusters.v1.IPFilteringConfig
+	35, // 21: clusters.v1.SetBranchesIPFilteringRequest.ip_filtering:type_name -> clusters.v1.IPFilteringConfig
+	35, // 22: clusters.v1.GetBranchIPFilteringResponse.ip_filtering:type_name -> clusters.v1.IPFilteringConfig
+	51, // 23: clusters.v1.GetBranchMetricsRequest.start:type_name -> google.protobuf.Timestamp
+	51, // 24: clusters.v1.GetBranchMetricsRequest.end:type_name -> google.protobuf.Timestamp
+	51, // 25: clusters.v1.GetBranchMetricsResponse.start:type_name -> google.protobuf.Timestamp
+	51, // 26: clusters.v1.GetBranchMetricsResponse.end:type_name -> google.protobuf.Timestamp
+	40, // 27: clusters.v1.GetBranchMetricsResponse.results:type_name -> clusters.v1.BranchMetricResult
+	41, // 28: clusters.v1.BranchMetricResult.series:type_name -> clusters.v1.MetricSeries
+	42, // 29: clusters.v1.MetricSeries.values:type_name -> clusters.v1.MetricValue
+	51, // 30: clusters.v1.MetricValue.timestamp:type_name -> google.protobuf.Timestamp
+	51, // 31: clusters.v1.GetBranchLogsRequest.start:type_name -> google.protobuf.Timestamp
+	51, // 32: clusters.v1.GetBranchLogsRequest.end:type_name -> google.protobuf.Timestamp
+	44, // 33: clusters.v1.GetBranchLogsRequest.filters:type_name -> clusters.v1.LogFilter
+	51, // 34: clusters.v1.GetBranchLogsResponse.start:type_name -> google.protobuf.Timestamp
+	51, // 35: clusters.v1.GetBranchLogsResponse.end:type_name -> google.protobuf.Timestamp
+	46, // 36: clusters.v1.GetBranchLogsResponse.logs:type_name -> clusters.v1.LogEntry
+	51, // 37: clusters.v1.LogEntry.timestamp:type_name -> google.protobuf.Timestamp
+	17, // 38: clusters.v1.ClusterStatus.InstancesEntry.value:type_name -> clusters.v1.InstanceStatus
+	23, // 39: clusters.v1.ObjectStoreStatus.ServerRecoveryWindowEntry.value:type_name -> clusters.v1.RecoveryWindow
 	1,  // 40: clusters.v1.ClustersService.CreatePostgresCluster:input_type -> clusters.v1.CreatePostgresClusterRequest
 	5,  // 41: clusters.v1.ClustersService.DescribePostgresCluster:input_type -> clusters.v1.DescribePostgresClusterRequest
 	9,  // 42: clusters.v1.ClustersService.GetPostgresClusterCredentials:input_type -> clusters.v1.GetPostgresClusterCredentialsRequest
 	11, // 43: clusters.v1.ClustersService.RotatePostgresClusterCredentials:input_type -> clusters.v1.RotatePostgresClusterCredentialsRequest
 	7,  // 44: clusters.v1.ClustersService.UpdatePostgresCluster:input_type -> clusters.v1.UpdatePostgresClusterRequest
 	3,  // 45: clusters.v1.ClustersService.DeletePostgresCluster:input_type -> clusters.v1.DeletePostgresClusterRequest
-	13, // 46: clusters.v1.ClustersService.RegisterPostgresCluster:input_type -> clusters.v1.RegisterPostgresClusterRequest
-	15, // 47: clusters.v1.ClustersService.DeregisterPostgresCluster:input_type -> clusters.v1.DeregisterPostgresClusterRequest
-	24, // 48: clusters.v1.ClustersService.GetObjectStore:input_type -> clusters.v1.GetObjectStoreRequest
-	28, // 49: clusters.v1.ClustersService.GetRecoveryWindow:input_type -> clusters.v1.GetRecoveryWindowRequest
-	33, // 50: clusters.v1.ClustersService.SetBranchIPFiltering:input_type -> clusters.v1.SetBranchIPFilteringRequest
-	35, // 51: clusters.v1.ClustersService.SetBranchesIPFiltering:input_type -> clusters.v1.SetBranchesIPFilteringRequest
-	37, // 52: clusters.v1.ClustersService.GetBranchIPFiltering:input_type -> clusters.v1.GetBranchIPFilteringRequest
-	40, // 53: clusters.v1.ClustersService.DeleteBranchIPFiltering:input_type -> clusters.v1.DeleteBranchIPFilteringRequest
-	42, // 54: clusters.v1.ClustersService.GetBranchMetrics:input_type -> clusters.v1.GetBranchMetricsRequest
-	47, // 55: clusters.v1.ClustersService.GetBranchLogs:input_type -> clusters.v1.GetBranchLogsRequest
-	2,  // 56: clusters.v1.ClustersService.CreatePostgresCluster:output_type -> clusters.v1.CreatePostgresClusterResponse
-	6,  // 57: clusters.v1.ClustersService.DescribePostgresCluster:output_type -> clusters.v1.DescribePostgresClusterResponse
-	10, // 58: clusters.v1.ClustersService.GetPostgresClusterCredentials:output_type -> clusters.v1.GetPostgresClusterCredentialsResponse
-	12, // 59: clusters.v1.ClustersService.RotatePostgresClusterCredentials:output_type -> clusters.v1.RotatePostgresClusterCredentialsResponse
-	8,  // 60: clusters.v1.ClustersService.UpdatePostgresCluster:output_type -> clusters.v1.UpdatePostgresClusterResponse
-	4,  // 61: clusters.v1.ClustersService.DeletePostgresCluster:output_type -> clusters.v1.DeletePostgresClusterResponse
-	14, // 62: clusters.v1.ClustersService.RegisterPostgresCluster:output_type -> clusters.v1.RegisterPostgresClusterResponse
-	16, // 63: clusters.v1.ClustersService.DeregisterPostgresCluster:output_type -> clusters.v1.DeregisterPostgresClusterResponse
-	25, // 64: clusters.v1.ClustersService.GetObjectStore:output_type -> clusters.v1.GetObjectStoreResponse
-	29, // 65: clusters.v1.ClustersService.GetRecoveryWindow:output_type -> clusters.v1.GetRecoveryWindowResponse
-	34, // 66: clusters.v1.ClustersService.SetBranchIPFiltering:output_type -> clusters.v1.SetBranchIPFilteringResponse
-	36, // 67: clusters.v1.ClustersService.SetBranchesIPFiltering:output_type -> clusters.v1.SetBranchesIPFilteringResponse
-	38, // 68: clusters.v1.ClustersService.GetBranchIPFiltering:output_type -> clusters.v1.GetBranchIPFilteringResponse
-	41, // 69: clusters.v1.ClustersService.DeleteBranchIPFiltering:output_type -> clusters.v1.DeleteBranchIPFilteringResponse
-	43, // 70: clusters.v1.ClustersService.GetBranchMetrics:output_type -> clusters.v1.GetBranchMetricsResponse
-	49, // 71: clusters.v1.ClustersService.GetBranchLogs:output_type -> clusters.v1.GetBranchLogsResponse
-	56, // [56:72] is the sub-list for method output_type
-	40, // [40:56] is the sub-list for method input_type
+	20, // 46: clusters.v1.ClustersService.GetObjectStore:input_type -> clusters.v1.GetObjectStoreRequest
+	24, // 47: clusters.v1.ClustersService.GetRecoveryWindow:input_type -> clusters.v1.GetRecoveryWindowRequest
+	29, // 48: clusters.v1.ClustersService.SetBranchIPFiltering:input_type -> clusters.v1.SetBranchIPFilteringRequest
+	31, // 49: clusters.v1.ClustersService.SetBranchesIPFiltering:input_type -> clusters.v1.SetBranchesIPFilteringRequest
+	33, // 50: clusters.v1.ClustersService.GetBranchIPFiltering:input_type -> clusters.v1.GetBranchIPFilteringRequest
+	36, // 51: clusters.v1.ClustersService.DeleteBranchIPFiltering:input_type -> clusters.v1.DeleteBranchIPFilteringRequest
+	38, // 52: clusters.v1.ClustersService.GetBranchMetrics:input_type -> clusters.v1.GetBranchMetricsRequest
+	43, // 53: clusters.v1.ClustersService.GetBranchLogs:input_type -> clusters.v1.GetBranchLogsRequest
+	2,  // 54: clusters.v1.ClustersService.CreatePostgresCluster:output_type -> clusters.v1.CreatePostgresClusterResponse
+	6,  // 55: clusters.v1.ClustersService.DescribePostgresCluster:output_type -> clusters.v1.DescribePostgresClusterResponse
+	10, // 56: clusters.v1.ClustersService.GetPostgresClusterCredentials:output_type -> clusters.v1.GetPostgresClusterCredentialsResponse
+	12, // 57: clusters.v1.ClustersService.RotatePostgresClusterCredentials:output_type -> clusters.v1.RotatePostgresClusterCredentialsResponse
+	8,  // 58: clusters.v1.ClustersService.UpdatePostgresCluster:output_type -> clusters.v1.UpdatePostgresClusterResponse
+	4,  // 59: clusters.v1.ClustersService.DeletePostgresCluster:output_type -> clusters.v1.DeletePostgresClusterResponse
+	21, // 60: clusters.v1.ClustersService.GetObjectStore:output_type -> clusters.v1.GetObjectStoreResponse
+	25, // 61: clusters.v1.ClustersService.GetRecoveryWindow:output_type -> clusters.v1.GetRecoveryWindowResponse
+	30, // 62: clusters.v1.ClustersService.SetBranchIPFiltering:output_type -> clusters.v1.SetBranchIPFilteringResponse
+	32, // 63: clusters.v1.ClustersService.SetBranchesIPFiltering:output_type -> clusters.v1.SetBranchesIPFilteringResponse
+	34, // 64: clusters.v1.ClustersService.GetBranchIPFiltering:output_type -> clusters.v1.GetBranchIPFilteringResponse
+	37, // 65: clusters.v1.ClustersService.DeleteBranchIPFiltering:output_type -> clusters.v1.DeleteBranchIPFilteringResponse
+	39, // 66: clusters.v1.ClustersService.GetBranchMetrics:output_type -> clusters.v1.GetBranchMetricsResponse
+	45, // 67: clusters.v1.ClustersService.GetBranchLogs:output_type -> clusters.v1.GetBranchLogsResponse
+	54, // [54:68] is the sub-list for method output_type
+	40, // [40:54] is the sub-list for method input_type
 	40, // [40:40] is the sub-list for extension type_name
 	40, // [40:40] is the sub-list for extension extendee
 	0,  // [0:40] is the sub-list for field type_name
@@ -3560,18 +3384,18 @@ func file_clusters_v1_clusters_proto_init() {
 		(*CreatePostgresClusterRequest_ContinuousBackup)(nil),
 		(*CreatePostgresClusterRequest_BaseBackup)(nil),
 	}
-	file_clusters_v1_clusters_proto_msgTypes[16].OneofWrappers = []any{}
-	file_clusters_v1_clusters_proto_msgTypes[17].OneofWrappers = []any{}
-	file_clusters_v1_clusters_proto_msgTypes[30].OneofWrappers = []any{}
-	file_clusters_v1_clusters_proto_msgTypes[48].OneofWrappers = []any{}
-	file_clusters_v1_clusters_proto_msgTypes[49].OneofWrappers = []any{}
+	file_clusters_v1_clusters_proto_msgTypes[12].OneofWrappers = []any{}
+	file_clusters_v1_clusters_proto_msgTypes[13].OneofWrappers = []any{}
+	file_clusters_v1_clusters_proto_msgTypes[26].OneofWrappers = []any{}
+	file_clusters_v1_clusters_proto_msgTypes[44].OneofWrappers = []any{}
+	file_clusters_v1_clusters_proto_msgTypes[45].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clusters_v1_clusters_proto_rawDesc), len(file_clusters_v1_clusters_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   54,
+			NumMessages:   50,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

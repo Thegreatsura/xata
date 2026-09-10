@@ -24,46 +24,6 @@ func (_m *Connector) EXPECT() *Connector_Expecter {
 	return &Connector_Expecter{mock: &_m.Mock}
 }
 
-// DeregisterCluster provides a mock function with given fields: ctx, clusterID, clustersNamespace, xataNamespace
-func (_m *Connector) DeregisterCluster(ctx context.Context, clusterID string, clustersNamespace string, xataNamespace string) error {
-	ret := _m.Called(ctx, clusterID, clustersNamespace, xataNamespace)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
-		r0 = rf(ctx, clusterID, clustersNamespace, xataNamespace)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// Connector_DeregisterCluster_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeregisterCluster'
-type Connector_DeregisterCluster_Call struct {
-	*mock.Call
-}
-
-// DeregisterCluster is a helper method to define mock.On call
-//   - ctx context.Context
-//   - clusterID string
-//   - clustersNamespace string
-//   - xataNamespace string
-func (_e *Connector_Expecter) DeregisterCluster(ctx interface{}, clusterID interface{}, clustersNamespace interface{}, xataNamespace interface{}) *Connector_DeregisterCluster_Call {
-	return &Connector_DeregisterCluster_Call{Call: _e.mock.On("DeregisterCluster", ctx, clusterID, clustersNamespace, xataNamespace)}
-}
-
-func (_c *Connector_DeregisterCluster_Call) Run(run func(ctx context.Context, clusterID string, clustersNamespace string, xataNamespace string)) *Connector_DeregisterCluster_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
-	})
-	return _c
-}
-
-func (_c *Connector_DeregisterCluster_Call) Return(_a0 error) *Connector_DeregisterCluster_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
 // GetClusterCredentials provides a mock function with given fields: ctx, id, namespace, username
 func (_m *Connector) GetClusterCredentials(ctx context.Context, id string, namespace string, username string) (*cnpg.Credentials, error) {
 	ret := _m.Called(ctx, id, namespace, username)
@@ -158,46 +118,6 @@ func (_c *Connector_GetObjectStore_Call) Run(run func(ctx context.Context, id st
 
 func (_c *Connector_GetObjectStore_Call) Return(_a0 *v1.ObjectStore, _a1 error) *Connector_GetObjectStore_Call {
 	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-// RegisterCluster provides a mock function with given fields: ctx, clusterID, clustersNamespace, xataNamespace
-func (_m *Connector) RegisterCluster(ctx context.Context, clusterID string, clustersNamespace string, xataNamespace string) error {
-	ret := _m.Called(ctx, clusterID, clustersNamespace, xataNamespace)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
-		r0 = rf(ctx, clusterID, clustersNamespace, xataNamespace)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// Connector_RegisterCluster_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RegisterCluster'
-type Connector_RegisterCluster_Call struct {
-	*mock.Call
-}
-
-// RegisterCluster is a helper method to define mock.On call
-//   - ctx context.Context
-//   - clusterID string
-//   - clustersNamespace string
-//   - xataNamespace string
-func (_e *Connector_Expecter) RegisterCluster(ctx interface{}, clusterID interface{}, clustersNamespace interface{}, xataNamespace interface{}) *Connector_RegisterCluster_Call {
-	return &Connector_RegisterCluster_Call{Call: _e.mock.On("RegisterCluster", ctx, clusterID, clustersNamespace, xataNamespace)}
-}
-
-func (_c *Connector_RegisterCluster_Call) Run(run func(ctx context.Context, clusterID string, clustersNamespace string, xataNamespace string)) *Connector_RegisterCluster_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
-	})
-	return _c
-}
-
-func (_c *Connector_RegisterCluster_Call) Return(_a0 error) *Connector_RegisterCluster_Call {
-	_c.Call.Return(_a0)
 	return _c
 }
 

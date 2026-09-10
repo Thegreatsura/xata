@@ -602,31 +602,6 @@ func (c *ClustersService) GetPostgresClusterCredentials(ctx context.Context, req
 	}, nil
 }
 
-// RegisterPostgresCluster `registers` a Branch by creating a copy of its K8S
-// services in the `xata-clusters` namespace. This RPC is intended to be
-// invoked on the `clusters` service in the primary cell to register branches
-// created on secondary cells, to enable cross-cell routing via Cilium
-// ClusterMesh
-func (c *ClustersService) RegisterPostgresCluster(ctx context.Context, request *clustersv1.RegisterPostgresClusterRequest) (*clustersv1.RegisterPostgresClusterResponse, error) {
-	err := c.cnpgConnector.RegisterCluster(ctx, request.Id, c.config.ClustersNamespace, c.config.XataNamespace)
-	if err != nil {
-		return nil, fmt.Errorf("register: %w", err)
-	}
-
-	return &clustersv1.RegisterPostgresClusterResponse{}, nil
-}
-
-// DeregisterPostgresCluster removes the K8S service copies created by
-// RegisterPostgresCluster
-func (c *ClustersService) DeregisterPostgresCluster(ctx context.Context, request *clustersv1.DeregisterPostgresClusterRequest) (*clustersv1.DeregisterPostgresClusterResponse, error) {
-	err := c.cnpgConnector.DeregisterCluster(ctx, request.Id, c.config.ClustersNamespace, c.config.XataNamespace)
-	if err != nil {
-		return nil, fmt.Errorf("deregister: %w", err)
-	}
-
-	return &clustersv1.DeregisterPostgresClusterResponse{}, nil
-}
-
 // GetObjectStore retrieves the Barman ObjectStore status and recovery windows
 // for a branch.
 func (c *ClustersService) GetObjectStore(ctx context.Context, request *clustersv1.GetObjectStoreRequest) (*clustersv1.GetObjectStoreResponse, error) {

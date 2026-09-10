@@ -210,68 +210,6 @@ func (_c *ClustersServiceClient_DeletePostgresCluster_Call) Return(_a0 *clusters
 	return _c
 }
 
-// DeregisterPostgresCluster provides a mock function with given fields: ctx, in, opts
-func (_m *ClustersServiceClient) DeregisterPostgresCluster(ctx context.Context, in *clustersv1.DeregisterPostgresClusterRequest, opts ...grpc.CallOption) (*clustersv1.DeregisterPostgresClusterResponse, error) {
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, ctx, in)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
-
-	var r0 *clustersv1.DeregisterPostgresClusterResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *clustersv1.DeregisterPostgresClusterRequest, ...grpc.CallOption) *clustersv1.DeregisterPostgresClusterResponse); ok {
-		r0 = rf(ctx, in, opts...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*clustersv1.DeregisterPostgresClusterResponse)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *clustersv1.DeregisterPostgresClusterRequest, ...grpc.CallOption) error); ok {
-		r1 = rf(ctx, in, opts...)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ClustersServiceClient_DeregisterPostgresCluster_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeregisterPostgresCluster'
-type ClustersServiceClient_DeregisterPostgresCluster_Call struct {
-	*mock.Call
-}
-
-// DeregisterPostgresCluster is a helper method to define mock.On call
-//   - ctx context.Context
-//   - in *clustersv1.DeregisterPostgresClusterRequest
-//   - opts ...grpc.CallOption
-func (_e *ClustersServiceClient_Expecter) DeregisterPostgresCluster(ctx interface{}, in interface{}, opts ...interface{}) *ClustersServiceClient_DeregisterPostgresCluster_Call {
-	return &ClustersServiceClient_DeregisterPostgresCluster_Call{Call: _e.mock.On("DeregisterPostgresCluster",
-		append([]interface{}{ctx, in}, opts...)...)}
-}
-
-func (_c *ClustersServiceClient_DeregisterPostgresCluster_Call) Run(run func(ctx context.Context, in *clustersv1.DeregisterPostgresClusterRequest, opts ...grpc.CallOption)) *ClustersServiceClient_DeregisterPostgresCluster_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		variadicArgs := make([]grpc.CallOption, len(args)-2)
-		for i, a := range args[2:] {
-			if a != nil {
-				variadicArgs[i] = a.(grpc.CallOption)
-			}
-		}
-		run(args[0].(context.Context), args[1].(*clustersv1.DeregisterPostgresClusterRequest), variadicArgs...)
-	})
-	return _c
-}
-
-func (_c *ClustersServiceClient_DeregisterPostgresCluster_Call) Return(_a0 *clustersv1.DeregisterPostgresClusterResponse, _a1 error) *ClustersServiceClient_DeregisterPostgresCluster_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
 // DescribePostgresCluster provides a mock function with given fields: ctx, in, opts
 func (_m *ClustersServiceClient) DescribePostgresCluster(ctx context.Context, in *clustersv1.DescribePostgresClusterRequest, opts ...grpc.CallOption) (*clustersv1.DescribePostgresClusterResponse, error) {
 	_va := make([]interface{}, len(opts))
@@ -702,68 +640,6 @@ func (_c *ClustersServiceClient_GetRecoveryWindow_Call) Run(run func(ctx context
 }
 
 func (_c *ClustersServiceClient_GetRecoveryWindow_Call) Return(_a0 *clustersv1.GetRecoveryWindowResponse, _a1 error) *ClustersServiceClient_GetRecoveryWindow_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-// RegisterPostgresCluster provides a mock function with given fields: ctx, in, opts
-func (_m *ClustersServiceClient) RegisterPostgresCluster(ctx context.Context, in *clustersv1.RegisterPostgresClusterRequest, opts ...grpc.CallOption) (*clustersv1.RegisterPostgresClusterResponse, error) {
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, ctx, in)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
-
-	var r0 *clustersv1.RegisterPostgresClusterResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *clustersv1.RegisterPostgresClusterRequest, ...grpc.CallOption) *clustersv1.RegisterPostgresClusterResponse); ok {
-		r0 = rf(ctx, in, opts...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*clustersv1.RegisterPostgresClusterResponse)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *clustersv1.RegisterPostgresClusterRequest, ...grpc.CallOption) error); ok {
-		r1 = rf(ctx, in, opts...)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ClustersServiceClient_RegisterPostgresCluster_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RegisterPostgresCluster'
-type ClustersServiceClient_RegisterPostgresCluster_Call struct {
-	*mock.Call
-}
-
-// RegisterPostgresCluster is a helper method to define mock.On call
-//   - ctx context.Context
-//   - in *clustersv1.RegisterPostgresClusterRequest
-//   - opts ...grpc.CallOption
-func (_e *ClustersServiceClient_Expecter) RegisterPostgresCluster(ctx interface{}, in interface{}, opts ...interface{}) *ClustersServiceClient_RegisterPostgresCluster_Call {
-	return &ClustersServiceClient_RegisterPostgresCluster_Call{Call: _e.mock.On("RegisterPostgresCluster",
-		append([]interface{}{ctx, in}, opts...)...)}
-}
-
-func (_c *ClustersServiceClient_RegisterPostgresCluster_Call) Run(run func(ctx context.Context, in *clustersv1.RegisterPostgresClusterRequest, opts ...grpc.CallOption)) *ClustersServiceClient_RegisterPostgresCluster_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		variadicArgs := make([]grpc.CallOption, len(args)-2)
-		for i, a := range args[2:] {
-			if a != nil {
-				variadicArgs[i] = a.(grpc.CallOption)
-			}
-		}
-		run(args[0].(context.Context), args[1].(*clustersv1.RegisterPostgresClusterRequest), variadicArgs...)
-	})
-	return _c
-}
-
-func (_c *ClustersServiceClient_RegisterPostgresCluster_Call) Return(_a0 *clustersv1.RegisterPostgresClusterResponse, _a1 error) *ClustersServiceClient_RegisterPostgresCluster_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }

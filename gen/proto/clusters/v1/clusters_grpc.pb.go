@@ -25,8 +25,6 @@ const (
 	ClustersService_RotatePostgresClusterCredentials_FullMethodName = "/clusters.v1.ClustersService/RotatePostgresClusterCredentials"
 	ClustersService_UpdatePostgresCluster_FullMethodName            = "/clusters.v1.ClustersService/UpdatePostgresCluster"
 	ClustersService_DeletePostgresCluster_FullMethodName            = "/clusters.v1.ClustersService/DeletePostgresCluster"
-	ClustersService_RegisterPostgresCluster_FullMethodName          = "/clusters.v1.ClustersService/RegisterPostgresCluster"
-	ClustersService_DeregisterPostgresCluster_FullMethodName        = "/clusters.v1.ClustersService/DeregisterPostgresCluster"
 	ClustersService_GetObjectStore_FullMethodName                   = "/clusters.v1.ClustersService/GetObjectStore"
 	ClustersService_GetRecoveryWindow_FullMethodName                = "/clusters.v1.ClustersService/GetRecoveryWindow"
 	ClustersService_SetBranchIPFiltering_FullMethodName             = "/clusters.v1.ClustersService/SetBranchIPFiltering"
@@ -55,10 +53,6 @@ type ClustersServiceClient interface {
 	UpdatePostgresCluster(ctx context.Context, in *UpdatePostgresClusterRequest, opts ...grpc.CallOption) (*UpdatePostgresClusterResponse, error)
 	// Delete a postgres cluster
 	DeletePostgresCluster(ctx context.Context, in *DeletePostgresClusterRequest, opts ...grpc.CallOption) (*DeletePostgresClusterResponse, error)
-	// Register a postgres cluster by creating the required global services
-	RegisterPostgresCluster(ctx context.Context, in *RegisterPostgresClusterRequest, opts ...grpc.CallOption) (*RegisterPostgresClusterResponse, error)
-	// Deregister a postgres cluster by deleting the global services
-	DeregisterPostgresCluster(ctx context.Context, in *DeregisterPostgresClusterRequest, opts ...grpc.CallOption) (*DeregisterPostgresClusterResponse, error)
 	// Deprecated: Do not use.
 	// Get object store for a postgres cluster
 	// Deprecated: use GetRecoveryWindow instead.
@@ -141,26 +135,6 @@ func (c *clustersServiceClient) DeletePostgresCluster(ctx context.Context, in *D
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DeletePostgresClusterResponse)
 	err := c.cc.Invoke(ctx, ClustersService_DeletePostgresCluster_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *clustersServiceClient) RegisterPostgresCluster(ctx context.Context, in *RegisterPostgresClusterRequest, opts ...grpc.CallOption) (*RegisterPostgresClusterResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RegisterPostgresClusterResponse)
-	err := c.cc.Invoke(ctx, ClustersService_RegisterPostgresCluster_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *clustersServiceClient) DeregisterPostgresCluster(ctx context.Context, in *DeregisterPostgresClusterRequest, opts ...grpc.CallOption) (*DeregisterPostgresClusterResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DeregisterPostgresClusterResponse)
-	err := c.cc.Invoke(ctx, ClustersService_DeregisterPostgresCluster_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -266,10 +240,6 @@ type ClustersServiceServer interface {
 	UpdatePostgresCluster(context.Context, *UpdatePostgresClusterRequest) (*UpdatePostgresClusterResponse, error)
 	// Delete a postgres cluster
 	DeletePostgresCluster(context.Context, *DeletePostgresClusterRequest) (*DeletePostgresClusterResponse, error)
-	// Register a postgres cluster by creating the required global services
-	RegisterPostgresCluster(context.Context, *RegisterPostgresClusterRequest) (*RegisterPostgresClusterResponse, error)
-	// Deregister a postgres cluster by deleting the global services
-	DeregisterPostgresCluster(context.Context, *DeregisterPostgresClusterRequest) (*DeregisterPostgresClusterResponse, error)
 	// Deprecated: Do not use.
 	// Get object store for a postgres cluster
 	// Deprecated: use GetRecoveryWindow instead.
@@ -315,12 +285,6 @@ func (UnimplementedClustersServiceServer) UpdatePostgresCluster(context.Context,
 }
 func (UnimplementedClustersServiceServer) DeletePostgresCluster(context.Context, *DeletePostgresClusterRequest) (*DeletePostgresClusterResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeletePostgresCluster not implemented")
-}
-func (UnimplementedClustersServiceServer) RegisterPostgresCluster(context.Context, *RegisterPostgresClusterRequest) (*RegisterPostgresClusterResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RegisterPostgresCluster not implemented")
-}
-func (UnimplementedClustersServiceServer) DeregisterPostgresCluster(context.Context, *DeregisterPostgresClusterRequest) (*DeregisterPostgresClusterResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method DeregisterPostgresCluster not implemented")
 }
 func (UnimplementedClustersServiceServer) GetObjectStore(context.Context, *GetObjectStoreRequest) (*GetObjectStoreResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetObjectStore not implemented")
@@ -471,42 +435,6 @@ func _ClustersService_DeletePostgresCluster_Handler(srv interface{}, ctx context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ClustersServiceServer).DeletePostgresCluster(ctx, req.(*DeletePostgresClusterRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ClustersService_RegisterPostgresCluster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegisterPostgresClusterRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ClustersServiceServer).RegisterPostgresCluster(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ClustersService_RegisterPostgresCluster_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClustersServiceServer).RegisterPostgresCluster(ctx, req.(*RegisterPostgresClusterRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ClustersService_DeregisterPostgresCluster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeregisterPostgresClusterRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ClustersServiceServer).DeregisterPostgresCluster(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ClustersService_DeregisterPostgresCluster_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClustersServiceServer).DeregisterPostgresCluster(ctx, req.(*DeregisterPostgresClusterRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -685,14 +613,6 @@ var ClustersService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeletePostgresCluster",
 			Handler:    _ClustersService_DeletePostgresCluster_Handler,
-		},
-		{
-			MethodName: "RegisterPostgresCluster",
-			Handler:    _ClustersService_RegisterPostgresCluster_Handler,
-		},
-		{
-			MethodName: "DeregisterPostgresCluster",
-			Handler:    _ClustersService_DeregisterPostgresCluster_Handler,
 		},
 		{
 			MethodName: "GetObjectStore",

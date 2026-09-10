@@ -24,12 +24,6 @@ service ClustersService {
   // Delete a postgres cluster
   rpc DeletePostgresCluster(DeletePostgresClusterRequest) returns (DeletePostgresClusterResponse) {}
 
-  // Register a postgres cluster by creating the required global services
-  rpc RegisterPostgresCluster(RegisterPostgresClusterRequest) returns (RegisterPostgresClusterResponse) {}
-
-  // Deregister a postgres cluster by deleting the global services
-  rpc DeregisterPostgresCluster(DeregisterPostgresClusterRequest) returns (DeregisterPostgresClusterResponse) {}
-
   // Get object store for a postgres cluster
   // Deprecated: use GetRecoveryWindow instead.
   rpc GetObjectStore(GetObjectStoreRequest) returns (GetObjectStoreResponse) {
@@ -151,18 +145,6 @@ message RotatePostgresClusterCredentialsRequest {
 
 // RotatePostgresClusterCredentialsResponse is the response object for RotatePostgresClusterCredentials
 message RotatePostgresClusterCredentialsResponse {}
-
-message RegisterPostgresClusterRequest {
-  string id = 1;
-}
-
-message RegisterPostgresClusterResponse {}
-
-message DeregisterPostgresClusterRequest {
-  string id = 1;
-}
-
-message DeregisterPostgresClusterResponse {}
 
 message ClusterConfiguration {
   int32 num_instances = 1;
