@@ -724,6 +724,55 @@ func (_c *KeyCloak_GetUserRepresentation_Call) Return(_a0 keycloak.User, _a1 err
 	return _c
 }
 
+// ImportIdentityProviderConfig provides a mock function with given fields: ctx, realm, fromURL, providerID
+func (_m *KeyCloak) ImportIdentityProviderConfig(ctx context.Context, realm string, fromURL string, providerID string) (map[string]string, error) {
+	ret := _m.Called(ctx, realm, fromURL, providerID)
+
+	var r0 map[string]string
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) map[string]string); ok {
+		r0 = rf(ctx, realm, fromURL, providerID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, realm, fromURL, providerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// KeyCloak_ImportIdentityProviderConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ImportIdentityProviderConfig'
+type KeyCloak_ImportIdentityProviderConfig_Call struct {
+	*mock.Call
+}
+
+// ImportIdentityProviderConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - fromURL string
+//   - providerID string
+func (_e *KeyCloak_Expecter) ImportIdentityProviderConfig(ctx interface{}, realm interface{}, fromURL interface{}, providerID interface{}) *KeyCloak_ImportIdentityProviderConfig_Call {
+	return &KeyCloak_ImportIdentityProviderConfig_Call{Call: _e.mock.On("ImportIdentityProviderConfig", ctx, realm, fromURL, providerID)}
+}
+
+func (_c *KeyCloak_ImportIdentityProviderConfig_Call) Run(run func(ctx context.Context, realm string, fromURL string, providerID string)) *KeyCloak_ImportIdentityProviderConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_ImportIdentityProviderConfig_Call) Return(_a0 map[string]string, _a1 error) *KeyCloak_ImportIdentityProviderConfig_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // LinkIdentityProviderToOrganization provides a mock function with given fields: ctx, realm, organizationID, alias
 func (_m *KeyCloak) LinkIdentityProviderToOrganization(ctx context.Context, realm string, organizationID string, alias string) error {
 	ret := _m.Called(ctx, realm, organizationID, alias)

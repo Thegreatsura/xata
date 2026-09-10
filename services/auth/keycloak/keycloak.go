@@ -70,6 +70,8 @@ type KeyCloak interface {
 	DeleteIdentityProvider(ctx context.Context, realm, alias string) error
 	// LinkIdentityProviderToOrganization associates a provider with an organization. Idempotent.
 	LinkIdentityProviderToOrganization(ctx context.Context, realm, organizationID, alias string) error
+	// ImportIdentityProviderConfig reads an issuer's discovery document through Keycloak.
+	ImportIdentityProviderConfig(ctx context.Context, realm, fromURL, providerID string) (map[string]string, error)
 	// ListOrganizationIdentityProviders returns the providers linked to the organization.
 	ListOrganizationIdentityProviders(ctx context.Context, realm, organizationID string) ([]IdentityProvider, error)
 	// GetSSOPendingDomains returns domains claimed for SSO but not yet verified.

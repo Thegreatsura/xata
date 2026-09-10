@@ -177,3 +177,13 @@ func (e ErrInvitationFailed) Error() string {
 func (e ErrInvitationFailed) StatusCode() int {
 	return http.StatusUnprocessableEntity
 }
+
+// ErrDiscoveryFailed is Keycloak refusing an issuer's discovery document. Its
+// own answer is a 500 with no detail, so there is nothing more to report.
+type ErrDiscoveryFailed struct {
+	URL string
+}
+
+func (e ErrDiscoveryFailed) Error() string {
+	return fmt.Sprintf("keycloak could not read a discovery document at %s", e.URL)
+}

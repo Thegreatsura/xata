@@ -149,6 +149,32 @@ func (r *restKC) organizationIdentityProvidersURL(ctx context.Context, realm, or
 	return url, nil
 }
 
+// ImportIdentityProviderConfig asks Keycloak to read an issuer's discovery
+// document and return the provider config it would build from it, in its own
+// field names. Keycloak answers 500 for every failure, so the caller cannot
+// tell a wrong URL from an unreachable one.
+func (r *restKC) ImportIdentityProviderConfig(ctx context.Context, realm, fromURL, providerID string) (map[string]string, error) {
+	importURL, err := r.buildRealmURL(realm, "identity-provider", "import-config")
+	if err != nil {
+		return nil, fmt.Errorf("build import config URL: %w", err)
+	}
+
+	body := map[string]string{"fromUrl": fromURL, "providerId": providerID}
+	resp, err := r.makeAuthenticatedRequest(ctx, http.MethodPost, importURL, nil, body)
+	if err != nil {
+		return nil, fmt.Errorf("import identity provider config: %w", err)
+	}
+	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK) {
+		return nil, ErrDiscoveryFailed{URL: fromURL}
+	}
+
+	var config map[string]string
+	if err := json.Unmarshal(resp.Body(), &config); err != nil {
+		return nil, fmt.Errorf("unmarshal imported config: %w", err)
+	}
+	return config, nil
+}
+
 // UpsertIdentityProvider creates the provider, or replaces it on 409. Keycloak
 // has no upsert.
 func (r *restKC) UpsertIdentityProvider(ctx context.Context, realm string, idp IdentityProvider) error {
