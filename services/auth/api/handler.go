@@ -634,3 +634,35 @@ func mapAPIKeyPreviews(apiKeys []store.APIKey) []spec.APIKeyPreview {
 
 	return keys
 }
+
+func (s *publicHandler) GetOrganizationSSO(ctx echo.Context, organizationID spec.OrganizationIDParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) ClaimOrganizationSSODomain(ctx echo.Context, organizationID spec.OrganizationIDParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) VerifyOrganizationSSODomain(ctx echo.Context, organizationID spec.OrganizationIDParam, domain spec.SSODomainParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) DeleteOrganizationSSODomain(ctx echo.Context, organizationID spec.OrganizationIDParam, domain spec.SSODomainParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) CreateOrganizationSSOProvider(ctx echo.Context, organizationID spec.OrganizationIDParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) UpdateOrganizationSSOProvider(ctx echo.Context, organizationID spec.OrganizationIDParam, providerAlias spec.SSOProviderAliasParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) DeleteOrganizationSSOProvider(ctx echo.Context, organizationID spec.OrganizationIDParam, providerAlias spec.SSOProviderAliasParam) error {
+	return echo.ErrNotImplemented
+}
+
+func (s *publicHandler) SetOrganizationSSOProviderEnforcement(ctx echo.Context, organizationID spec.OrganizationIDParam, providerAlias spec.SSOProviderAliasParam) error {
+	return echo.ErrNotImplemented
+}

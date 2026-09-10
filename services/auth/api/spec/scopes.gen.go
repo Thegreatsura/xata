@@ -29,6 +29,10 @@ func GetScopes(method, path string) []string {
 			return []string{"branch:write"}
 		case "/organizations/:organizationID/projects/:projectID/branches/:branchID/githubapp/repository":
 			return []string{"project:write"}
+		case "/organizations/:organizationID/sso/domains/:domain":
+			return []string{"org:write"}
+		case "/organizations/:organizationID/sso/providers/:providerAlias":
+			return []string{"org:write"}
 		}
 	case "GET":
 		switch path {
@@ -92,6 +96,8 @@ func GetScopes(method, path string) []string {
 			return []string{"project:read"}
 		case "/organizations/:organizationID/regions":
 			return []string{"project:read"}
+		case "/organizations/:organizationID/sso":
+			return []string{"org:read"}
 		}
 	case "PATCH":
 		switch path {
@@ -140,6 +146,12 @@ func GetScopes(method, path string) []string {
 			return []string{"metrics:read"}
 		case "/organizations/:organizationID/projects/:projectID/branches/:branchID/restore":
 			return []string{"branch:write"}
+		case "/organizations/:organizationID/sso/domains":
+			return []string{"org:write"}
+		case "/organizations/:organizationID/sso/domains/:domain/verify":
+			return []string{"org:write"}
+		case "/organizations/:organizationID/sso/providers":
+			return []string{"org:write"}
 		}
 	case "PUT":
 		switch path {
@@ -153,6 +165,10 @@ func GetScopes(method, path string) []string {
 			return []string{"group:write"}
 		case "/organizations/:organizationID/projects/:projectID/branches/:branchID/githubapp/repository":
 			return []string{"project:write"}
+		case "/organizations/:organizationID/sso/providers/:providerAlias":
+			return []string{"org:write"}
+		case "/organizations/:organizationID/sso/providers/:providerAlias/enforcement":
+			return []string{"org:write"}
 		}
 	}
 	return nil

@@ -834,6 +834,299 @@ paths:
       tags:
         - Organizations
       x-operation-kind: read
+  '/organizations/{organizationID}/sso':
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+    get:
+      operationId: getOrganizationSSO
+      summary: Get the organization's SSO configuration
+      description: |
+        Lists the organization's identity providers and the email domains claimed for them. An organization signs in
+        through one provider per verified domain, so both are collections. Client secrets are write-only and are never
+        returned. An organization that has not set anything up yet responds 200 with empty lists, so 404 means only
+        that the feature is unavailable.
+      responses:
+        '200':
+          description: SSO configuration for the organization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationSSO'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'org:read'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: read
+  '/organizations/{organizationID}/sso/domains':
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+    post:
+      operationId: claimOrganizationSSODomain
+      summary: Claim an email domain for SSO
+      description: |
+        Claims an email domain and returns the DNS record that proves control of it. A claim is only a note to
+        ourselves: nothing is registered against the domain until verification succeeds, so claiming a domain neither
+        affects anyone's sign-in nor stops another organization claiming it first.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimOrganizationSSODomainRequest'
+      responses:
+        '201':
+          description: 'Domain claimed, pending verification'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationSSODomain'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'org:write'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: write
+  '/organizations/{organizationID}/sso/domains/{domain}':
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+      - $ref: '#/components/parameters/SSODomainParam'
+    delete:
+      operationId: deleteOrganizationSSODomain
+      summary: Release a claimed or verified domain
+      description: |
+        Drops a pending claim, or releases a verified domain so members on it sign in however they could before.
+        Refused with a 409 while a provider is still bound to the domain, since releasing it underneath one would
+        leave a provider nobody can reach; remove the provider first. Idempotent.
+      responses:
+        '204':
+          description: Domain released
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        '409':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'org:write'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: destructive
+  '/organizations/{organizationID}/sso/domains/{domain}/verify':
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+      - $ref: '#/components/parameters/SSODomainParam'
+    post:
+      operationId: verifyOrganizationSSODomain
+      summary: Check the DNS record for a claimed domain
+      description: |
+        Looks up the challenge TXT record. Verification is a poll, not a command: a missing or stale record is reported
+        as `verified: false` on a 200 rather than as an error, so a client can retry while DNS propagates. Verifying
+        proves the organization controls the domain and nothing more; it does not change how anyone signs in.
+      responses:
+        '200':
+          description: Current state of the domain after checking DNS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationSSODomain'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        '409':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'org:write'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: write
+  '/organizations/{organizationID}/sso/providers':
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+    post:
+      operationId: createOrganizationSSOProvider
+      summary: Register an identity provider for a verified domain
+      description: |
+        Registers an identity provider for one verified domain. `google` needs only the credentials and pins the login
+        to that Google Workspace domain; `oidc` is the fallback for any other provider and discovers its endpoints from
+        the issuer's `/.well-known/openid-configuration`. The domain must already be verified, and registering does not
+        redirect anyone on its own: that is enabled separately.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationSSOProviderRequest'
+      responses:
+        '201':
+          description: Identity provider registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationSSOProvider'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        '409':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'org:write'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: write
+  '/organizations/{organizationID}/sso/providers/{providerAlias}':
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+      - $ref: '#/components/parameters/SSOProviderAliasParam'
+    put:
+      operationId: updateOrganizationSSOProvider
+      summary: Update an identity provider's credentials
+      description: |
+        Replaces the provider's credentials, and for `oidc` re-discovers its endpoints from the issuer. The domain it
+        serves and whether it is enforced are carried across unchanged, so rotating a client secret does not quietly
+        turn enforcement off.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationSSOProviderRequest'
+      responses:
+        '200':
+          description: Identity provider updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationSSOProvider'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'org:write'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: write
+    delete:
+      operationId: deleteOrganizationSSOProvider
+      summary: Remove an identity provider
+      description: |
+        Deletes the provider, so members on its domain fall back to the sign-in methods they had before. The domain
+        stays verified and can be given another provider. Idempotent.
+      responses:
+        '204':
+          description: Identity provider removed
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'org:write'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: destructive
+  '/organizations/{organizationID}/sso/providers/{providerAlias}/enforcement':
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIDParam'
+      - $ref: '#/components/parameters/SSOProviderAliasParam'
+    put:
+      operationId: setOrganizationSSOProviderEnforcement
+      summary: Require members on this provider's domain to sign in through it
+      description: |
+        Enabling sends every address on the provider's domain to it, leaving those members no other way in. Refused
+        with a 409 until the domain is verified. Disabling needs nothing, so the way out is always open.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationSSOEnforcement'
+      responses:
+        '200':
+          description: Identity provider after the change
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationSSOProvider'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/SimpleError'
+        '409':
+          $ref: '#/components/responses/SimpleError'
+        5XX:
+          description: Unexpected Error
+      security:
+        - xata:
+            - 'org:write'
+      tags:
+        - Organizations
+      x-excluded: true
+      x-internal: true
+      x-operation-kind: write
   '/organizations/{organizationID}/billing/checkout-session':
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -1192,6 +1485,20 @@ components:
       schema:
         $ref: "./common/schemas.yaml#/OrganizationID"
       description: Unique identifier for a specific organization
+    SSODomainParam:
+      name: domain
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Email domain claimed for SSO
+    SSOProviderAliasParam:
+      name: providerAlias
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Alias identifying one of the organization's SSO identity providers
     UserIDParam:
       name: userID
       in: path
@@ -1886,6 +2193,160 @@ components:
           type: string
       required:
         - name
+    OrganizationSSO:
+      description: 'An organization''s single sign-on setup, as one identity provider per verified email domain.'
+      type: object
+      properties:
+        providers:
+          description: 'Identity providers registered for this organization, at most one per verified domain.'
+          type: array
+          items:
+            $ref: '#/components/schemas/OrganizationSSOProvider'
+        domains:
+          description: 'Email domains claimed for this organization, verified and pending.'
+          type: array
+          items:
+            $ref: '#/components/schemas/OrganizationSSODomain'
+      required:
+        - providers
+        - domains
+    OrganizationSSOProviderType:
+      description: 'Which identity provider this is. `google` pins the login to a Google Workspace domain and `microsoft` to a single Entra tenant, taken from the issuer; `oidc` is the fallback for anything else that speaks OpenID Connect.'
+      type: string
+      enum:
+        - google
+        - microsoft
+        - oidc
+    OrganizationSSOProvider:
+      description: An identity provider serving one of the organization's verified domains. The client secret is write-only and is never returned.
+      type: object
+      properties:
+        alias:
+          description: 'Stable identifier for this provider, used in its own endpoints.'
+          type: string
+        type:
+          $ref: '#/components/schemas/OrganizationSSOProviderType'
+        display_name:
+          description: Name members see for this provider when signing in.
+          type: string
+        domain:
+          description: The verified email domain this provider serves.
+          type: string
+        enforced:
+          description: 'Whether members on this domain are sent to this provider automatically, leaving no other way in. Registering a provider does not set this; it is enabled separately once a sign-in through it has worked.'
+          type: boolean
+        issuer:
+          description: 'OIDC issuer URL, without the /.well-known suffix.'
+          type: string
+          format: uri
+        client_id:
+          description: OAuth client ID the organization registered with the provider.
+          type: string
+      required:
+        - alias
+        - type
+        - display_name
+        - domain
+        - enforced
+        - client_id
+    OrganizationSSOEnforcement:
+      description: Whether members on a provider's domain must sign in through it.
+      type: object
+      properties:
+        enforced:
+          description: Enable to send every address on the domain to this provider. Disable to let members sign in however they could before.
+          type: boolean
+      required:
+        - enforced
+    OrganizationSSODomain:
+      description: An email domain claimed by an organization for SSO
+      type: object
+      properties:
+        domain:
+          description: The claimed email domain
+          type: string
+        provider_alias:
+          description: 'The alias an identity provider on this domain will be given. Derived from the organization and the domain, so it is known before the provider exists, which is what lets a client show the redirect URI to register with the provider up front.'
+          type: string
+        verified:
+          description: Whether control of the domain has been proven through DNS
+          type: boolean
+        verification:
+          description: The DNS record that proves control of the domain. Absent once the domain is verified.
+          allOf:
+            - $ref: '#/components/schemas/OrganizationSSODomainVerification'
+          nullable: true
+      required:
+        - provider_alias
+        - domain
+        - verified
+    OrganizationSSODomainVerification:
+      description: The DNS TXT record that proves an organization controls a domain
+      type: object
+      properties:
+        record_name:
+          description: Name to create the record at
+          type: string
+        record_type:
+          description: DNS record type
+          type: string
+        record_value:
+          description: Value the record must hold
+          type: string
+      required:
+        - record_name
+        - record_type
+        - record_value
+    CreateOrganizationSSOProviderRequest:
+      description: Request payload for registering an identity provider for a verified domain
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/OrganizationSSOProviderType'
+        domain:
+          description: The verified email domain this provider will serve.
+          type: string
+        issuer:
+          description: 'OIDC issuer URL. Required for `oidc`, and for `microsoft` where it names the Entra tenant; ignored for `google`. Must be https, and must serve a /.well-known/openid-configuration document naming itself as the issuer.'
+          type: string
+          format: uri
+        client_id:
+          description: OAuth client ID the organization registered with the provider
+          type: string
+        client_secret:
+          description: 'OAuth client secret. Write-only: it is stored in Keycloak and is never returned by this API.'
+          type: string
+      required:
+        - type
+        - domain
+        - client_id
+        - client_secret
+    UpdateOrganizationSSOProviderRequest:
+      description: Request payload for replacing an identity provider's credentials
+      type: object
+      properties:
+        issuer:
+          description: 'OIDC issuer URL. Required for `oidc`, and for `microsoft` where it names the Entra tenant; ignored for `google`.'
+          type: string
+          format: uri
+        client_id:
+          description: OAuth client ID the organization registered with the provider
+          type: string
+        client_secret:
+          description: 'OAuth client secret. Write-only: it is stored in Keycloak and is never returned by this API.'
+          type: string
+      required:
+        - client_id
+        - client_secret
+    ClaimOrganizationSSODomainRequest:
+      description: Request payload for claiming an email domain for SSO
+      type: object
+      properties:
+        domain:
+          description: 'Bare email domain to claim, for example acme.com. Wildcards and public email providers are rejected.'
+          type: string
+      required:
+        - domain
   responses:
     BadRequestError:
       description: Error returned when the request is malformed or contains invalid parameters

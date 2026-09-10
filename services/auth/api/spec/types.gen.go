@@ -130,6 +130,27 @@ func (e OrganizationMarketplaceProvider) Valid() bool {
 	}
 }
 
+// Defines values for OrganizationSSOProviderType.
+const (
+	Google    OrganizationSSOProviderType = "google"
+	Microsoft OrganizationSSOProviderType = "microsoft"
+	Oidc      OrganizationSSOProviderType = "oidc"
+)
+
+// Valid indicates whether the value is a known member of the OrganizationSSOProviderType enum.
+func (e OrganizationSSOProviderType) Valid() bool {
+	switch e {
+	case Google:
+		return true
+	case Microsoft:
+		return true
+	case Oidc:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for OrganizationStatusBillingStatus.
 const (
 	DeletionRequested OrganizationStatusBillingStatus = "deletion_requested"
@@ -359,6 +380,12 @@ type BillingUpcomingInvoiceResponse struct {
 	Total float64 `json:"total"`
 }
 
+// ClaimOrganizationSSODomainRequest Request payload for claiming an email domain for SSO
+type ClaimOrganizationSSODomainRequest struct {
+	// Domain Bare email domain to claim, for example acme.com. Wildcards and public email providers are rejected.
+	Domain string `json:"domain"`
+}
+
 // CreateAPIKeyRequest defines model for CreateAPIKeyRequest.
 type CreateAPIKeyRequest struct {
 	// Branches Limit access to these branches
@@ -391,6 +418,24 @@ type CreateOrganizationInvitationRequest struct {
 type CreateOrganizationRequest struct {
 	// Name Name for the new organization
 	Name string `json:"name"`
+}
+
+// CreateOrganizationSSOProviderRequest Request payload for registering an identity provider for a verified domain
+type CreateOrganizationSSOProviderRequest struct {
+	// ClientId OAuth client ID the organization registered with the provider
+	ClientId string `json:"client_id"`
+
+	// ClientSecret OAuth client secret. Write-only: it is stored in Keycloak and is never returned by this API.
+	ClientSecret string `json:"client_secret"`
+
+	// Domain The verified email domain this provider will serve.
+	Domain string `json:"domain"`
+
+	// Issuer OIDC issuer URL. Required for `oidc`, and for `microsoft` where it names the Entra tenant; ignored for `google`. Must be https, and must serve a /.well-known/openid-configuration document naming itself as the issuer.
+	Issuer *string `json:"issuer,omitempty"`
+
+	// Type Which identity provider this is. `google` pins the login to a Google Workspace domain and `microsoft` to a single Entra tenant, taken from the issuer; `oidc` is the fallback for anything else that speaks OpenID Connect.
+	Type OrganizationSSOProviderType `json:"type"`
 }
 
 // FullAPIKey defines model for FullAPIKey.
@@ -534,6 +579,75 @@ type OrganizationMembershipLimits struct {
 	MaxMembers int `json:"maxMembers"`
 }
 
+// OrganizationSSO An organization's single sign-on setup, as one identity provider per verified email domain.
+type OrganizationSSO struct {
+	// Domains Email domains claimed for this organization, verified and pending.
+	Domains []OrganizationSSODomain `json:"domains"`
+
+	// Providers Identity providers registered for this organization, at most one per verified domain.
+	Providers []OrganizationSSOProvider `json:"providers"`
+}
+
+// OrganizationSSODomain An email domain claimed by an organization for SSO
+type OrganizationSSODomain struct {
+	// Domain The claimed email domain
+	Domain string `json:"domain"`
+
+	// ProviderAlias The alias an identity provider on this domain will be given. Derived from the organization and the domain, so it is known before the provider exists, which is what lets a client show the redirect URI to register with the provider up front.
+	ProviderAlias string `json:"provider_alias"`
+
+	// Verification The DNS record that proves control of the domain. Absent once the domain is verified.
+	Verification *OrganizationSSODomainVerification `json:"verification,omitempty"`
+
+	// Verified Whether control of the domain has been proven through DNS
+	Verified bool `json:"verified"`
+}
+
+// OrganizationSSODomainVerification The DNS TXT record that proves an organization controls a domain
+type OrganizationSSODomainVerification struct {
+	// RecordName Name to create the record at
+	RecordName string `json:"record_name"`
+
+	// RecordType DNS record type
+	RecordType string `json:"record_type"`
+
+	// RecordValue Value the record must hold
+	RecordValue string `json:"record_value"`
+}
+
+// OrganizationSSOEnforcement Whether members on a provider's domain must sign in through it.
+type OrganizationSSOEnforcement struct {
+	// Enforced Enable to send every address on the domain to this provider. Disable to let members sign in however they could before.
+	Enforced bool `json:"enforced"`
+}
+
+// OrganizationSSOProvider An identity provider serving one of the organization's verified domains. The client secret is write-only and is never returned.
+type OrganizationSSOProvider struct {
+	// Alias Stable identifier for this provider, used in its own endpoints.
+	Alias string `json:"alias"`
+
+	// ClientId OAuth client ID the organization registered with the provider.
+	ClientId string `json:"client_id"`
+
+	// DisplayName Name members see for this provider when signing in.
+	DisplayName string `json:"display_name"`
+
+	// Domain The verified email domain this provider serves.
+	Domain string `json:"domain"`
+
+	// Enforced Whether members on this domain are sent to this provider automatically, leaving no other way in. Registering a provider does not set this; it is enabled separately once a sign-in through it has worked.
+	Enforced bool `json:"enforced"`
+
+	// Issuer OIDC issuer URL, without the /.well-known suffix.
+	Issuer *string `json:"issuer,omitempty"`
+
+	// Type Which identity provider this is. `google` pins the login to a Google Workspace domain and `microsoft` to a single Entra tenant, taken from the issuer; `oidc` is the fallback for anything else that speaks OpenID Connect.
+	Type OrganizationSSOProviderType `json:"type"`
+}
+
+// OrganizationSSOProviderType Which identity provider this is. `google` pins the login to a Google Workspace domain and `microsoft` to a single Entra tenant, taken from the issuer; `oidc` is the fallback for anything else that speaks OpenID Connect.
+type OrganizationSSOProviderType string
+
 // OrganizationStatus defines model for OrganizationStatus.
 type OrganizationStatus struct {
 	// AdminReason Reason for the current admin status
@@ -587,6 +701,18 @@ type UpdateOrganizationGroupRequest struct {
 	Name string `json:"name"`
 }
 
+// UpdateOrganizationSSOProviderRequest Request payload for replacing an identity provider's credentials
+type UpdateOrganizationSSOProviderRequest struct {
+	// ClientId OAuth client ID the organization registered with the provider
+	ClientId string `json:"client_id"`
+
+	// ClientSecret OAuth client secret. Write-only: it is stored in Keycloak and is never returned by this API.
+	ClientSecret string `json:"client_secret"`
+
+	// Issuer OIDC issuer URL. Required for `oidc`, and for `microsoft` where it names the Entra tenant; ignored for `google`.
+	Issuer *string `json:"issuer,omitempty"`
+}
+
 // User User information including email, full name, and profile image
 type User struct {
 	// Email Email address associated with the user account
@@ -619,6 +745,12 @@ type InvitationIDParam = string
 
 // OrganizationIDParam defines model for OrganizationIDParam.
 type OrganizationIDParam = OrganizationID
+
+// SSODomainParam defines model for SSODomainParam.
+type SSODomainParam = string
+
+// SSOProviderAliasParam defines model for SSOProviderAliasParam.
+type SSOProviderAliasParam = string
 
 // UserIDParam Unique identifier for a user account
 type UserIDParam = UserID
@@ -738,3 +870,15 @@ type UpdateOrganizationGroupJSONRequestBody = UpdateOrganizationGroupRequest
 
 // CreateOrganizationInvitationJSONRequestBody defines body for CreateOrganizationInvitation for application/json ContentType.
 type CreateOrganizationInvitationJSONRequestBody = CreateOrganizationInvitationRequest
+
+// ClaimOrganizationSSODomainJSONRequestBody defines body for ClaimOrganizationSSODomain for application/json ContentType.
+type ClaimOrganizationSSODomainJSONRequestBody = ClaimOrganizationSSODomainRequest
+
+// CreateOrganizationSSOProviderJSONRequestBody defines body for CreateOrganizationSSOProvider for application/json ContentType.
+type CreateOrganizationSSOProviderJSONRequestBody = CreateOrganizationSSOProviderRequest
+
+// UpdateOrganizationSSOProviderJSONRequestBody defines body for UpdateOrganizationSSOProvider for application/json ContentType.
+type UpdateOrganizationSSOProviderJSONRequestBody = UpdateOrganizationSSOProviderRequest
+
+// SetOrganizationSSOProviderEnforcementJSONRequestBody defines body for SetOrganizationSSOProviderEnforcement for application/json ContentType.
+type SetOrganizationSSOProviderEnforcementJSONRequestBody = OrganizationSSOEnforcement

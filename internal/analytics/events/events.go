@@ -179,3 +179,59 @@ func NewBranchRestoredFromBackupEvent(organizationID, projectID, sourceBranchID,
 		},
 	}
 }
+
+func NewOrganizationSSOConfiguredEvent(organizationID, providerType, domain string) Event {
+	return Event{
+		Name:  "organization sso configured",
+		OrgID: organizationID,
+		Properties: map[string]any{
+			"organization":  organizationID,
+			"provider_type": providerType,
+			"domain":        domain,
+		},
+	}
+}
+
+func NewOrganizationSSORemovedEvent(organizationID string) Event {
+	return Event{
+		Name:  "organization sso removed",
+		OrgID: organizationID,
+		Properties: map[string]any{
+			"organization": organizationID,
+		},
+	}
+}
+
+func NewOrganizationSSODomainVerifiedEvent(organizationID, domain string) Event {
+	return Event{
+		Name:  "organization sso domain verified",
+		OrgID: organizationID,
+		Properties: map[string]any{
+			"organization": organizationID,
+			"domain":       domain,
+		},
+	}
+}
+
+func NewOrganizationSSODomainRevokedEvent(organizationID, domain string) Event {
+	return Event{
+		Name:  "organization sso domain revoked",
+		OrgID: organizationID,
+		Properties: map[string]any{
+			"organization": organizationID,
+			"domain":       domain,
+		},
+	}
+}
+
+func NewOrganizationSSOEnforcementSetEvent(organizationID, domain string, enforced bool) Event {
+	return Event{
+		Name:  "organization sso enforcement set",
+		OrgID: organizationID,
+		Properties: map[string]any{
+			"organization": organizationID,
+			"domain":       domain,
+			"enforced":     enforced,
+		},
+	}
+}

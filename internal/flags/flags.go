@@ -70,6 +70,12 @@ var (
 		Name:           "organizationCustomGroups",
 		DefaultEnabled: false,
 	}
+
+	// EnterpriseSSO gates per-organization federated single sign-on.
+	EnterpriseSSO = openfeature.FeatureFlag{
+		Name:           "enterpriseSSO",
+		DefaultEnabled: false,
+	}
 	// WARNING: Feature Flags should have positive names. Avoid disabled suffix in future
 )
 
