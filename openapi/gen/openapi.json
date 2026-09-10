@@ -631,7 +631,7 @@
                     "groups": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/OrganizationGroup"
+                        "$ref": "#/components/schemas/OrganizationGroupSummary"
                       }
                     }
                   },
@@ -6071,6 +6071,26 @@
           "id",
           "name",
           "is_owner"
+        ]
+      },
+      "OrganizationGroupSummary": {
+        "description": "A group within an organization together with its member count",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/OrganizationGroup"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "member_count": {
+                "description": "Number of organization members in the group",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "member_count"
+            ]
+          }
         ]
       },
       "CreateOrganizationGroupRequest": {

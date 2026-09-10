@@ -473,6 +473,24 @@ type OrganizationGroup struct {
 	Path *string `json:"path,omitempty"`
 }
 
+// OrganizationGroupSummary defines model for OrganizationGroupSummary.
+type OrganizationGroupSummary struct {
+	// Id Unique identifier for the group
+	Id string `json:"id"`
+
+	// IsOwner Whether this is the predefined "Owner" group, which cannot be edited or deleted and must always retain at least one member
+	IsOwner bool `json:"is_owner"`
+
+	// MemberCount Number of organization members in the group
+	MemberCount int `json:"member_count"`
+
+	// Name Human-readable name of the group
+	Name string `json:"name"`
+
+	// Path Hierarchical path of the group within the organization
+	Path *string `json:"path,omitempty"`
+}
+
 // OrganizationID defines model for OrganizationID.
 type OrganizationID = string
 

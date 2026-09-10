@@ -36,6 +36,28 @@ func newService(t *testing.T, setup func(*keycloakMocks.KeyCloak)) Groups {
 	return NewGroups(apitest.TestRealm, mockKC)
 }
 
+func TestListWithMemberCounts(t *testing.T) {
+	s := newService(t, func(kc *keycloakMocks.KeyCloak) {
+		kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).
+			Return([]keycloak.Group{ownerGroup(), regularGroup()}, nil).Once()
+		kc.EXPECT().ListMembers(mock.Anything, apitest.TestRealm, testOrgID).
+			Return([]keycloak.OrganizationMember{{ID: testUserID}}, nil).Once()
+		kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, ownerID).
+			Return([]keycloak.OrganizationMember{{ID: testUserID}}, nil).Once()
+		// Keycloak still lists someone who has left the organization.
+		kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, testGroupID).
+			Return([]keycloak.OrganizationMember{{ID: testUserID}, {ID: "who-left"}}, nil).Once()
+	})
+
+	got, err := s.ListWithMemberCounts(context.Background(), testOrgID)
+
+	require.NoError(t, err)
+	require.Equal(t, []GroupWithMembers{
+		{Group: ownerGroup(), MemberCount: 1},
+		{Group: regularGroup(), MemberCount: 1},
+	}, got)
+}
+
 func TestCreate(t *testing.T) {
 	tests := map[string]struct {
 		groupName string

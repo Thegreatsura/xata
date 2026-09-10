@@ -15,9 +15,16 @@ const OwnerGroupName = "Owner"
 // SeedMembers is resolved only when the Owner group needs seeding.
 type SeedMembers func(ctx context.Context) ([]string, error)
 
+// GroupWithMembers pairs a group with how many of the organization's members it
+// holds.
+type GroupWithMembers struct {
+	Group       keycloak.Group
+	MemberCount int
+}
+
 // Groups enforces the Xata Owner-group rules on top of Keycloak groups.
 type Groups interface {
-	List(ctx context.Context, organizationID string) ([]keycloak.Group, error)
+	ListWithMemberCounts(ctx context.Context, organizationID string) ([]GroupWithMembers, error)
 	Get(ctx context.Context, organizationID, groupID string) (keycloak.Group, error)
 	Create(ctx context.Context, organizationID, name string) (keycloak.Group, error)
 	Update(ctx context.Context, organizationID, groupID, name string) (keycloak.Group, error)
@@ -48,8 +55,29 @@ func isReservedName(name string) bool {
 	return strings.EqualFold(name, OwnerGroupName)
 }
 
-func (s *groupsService) List(ctx context.Context, organizationID string) ([]keycloak.Group, error) {
-	return s.kcRest.ListGroups(ctx, s.realm, organizationID)
+// Keycloak keeps a user in their groups after they leave the organization, so
+// the counts are taken against the current membership rather than the raw
+// group lists.
+func (s *groupsService) ListWithMemberCounts(ctx context.Context, organizationID string) ([]GroupWithMembers, error) {
+	groups, err := s.kcRest.ListGroups(ctx, s.realm, organizationID)
+	if err != nil {
+		return nil, fmt.Errorf("list groups: %w", err)
+	}
+
+	orgMembers, err := s.kcRest.ListMembers(ctx, s.realm, organizationID)
+	if err != nil {
+		return nil, fmt.Errorf("list organization members: %w", err)
+	}
+
+	summaries := make([]GroupWithMembers, len(groups))
+	for i, g := range groups {
+		members, err := s.membersAmong(ctx, organizationID, g.ID, orgMembers)
+		if err != nil {
+			return nil, err
+		}
+		summaries[i] = GroupWithMembers{Group: g, MemberCount: len(members)}
+	}
+	return summaries, nil
 }
 
 func (s *groupsService) Get(ctx context.Context, organizationID, groupID string) (keycloak.Group, error) {
@@ -106,7 +134,7 @@ func (s *groupsService) AddMember(ctx context.Context, organizationID, groupID, 
 	// Authorize first, so a caller who may not manage owners learns nothing about
 	// who belongs to the organization.
 	if isOwnerGroup(group) {
-		owners, err := s.ownersAmong(ctx, organizationID, group.ID, orgMembers)
+		owners, err := s.membersAmong(ctx, organizationID, group.ID, orgMembers)
 		if err != nil {
 			return err
 		}
@@ -225,13 +253,11 @@ func (s *groupsService) seedGroup(ctx context.Context, organizationID, groupID s
 }
 
 // Keycloak keeps group membership after a user leaves the organization, so the
-// raw group list can claim owners who can no longer act.
-// ownersAmong filters out group entries Keycloak keeps after a user has left the
-// organization, which would otherwise count as owners who can no longer act.
-func (s *groupsService) ownersAmong(ctx context.Context, organizationID, ownerGroupID string, orgMembers []keycloak.OrganizationMember) ([]keycloak.OrganizationMember, error) {
-	groupMembers, err := s.kcRest.ListGroupMembers(ctx, s.realm, organizationID, ownerGroupID)
+// raw group list can claim members who can no longer act.
+func (s *groupsService) membersAmong(ctx context.Context, organizationID, groupID string, orgMembers []keycloak.OrganizationMember) ([]keycloak.OrganizationMember, error) {
+	groupMembers, err := s.kcRest.ListGroupMembers(ctx, s.realm, organizationID, groupID)
 	if err != nil {
-		return nil, fmt.Errorf("list owner group members: %w", err)
+		return nil, fmt.Errorf("list group members: %w", err)
 	}
 	active := make([]keycloak.OrganizationMember, 0, len(groupMembers))
 	for _, m := range groupMembers {
@@ -247,7 +273,7 @@ func (s *groupsService) activeOwnerMembers(ctx context.Context, organizationID, 
 	if err != nil {
 		return nil, fmt.Errorf("list organization members: %w", err)
 	}
-	return s.ownersAmong(ctx, organizationID, ownerGroupID, orgMembers)
+	return s.membersAmong(ctx, organizationID, ownerGroupID, orgMembers)
 }
 
 func findOwnerGroup(groups []keycloak.Group) (keycloak.Group, bool) {

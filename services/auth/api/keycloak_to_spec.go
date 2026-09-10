@@ -66,10 +66,17 @@ func ToSpecOrganizationGroup(group keycloak.Group) spec.OrganizationGroup {
 	return result
 }
 
-func ToSpecOrganizationGroups(groups []keycloak.Group) []spec.OrganizationGroup {
-	result := make([]spec.OrganizationGroup, len(groups))
-	for i, group := range groups {
-		result[i] = ToSpecOrganizationGroup(group)
+func ToSpecOrganizationGroupSummaries(summaries []groups.GroupWithMembers) []spec.OrganizationGroupSummary {
+	result := make([]spec.OrganizationGroupSummary, len(summaries))
+	for i, summary := range summaries {
+		group := ToSpecOrganizationGroup(summary.Group)
+		result[i] = spec.OrganizationGroupSummary{
+			Id:          group.Id,
+			Name:        group.Name,
+			Path:        group.Path,
+			IsOwner:     group.IsOwner,
+			MemberCount: summary.MemberCount,
+		}
 	}
 	return result
 }
