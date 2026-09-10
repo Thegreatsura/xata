@@ -64,6 +64,12 @@ func (c *Claims) APIKeyID() string {
 	return c.KeyID
 }
 
+// IsOrganizationKey reports a caller acting as the organization itself: an API key
+// with no user behind it, and so no role of its own.
+func (c *Claims) IsOrganizationKey() bool {
+	return c != nil && c.ID == "" && c.KeyID != ""
+}
+
 // HasAccessToOrganization checks if the claim allows access to the specified organization
 func (c *Claims) HasAccessToOrganization(organizationID string) bool {
 	if c == nil || organizationID == "" {

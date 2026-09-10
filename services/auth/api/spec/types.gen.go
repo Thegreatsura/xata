@@ -130,6 +130,27 @@ func (e OrganizationMarketplaceProvider) Valid() bool {
 	}
 }
 
+// Defines values for OrganizationRoleName.
+const (
+	Admin  OrganizationRoleName = "admin"
+	Editor OrganizationRoleName = "editor"
+	Viewer OrganizationRoleName = "viewer"
+)
+
+// Valid indicates whether the value is a known member of the OrganizationRoleName enum.
+func (e OrganizationRoleName) Valid() bool {
+	switch e {
+	case Admin:
+		return true
+	case Editor:
+		return true
+	case Viewer:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for OrganizationSSOProviderType.
 const (
 	Google    OrganizationSSOProviderType = "google"
@@ -402,12 +423,6 @@ type CreateAPIKeyRequest struct {
 	Scopes *[]string `json:"scopes,omitempty"`
 }
 
-// CreateOrganizationGroupRequest Request payload for creating an organization group
-type CreateOrganizationGroupRequest struct {
-	// Name Name for the new group
-	Name string `json:"name"`
-}
-
 // CreateOrganizationInvitationRequest defines model for CreateOrganizationInvitationRequest.
 type CreateOrganizationInvitationRequest struct {
 	// Email Email address of the user to invite
@@ -503,39 +518,6 @@ type Organization struct {
 	Status OrganizationStatus `json:"status"`
 }
 
-// OrganizationGroup A group within an organization
-type OrganizationGroup struct {
-	// Id Unique identifier for the group
-	Id string `json:"id"`
-
-	// IsOwner Whether this is the predefined "Owner" group, which cannot be edited or deleted and must always retain at least one member
-	IsOwner bool `json:"is_owner"`
-
-	// Name Human-readable name of the group
-	Name string `json:"name"`
-
-	// Path Hierarchical path of the group within the organization
-	Path *string `json:"path,omitempty"`
-}
-
-// OrganizationGroupSummary defines model for OrganizationGroupSummary.
-type OrganizationGroupSummary struct {
-	// Id Unique identifier for the group
-	Id string `json:"id"`
-
-	// IsOwner Whether this is the predefined "Owner" group, which cannot be edited or deleted and must always retain at least one member
-	IsOwner bool `json:"is_owner"`
-
-	// MemberCount Number of organization members in the group
-	MemberCount int `json:"member_count"`
-
-	// Name Human-readable name of the group
-	Name string `json:"name"`
-
-	// Path Hierarchical path of the group within the organization
-	Path *string `json:"path,omitempty"`
-}
-
 // OrganizationID defines model for OrganizationID.
 type OrganizationID = string
 
@@ -570,6 +552,21 @@ type OrganizationInvitationStatus string
 // OrganizationMarketplaceProvider Marketplace provider associated with an organization.
 type OrganizationMarketplaceProvider string
 
+// OrganizationMember defines model for OrganizationMember.
+type OrganizationMember struct {
+	// Email Email address associated with the user account
+	Email openapi_types.Email `json:"email"`
+
+	// Id Unique identifier for a user account
+	Id UserID `json:"id" validate:"identifier"`
+
+	// Name Name of the user
+	Name string `json:"name"`
+
+	// Role The roles a member of an organization can hold
+	Role OrganizationRoleName `json:"role"`
+}
+
 // OrganizationMembershipLimits Membership limits for an organization
 type OrganizationMembershipLimits struct {
 	// MaxInvites Maximum number of pending invitations allowed at once
@@ -578,6 +575,21 @@ type OrganizationMembershipLimits struct {
 	// MaxMembers Maximum number of members allowed in the organization
 	MaxMembers int `json:"maxMembers"`
 }
+
+// OrganizationRole A role that can be held by a member of an organization
+type OrganizationRole struct {
+	// Description What the role allows
+	Description string `json:"description"`
+
+	// Id The roles a member of an organization can hold
+	Id OrganizationRoleName `json:"id"`
+
+	// Name Human-readable name of the role
+	Name string `json:"name"`
+}
+
+// OrganizationRoleName The roles a member of an organization can hold
+type OrganizationRoleName string
 
 // OrganizationSSO An organization's single sign-on setup, as one identity provider per verified email domain.
 type OrganizationSSO struct {
@@ -690,15 +702,15 @@ type PaginationMetadata struct {
 	NextCursor *string `json:"next_cursor"`
 }
 
+// SetOrganizationMemberRoleRequest Request payload for setting the role of an organization member
+type SetOrganizationMemberRoleRequest struct {
+	// Role The roles a member of an organization can hold
+	Role OrganizationRoleName `json:"role"`
+}
+
 // UpdateBillingCustomerRequest defines model for UpdateBillingCustomerRequest.
 type UpdateBillingCustomerRequest struct {
 	BillingEmail openapi_types.Email `json:"billing_email"`
-}
-
-// UpdateOrganizationGroupRequest Request payload for updating an organization group
-type UpdateOrganizationGroupRequest struct {
-	// Name New name for the group
-	Name string `json:"name"`
 }
 
 // UpdateOrganizationSSOProviderRequest Request payload for replacing an identity provider's credentials
@@ -736,9 +748,6 @@ type UserWithID struct {
 	// Name Name of the user
 	Name string `json:"name"`
 }
-
-// GroupIDParam defines model for GroupIDParam.
-type GroupIDParam = string
 
 // InvitationIDParam defines model for InvitationIDParam.
 type InvitationIDParam = string
@@ -862,14 +871,11 @@ type CreateOrganizationAPIKeyJSONRequestBody = CreateAPIKeyRequest
 // UpdateBillingCustomerJSONRequestBody defines body for UpdateBillingCustomer for application/json ContentType.
 type UpdateBillingCustomerJSONRequestBody = UpdateBillingCustomerRequest
 
-// CreateOrganizationGroupJSONRequestBody defines body for CreateOrganizationGroup for application/json ContentType.
-type CreateOrganizationGroupJSONRequestBody = CreateOrganizationGroupRequest
-
-// UpdateOrganizationGroupJSONRequestBody defines body for UpdateOrganizationGroup for application/json ContentType.
-type UpdateOrganizationGroupJSONRequestBody = UpdateOrganizationGroupRequest
-
 // CreateOrganizationInvitationJSONRequestBody defines body for CreateOrganizationInvitation for application/json ContentType.
 type CreateOrganizationInvitationJSONRequestBody = CreateOrganizationInvitationRequest
+
+// SetOrganizationMemberRoleJSONRequestBody defines body for SetOrganizationMemberRole for application/json ContentType.
+type SetOrganizationMemberRoleJSONRequestBody = SetOrganizationMemberRoleRequest
 
 // ClaimOrganizationSSODomainJSONRequestBody defines body for ClaimOrganizationSSODomain for application/json ContentType.
 type ClaimOrganizationSSODomainJSONRequestBody = ClaimOrganizationSSODomainRequest

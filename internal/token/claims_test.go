@@ -115,3 +115,21 @@ func TestClaims_HasWriteAccess(t *testing.T) {
 		})
 	}
 }
+
+func TestIsOrganizationKey(t *testing.T) {
+	tests := map[string]struct {
+		claims *Claims
+		want   bool
+	}{
+		"an API key with no user is the organization": {&Claims{KeyID: "key-1"}, true},
+		"an API key issued to a user is not":          {&Claims{ID: "user-1", KeyID: "key-1"}, false},
+		"a signed-in user is not":                     {&Claims{ID: "user-1"}, false},
+		"claims carrying neither are not":             {&Claims{}, false},
+		"nil claims are not":                          {nil, false},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			require.Equal(t, tt.want, tt.claims.IsOrganizationKey())
+		})
+	}
+}

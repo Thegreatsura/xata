@@ -320,35 +320,11 @@ func (s *publicHandler) ResendOrganizationInvitation(ctx echo.Context, organizat
 	return echo.ErrNotImplemented
 }
 
-func (s *publicHandler) ListOrganizationGroups(ctx echo.Context, organizationID spec.OrganizationIDParam) error {
+func (s *publicHandler) ListOrganizationRoles(ctx echo.Context, organizationID spec.OrganizationIDParam) error {
 	return echo.ErrNotImplemented
 }
 
-func (s *publicHandler) CreateOrganizationGroup(ctx echo.Context, organizationID spec.OrganizationIDParam) error {
-	return echo.ErrNotImplemented
-}
-
-func (s *publicHandler) GetOrganizationGroup(ctx echo.Context, organizationID spec.OrganizationIDParam, groupID spec.GroupIDParam) error {
-	return echo.ErrNotImplemented
-}
-
-func (s *publicHandler) UpdateOrganizationGroup(ctx echo.Context, organizationID spec.OrganizationIDParam, groupID spec.GroupIDParam) error {
-	return echo.ErrNotImplemented
-}
-
-func (s *publicHandler) DeleteOrganizationGroup(ctx echo.Context, organizationID spec.OrganizationIDParam, groupID spec.GroupIDParam) error {
-	return echo.ErrNotImplemented
-}
-
-func (s *publicHandler) ListOrganizationGroupMembers(ctx echo.Context, organizationID spec.OrganizationIDParam, groupID spec.GroupIDParam) error {
-	return echo.ErrNotImplemented
-}
-
-func (s *publicHandler) AddOrganizationGroupMember(ctx echo.Context, organizationID spec.OrganizationIDParam, groupID spec.GroupIDParam, userID spec.UserIDParam) error {
-	return echo.ErrNotImplemented
-}
-
-func (s *publicHandler) RemoveOrganizationGroupMember(ctx echo.Context, organizationID spec.OrganizationIDParam, groupID spec.GroupIDParam, userID spec.UserIDParam) error {
+func (s *publicHandler) SetOrganizationMemberRole(ctx echo.Context, organizationID spec.OrganizationIDParam, userID spec.UserIDParam) error {
 	return echo.ErrNotImplemented
 }
 

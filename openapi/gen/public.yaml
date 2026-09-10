@@ -346,7 +346,7 @@ paths:
                   members:
                     type: array
                     items:
-                      $ref: '#/components/schemas/UserWithID'
+                      $ref: '#/components/schemas/OrganizationMember'
                 required:
                   - members
       security:
@@ -375,27 +375,27 @@ paths:
       tags:
         - Organizations
       x-operation-kind: destructive
-  /organizations/{organizationID}/groups:
+  /organizations/{organizationID}/roles:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
     get:
-      operationId: listOrganizationGroups
-      summary: List groups of an organization
-      description: Retrieve all groups belonging to an organization. Each organization owns an isolated group hierarchy, including a predefined "Owner" group that governs dangerous operations such as billing and organization deletion.
+      operationId: listOrganizationRoles
+      summary: List the roles assignable in an organization
+      description: Roles are predefined. Every member of an organization holds exactly one.
       responses:
         '200':
-          description: List of organization groups
+          description: List of assignable roles
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  groups:
+                  roles:
                     type: array
                     items:
-                      $ref: '#/components/schemas/OrganizationGroupSummary'
+                      $ref: '#/components/schemas/OrganizationRole'
                 required:
-                  - groups
+                  - roles
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
@@ -406,217 +406,31 @@ paths:
           description: Unexpected Error
       security:
         - xata:
-            - group:read
+            - role:read
       tags:
         - Organizations
       x-excluded: true
       x-internal: true
       x-operation-kind: read
-    post:
-      operationId: createOrganizationGroup
-      summary: Create a group in an organization
-      description: Create a new group within an organization. The reserved name "Owner" cannot be used.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateOrganizationGroupRequest'
-      responses:
-        '201':
-          description: Group created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrganizationGroup'
-        '400':
-          $ref: '#/components/responses/BadRequestError'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/SimpleError'
-        '409':
-          $ref: '#/components/responses/SimpleError'
-        5XX:
-          description: Unexpected Error
-      security:
-        - xata:
-            - group:write
-      tags:
-        - Organizations
-      x-excluded: true
-      x-internal: true
-      x-operation-kind: write
-  /organizations/{organizationID}/groups/{groupID}:
+  /organizations/{organizationID}/members/{userID}/role:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
-      - $ref: '#/components/parameters/GroupIDParam'
-    get:
-      operationId: getOrganizationGroup
-      summary: Get details of an organization group
-      responses:
-        '200':
-          description: Group details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrganizationGroup'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/SimpleError'
-        5XX:
-          description: Unexpected Error
-      security:
-        - xata:
-            - group:read
-      tags:
-        - Organizations
-      x-excluded: true
-      x-internal: true
-      x-operation-kind: read
-    put:
-      operationId: updateOrganizationGroup
-      summary: Update an organization group
-      description: Rename an organization group. The predefined "Owner" group cannot be edited.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateOrganizationGroupRequest'
-      responses:
-        '200':
-          description: Group updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrganizationGroup'
-        '400':
-          $ref: '#/components/responses/BadRequestError'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/SimpleError'
-        '409':
-          $ref: '#/components/responses/SimpleError'
-        5XX:
-          description: Unexpected Error
-      security:
-        - xata:
-            - group:write
-      tags:
-        - Organizations
-      x-excluded: true
-      x-internal: true
-      x-operation-kind: write
-    delete:
-      operationId: deleteOrganizationGroup
-      summary: Delete an organization group
-      description: Delete an organization group. The predefined "Owner" group cannot be deleted.
-      responses:
-        '204':
-          description: Group deleted successfully
-        '400':
-          $ref: '#/components/responses/BadRequestError'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/SimpleError'
-        5XX:
-          description: Unexpected Error
-      security:
-        - xata:
-            - group:write
-      tags:
-        - Organizations
-      x-excluded: true
-      x-internal: true
-      x-operation-kind: destructive
-  /organizations/{organizationID}/groups/{groupID}/members:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationIDParam'
-      - $ref: '#/components/parameters/GroupIDParam'
-    get:
-      operationId: listOrganizationGroupMembers
-      summary: List members of an organization group
-      responses:
-        '200':
-          description: List of group members
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  members:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/UserWithID'
-                required:
-                  - members
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/SimpleError'
-        5XX:
-          description: Unexpected Error
-      security:
-        - xata:
-            - group:read
-      tags:
-        - Organizations
-      x-excluded: true
-      x-internal: true
-      x-operation-kind: read
-  /organizations/{organizationID}/groups/{groupID}/members/{userID}:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationIDParam'
-      - $ref: '#/components/parameters/GroupIDParam'
       - $ref: '#/components/parameters/UserIDParam'
     put:
-      operationId: addOrganizationGroupMember
-      summary: Add a member to an organization group
-      description: Add an existing organization member to a group. The user must already be a member of the organization.
+      operationId: setOrganizationMemberRole
+      summary: Set the role of an organization member
+      description: Replaces the member's current role. An organization always retains at least one Admin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetOrganizationMemberRoleRequest'
       responses:
         '204':
-          description: Member added to the group
+          description: Role updated
         '400':
-          $ref: '#/components/responses/BadRequestError'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/AuthError'
-        '404':
           $ref: '#/components/responses/SimpleError'
-        5XX:
-          description: Unexpected Error
-      security:
-        - xata:
-            - group:write
-      tags:
-        - Organizations
-      x-excluded: true
-      x-internal: true
-      x-operation-kind: write
-    delete:
-      operationId: removeOrganizationGroupMember
-      summary: Remove a member from an organization group
-      description: Remove a member from a group. The predefined "Owner" group must always retain at least one member.
-      responses:
-        '204':
-          description: Member removed from the group
-        '400':
-          $ref: '#/components/responses/BadRequestError'
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
@@ -629,12 +443,12 @@ paths:
           description: Unexpected Error
       security:
         - xata:
-            - group:write
+            - role:write
       tags:
         - Organizations
       x-excluded: true
       x-internal: true
-      x-operation-kind: destructive
+      x-operation-kind: write
   /organizations/{organizationID}/invitations:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -3591,8 +3405,8 @@ components:
           scopes:
             org:read: Read organization information
             org:write: Create and modify organizations
-            group:read: Read organization groups and their members
-            group:write: Create, modify, and delete organization groups and their members
+            role:read: Read the roles held by organization members
+            role:write: Change the role held by an organization member
             keys:read: Read API keys
             keys:write: Create and manage API keys
             project:read: Read project information
@@ -3610,13 +3424,6 @@ components:
       name: Connection-String
       description: Branch PostgreSQL connection string (`postgres://user:pass@{branch}.{region}.xata.tech/db`), including the embedded password. The hostname selects the target branch, region, and endpoint type (the `-rw`/`-ro` suffix, see `EndpointType`), and must match the request host. Obtain it from the Xata dashboard or the control-plane API. This is the only credential the gateway accepts; the control-plane API key (Bearer token) is rejected here. For the WebSocket endpoint (`GET /v2`) the same connection string is conveyed via the PostgreSQL startup message instead of this header.
   parameters:
-    GroupIDParam:
-      name: groupID
-      in: path
-      required: true
-      schema:
-        type: string
-      description: Unique identifier for an organization group
     InvitationIDParam:
       name: invitationID
       in: path
@@ -4304,55 +4111,48 @@ components:
       required:
         - maxMembers
         - maxInvites
-    OrganizationGroup:
-      description: A group within an organization
+    OrganizationRole:
+      description: A role that can be held by a member of an organization
       type: object
       properties:
         id:
-          description: Unique identifier for the group
-          type: string
+          description: Stable identifier for the role
+          $ref: '#/components/schemas/OrganizationRoleName'
         name:
-          description: Human-readable name of the group
+          description: Human-readable name of the role
           type: string
-        path:
-          description: Hierarchical path of the group within the organization
+        description:
+          description: What the role allows
           type: string
-        is_owner:
-          description: Whether this is the predefined "Owner" group, which cannot be edited or deleted and must always retain at least one member
-          type: boolean
       required:
         - id
         - name
-        - is_owner
-    OrganizationGroupSummary:
-      description: A group within an organization together with its member count
+        - description
+    OrganizationRoleName:
+      description: The roles a member of an organization can hold
+      type: string
+      enum:
+        - admin
+        - editor
+        - viewer
+    OrganizationMember:
+      description: A member of an organization and the role they hold in it
       allOf:
-        - $ref: '#/components/schemas/OrganizationGroup'
+        - $ref: '#/components/schemas/UserWithID'
         - type: object
           properties:
-            member_count:
-              description: Number of organization members in the group
-              type: integer
+            role:
+              $ref: '#/components/schemas/OrganizationRoleName'
           required:
-            - member_count
-    CreateOrganizationGroupRequest:
-      description: Request payload for creating an organization group
+            - role
+    SetOrganizationMemberRoleRequest:
+      description: Request payload for setting the role of an organization member
       type: object
       properties:
-        name:
-          description: Name for the new group
-          type: string
+        role:
+          $ref: '#/components/schemas/OrganizationRoleName'
       required:
-        - name
-    UpdateOrganizationGroupRequest:
-      description: Request payload for updating an organization group
-      type: object
-      properties:
-        name:
-          description: New name for the group
-          type: string
-      required:
-        - name
+        - role
     OrganizationSSO:
       description: An organization's single sign-on setup, as one identity provider per verified email domain.
       type: object

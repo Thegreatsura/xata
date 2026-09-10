@@ -2,8 +2,8 @@ package api
 
 import (
 	"xata/services/auth/api/spec"
-	"xata/services/auth/groups"
 	"xata/services/auth/keycloak"
+	"xata/services/auth/roles"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
@@ -54,28 +54,30 @@ func ToSpecOrganizationMembers(members []keycloak.OrganizationMember) []spec.Use
 	return result
 }
 
-func ToSpecOrganizationGroup(group keycloak.Group) spec.OrganizationGroup {
-	result := spec.OrganizationGroup{
-		Id:      group.ID,
-		Name:    group.Name,
-		IsOwner: group.Name == groups.OwnerGroupName,
-	}
-	if group.Path != "" {
-		result.Path = &group.Path
+func ToSpecOrganizationMembersWithRoles(members []keycloak.OrganizationMember, held map[string]roles.Role) []spec.OrganizationMember {
+	result := make([]spec.OrganizationMember, len(members))
+	for i, member := range members {
+		role := held[member.ID]
+		if role == "" {
+			role = roles.Default
+		}
+		result[i] = spec.OrganizationMember{
+			Email: openapi_types.Email(member.Email),
+			Name:  member.Name,
+			Id:    member.ID,
+			Role:  spec.OrganizationRoleName(role),
+		}
 	}
 	return result
 }
 
-func ToSpecOrganizationGroupSummaries(summaries []groups.GroupWithMembers) []spec.OrganizationGroupSummary {
-	result := make([]spec.OrganizationGroupSummary, len(summaries))
-	for i, summary := range summaries {
-		group := ToSpecOrganizationGroup(summary.Group)
-		result[i] = spec.OrganizationGroupSummary{
-			Id:          group.Id,
-			Name:        group.Name,
-			Path:        group.Path,
-			IsOwner:     group.IsOwner,
-			MemberCount: summary.MemberCount,
+func ToSpecOrganizationRoles(definitions []roles.Definition) []spec.OrganizationRole {
+	result := make([]spec.OrganizationRole, len(definitions))
+	for i, d := range definitions {
+		result[i] = spec.OrganizationRole{
+			Id:          spec.OrganizationRoleName(d.Role),
+			Name:        d.Name,
+			Description: d.Description,
 		}
 	}
 	return result
