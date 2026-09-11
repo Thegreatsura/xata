@@ -124,12 +124,15 @@ func (b *BranchBuilder) WithOverridesFromParent(parent *v1alpha1.Branch) *Branch
 	parentSC := parent.Spec.ClusterSpec.Storage.StorageClass
 	clusterSpec.Storage.StorageClass = parentSC
 
-	// If the parent branch has a wakeup pool annotation:
+	// Adopt the child into the parent's wakeup pool, but only when it is being
+	// created from the parent's volume (the branching case, restore type
+	// VolumeSnapshot):
 	// * Annotate the child with the same wakeup pool annotation
 	// * Annotate the child with an "awaiting wakeup" annotation
 	// * Upgrade the restore type from VolumeSnapshot to XVolClone
-	// * Clear the cluster name from the child Branch
-	if parent.HasWakeupPoolAnnotation() {
+	// * Clear the cluster name from the child Branch, so that the cluster comes
+	//   from the pool when the WakeupRequest is served
+	if parent.HasWakeupPoolAnnotation() && b.branch.Spec.Restore.IsVolumeSnapshotType() {
 		if b.branch.Annotations == nil {
 			b.branch.Annotations = make(map[string]string)
 		}

@@ -226,6 +226,65 @@ func TestCreatePostgresCluster(t *testing.T) {
 			wantWUR: true,
 		},
 		{
+			name:         "restore from ContinuousBackup with wakeup pool parent keeps ObjectStore restore",
+			parentBranch: poolParentBranch(),
+			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
+				r.ParentId = new("gmnfj6042d3qd09dcc8a7le0eo")
+				r.BackupConfiguration.BackupMethod = string(v1alpha1.BackupMethodPgBackRest)
+				r.DataSource = &clustersv1.CreatePostgresClusterRequest_ContinuousBackup{
+					ContinuousBackup: &clustersv1.ContinuousBackup{
+						ClusterId: "gmnfj6042d3qd09dcc8a7le0eo",
+						Timestamp: timestamppb.New(pitrTimestamp),
+					},
+				}
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				expectPoolParentInheritance(b)
+				expectPgBackRestBackupSpec(b)
+				// The restore reads the backup, so the branch keeps its own
+				// cluster name and is not adopted into the parent's pool
+				b.Spec.Restore = &v1alpha1.RestoreSpec{
+					Type:      v1alpha1.RestoreTypeObjectStore,
+					Name:      "gmnfj6042d3qd09dcc8a7le0eo",
+					Timestamp: &metav1.Time{Time: pitrTimestamp},
+				}
+			},
+		},
+		{
+			name:         "restore from BaseBackup with wakeup pool parent keeps BaseBackup restore",
+			parentBranch: poolParentBranch(),
+			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
+				r.ParentId = new("gmnfj6042d3qd09dcc8a7le0eo")
+				r.BackupConfiguration.BackupMethod = string(v1alpha1.BackupMethodPgBackRest)
+				r.DataSource = &clustersv1.CreatePostgresClusterRequest_BaseBackup{
+					BaseBackup: &clustersv1.BaseBackup{
+						BackupId: "backup-20240615-143000",
+					},
+				}
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				expectPoolParentInheritance(b)
+				expectPgBackRestBackupSpec(b)
+				b.Spec.Restore = &v1alpha1.RestoreSpec{
+					Type: v1alpha1.RestoreTypeBaseBackup,
+					Name: "backup-20240615-143000",
+				}
+			},
+		},
+		{
+			name:         "wakeup pool parent without a data source is not pool adopted",
+			parentBranch: poolParentBranch(),
+			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
+				r.ParentId = new("gmnfj6042d3qd09dcc8a7le0eo")
+				r.BackupConfiguration.BackupMethod = string(v1alpha1.BackupMethodPgBackRest)
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				expectPoolParentInheritance(b)
+				expectPgBackRestBackupSpec(b)
+				b.Spec.Restore = nil
+			},
+		},
+		{
 			name: "error - child branch with non-existent parent cluster",
 			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
 				r.ParentId = new("non-existent-cluster")
@@ -2902,6 +2961,16 @@ func withSharedPreloadLibraries(libs []string) parentBranchOption {
 	}
 }
 
+func withPgBackRestBackups() parentBranchOption {
+	return func(b *v1alpha1.Branch) {
+		b.Spec.BackupSpec = &v1alpha1.BackupSpec{
+			Retention:  "2d",
+			Method:     v1alpha1.BackupMethodPgBackRest,
+			PgBackRest: &v1alpha1.PgBackRestSpec{},
+		}
+	}
+}
+
 func withWakeupPool(pool string) parentBranchOption {
 	return func(b *v1alpha1.Branch) {
 		if b.Annotations == nil {
@@ -2923,6 +2992,59 @@ func sourceClusterForPITR() *apiv1.Cluster {
 				Size: "100Gi",
 			},
 		},
+	}
+}
+
+// expectPoolParentInheritance applies the settings a child branch inherits from
+// the parent built by parentBranch(withStorageClass("xatastor"),
+// withWakeupPool(...)), leaving out the pool adoption itself (restore type,
+// cluster name and annotations), which depends on how the child is created.
+func expectPoolParentInheritance(b *v1alpha1.Branch) {
+	b.Spec.ClusterSpec.Instances = 1
+	b.Spec.ClusterSpec.Image = "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:16.3"
+	b.Spec.ClusterSpec.Storage.Size = "200Gi"
+	b.Spec.ClusterSpec.Storage.StorageClass = new("xatastor")
+	b.Spec.ClusterSpec.Resources = corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("1"),
+			corev1.ResourceMemory: resource.MustParse("1948Mi"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("2"),
+			corev1.ResourceMemory: resource.MustParse("1948Mi"),
+		},
+	}
+	b.Spec.ClusterSpec.Postgres.Parameters = updatePostgresParam(b.Spec.ClusterSpec.Postgres.Parameters, "max_connections", "100")
+	b.Spec.ClusterSpec.Postgres.Parameters = updatePostgresParam(b.Spec.ClusterSpec.Postgres.Parameters, "shared_buffers", "128MB")
+	b.Spec.ClusterSpec.Postgres.SharedPreloadLibraries = []string{"xatautils", "pg_stat_statements"}
+}
+
+// poolParentBranch returns a parent branch that runs on a cluster from a wakeup
+// pool. Such a branch always uses pgbackrest, because WithClusterFromPool drops
+// any other backup method when it adopts a pool cluster.
+func poolParentBranch() *v1alpha1.Branch {
+	return parentBranch(
+		withStorageClass("xatastor"),
+		withWakeupPool("test-pool"),
+		withPgBackRestBackups(),
+	)
+}
+
+// expectPgBackRestBackupSpec applies the BackupSpec that the service builds for
+// a branch that requests the pgbackrest backup method.
+func expectPgBackRestBackupSpec(b *v1alpha1.Branch) {
+	b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
+	b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
+		S3: &v1alpha1.PgBackRestS3Spec{
+			Bucket:             "test-pgbackrest-bucket",
+			Region:             "us-east-1",
+			InheritFromIAMRole: true,
+		},
+		RetentionFullDays:   7,
+		CompressType:        DefaultPgBackRestCompressType,
+		ArchiveAsync:        DefaultPgBackRestArchiveAsync,
+		ArchivePushQueueMax: DefaultPgBackRestPushQueueMax,
+		ArchiveGetQueueMax:  DefaultPgBackRestGetQueueMax,
 	}
 }
 
