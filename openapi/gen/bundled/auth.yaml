@@ -702,7 +702,8 @@ paths:
       description: |
         Claims an email domain and returns the DNS record that proves control of it. A claim is only a note to
         ourselves: nothing is registered against the domain until verification succeeds, so claiming a domain neither
-        affects anyone's sign-in nor stops another organization claiming it first.
+        affects anyone's sign-in nor stops another organization claiming it first. A domain another organization has
+        already registered is refused with 409, before any DNS record is published.
       requestBody:
         required: true
         content:
@@ -723,6 +724,8 @@ paths:
         '403':
           $ref: '#/components/responses/AuthError'
         '404':
+          $ref: '#/components/responses/SimpleError'
+        '409':
           $ref: '#/components/responses/SimpleError'
         5XX:
           description: Unexpected Error

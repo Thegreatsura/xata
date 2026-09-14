@@ -47,3 +47,65 @@ func TestSetOrganizationDomainsClassifiesRejections(t *testing.T) {
 		})
 	}
 }
+
+func TestOrganizationsForDomain(t *testing.T) {
+	tests := map[string]struct {
+		status  int
+		body    string
+		want    []string
+		wantErr bool
+	}{
+		"returns the organization listing the domain": {
+			status: http.StatusOK,
+			body:   `[{"id":"internal-1","alias":"org-a","domains":[{"name":"acme.test","verified":true}]}]`,
+			want:   []string{"org-a"},
+		},
+		"returns every holder left by concurrent writes": {
+			status: http.StatusOK,
+			body: `[{"id":"internal-1","alias":"org-a","domains":[{"name":"acme.test","verified":true}]},` +
+				`{"id":"internal-2","alias":"org-b","domains":[{"name":"acme.test","verified":true}]}]`,
+			want: []string{"org-a", "org-b"},
+		},
+		"ignores an organization matched only by its name": {
+			status: http.StatusOK,
+			body:   `[{"id":"internal-2","alias":"acme.test","name":"acme.test","domains":[]}]`,
+		},
+		"matches the domain regardless of case": {
+			status: http.StatusOK,
+			body:   `[{"id":"internal-1","alias":"org-a","domains":[{"name":"ACME.test","verified":false}]}]`,
+			want:   []string{"org-a"},
+		},
+		"reports nobody holding it": {
+			status: http.StatusOK,
+			body:   `[]`,
+		},
+		"surfaces a failure rather than reading it as free": {
+			status:  http.StatusInternalServerError,
+			body:    `{}`,
+			wantErr: true,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			srv := orgAdminTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+				if req.URL.Query().Get("search") != "acme.test" || req.URL.Query().Get("exact") != "true" {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			})
+			defer srv.Close()
+
+			got, err := newTestRestKC(srv.URL).OrganizationsForDomain(context.Background(), "xata", "acme.test")
+
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}

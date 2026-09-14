@@ -82,6 +82,8 @@ type KeyCloak interface {
 	GetOrganizationDomains(ctx context.Context, realm, organizationID string) ([]Domain, error)
 	// SetOrganizationDomains replaces the organization's domain set.
 	SetOrganizationDomains(ctx context.Context, realm, organizationID string, domains []Domain) error
+	// OrganizationsForDomain returns the aliases of every organization holding the domain.
+	OrganizationsForDomain(ctx context.Context, realm, domain string) ([]string, error)
 	// ListSSOOrganizations returns every organization holding a verified domain.
 	ListSSOOrganizations(ctx context.Context, realm string) ([]SSOOrganization, error)
 }

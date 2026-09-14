@@ -16,6 +16,46 @@ func (r *restKC) GetOrganizationDomains(ctx context.Context, realm, organization
 	return organization.Domains, nil
 }
 
+// OrganizationsForDomain counts an unverified entry too, since Keycloak refuses a
+// second holder either way. It returns every holder rather than the first:
+// Keycloak checks uniqueness in application code only, so two concurrent writes
+// can both land. Search also matches names, so a hit only counts when the
+// organization really lists the domain.
+func (r *restKC) OrganizationsForDomain(ctx context.Context, realm, domain string) ([]string, error) {
+	orgsURL, err := r.buildRealmURL(realm, "organizations")
+	if err != nil {
+		return nil, fmt.Errorf("build organizations URL: %w", err)
+	}
+
+	queryParams := map[string]string{
+		"search":              domain,
+		"exact":               "true",
+		"briefRepresentation": "true",
+	}
+	resp, err := r.makeAuthenticatedRequest(ctx, http.MethodGet, orgsURL, queryParams, nil)
+	if err != nil {
+		return nil, fmt.Errorf("search organizations by domain: %w", err)
+	}
+	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK) {
+		return nil, fmt.Errorf("search organizations by domain %s: unexpected status %d: %s", domain, resp.StatusCode(), resp.String())
+	}
+
+	var organizations []KeycloakOrganization
+	if err := json.Unmarshal(resp.Body(), &organizations); err != nil {
+		return nil, fmt.Errorf("unmarshal organizations: %w", err)
+	}
+	var holders []string
+	for _, org := range organizations {
+		for _, d := range org.Domains {
+			if strings.EqualFold(d.Name, domain) {
+				holders = append(holders, org.Alias)
+				break
+			}
+		}
+	}
+	return holders, nil
+}
+
 // SetOrganizationDomains replaces the whole set: Keycloak has no per-domain
 // endpoint. It rejects a domain another organization holds, and clears
 // kc.org.domain on any provider bound to one being removed.
