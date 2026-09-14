@@ -913,6 +913,12 @@ func (s *handler) validateBranchFromConfiguration(ctx context.Context, organizat
 		return ErrorInvalidParam{BranchName: name, Param: "configuration", Message: "configuration is required for 'custom' mode"}
 	}
 
+	if payload.Configuration.Storage != nil {
+		if err := validateStorageSize(name, *payload.Configuration.Storage, orgLimits.MaxStorageGBPerBranch); err != nil {
+			return err
+		}
+	}
+
 	return validateReplicaCount(name, payload.Configuration.Replicas, orgLimits.MinInstancesPerBranch, orgLimits.MaxInstancesPerBranch)
 }
 
@@ -994,8 +1000,12 @@ func (s *handler) prepareCreateClusterFromConfiguration(ctx context.Context, org
 		storageQoSClass = new(it.StorageQoSClass)
 	}
 
-	// TODO storage size: we are currently not using the storage size sent from the API.
-	// when/if we change that, we need to add it to this payload and to the created event below
+	// Zero leaves the cluster service to apply its configured default.
+	var storageSize int32
+	if payload.Configuration.Storage != nil {
+		storageSize = *payload.Configuration.Storage
+	}
+
 	return ClusterServicePayload{
 		ParentID: nil,
 		Configuration: clustersv1.ClusterConfiguration{
@@ -1007,6 +1017,7 @@ func (s *handler) prepareCreateClusterFromConfiguration(ctx context.Context, org
 			PostgresConfigurationParameters: postgresParameters,
 			PreloadLibraries:                preloadLibraries,
 			StorageQosClass:                 storageQoSClass,
+			StorageSize:                     storageSize,
 		},
 		CellID:         cellID,
 		Region:         payload.Configuration.Region,

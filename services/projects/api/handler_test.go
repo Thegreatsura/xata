@@ -1202,6 +1202,72 @@ func TestCreateBranch(t *testing.T) {
 			expectedError: fmt.Errorf("some storage error"),
 		},
 		{
+			name:             "create a branch passes the requested storage to the provisioner",
+			projectID:        "project_id",
+			branch:           branch,
+			connectionString: new("postgresql://user:pass@123-deprecated.testdomain/xata?sslmode=require"),
+			jsonBody:         map[string]any{"name": branch.Name, "mode": "custom", "configuration": map[string]any{"image": configuration.Image, "replicas": configuration.Replicas, "storage": configuration.Storage, "region": configuration.Region, "instanceType": configuration.InstanceType}},
+			configuration:    configuration,
+			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
+				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
+				mockImageProvider.EXPECT().GetAllImageNames().Return([]string{"postgres:17.11"}).Once()
+				mockImageProvider.EXPECT().BuildImageURL("postgres:17.11").Return("ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.11").Once()
+				mockStore.EXPECT().ListCells(mock.Anything, apitest.TestOrganization, "region-id-1").Return([]store.Cell{{ID: "cell_id", RegionID: "region-id-1", Primary: true}}, nil).Once()
+				mockStore.EXPECT().ListInstanceTypes(mock.Anything, apitest.TestOrganization, "region-id-1").Return([]store.InstanceType{{Name: "xata.micro", VCPUsRequest: 250, VCPUsLimit: 2000, RAM: 1, StorageQoSClass: storageqos.ClassMicro}}, nil).Once()
+				mockPostgresConfig.EXPECT().GetDefaultPostgresParameters("xata.micro", mock.AnythingOfType("int"), mock.AnythingOfType("string"), mock.Anything).Return(map[string]string{
+					"max_connections": "50",
+					"shared_buffers":  "256MB",
+					"work_mem":        "2259kB",
+				}, nil).Once()
+				mockPostgresConfig.EXPECT().GetDefaultPreloadLibraries(mock.AnythingOfType("string")).Return([]string{"pg_stat_statements", "auto_explain"}, nil).Once()
+				mockClusters.EXPECT().GetPostgresClusterCredentials(mock.Anything, &clustersv1.GetPostgresClusterCredentialsRequest{Id: branch.ID, Username: "app"}).
+					Return(&clustersv1.GetPostgresClusterCredentialsResponse{Username: "user", Password: "pass"}, nil).Once()
+				mockStore.EXPECT().GetRegion(mock.Anything, apitest.TestOrganization, "region-id-1").Return(&store.Region{ID: configuration.Region, GatewayHostPort: "", BackupsEnabled: true}, nil).Twice()
+				mockProvisioner.EXPECT().CreateBranch(mock.Anything, "project_id", apitest.TestOrganization, branch.Name, mock.Anything).
+					Run(func(ctx context.Context, projectID, organizationID, name string, payload *provisioner.ClusterServicePayload) {
+						*capturedPayload = payload
+					}).Return(&branch, nil).Once()
+				mockAnalytics.EXPECT().Track(mock.Anything, events.NewBranchFromConfigurationEvent(
+					apitest.TestOrganization, "project_id", branch.ID, configuration.Region,
+					"postgres:17.11", configuration.InstanceType, int(configuration.Replicas), configuration.Storage)).Return().Once()
+			},
+			validateCaptured: func(t *testing.T, payload *provisioner.ClusterServicePayload) {
+				require.NotNil(t, payload, "provisioner.CreateBranch should have been called")
+				require.Equal(t, defaultStorage, payload.Configuration.StorageSize, "requested storage must reach the cluster service")
+				require.Equal(t, configuration.Replicas+1, payload.Configuration.NumInstances)
+				require.Equal(t, "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.11", payload.Configuration.ImageName)
+				require.Equal(t, "250m", payload.Configuration.VcpuRequest)
+				require.Equal(t, "2", payload.Configuration.VcpuLimit)
+				require.Equal(t, "1Gi", payload.Configuration.Memory)
+				require.Nil(t, payload.Configuration.ScaleToZero, "ScaleToZero should be nil when not explicitly set")
+				require.Len(t, payload.Configuration.PostgresConfigurationParameters, 3)
+				require.Equal(t, "50", payload.Configuration.PostgresConfigurationParameters["max_connections"])
+				require.Equal(t, "256MB", payload.Configuration.PostgresConfigurationParameters["shared_buffers"])
+				require.Equal(t, "2259kB", payload.Configuration.PostgresConfigurationParameters["work_mem"])
+				require.True(t, payload.BackupsEnabled, "BackupsEnabled should be true")
+				require.NotNil(t, payload.BackupConfig, "BackupConfiguration should be present")
+				require.NotEmpty(t, payload.BackupConfig.BackupSchedule, "BackupSchedule should not be empty")
+				require.Equal(t, new(storageqos.ClassMicro), payload.Configuration.StorageQosClass)
+
+				// Validate cron format
+				parts := strings.Split(payload.BackupConfig.BackupSchedule, " ")
+				require.Len(t, parts, 6, "Backup schedule should be a valid cron expression with 6 parts")
+			},
+			wantError: false,
+		},
+		{
+			name:      "create a branch rejects storage above the organization limit",
+			projectID: "project_id",
+			jsonBody:  map[string]any{"name": branch.Name, "mode": "custom", "configuration": map[string]any{"image": configuration.Image, "replicas": configuration.Replicas, "storage": int32(9000), "region": configuration.Region, "instanceType": configuration.InstanceType}},
+			setupMocks: func(capturedPayload **provisioner.ClusterServicePayload) {
+				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{
+					store.LimitMaxStorageGBPerBranch: json.Number("250"),
+				}, nil).Once()
+			},
+			wantError:     true,
+			expectedError: ErrorInvalidParam{BranchName: branch.Name, Param: "storage", Message: "storage size exceeds the maximum of 250 GB"},
+		},
+		{
 			name:      "create a branch fails with error infra",
 			projectID: "project_id",
 			jsonBody:  map[string]any{"name": branch.Name, "mode": "custom", "configuration": map[string]any{"image": configuration.Image, "replicas": configuration.Replicas, "storage": configuration.Storage, "region": configuration.Region, "instanceType": configuration.InstanceType}, "backupConfiguration": map[string]any{"retentionPeriod": 2, "backupTime": "2:23:23"}},
