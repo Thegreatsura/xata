@@ -45,10 +45,8 @@ func TestNewFilter_WithRules(t *testing.T) {
 	require.NoError(t, err)
 
 	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ipfiltering",
-			Namespace: "test-ns",
-		},
+		Name:      "ipfiltering",
+		Namespace: "test-ns",
 		Data: map[string]string{
 			ConfigMapKey: string(rulesJSON),
 		},
@@ -121,10 +119,8 @@ func TestFilter_ConfigMapUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ipfiltering",
-			Namespace: "test-ns",
-		},
+		Name:      "ipfiltering",
+		Namespace: "test-ns",
 		Data: map[string]string{
 			ConfigMapKey: string(rulesJSON),
 		},
@@ -176,10 +172,8 @@ func TestFilter_ConfigMapDeleted(t *testing.T) {
 	require.NoError(t, err)
 
 	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ipfiltering",
-			Namespace: "test-ns",
-		},
+		Name:      "ipfiltering",
+		Namespace: "test-ns",
 		Data: map[string]string{
 			ConfigMapKey: string(rulesJSON),
 		},

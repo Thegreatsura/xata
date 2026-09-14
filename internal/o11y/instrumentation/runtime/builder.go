@@ -13,9 +13,7 @@ type meterBuilder struct {
 
 func newMeterBuilder(meter metric.Meter) meterBuilder {
 	return meterBuilder{
-		instrumentRegistry: instrumentRegistry{
-			meter: meter,
-		},
+		meter: meter,
 	}
 }
 

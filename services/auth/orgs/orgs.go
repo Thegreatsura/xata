@@ -12,7 +12,7 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-//go:generate go run github.com/vektra/mockery/v3 --output orgsmock --outpkg orgsmock --with-expecter --name Organizations
+//go:generate go run github.com/vektra/mockery/v2 --output orgsmock --outpkg orgsmock --with-expecter --name Organizations
 
 type Organizations interface {
 	UpdateOrganization(ctx context.Context, organizationID string, request UpdateOrganizationOptions) (*keycloak.Organization, error)

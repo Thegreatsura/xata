@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,11 +20,9 @@ func Test_GetClusterCredentials(t *testing.T) {
 	v1.AddToScheme(scheme)
 
 	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       "xata-clusters",
-			Name:            "fakeID-superuser",
-			ResourceVersion: "1",
-		},
+		Namespace:       "xata-clusters",
+		Name:            "fakeID-superuser",
+		ResourceVersion: "1",
 		Data: map[string][]byte{
 			v1.BasicAuthUsernameKey: []byte("foo"),
 			v1.BasicAuthPasswordKey: []byte("bar"),
@@ -58,11 +55,9 @@ func Test_GetClusterCredentials(t *testing.T) {
 			clusterID: "fakeID",
 			username:  "anotheruser",
 			fakeClient: fake.NewClientBuilder().WithScheme(scheme).WithObjects(&v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace:       "xata-clusters",
-					Name:            "fakeID-anotheruser",
-					ResourceVersion: "1",
-				},
+				Namespace:       "xata-clusters",
+				Name:            "fakeID-anotheruser",
+				ResourceVersion: "1",
 				Data: map[string][]byte{
 					v1.BasicAuthUsernameKey: []byte("anotherusername"),
 					v1.BasicAuthPasswordKey: []byte("anotheruserspassword"),

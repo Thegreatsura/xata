@@ -75,10 +75,8 @@ func TestScaleToZero_Start(t *testing.T) {
 								Phase:          healthyClusterStatus,
 								CurrentPrimary: "test-pod-1",
 							},
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: map[string]string{
-									scaleToZeroEnabledAnnotation: "true",
-								},
+							Annotations: map[string]string{
+								scaleToZeroEnabledAnnotation: "true",
 							},
 						}, nil
 					},
@@ -112,11 +110,9 @@ func TestScaleToZero_Start(t *testing.T) {
 								Phase:          healthyClusterStatus,
 								CurrentPrimary: "test-pod-1",
 							},
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: map[string]string{
-									scaleToZeroEnabledAnnotation: "true",
-									inactivityMinutesAnnotation:  "5",
-								},
+							Annotations: map[string]string{
+								scaleToZeroEnabledAnnotation: "true",
+								inactivityMinutesAnnotation:  "5",
 							},
 						}, nil
 					},
@@ -160,11 +156,9 @@ func TestScaleToZero_Start(t *testing.T) {
 								Phase:          healthyClusterStatus,
 								CurrentPrimary: "",
 							},
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: map[string]string{
-									scaleToZeroEnabledAnnotation: "true",
-									inactivityMinutesAnnotation:  "5",
-								},
+							Annotations: map[string]string{
+								scaleToZeroEnabledAnnotation: "true",
+								inactivityMinutesAnnotation:  "5",
 							},
 						}, nil
 					},
@@ -209,11 +203,9 @@ func TestScaleToZero_Start(t *testing.T) {
 								Phase:          healthyClusterStatus,
 								CurrentPrimary: "test-pod-2",
 							},
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: map[string]string{
-									scaleToZeroEnabledAnnotation: "true",
-									inactivityMinutesAnnotation:  "5",
-								},
+							Annotations: map[string]string{
+								scaleToZeroEnabledAnnotation: "true",
+								inactivityMinutesAnnotation:  "5",
 							},
 						}, nil
 					},
@@ -235,11 +227,9 @@ func TestScaleToZero_Start(t *testing.T) {
 								Phase:          healthyClusterStatus,
 								CurrentPrimary: "test-pod-1",
 							},
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: map[string]string{
-									scaleToZeroEnabledAnnotation: "true",
-									inactivityMinutesAnnotation:  "5",
-								},
+							Annotations: map[string]string{
+								scaleToZeroEnabledAnnotation: "true",
+								inactivityMinutesAnnotation:  "5",
 							},
 						}, nil
 					},
@@ -297,11 +287,9 @@ func TestScaleToZero_Start(t *testing.T) {
 								Phase:          healthyClusterStatus,
 								CurrentPrimary: "test-pod-1",
 							},
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: map[string]string{
-									scaleToZeroEnabledAnnotation: "true",
-									inactivityMinutesAnnotation:  "5",
-								},
+							Annotations: map[string]string{
+								scaleToZeroEnabledAnnotation: "true",
+								inactivityMinutesAnnotation:  "5",
 							},
 						}, nil
 					},
@@ -345,11 +333,9 @@ func TestScaleToZero_Start(t *testing.T) {
 								Phase:          healthyClusterStatus,
 								CurrentPrimary: "test-pod-1",
 							},
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: map[string]string{
-									scaleToZeroEnabledAnnotation: "true",
-									inactivityMinutesAnnotation:  "5",
-								},
+							Annotations: map[string]string{
+								scaleToZeroEnabledAnnotation: "true",
+								inactivityMinutesAnnotation:  "5",
 							},
 						}, nil
 					},
@@ -403,11 +389,9 @@ func TestScaleToZero_Start(t *testing.T) {
 								Phase:          healthyClusterStatus,
 								CurrentPrimary: "test-pod-1",
 							},
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: map[string]string{
-									scaleToZeroEnabledAnnotation: "true",
-									inactivityMinutesAnnotation:  "5",
-								},
+							Annotations: map[string]string{
+								scaleToZeroEnabledAnnotation: "true",
+								inactivityMinutesAnnotation:  "5",
 							},
 						}, nil
 					},
@@ -451,11 +435,9 @@ func TestScaleToZero_Start(t *testing.T) {
 								Phase:          healthyClusterStatus,
 								CurrentPrimary: "test-pod-1",
 							},
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: map[string]string{
-									scaleToZeroEnabledAnnotation: "true",
-									inactivityMinutesAnnotation:  "5",
-								},
+							Annotations: map[string]string{
+								scaleToZeroEnabledAnnotation: "true",
+								inactivityMinutesAnnotation:  "5",
 							},
 						}, nil
 					},
@@ -796,9 +778,7 @@ func Test_hibernate(t *testing.T) {
 						Status: cnpgv1.ClusterStatus{
 							Phase: "NotHealthy",
 						},
-						ObjectMeta: metav1.ObjectMeta{
-							Annotations: map[string]string{},
-						},
+						Annotations: map[string]string{},
 					}, nil
 				},
 				updateClusterFunc: func(ctx context.Context, cluster *cnpgv1.Cluster) error {
@@ -851,9 +831,7 @@ func Test_hibernate(t *testing.T) {
 						Status: cnpgv1.ClusterStatus{
 							Phase: healthyClusterStatus,
 						},
-						ObjectMeta: metav1.ObjectMeta{
-							Annotations: map[string]string{},
-						},
+						Annotations: map[string]string{},
 					}, nil
 				},
 				getClusterScheduledBackupFunc: func(ctx context.Context) (*cnpgv1.ScheduledBackup, error) {
@@ -880,9 +858,7 @@ func Test_hibernate(t *testing.T) {
 						Status: cnpgv1.ClusterStatus{
 							Phase: healthyClusterStatus,
 						},
-						ObjectMeta: metav1.ObjectMeta{
-							Annotations: map[string]string{},
-						},
+						Annotations: map[string]string{},
 					}, nil
 				},
 				updateClusterFunc: func(ctx context.Context, cluster *cnpgv1.Cluster) error {
@@ -899,9 +875,7 @@ func Test_hibernate(t *testing.T) {
 						Status: cnpgv1.ClusterStatus{
 							Phase: healthyClusterStatus,
 						},
-						ObjectMeta: metav1.ObjectMeta{
-							Annotations: map[string]string{},
-						},
+						Annotations: map[string]string{},
 					}, nil
 				},
 				getClusterScheduledBackupFunc: func(ctx context.Context) (*cnpgv1.ScheduledBackup, error) {
@@ -922,9 +896,7 @@ func Test_hibernate(t *testing.T) {
 						Status: cnpgv1.ClusterStatus{
 							Phase: healthyClusterStatus,
 						},
-						ObjectMeta: metav1.ObjectMeta{
-							Annotations: map[string]string{},
-						},
+						Annotations: map[string]string{},
 					}, nil
 				},
 				getClusterScheduledBackupFunc: func(ctx context.Context) (*cnpgv1.ScheduledBackup, error) {
@@ -941,9 +913,7 @@ func Test_hibernate(t *testing.T) {
 						Status: cnpgv1.ClusterStatus{
 							Phase: healthyClusterStatus,
 						},
-						ObjectMeta: metav1.ObjectMeta{
-							Annotations: map[string]string{},
-						},
+						Annotations: map[string]string{},
 					}, nil
 				},
 				getBranchFunc: func(ctx context.Context) (*v1alpha1.Branch, error) {
@@ -964,17 +934,13 @@ func Test_hibernate(t *testing.T) {
 						Status: cnpgv1.ClusterStatus{
 							Phase: healthyClusterStatus,
 						},
-						ObjectMeta: metav1.ObjectMeta{
-							Annotations: map[string]string{},
-						},
+						Annotations: map[string]string{},
 					}, nil
 				},
 				getBranchFunc: func(ctx context.Context) (*v1alpha1.Branch, error) {
 					return &v1alpha1.Branch{
-						ObjectMeta: metav1.ObjectMeta{
-							Annotations: map[string]string{
-								v1alpha1.WakeupPoolAnnotation: "some-pool",
-							},
+						Annotations: map[string]string{
+							v1alpha1.WakeupPoolAnnotation: "some-pool",
 						},
 					}, nil
 				},
@@ -997,9 +963,7 @@ func Test_hibernate(t *testing.T) {
 						Status: cnpgv1.ClusterStatus{
 							Phase: healthyClusterStatus,
 						},
-						ObjectMeta: metav1.ObjectMeta{
-							Annotations: map[string]string{},
-						},
+						Annotations: map[string]string{},
 					}, nil
 				},
 				getBranchFunc: func(ctx context.Context) (*v1alpha1.Branch, error) {
@@ -1065,11 +1029,9 @@ func TestScaleToZero_getScaleToZeroConfig(t *testing.T) {
 		{
 			name: "scale to zero enabled with valid inactivity minutes",
 			cluster: &cnpgv1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						scaleToZeroEnabledAnnotation: "true",
-						inactivityMinutesAnnotation:  "10",
-					},
+				Annotations: map[string]string{
+					scaleToZeroEnabledAnnotation: "true",
+					inactivityMinutesAnnotation:  "10",
 				},
 			},
 			wantCfg: &scaleToZeroConfig{
@@ -1080,11 +1042,9 @@ func TestScaleToZero_getScaleToZeroConfig(t *testing.T) {
 		{
 			name: "scale to zero enabled with invalid inactivity minutes uses default",
 			cluster: &cnpgv1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						scaleToZeroEnabledAnnotation: "true",
-						inactivityMinutesAnnotation:  "notanumber",
-					},
+				Annotations: map[string]string{
+					scaleToZeroEnabledAnnotation: "true",
+					inactivityMinutesAnnotation:  "notanumber",
 				},
 			},
 			wantCfg: &scaleToZeroConfig{
@@ -1095,9 +1055,7 @@ func TestScaleToZero_getScaleToZeroConfig(t *testing.T) {
 		{
 			name: "no scale to zero annotations, uses default values",
 			cluster: &cnpgv1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{},
-				},
+				Annotations: map[string]string{},
 			},
 			wantCfg: &scaleToZeroConfig{
 				enabled:           false,
@@ -1107,10 +1065,8 @@ func TestScaleToZero_getScaleToZeroConfig(t *testing.T) {
 		{
 			name: "scale to zero enabled, no inactivity annotation, uses default inactivity minutes",
 			cluster: &cnpgv1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						scaleToZeroEnabledAnnotation: "true",
-					},
+				Annotations: map[string]string{
+					scaleToZeroEnabledAnnotation: "true",
 				},
 			},
 			wantCfg: &scaleToZeroConfig{

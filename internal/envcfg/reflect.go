@@ -65,12 +65,12 @@ func walkIfcCall(pred func(rv reflect.Value) bool, fn func(v any) error, rv refl
 
 func implementsSetter(rv reflect.Value) bool {
 	if rv.CanInterface() {
-		if _, ok := rv.Interface().(cleanenv.Setter); ok {
+		if _, ok := reflect.TypeAssert[cleanenv.Setter](rv); ok {
 			return true
 		}
 	}
 	if rv.CanAddr() && rv.Addr().CanInterface() {
-		_, ok := rv.Addr().Interface().(cleanenv.Setter)
+		_, ok := reflect.TypeAssert[cleanenv.Setter](rv.Addr())
 		return ok
 	}
 	return false

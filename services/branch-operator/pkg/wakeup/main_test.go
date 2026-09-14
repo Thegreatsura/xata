@@ -122,10 +122,8 @@ func TestMain(m *testing.M) {
 // CSI node plugin pod on the same node.
 func setupPoolCluster(ctx context.Context, pool *poolv1alpha1.ClusterPool, name, namespace string, readyInstances int) (*apiv1.Cluster, error) {
 	cluster := &apiv1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: apiv1.ClusterSpec{
 			Instances: 1,
 		},
@@ -144,9 +142,7 @@ func setupPoolCluster(ctx context.Context, pool *poolv1alpha1.ClusterPool, name,
 
 	// Create a PV with a CSI volume handle for the Cluster
 	pv := &corev1.PersistentVolume{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name + "-pv",
-		},
+		Name: name + "-pv",
 		Spec: corev1.PersistentVolumeSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{
 				corev1.ReadWriteOnce,
@@ -168,10 +164,8 @@ func setupPoolCluster(ctx context.Context, pool *poolv1alpha1.ClusterPool, name,
 
 	// Create a PVC bound to the PV
 	pvc := &corev1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name + "-1",
-			Namespace: namespace,
-		},
+		Name:      name + "-1",
+		Namespace: namespace,
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{
 				corev1.ReadWriteOnce,
@@ -191,10 +185,8 @@ func setupPoolCluster(ctx context.Context, pool *poolv1alpha1.ClusterPool, name,
 	// Create the primary pod on a unique test node
 	nodeName := "test-node-" + name
 	primaryPod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name + "-1",
-			Namespace: namespace,
-		},
+		Name:      name + "-1",
+		Namespace: namespace,
 		Spec: corev1.PodSpec{
 			NodeName:   nodeName,
 			Containers: []corev1.Container{{Name: "postgres", Image: "postgres:17"}},
@@ -206,13 +198,11 @@ func setupPoolCluster(ctx context.Context, pool *poolv1alpha1.ClusterPool, name,
 
 	// Create a CSI node plugin pod on the same node
 	csiNodePod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "xatastor-csi-node-" + name,
-			Namespace: TestNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/component": "csi-node",
-				"app.kubernetes.io/name":      "xatastor-csi",
-			},
+		Name:      "xatastor-csi-node-" + name,
+		Namespace: TestNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/component": "csi-node",
+			"app.kubernetes.io/name":      "xatastor-csi",
 		},
 		Spec: corev1.PodSpec{
 			NodeName:   nodeName,
@@ -250,11 +240,9 @@ func setupPoolCluster(ctx context.Context, pool *poolv1alpha1.ClusterPool, name,
 // wait succeeds on its first poll.
 func seedPasswordSync(ctx context.Context, branch *v1alpha1.Branch, cluster *apiv1.Cluster) error {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      branch.Name + "-app",
-			Namespace: cluster.Namespace,
-		},
-		Type: corev1.SecretTypeBasicAuth,
+		Name:      branch.Name + "-app",
+		Namespace: cluster.Namespace,
+		Type:      corev1.SecretTypeBasicAuth,
 		Data: map[string][]byte{
 			corev1.BasicAuthUsernameKey: []byte("xata"),
 			corev1.BasicAuthPasswordKey: []byte("password"),
@@ -293,10 +281,8 @@ func clusterHasXataRole(cluster *apiv1.Cluster) bool {
 // Available state.
 func createBranch(ctx context.Context, name string, annotations map[string]string) (*v1alpha1.Branch, error) {
 	branch := &v1alpha1.Branch{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Annotations: annotations,
-		},
+		Name:        name,
+		Annotations: annotations,
 		Spec: v1alpha1.BranchSpec{
 			ClusterSpec: v1alpha1.ClusterSpec{
 				Instances: 1,
@@ -375,10 +361,8 @@ func createWakeupRequest(ctx context.Context, name, branchName string) (*v1alpha
 // WakeupRequest's PasswordSync mode explicitly.
 func createWakeupRequestWithPasswordSync(ctx context.Context, name, branchName string, mode v1alpha1.PasswordSyncMode) (*v1alpha1.WakeupRequest, error) {
 	wr := &v1alpha1.WakeupRequest{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: TestNamespace,
-		},
+		Name:      name,
+		Namespace: TestNamespace,
 		Spec: v1alpha1.WakeupRequestSpec{
 			BranchName:   branchName,
 			XVolName:     "xvol-" + branchName,

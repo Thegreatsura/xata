@@ -34,11 +34,9 @@ func TestFindPoolCluster(t *testing.T) {
 	poolUID := types.UID("pool-uid-123")
 
 	matchingPool := &cpv1alpha1.ClusterPool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-pool",
-			Namespace: namespace,
-			UID:       poolUID,
-		},
+		Name:      "test-pool",
+		Namespace: namespace,
+		UID:       poolUID,
 		Spec: cpv1alpha1.ClusterPoolSpec{
 			Clusters: 2,
 			ClusterSpec: apiv1.ClusterSpec{
@@ -57,17 +55,15 @@ func TestFindPoolCluster(t *testing.T) {
 	}
 
 	availableCluster := &apiv1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pool-cluster-1",
-			Namespace: namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: cpv1alpha1.GroupVersion.String(),
-					Kind:       cpv1alpha1.ClusterPoolKind,
-					UID:        poolUID,
-					Name:       "test-pool",
-					Controller: new(true),
-				},
+		Name:      "pool-cluster-1",
+		Namespace: namespace,
+		OwnerReferences: []metav1.OwnerReference{
+			{
+				APIVersion: cpv1alpha1.GroupVersion.String(),
+				Kind:       cpv1alpha1.ClusterPoolKind,
+				UID:        poolUID,
+				Name:       "test-pool",
+				Controller: new(true),
 			},
 		},
 		Status: apiv1.ClusterStatus{
@@ -145,12 +141,10 @@ func TestFindPoolCluster(t *testing.T) {
 		},
 		"matching pool with unhealthy cluster": {
 			objects: []client.Object{matchingPool, &apiv1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "pool-cluster-unhealthy",
-					Namespace: namespace,
-					OwnerReferences: []metav1.OwnerReference{
-						{APIVersion: cpv1alpha1.GroupVersion.String(), Kind: cpv1alpha1.ClusterPoolKind, UID: poolUID, Name: "test-pool", Controller: new(true)},
-					},
+				Name:      "pool-cluster-unhealthy",
+				Namespace: namespace,
+				OwnerReferences: []metav1.OwnerReference{
+					{APIVersion: cpv1alpha1.GroupVersion.String(), Kind: cpv1alpha1.ClusterPoolKind, UID: poolUID, Name: "test-pool", Controller: new(true)},
 				},
 				Status: apiv1.ClusterStatus{
 					Phase: apiv1.PhaseWaitingForInstancesToBeActive,
@@ -212,11 +206,9 @@ func TestFindPoolClusterConcurrent(t *testing.T) {
 	poolUID := types.UID("pool-uid-123")
 
 	pool := &cpv1alpha1.ClusterPool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-pool",
-			Namespace: namespace,
-			UID:       poolUID,
-		},
+		Name:      "test-pool",
+		Namespace: namespace,
+		UID:       poolUID,
 		Spec: cpv1alpha1.ClusterPoolSpec{
 			Clusters: 1,
 			ClusterSpec: apiv1.ClusterSpec{
@@ -235,17 +227,15 @@ func TestFindPoolClusterConcurrent(t *testing.T) {
 	}
 
 	cluster := &apiv1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pool-cluster-1",
-			Namespace: namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: cpv1alpha1.GroupVersion.String(),
-					Kind:       cpv1alpha1.ClusterPoolKind,
-					UID:        poolUID,
-					Name:       "test-pool",
-					Controller: new(true),
-				},
+		Name:      "pool-cluster-1",
+		Namespace: namespace,
+		OwnerReferences: []metav1.OwnerReference{
+			{
+				APIVersion: cpv1alpha1.GroupVersion.String(),
+				Kind:       cpv1alpha1.ClusterPoolKind,
+				UID:        poolUID,
+				Name:       "test-pool",
+				Controller: new(true),
 			},
 		},
 		Status: apiv1.ClusterStatus{
@@ -294,14 +284,12 @@ func TestFindPoolClusterConcurrent(t *testing.T) {
 func TestOrphanCluster(t *testing.T) {
 	ctx := context.Background()
 	cluster := &apiv1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pool-cluster-1",
-			Namespace: "xata-clusters",
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					UID:  types.UID("pool-uid"),
-					Name: "test-pool",
-				},
+		Name:      "pool-cluster-1",
+		Namespace: "xata-clusters",
+		OwnerReferences: []metav1.OwnerReference{
+			{
+				UID:  types.UID("pool-uid"),
+				Name: "test-pool",
 			},
 		},
 	}
@@ -345,11 +333,9 @@ func TestFindHealthyClusterInPool(t *testing.T) {
 	poolUID := types.UID("pool-uid-123")
 
 	pool := &cpv1alpha1.ClusterPool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-pool",
-			Namespace: namespace,
-			UID:       poolUID,
-		},
+		Name:      "test-pool",
+		Namespace: namespace,
+		UID:       poolUID,
 	}
 
 	ownerRef := metav1.OwnerReference{
@@ -368,10 +354,8 @@ func TestFindHealthyClusterInPool(t *testing.T) {
 	}{
 		"returns healthy cluster": {
 			objects: []client.Object{pool, &apiv1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "healthy-1", Namespace: namespace,
-					OwnerReferences: []metav1.OwnerReference{ownerRef},
-				},
+				Name: "healthy-1", Namespace: namespace,
+				OwnerReferences: []metav1.OwnerReference{ownerRef},
 				Status: apiv1.ClusterStatus{
 					Phase:          apiv1.PhaseHealthy,
 					ReadyInstances: 1,
@@ -381,12 +365,10 @@ func TestFindHealthyClusterInPool(t *testing.T) {
 		},
 		"skips cluster being deleted": {
 			objects: []client.Object{pool, &apiv1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "deleting-1", Namespace: namespace,
-					OwnerReferences:   []metav1.OwnerReference{ownerRef},
-					DeletionTimestamp: &now,
-					Finalizers:        []string{"test-finalizer"},
-				},
+				Name: "deleting-1", Namespace: namespace,
+				OwnerReferences:   []metav1.OwnerReference{ownerRef},
+				DeletionTimestamp: &now,
+				Finalizers:        []string{"test-finalizer"},
 				Status: apiv1.ClusterStatus{
 					Phase:          apiv1.PhaseHealthy,
 					ReadyInstances: 1,
@@ -395,33 +377,27 @@ func TestFindHealthyClusterInPool(t *testing.T) {
 		},
 		"skips unhealthy cluster": {
 			objects: []client.Object{pool, &apiv1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "unhealthy-1", Namespace: namespace,
-					OwnerReferences: []metav1.OwnerReference{ownerRef},
-				},
-				Status: apiv1.ClusterStatus{Phase: apiv1.PhaseWaitingForInstancesToBeActive},
+				Name: "unhealthy-1", Namespace: namespace,
+				OwnerReferences: []metav1.OwnerReference{ownerRef},
+				Status:          apiv1.ClusterStatus{Phase: apiv1.PhaseWaitingForInstancesToBeActive},
 			}},
 		},
 		"picks first healthy, skips deleting": {
 			objects: []client.Object{
 				pool,
 				&apiv1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "deleting-1", Namespace: namespace,
-						OwnerReferences:   []metav1.OwnerReference{ownerRef},
-						DeletionTimestamp: &now,
-						Finalizers:        []string{"test-finalizer"},
-					},
+					Name: "deleting-1", Namespace: namespace,
+					OwnerReferences:   []metav1.OwnerReference{ownerRef},
+					DeletionTimestamp: &now,
+					Finalizers:        []string{"test-finalizer"},
 					Status: apiv1.ClusterStatus{
 						Phase:          apiv1.PhaseHealthy,
 						ReadyInstances: 1,
 					},
 				},
 				&apiv1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "healthy-2", Namespace: namespace,
-						OwnerReferences: []metav1.OwnerReference{ownerRef},
-					},
+					Name: "healthy-2", Namespace: namespace,
+					OwnerReferences: []metav1.OwnerReference{ownerRef},
 					Status: apiv1.ClusterStatus{
 						Phase:          apiv1.PhaseHealthy,
 						ReadyInstances: 1,

@@ -2,7 +2,7 @@ package keycloak
 
 import "context"
 
-//go:generate go run github.com/vektra/mockery/v3 --with-expecter --name KeyCloak
+//go:generate go run github.com/vektra/mockery/v2 --with-expecter --name KeyCloak
 
 type GetOrganizationOptions struct {
 	IncludeDeleted bool

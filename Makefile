@@ -129,7 +129,7 @@ generate-buf:
 .PHONY: generate-go
 generate-go: ## Generate Go code (use FILES="path1 path2" for specific files/dirs)
 	@GEN_ARGS=$$(if [ -z "$(FILES)" ]; then echo "./..."; else echo "$(FILES)"; fi); \
-	GODEBUG=gotypesalias=0 $(GO) generate $$GEN_ARGS
+	$(GO) generate $$GEN_ARGS
 
 .PHONY: generate-agents
 generate-agents: ## Generate agent files

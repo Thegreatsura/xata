@@ -11,7 +11,6 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clustersv1 "xata/gen/proto/clusters/v1"
@@ -42,16 +41,14 @@ func (c *ClustersService) createAppSecret(ctx context.Context, name string, req 
 	}
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.config.ClustersNamespace,
-			Labels: map[string]string{
-				// Trigger reloads of the CNPG Cluster when the Secret changes
-				"cnpg.io/reload": "true",
-				LabelOrgID:       req.GetOrganizationId(),
-				LabelProjectID:   req.GetProjectId(),
-				LabelBranchID:    req.GetId(),
-			},
+		Name:      name,
+		Namespace: c.config.ClustersNamespace,
+		Labels: map[string]string{
+			// Trigger reloads of the CNPG Cluster when the Secret changes
+			"cnpg.io/reload": "true",
+			LabelOrgID:       req.GetOrganizationId(),
+			LabelProjectID:   req.GetProjectId(),
+			LabelBranchID:    req.GetId(),
 		},
 		Type: corev1.SecretTypeBasicAuth,
 		Data: map[string][]byte{
@@ -121,15 +118,13 @@ func (c *ClustersService) createPgBackRestSecret(
 	}
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      key.Name,
-			Namespace: c.config.ClustersNamespace,
-			Labels: map[string]string{
-				"cnpg.io/reload": "true",
-				LabelOrgID:       branch.Labels[LabelOrgID],
-				LabelProjectID:   branch.Labels[LabelProjectID],
-				LabelBranchID:    branch.Name,
-			},
+		Name:      key.Name,
+		Namespace: c.config.ClustersNamespace,
+		Labels: map[string]string{
+			"cnpg.io/reload": "true",
+			LabelOrgID:       branch.Labels[LabelOrgID],
+			LabelProjectID:   branch.Labels[LabelProjectID],
+			LabelBranchID:    branch.Name,
 		},
 		Immutable: new(true),
 		Type:      corev1.SecretTypeOpaque,
@@ -238,7 +233,7 @@ func setPgBackRestCipherReferences(branch *branchv1alpha1.Branch, hasTargetPassp
 
 func pgBackRestSecretKeySelector(branchID, key string) *corev1.SecretKeySelector {
 	return &corev1.SecretKeySelector{
-		LocalObjectReference: corev1.LocalObjectReference{Name: branchID + PgBackRestSecretSuffix},
-		Key:                  key,
+		Name: branchID + PgBackRestSecretSuffix,
+		Key:  key,
 	}
 }

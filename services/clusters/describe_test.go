@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 
@@ -91,9 +90,7 @@ func TestBuildClusterStatus(t *testing.T) {
 		},
 		"hibernated trumps healthy phase": {
 			cluster: &apiv1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{hibernationAnnotation: hibernationEnabled},
-				},
+				Annotations: map[string]string{hibernationAnnotation: hibernationEnabled},
 				Status: apiv1.ClusterStatus{
 					Phase: apiv1.PhaseHealthy,
 				},

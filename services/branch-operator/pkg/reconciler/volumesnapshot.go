@@ -8,7 +8,6 @@ import (
 	snapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -114,10 +113,8 @@ func (r *BranchReconciler) ensureVolumeSnapshotExists(
 	}
 
 	vs := &snapshotv1.VolumeSnapshot{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      branch.Spec.Restore.Name + "-" + branch.Name,
-			Namespace: r.ClustersNamespace,
-		},
+		Name:      branch.Spec.Restore.Name + "-" + branch.Name,
+		Namespace: r.ClustersNamespace,
 	}
 
 	// Create or update the VolumeSnapshot

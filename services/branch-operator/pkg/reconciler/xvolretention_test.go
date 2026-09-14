@@ -10,7 +10,6 @@ import (
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -305,10 +304,8 @@ func createBoundPVCAndXVol(ctx context.Context, t *testing.T, pvcName, xvolName,
 
 	// Construct the PV
 	pv := &corev1.PersistentVolume{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        pvName,
-			Annotations: annotations,
-		},
+		Name:        pvName,
+		Annotations: annotations,
 		Spec: corev1.PersistentVolumeSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Capacity: corev1.ResourceList{
@@ -328,10 +325,8 @@ func createBoundPVCAndXVol(ctx context.Context, t *testing.T, pvcName, xvolName,
 	// Construct a PVC that binds to the PV via spec.volumeName
 	storageClass := "test-storage"
 	pvc := &corev1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      pvcName,
-			Namespace: XataClustersNamespace,
-		},
+		Name:      pvcName,
+		Namespace: XataClustersNamespace,
 		Spec: corev1.PersistentVolumeClaimSpec{
 			StorageClassName: &storageClass,
 			VolumeName:       pvName,

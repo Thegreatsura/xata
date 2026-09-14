@@ -1,6 +1,6 @@
 version: "2"
 run:
-  go: "1.26"
+  go: "1.27"
 linters:
   default: none
   enable:
@@ -32,6 +32,10 @@ linters:
           msg: "use envtestutil.Setup so the cross-process kube-apiserver binary lock is held"
     goconst:
       numbers: true
+      # Preserve the checks used before composite literal support was added.
+      exclude-types:
+        - call
+        - compositelit
     gocritic:
       disabled-checks:
         - exitAfterDefer

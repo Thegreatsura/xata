@@ -1,6 +1,6 @@
 package postgresversions
 
-//go:generate go run github.com/vektra/mockery/v3 --output mocks --outpkg mocks --with-expecter --name ImageProvider
+//go:generate go run github.com/vektra/mockery/v2 --output mocks --outpkg mocks --with-expecter --name ImageProvider
 
 // ImageProvider defines the interface for PostgreSQL image and version operations
 type ImageProvider interface {

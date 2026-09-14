@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-//go:generate go run github.com/vektra/mockery/v3 --with-expecter --name Connector
+//go:generate go run github.com/vektra/mockery/v2 --with-expecter --name Connector
 
 // Connector is an interface for interacting with the cnpg operator
 type Connector interface {

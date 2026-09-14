@@ -386,10 +386,8 @@ func TestCreatePostgresCluster(t *testing.T) {
 			parentBranch:  nil,
 			sourceCluster: sourceClusterForPITR(),
 			objectStore: &barmanPluginApi.ObjectStore{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "source-cluster-for-pitr",
-					Namespace: "xata-clusters",
-				},
+				Name:      "source-cluster-for-pitr",
+				Namespace: "xata-clusters",
 				Status: barmanPluginApi.ObjectStoreStatus{
 					ServerRecoveryWindow: map[string]barmanPluginApi.RecoveryWindow{},
 				},
@@ -408,10 +406,8 @@ func TestCreatePostgresCluster(t *testing.T) {
 			parentBranch:  nil,
 			sourceCluster: sourceClusterForPITR(),
 			objectStore: &barmanPluginApi.ObjectStore{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "source-cluster-for-pitr",
-					Namespace: "xata-clusters",
-				},
+				Name:      "source-cluster-for-pitr",
+				Namespace: "xata-clusters",
 				Status: barmanPluginApi.ObjectStoreStatus{
 					ServerRecoveryWindow: map[string]barmanPluginApi.RecoveryWindow{
 						"source-cluster-for-pitr": {
@@ -958,11 +954,9 @@ func TestCreatePostgresClusterAppSecret(t *testing.T) {
 	t.Run("pre-existing secret - data preserved", func(t *testing.T) {
 		req, _, _, _, _ := exampleRequestsAndBranches()
 		existing := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      req.GetId() + "-app",
-				Namespace: "xata-clusters",
-			},
-			Type: corev1.SecretTypeBasicAuth,
+			Name:      req.GetId() + "-app",
+			Namespace: "xata-clusters",
+			Type:      corev1.SecretTypeBasicAuth,
 			Data: map[string][]byte{
 				corev1.BasicAuthUsernameKey: []byte("xata"),
 				corev1.BasicAuthPasswordKey: []byte("existing-password"),
@@ -1006,12 +1000,10 @@ func TestCreatePostgresClusterPgBackRestSecret(t *testing.T) {
 
 	pgBackRestBranch := func(name string, restore *v1alpha1.RestoreSpec) *v1alpha1.Branch {
 		return &v1alpha1.Branch{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-				Labels: map[string]string{
-					LabelOrgID:     "org-id",
-					LabelProjectID: "project-id",
-				},
+			Name: name,
+			Labels: map[string]string{
+				LabelOrgID:     "org-id",
+				LabelProjectID: "project-id",
 			},
 			Spec: v1alpha1.BranchSpec{
 				BackupSpec: &v1alpha1.BackupSpec{
@@ -1070,10 +1062,8 @@ func TestCreatePostgresClusterPgBackRestSecret(t *testing.T) {
 	t.Run("encrypted restore copies the source cipher", func(t *testing.T) {
 		sourceCipher := []byte("source-passphrase")
 		sourceSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "source-branch-pgbackrest",
-				Namespace: "xata-clusters",
-			},
+			Name:      "source-branch-pgbackrest",
+			Namespace: "xata-clusters",
 			Data: map[string][]byte{
 				PgBackRestCipherPassphraseKey: sourceCipher,
 			},
@@ -1108,10 +1098,8 @@ func TestCreatePostgresClusterPgBackRestSecret(t *testing.T) {
 	t.Run("disabled target encryption can restore an encrypted source", func(t *testing.T) {
 		sourceCipher := []byte("source-passphrase")
 		sourceSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "source-branch-pgbackrest",
-				Namespace: "xata-clusters",
-			},
+			Name:      "source-branch-pgbackrest",
+			Namespace: "xata-clusters",
 			Immutable: new(true),
 			Data: map[string][]byte{
 				PgBackRestCipherPassphraseKey: sourceCipher,
@@ -1158,8 +1146,8 @@ func TestCreatePostgresClusterPgBackRestSecret(t *testing.T) {
 
 	t.Run("retry reuses the existing target cipher", func(t *testing.T) {
 		existing := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: secretKey.Name, Namespace: secretKey.Namespace},
-			Immutable:  new(true),
+			Name: secretKey.Name, Namespace: secretKey.Namespace,
+			Immutable: new(true),
 			Data: map[string][]byte{
 				PgBackRestCipherPassphraseKey: []byte("existing-passphrase"),
 			},
@@ -1190,9 +1178,9 @@ func TestCreatePostgresClusterPgBackRestSecret(t *testing.T) {
 			{
 				name: "Secret without selected key",
 				source: &corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{Name: "source-branch-pgbackrest", Namespace: "xata-clusters"},
-					Immutable:  new(true),
-					Data:       map[string][]byte{"another-key": []byte("source-passphrase")},
+					Name: "source-branch-pgbackrest", Namespace: "xata-clusters",
+					Immutable: new(true),
+					Data:      map[string][]byte{"another-key": []byte("source-passphrase")},
 				},
 				statusCode: codes.FailedPrecondition,
 			},
@@ -1584,7 +1572,7 @@ func TestDescribePostgresCluster(t *testing.T) {
 			existingObjects: func() []client.Object {
 				return []client.Object{
 					&v1alpha1.Branch{
-						ObjectMeta: metav1.ObjectMeta{Name: "test-branch"},
+						Name: "test-branch",
 						Spec: v1alpha1.BranchSpec{
 							ClusterSpec: v1alpha1.ClusterSpec{
 								Name:      new("test-branch-cluster"),
@@ -1624,10 +1612,8 @@ func TestDescribePostgresCluster(t *testing.T) {
 						},
 					},
 					&apiv1.Cluster{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "test-branch-cluster",
-							Namespace: "xata-clusters",
-						},
+						Name:      "test-branch-cluster",
+						Namespace: "xata-clusters",
 						Spec: apiv1.ClusterSpec{
 							StorageConfiguration: apiv1.StorageConfiguration{
 								Size: "100Gi",
@@ -1687,7 +1673,7 @@ func TestDescribePostgresCluster(t *testing.T) {
 			existingObjects: func() []client.Object {
 				return []client.Object{
 					&v1alpha1.Branch{
-						ObjectMeta: metav1.ObjectMeta{Name: "test-branch"},
+						Name: "test-branch",
 						Spec: v1alpha1.BranchSpec{
 							ClusterSpec: v1alpha1.ClusterSpec{
 								Name:        new("test-branch-cluster"),
@@ -1702,12 +1688,10 @@ func TestDescribePostgresCluster(t *testing.T) {
 						},
 					},
 					&apiv1.Cluster{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "test-branch-cluster",
-							Namespace: "xata-clusters",
-							Annotations: map[string]string{
-								"cnpg.io/hibernation": "on",
-							},
+						Name:      "test-branch-cluster",
+						Namespace: "xata-clusters",
+						Annotations: map[string]string{
+							"cnpg.io/hibernation": "on",
 						},
 						Spec: apiv1.ClusterSpec{
 							StorageConfiguration: apiv1.StorageConfiguration{
@@ -1751,7 +1735,7 @@ func TestDescribePostgresCluster(t *testing.T) {
 			existingObjects: func() []client.Object {
 				return []client.Object{
 					&v1alpha1.Branch{
-						ObjectMeta: metav1.ObjectMeta{Name: "test-branch"},
+						Name: "test-branch",
 						Spec: v1alpha1.BranchSpec{
 							ClusterSpec: v1alpha1.ClusterSpec{
 								Name:      new("test-branch-cluster"),
@@ -1765,10 +1749,8 @@ func TestDescribePostgresCluster(t *testing.T) {
 						},
 					},
 					&apiv1.Cluster{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "test-branch-cluster",
-							Namespace: "xata-clusters",
-						},
+						Name:      "test-branch-cluster",
+						Namespace: "xata-clusters",
 						Spec: apiv1.ClusterSpec{
 							StorageConfiguration: apiv1.StorageConfiguration{
 								Size: "100Gi",
@@ -2029,11 +2011,9 @@ func TestRotatePostgresClusterCredentials(t *testing.T) {
 			}
 			if tt.createSecret {
 				existingObjs = append(existingObjs, &corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      secretName,
-						Namespace: "xata-clusters",
-					},
-					Type: corev1.SecretTypeBasicAuth,
+					Name:      secretName,
+					Namespace: "xata-clusters",
+					Type:      corev1.SecretTypeBasicAuth,
 					Data: map[string][]byte{
 						corev1.BasicAuthUsernameKey: []byte("user"),
 						corev1.BasicAuthPasswordKey: []byte("pass"),
@@ -2146,7 +2126,7 @@ func TestGetRecoveryWindow(t *testing.T) {
 	recoveryTime := metav1.NewTime(time.Date(2023, 1, 2, 15, 30, 0, 0, time.UTC))
 
 	pgbackrestBranch := &v1alpha1.Branch{
-		ObjectMeta: metav1.ObjectMeta{Name: "branch-1"},
+		Name: "branch-1",
 		Spec: v1alpha1.BranchSpec{
 			BackupSpec: &v1alpha1.BackupSpec{
 				Method:     v1alpha1.BackupMethodPgBackRest,
@@ -2162,7 +2142,7 @@ func TestGetRecoveryWindow(t *testing.T) {
 	}
 
 	barmanBranch := &v1alpha1.Branch{
-		ObjectMeta: metav1.ObjectMeta{Name: "branch-1"},
+		Name: "branch-1",
 	}
 
 	tests := map[string]struct {
@@ -2655,12 +2635,10 @@ func exampleRequestsAndBranches() (*clustersv1.CreatePostgresClusterRequest, *v1
 			},
 		},
 		&v1alpha1.Branch{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "lsmevenv7t3l56euo1v9bh3b74",
-				Labels: map[string]string{
-					LabelOrgID:     "jf1tpn",
-					LabelProjectID: "prj_9tmrorf02l0gv9ioptqat1uc6k",
-				},
+			Name: "lsmevenv7t3l56euo1v9bh3b74",
+			Labels: map[string]string{
+				LabelOrgID:     "jf1tpn",
+				LabelProjectID: "prj_9tmrorf02l0gv9ioptqat1uc6k",
 			},
 			Spec: v1alpha1.BranchSpec{
 				ClusterSpec: v1alpha1.ClusterSpec{
@@ -2806,12 +2784,10 @@ func exampleRequestsAndBranches() (*clustersv1.CreatePostgresClusterRequest, *v1
 			},
 		},
 		&v1alpha1.Branch{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "lsmevenv7t3l56euo1v9bh3b74",
-				Labels: map[string]string{
-					LabelOrgID:     "jf1tpn",
-					LabelProjectID: "prj_9tmrorf02l0gv9ioptqat1uc6k",
-				},
+			Name: "lsmevenv7t3l56euo1v9bh3b74",
+			Labels: map[string]string{
+				LabelOrgID:     "jf1tpn",
+				LabelProjectID: "prj_9tmrorf02l0gv9ioptqat1uc6k",
 			},
 			Spec: v1alpha1.BranchSpec{
 				ClusterSpec: v1alpha1.ClusterSpec{
@@ -2885,9 +2861,7 @@ func exampleRequestsAndBranches() (*clustersv1.CreatePostgresClusterRequest, *v1
 
 func parentBranch(opts ...parentBranchOption) *v1alpha1.Branch {
 	b := &v1alpha1.Branch{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "gmnfj6042d3qd09dcc8a7le0eo",
-		},
+		Name: "gmnfj6042d3qd09dcc8a7le0eo",
 		Spec: v1alpha1.BranchSpec{
 			ClusterSpec: v1alpha1.ClusterSpec{
 				Image: "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:16.3",
@@ -2982,10 +2956,8 @@ func withWakeupPool(pool string) parentBranchOption {
 
 func sourceClusterForPITR() *apiv1.Cluster {
 	return &apiv1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "source-cluster-for-pitr",
-			Namespace: "xata-clusters",
-		},
+		Name:      "source-cluster-for-pitr",
+		Namespace: "xata-clusters",
 		Spec: apiv1.ClusterSpec{
 			ImageName: "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:16.3",
 			StorageConfiguration: apiv1.StorageConfiguration{
@@ -3050,10 +3022,8 @@ func expectPgBackRestBackupSpec(b *v1alpha1.Branch) {
 
 func objectStoreForPITR() *barmanPluginApi.ObjectStore {
 	return &barmanPluginApi.ObjectStore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "source-cluster-for-pitr",
-			Namespace: "xata-clusters",
-		},
+		Name:      "source-cluster-for-pitr",
+		Namespace: "xata-clusters",
 		Status: barmanPluginApi.ObjectStoreStatus{
 			ServerRecoveryWindow: map[string]barmanPluginApi.RecoveryWindow{
 				"source-cluster-for-pitr": {
@@ -3066,11 +3036,9 @@ func objectStoreForPITR() *barmanPluginApi.ObjectStore {
 
 func poolForTest(storageClass, image, cpu, memory string) *cpv1alpha1.ClusterPool {
 	return &cpv1alpha1.ClusterPool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-pool",
-			Namespace: "xata-clusters",
-			UID:       "pool-uid-123",
-		},
+		Name:      "test-pool",
+		Namespace: "xata-clusters",
+		UID:       "pool-uid-123",
 		Spec: cpv1alpha1.ClusterPoolSpec{
 			Clusters: 2,
 			ClusterSpec: apiv1.ClusterSpec{
@@ -3091,17 +3059,15 @@ func poolForTest(storageClass, image, cpu, memory string) *cpv1alpha1.ClusterPoo
 
 func poolClusterForTest() *apiv1.Cluster {
 	return &apiv1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pool-cluster-1",
-			Namespace: "xata-clusters",
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: cpv1alpha1.GroupVersion.String(),
-					Kind:       cpv1alpha1.ClusterPoolKind,
-					UID:        "pool-uid-123",
-					Name:       "test-pool",
-					Controller: new(true),
-				},
+		Name:      "pool-cluster-1",
+		Namespace: "xata-clusters",
+		OwnerReferences: []metav1.OwnerReference{
+			{
+				APIVersion: cpv1alpha1.GroupVersion.String(),
+				Kind:       cpv1alpha1.ClusterPoolKind,
+				UID:        "pool-uid-123",
+				Name:       "test-pool",
+				Controller: new(true),
 			},
 		},
 		Status: apiv1.ClusterStatus{
@@ -3136,16 +3102,14 @@ func TestCreateWakeupRequestFromUpdate(t *testing.T) {
 	// need to assert on the behaviour when a WUR already exists for the branch
 	existingWUR := func(condStatus metav1.ConditionStatus, reason string) *v1alpha1.WakeupRequest {
 		return &v1alpha1.WakeupRequest{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      branchName,
-				Namespace: namespace,
-				Labels:    map[string]string{"initialWUR": "true"},
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						APIVersion: v1alpha1.GroupVersion.String(),
-						Kind:       v1alpha1.BranchKind,
-						Name:       branchName,
-					},
+			Name:      branchName,
+			Namespace: namespace,
+			Labels:    map[string]string{"initialWUR": "true"},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: v1alpha1.GroupVersion.String(),
+					Kind:       v1alpha1.BranchKind,
+					Name:       branchName,
 				},
 			},
 			Spec: v1alpha1.WakeupRequestSpec{
@@ -3316,10 +3280,8 @@ func TestCreateWakeupRequestForNewBranch(t *testing.T) {
 
 	newChild := func(restore *v1alpha1.RestoreSpec) *v1alpha1.Branch {
 		return &v1alpha1.Branch{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      childName,
-				Namespace: namespace,
-			},
+			Name:      childName,
+			Namespace: namespace,
 			Spec: v1alpha1.BranchSpec{
 				Restore: restore,
 			},
@@ -3328,10 +3290,8 @@ func TestCreateWakeupRequestForNewBranch(t *testing.T) {
 
 	newParent := func() *v1alpha1.Branch {
 		return &v1alpha1.Branch{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      parentName,
-				Namespace: namespace,
-			},
+			Name:      parentName,
+			Namespace: namespace,
 		}
 	}
 

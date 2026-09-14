@@ -7,7 +7,7 @@ import (
 	"xata/internal/api/key"
 )
 
-//go:generate go run github.com/vektra/mockery/v3 --with-expecter --name AuthStore
+//go:generate go run github.com/vektra/mockery/v2 --with-expecter --name AuthStore
 
 // AuthStore stores information about authentication
 type AuthStore interface {

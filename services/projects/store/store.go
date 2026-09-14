@@ -504,7 +504,7 @@ type VercelResourceBranch struct {
 	DeletedAt    *time.Time           `json:"deletedAt,omitempty"`
 }
 
-//go:generate go run github.com/vektra/mockery/v3 --with-expecter --name ProjectsStore
+//go:generate go run github.com/vektra/mockery/v2 --with-expecter --name ProjectsStore
 
 // OrganizationStatus is the desired enabled/disabled state of an organization
 // together with the progress of propagating that state to the branches in the

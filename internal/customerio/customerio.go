@@ -1,7 +1,7 @@
 // Package customerio provides a client for sending transactional emails via the Customer.io API.
 package customerio
 
-//go:generate go run github.com/vektra/mockery/v3 --output mocks --outpkg mocks --with-expecter --name APIClientInterface
+//go:generate go run github.com/vektra/mockery/v2 --output mocks --outpkg mocks --with-expecter --name APIClientInterface
 
 import (
 	"context"

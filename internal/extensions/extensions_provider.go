@@ -1,6 +1,6 @@
 package extensions
 
-//go:generate go run github.com/vektra/mockery/v3 --output mocks --outpkg mocks --with-expecter --name ExtensionsProvider
+//go:generate go run github.com/vektra/mockery/v2 --output mocks --outpkg mocks --with-expecter --name ExtensionsProvider
 
 // ExtensionsProvider defines the interface for PostgreSQL extension operations
 type ExtensionsProvider interface {

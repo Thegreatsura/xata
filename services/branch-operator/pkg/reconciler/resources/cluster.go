@@ -250,10 +250,8 @@ func ClusterSpec(
 			WithTLSConfig(apiv1ac.ClusterMonitoringTLSConfiguration().
 				WithEnabled(true)).
 			WithCustomQueriesConfigMap(machineryapi.ConfigMapKeySelector{
-				Key: "metrics.yaml",
-				LocalObjectReference: machineryapi.LocalObjectReference{
-					Name: "cnpg-custom-metrics",
-				},
+				Key:  "metrics.yaml",
+				Name: "cnpg-custom-metrics",
 			})).
 		WithAffinity(affinity).
 		WithInheritedMetadata(apiv1ac.EmbeddedObjectMetadata().
@@ -505,10 +503,8 @@ func pgbackrestRepository(
 		repo = repo.WithCipher(apiv1ac.PgBackRestCipher().
 			WithType("aes-256-cbc").
 			WithPassphrase(machineryapi.SecretKeySelector{
-				LocalObjectReference: machineryapi.LocalObjectReference{
-					Name: cipherPassphraseSecretRef.Name,
-				},
-				Key: cipherPassphraseSecretRef.Key,
+				Name: cipherPassphraseSecretRef.Name,
+				Key:  cipherPassphraseSecretRef.Key,
 			}))
 	}
 
@@ -552,12 +548,12 @@ func pgbackrestS3(
 		ac = ac.WithEndpoint(s3.Endpoint).
 			WithInheritFromIAMRole(false).
 			WithAccessKeyID(machineryapi.SecretKeySelector{
-				LocalObjectReference: machineryapi.LocalObjectReference{Name: secretName},
-				Key:                  creds.AccessKeyIDKey,
+				Name: secretName,
+				Key:  creds.AccessKeyIDKey,
 			}).
 			WithSecretAccessKey(machineryapi.SecretKeySelector{
-				LocalObjectReference: machineryapi.LocalObjectReference{Name: secretName},
-				Key:                  creds.SecretAccessKeyKey,
+				Name: secretName,
+				Key:  creds.SecretAccessKeyKey,
 			})
 	}
 

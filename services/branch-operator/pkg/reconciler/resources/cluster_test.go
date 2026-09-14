@@ -523,12 +523,12 @@ func TestClusterSpec(t *testing.T) {
 								WithEndpoint("http://minio.local:9000").
 								WithInheritFromIAMRole(false).
 								WithAccessKeyID(machineryapi.SecretKeySelector{
-									LocalObjectReference: machineryapi.LocalObjectReference{Name: "minio-eu"},
-									Key:                  "rootUser",
+									Name: "minio-eu",
+									Key:  "rootUser",
 								}).
 								WithSecretAccessKey(machineryapi.SecretKeySelector{
-									LocalObjectReference: machineryapi.LocalObjectReference{Name: "minio-eu"},
-									Key:                  "rootPassword",
+									Name: "minio-eu",
+									Key:  "rootPassword",
 								}))).
 						WithOptions(apiv1ac.PgBackRestOptions().
 							WithCompressType("lz4").
@@ -585,12 +585,12 @@ func TestClusterSpec(t *testing.T) {
 								WithEndpoint("https://s3.example.com").
 								WithInheritFromIAMRole(false).
 								WithAccessKeyID(machineryapi.SecretKeySelector{
-									LocalObjectReference: machineryapi.LocalObjectReference{Name: "backup-s3-credentials"},
-									Key:                  "ACCESS_KEY_ID",
+									Name: "backup-s3-credentials",
+									Key:  "ACCESS_KEY_ID",
 								}).
 								WithSecretAccessKey(machineryapi.SecretKeySelector{
-									LocalObjectReference: machineryapi.LocalObjectReference{Name: "backup-s3-credentials"},
-									Key:                  "SECRET_ACCESS_KEY",
+									Name: "backup-s3-credentials",
+									Key:  "SECRET_ACCESS_KEY",
 								}))).
 						WithOptions(apiv1ac.PgBackRestOptions().
 							WithCompressType("lz4").
@@ -650,12 +650,12 @@ func TestClusterSpec(t *testing.T) {
 								WithEndpoint("https://s3.example.com").
 								WithInheritFromIAMRole(false).
 								WithAccessKeyID(machineryapi.SecretKeySelector{
-									LocalObjectReference: machineryapi.LocalObjectReference{Name: "branch-pinned-credentials"},
-									Key:                  "ACCESS_KEY_ID",
+									Name: "branch-pinned-credentials",
+									Key:  "ACCESS_KEY_ID",
 								}).
 								WithSecretAccessKey(machineryapi.SecretKeySelector{
-									LocalObjectReference: machineryapi.LocalObjectReference{Name: "branch-pinned-credentials"},
-									Key:                  "SECRET_ACCESS_KEY",
+									Name: "branch-pinned-credentials",
+									Key:  "SECRET_ACCESS_KEY",
 								}))).
 						WithOptions(apiv1ac.PgBackRestOptions().
 							WithCompressType("lz4").
@@ -937,14 +937,12 @@ func TestClusterSpec(t *testing.T) {
 // testcase can apply modifications
 func baseClusterConfig() resources.ClusterConfig {
 	return resources.ClusterConfig{
-		ClusterSpec: v1alpha1.ClusterSpec{
-			Instances: 1,
-			Storage: v1alpha1.StorageSpec{
-				Size:                "10Gi",
-				VolumeSnapshotClass: new("snapshot-class"),
-			},
-			Image: testImage,
+		Instances: 1,
+		Storage: v1alpha1.StorageSpec{
+			Size:                "10Gi",
+			VolumeSnapshotClass: new("snapshot-class"),
 		},
+		Image: testImage,
 		BackupCredentials: resources.BackupCredentials{
 			SecretName:         "minio-eu",
 			AccessKeyIDKey:     "rootUser",
@@ -966,8 +964,8 @@ func TestClusterSpecPgBackRestCipherReferences(t *testing.T) {
 				InheritFromIAMRole: true,
 			},
 			CipherPassphraseSecretRef: &corev1.SecretKeySelector{
-				LocalObjectReference: corev1.LocalObjectReference{Name: "branch-pgbackrest"},
-				Key:                  "cipher-passphrase",
+				Name: "branch-pgbackrest",
+				Key:  "cipher-passphrase",
 			},
 		},
 	}
@@ -975,8 +973,8 @@ func TestClusterSpecPgBackRestCipherReferences(t *testing.T) {
 		Type: v1alpha1.RestoreTypeObjectStore,
 		Name: "source-branch",
 		PgBackRestCipherPassphraseSecretRef: &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{Name: "branch-pgbackrest"},
-			Key:                  "restore-cipher-passphrase",
+			Name: "branch-pgbackrest",
+			Key:  "restore-cipher-passphrase",
 		},
 	}
 
@@ -1237,10 +1235,8 @@ func baseExpectedSpec() *apiv1ac.ClusterSpecApplyConfiguration {
 			WithTLSConfig(apiv1ac.ClusterMonitoringTLSConfiguration().
 				WithEnabled(true)).
 			WithCustomQueriesConfigMap(machineryapi.ConfigMapKeySelector{
-				Key: "metrics.yaml",
-				LocalObjectReference: machineryapi.LocalObjectReference{
-					Name: "cnpg-custom-metrics",
-				},
+				Key:  "metrics.yaml",
+				Name: "cnpg-custom-metrics",
 			})).
 		WithAffinity(apiv1ac.AffinityConfiguration()).
 		WithInheritedMetadata(apiv1ac.EmbeddedObjectMetadata().

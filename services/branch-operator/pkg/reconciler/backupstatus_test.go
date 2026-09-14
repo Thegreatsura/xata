@@ -31,9 +31,9 @@ func TestBackupStatus(t *testing.T) {
 
 			// Set backup fields on the Cluster status
 			setClusterStatus(ctx, t, &cluster, apiv1.ClusterStatus{
-				FirstRecoverabilityPoint: "2026-08-13T10:00:00Z",
-				LastSuccessfulBackup:     "2026-08-13T11:00:00Z",
-				LastFailedBackup:         "2026-08-13T09:00:00Z",
+				FirstRecoverabilityPoint: "2026-08-13T10:00:00Z", //nolint:staticcheck // Verify that legacy CNPG backup status is copied.
+				LastSuccessfulBackup:     "2026-08-13T11:00:00Z", //nolint:staticcheck // Verify that legacy CNPG backup status is copied.
+				LastFailedBackup:         "2026-08-13T09:00:00Z", //nolint:staticcheck // Verify that legacy CNPG backup status is copied.
 				LastRecoverabilityPoint:  "2026-08-13T11:30:00Z",
 			})
 
@@ -74,7 +74,7 @@ func TestBackupStatus(t *testing.T) {
 			// Set backup fields on the Cluster status; no spec change follows,
 			// so only the Cluster watch predicate can trigger the reconcile
 			setClusterStatus(ctx, t, &cluster, apiv1.ClusterStatus{
-				LastSuccessfulBackup: "2026-08-13T11:00:00Z",
+				LastSuccessfulBackup: "2026-08-13T11:00:00Z", //nolint:staticcheck // Verify that legacy CNPG backup status changes are copied.
 			})
 
 			// Assert the backup field is copied to the Branch status
@@ -110,7 +110,7 @@ func TestBackupStatus(t *testing.T) {
 			// Set backup fields and the primary on the Cluster status
 			setClusterStatus(ctx, t, &cluster, apiv1.ClusterStatus{
 				CurrentPrimary:       pvcName,
-				LastSuccessfulBackup: "2026-08-13T11:00:00Z",
+				LastSuccessfulBackup: "2026-08-13T11:00:00Z", //nolint:staticcheck // Verify that legacy CNPG backup status survives hibernation.
 			})
 
 			// Trigger re-reconciliation by updating a spec field

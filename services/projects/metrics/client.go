@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-//go:generate go run github.com/vektra/mockery/v3 --output metricsmock --outpkg metricsmock --with-expecter --name Client
+//go:generate go run github.com/vektra/mockery/v2 --output metricsmock --outpkg metricsmock --with-expecter --name Client
 
 type Client interface {
 	// GetMetrics returns the time serie(s) for the given metrics and

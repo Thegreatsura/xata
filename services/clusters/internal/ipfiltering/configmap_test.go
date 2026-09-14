@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -27,12 +26,10 @@ func newScheme(t *testing.T) *runtime.Scheme {
 func newConfigMap(data map[string]IPFilteringConfig) *v1.ConfigMap {
 	raw, _ := json.Marshal(data)
 	return &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            ConfigMapName,
-			Namespace:       testNamespace,
-			UID:             "test-uid",
-			ResourceVersion: "1",
-		},
+		Name:            ConfigMapName,
+		Namespace:       testNamespace,
+		UID:             "test-uid",
+		ResourceVersion: "1",
 		Data: map[string]string{
 			ConfigMapKey: string(raw),
 		},
@@ -182,10 +179,8 @@ func TestGetBranchIPFiltering(t *testing.T) {
 		},
 		"empty ConfigMap returns default": {
 			existing: []client.Object{&v1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      ConfigMapName,
-					Namespace: testNamespace,
-				},
+				Name:      ConfigMapName,
+				Namespace: testNamespace,
 			}},
 			branchID: "branch-1",
 			want:     DefaultIPFilteringConfig(),

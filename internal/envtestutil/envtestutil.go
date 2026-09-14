@@ -12,7 +12,6 @@ import (
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -124,7 +123,7 @@ func Setup(opts Options) *Env {
 	// Create the requested namespaces
 	for _, ns := range opts.Namespaces {
 		err = k8sClient.Create(ctx, &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: ns},
+			Name: ns,
 		})
 		if err != nil {
 			log.Fatalf("create namespace %q: %v", ns, err)

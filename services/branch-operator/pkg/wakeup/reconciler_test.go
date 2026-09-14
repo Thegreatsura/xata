@@ -31,10 +31,8 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Create a ClusterPool
 		pool := &poolv1alpha1.ClusterPool{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      poolName,
-				Namespace: TestNamespace,
-			},
+			Name:      poolName,
+			Namespace: TestNamespace,
 			Spec: poolv1alpha1.ClusterPoolSpec{
 				Clusters: 1,
 				ClusterSpec: apiv1.ClusterSpec{
@@ -128,10 +126,8 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Create a ClusterPool
 		pool := &poolv1alpha1.ClusterPool{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      poolName,
-				Namespace: TestNamespace,
-			},
+			Name:      poolName,
+			Namespace: TestNamespace,
 			Spec: poolv1alpha1.ClusterPoolSpec{
 				Clusters: 1,
 				ClusterSpec: apiv1.ClusterSpec{
@@ -193,10 +189,8 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Create a ClusterPool
 		pool := &poolv1alpha1.ClusterPool{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      poolName,
-				Namespace: TestNamespace,
-			},
+			Name:      poolName,
+			Namespace: TestNamespace,
 			Spec: poolv1alpha1.ClusterPoolSpec{
 				Clusters: 1,
 				ClusterSpec: apiv1.ClusterSpec{
@@ -253,10 +247,8 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Create a ClusterPool
 		pool := &poolv1alpha1.ClusterPool{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      poolName,
-				Namespace: TestNamespace,
-			},
+			Name:      poolName,
+			Namespace: TestNamespace,
 			Spec: poolv1alpha1.ClusterPoolSpec{
 				Clusters: 1,
 				ClusterSpec: apiv1.ClusterSpec{
@@ -328,10 +320,8 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Create a ClusterPool
 		pool := &poolv1alpha1.ClusterPool{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      poolName,
-				Namespace: TestNamespace,
-			},
+			Name:      poolName,
+			Namespace: TestNamespace,
 			Spec: poolv1alpha1.ClusterPoolSpec{
 				Clusters: 1,
 				ClusterSpec: apiv1.ClusterSpec{
@@ -380,10 +370,8 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Create a ClusterPool
 		pool := &poolv1alpha1.ClusterPool{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      poolName,
-				Namespace: TestNamespace,
-			},
+			Name:      poolName,
+			Namespace: TestNamespace,
 			Spec: poolv1alpha1.ClusterPoolSpec{
 				Clusters: 1,
 				ClusterSpec: apiv1.ClusterSpec{
@@ -490,10 +478,8 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Create a ClusterPool
 		pool := &poolv1alpha1.ClusterPool{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      poolName,
-				Namespace: TestNamespace,
-			},
+			Name:      poolName,
+			Namespace: TestNamespace,
 			Spec: poolv1alpha1.ClusterPoolSpec{
 				Clusters: 1,
 				ClusterSpec: apiv1.ClusterSpec{
@@ -505,11 +491,9 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Create a healthy Cluster owned by the pool
 		cluster := &apiv1.Cluster{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      clusterName,
-				Namespace: TestNamespace,
-			},
-			Spec: apiv1.ClusterSpec{Instances: 1},
+			Name:      clusterName,
+			Namespace: TestNamespace,
+			Spec:      apiv1.ClusterSpec{Instances: 1},
 		}
 		require.NoError(t, controllerutil.SetControllerReference(pool, cluster, testScheme))
 		require.NoError(t, k8sClient.Create(ctx, cluster))
@@ -517,9 +501,7 @@ func TestWakeupReconciler(t *testing.T) {
 		// Create a PV with a CSI volume source
 		pvName := clusterName + "-pv"
 		pv := &corev1.PersistentVolume{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: pvName,
-			},
+			Name: pvName,
 			Spec: corev1.PersistentVolumeSpec{
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				Capacity: corev1.ResourceList{
@@ -538,10 +520,8 @@ func TestWakeupReconciler(t *testing.T) {
 		// Create a PVC bound to the PV
 		pvcName := clusterName + "-1"
 		pvc := &corev1.PersistentVolumeClaim{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      pvcName,
-				Namespace: TestNamespace,
-			},
+			Name:      pvcName,
+			Namespace: TestNamespace,
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				Resources: corev1.VolumeResourceRequirements{
@@ -557,10 +537,8 @@ func TestWakeupReconciler(t *testing.T) {
 		// Create the primary pod on a node — but do NOT create a CSI node pod
 		nodeName := "test-node-" + clusterName
 		primaryPod := &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      pvcName,
-				Namespace: TestNamespace,
-			},
+			Name:      pvcName,
+			Namespace: TestNamespace,
 			Spec: corev1.PodSpec{
 				NodeName:   nodeName,
 				Containers: []corev1.Container{{Name: "postgres", Image: "postgres:17"}},
@@ -602,10 +580,8 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Create a ClusterPool
 		pool := &poolv1alpha1.ClusterPool{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      poolName,
-				Namespace: TestNamespace,
-			},
+			Name:      poolName,
+			Namespace: TestNamespace,
 			Spec: poolv1alpha1.ClusterPoolSpec{
 				Clusters: 1,
 				ClusterSpec: apiv1.ClusterSpec{
@@ -617,11 +593,9 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Create a healthy Cluster owned by the pool but with no TargetPrimary
 		cluster := &apiv1.Cluster{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      clusterName,
-				Namespace: TestNamespace,
-			},
-			Spec: apiv1.ClusterSpec{Instances: 1},
+			Name:      clusterName,
+			Namespace: TestNamespace,
+			Spec:      apiv1.ClusterSpec{Instances: 1},
 		}
 		require.NoError(t, controllerutil.SetControllerReference(pool, cluster, testScheme))
 		require.NoError(t, k8sClient.Create(ctx, cluster))

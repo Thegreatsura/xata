@@ -140,10 +140,8 @@ func ObjectStoreSpec(
 	awsCredentials := &apiv1.S3Credentials{
 		InheritFromIAMRole: true,
 		RegionReference: &apiv1.SecretKeySelector{
-			LocalObjectReference: apiv1.LocalObjectReference{
-				Name: barmanRegionSecretName,
-			},
-			Key: barmanRegionSecretKey,
+			Name: barmanRegionSecretName,
+			Key:  barmanRegionSecretKey,
 		},
 	}
 
@@ -183,16 +181,12 @@ func ObjectStoreSpec(
 		spec.Configuration.EndpointURL = backupsEndpoint
 		awsCredentials.InheritFromIAMRole = false
 		awsCredentials.AccessKeyIDReference = &apiv1.SecretKeySelector{
-			LocalObjectReference: apiv1.LocalObjectReference{
-				Name: credentials.SecretName,
-			},
-			Key: credentials.AccessKeyIDKey,
+			Name: credentials.SecretName,
+			Key:  credentials.AccessKeyIDKey,
 		}
 		awsCredentials.SecretAccessKeyReference = &apiv1.SecretKeySelector{
-			LocalObjectReference: apiv1.LocalObjectReference{
-				Name: credentials.SecretName,
-			},
-			Key: credentials.SecretAccessKeyKey,
+			Name: credentials.SecretName,
+			Key:  credentials.SecretAccessKeyKey,
 		}
 		return spec
 	}
@@ -238,11 +232,9 @@ func ScheduledBackupSpec(clusterName, schedule string, suspend bool, method v1al
 // Owner references and labels are set by the reconciler.
 func Secret(name, namespace, username, password string) *v1.Secret {
 	return &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Type: v1.SecretTypeBasicAuth,
+		Name:      name,
+		Namespace: namespace,
+		Type:      v1.SecretTypeBasicAuth,
 		Data: map[string][]byte{
 			v1.BasicAuthUsernameKey: []byte(username),
 			v1.BasicAuthPasswordKey: []byte(password),

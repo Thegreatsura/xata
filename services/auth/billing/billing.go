@@ -7,7 +7,7 @@ import (
 	authv1 "xata/gen/proto/auth/v1"
 )
 
-//go:generate go run github.com/vektra/mockery/v3 --output billingmock --outpkg billingmock --with-expecter --name Client
+//go:generate go run github.com/vektra/mockery/v2 --output billingmock --outpkg billingmock --with-expecter --name Client
 
 const (
 	TrialCreditExpiryDays      = 15

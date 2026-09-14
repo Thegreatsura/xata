@@ -106,7 +106,7 @@ type ClusterServicePayload struct {
 	Limits                *store.OrgLimits
 }
 
-//go:generate go run github.com/vektra/mockery/v3 --output mocks --outpkg mocks --with-expecter --name Provisioner
+//go:generate go run github.com/vektra/mockery/v2 --output mocks --outpkg mocks --with-expecter --name Provisioner
 type Provisioner interface {
 	CreateBranch(ctx context.Context, projectID, organizationID, name string, payload *ClusterServicePayload) (*store.Branch, error)
 	DeleteBranch(ctx context.Context, organizationID, projectID, branchID string) error

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
@@ -54,11 +53,9 @@ func SetBranchIPFiltering(ctx context.Context, kubeClient client.Client, namespa
 			if apierrors.IsNotFound(err) {
 				// ConfigMap doesn't exist, create it
 				configMap = &v1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      ConfigMapName,
-						Namespace: namespace,
-					},
-					Data: make(map[string]string),
+					Name:      ConfigMapName,
+					Namespace: namespace,
+					Data:      make(map[string]string),
 				}
 			} else {
 				return fmt.Errorf("getting ConfigMap: %w", err)
@@ -142,11 +139,9 @@ func SetBranchesIPFiltering(ctx context.Context, kubeClient client.Client, names
 			if apierrors.IsNotFound(err) {
 				// ConfigMap doesn't exist, create it
 				configMap = &v1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      ConfigMapName,
-						Namespace: namespace,
-					},
-					Data: make(map[string]string),
+					Name:      ConfigMapName,
+					Namespace: namespace,
+					Data:      make(map[string]string),
 				}
 			} else {
 				return fmt.Errorf("getting ConfigMap: %w", err)

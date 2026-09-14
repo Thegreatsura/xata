@@ -51,12 +51,10 @@ type resourceConfigurer interface {
 // CreatePostgresClusterRequest.
 func (b *BranchBuilder) FromCreateClusterRequest(r *clustersv1.CreatePostgresClusterRequest) *BranchBuilder {
 	b.branch = &v1alpha1.Branch{
-		ObjectMeta: v1.ObjectMeta{
-			Name: r.GetId(),
-			Labels: map[string]string{
-				LabelOrgID:     r.GetOrganizationId(),
-				LabelProjectID: r.GetProjectId(),
-			},
+		Name: r.GetId(),
+		Labels: map[string]string{
+			LabelOrgID:     r.GetOrganizationId(),
+			LabelProjectID: r.GetProjectId(),
 		},
 		Spec: v1alpha1.BranchSpec{
 			InheritedMetadata: &v1alpha1.InheritedMetadata{

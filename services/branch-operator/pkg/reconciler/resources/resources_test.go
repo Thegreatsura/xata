@@ -231,10 +231,8 @@ func TestObjectStoreSpec(t *testing.T) {
 						AWS: &apiv1.S3Credentials{
 							InheritFromIAMRole: true,
 							RegionReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "barman-dummy-secret",
-								},
-								Key: "dummy",
+								Name: "barman-dummy-secret",
+								Key:  "dummy",
 							},
 						},
 					},
@@ -277,10 +275,8 @@ func TestObjectStoreSpec(t *testing.T) {
 						AWS: &apiv1.S3Credentials{
 							InheritFromIAMRole: true,
 							RegionReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "custom-barman-region-secret",
-								},
-								Key: "region",
+								Name: "custom-barman-region-secret",
+								Key:  "region",
 							},
 						},
 					},
@@ -328,22 +324,16 @@ func TestObjectStoreSpec(t *testing.T) {
 					BarmanCredentials: apiv1.BarmanCredentials{
 						AWS: &apiv1.S3Credentials{
 							RegionReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "barman-dummy-secret",
-								},
-								Key: "dummy",
+								Name: "barman-dummy-secret",
+								Key:  "dummy",
 							},
 							AccessKeyIDReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "minio-eu",
-								},
-								Key: "rootUser",
+								Name: "minio-eu",
+								Key:  "rootUser",
 							},
 							SecretAccessKeyReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "minio-eu",
-								},
-								Key: "rootPassword",
+								Name: "minio-eu",
+								Key:  "rootPassword",
 							},
 							InheritFromIAMRole: false,
 						},
@@ -392,22 +382,16 @@ func TestObjectStoreSpec(t *testing.T) {
 					BarmanCredentials: apiv1.BarmanCredentials{
 						AWS: &apiv1.S3Credentials{
 							RegionReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "barman-dummy-secret",
-								},
-								Key: "dummy",
+								Name: "barman-dummy-secret",
+								Key:  "dummy",
 							},
 							AccessKeyIDReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "minio-eu",
-								},
-								Key: "rootUser",
+								Name: "minio-eu",
+								Key:  "rootUser",
 							},
 							SecretAccessKeyReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "minio-eu",
-								},
-								Key: "rootPassword",
+								Name: "minio-eu",
+								Key:  "rootPassword",
 							},
 							InheritFromIAMRole: false,
 						},
@@ -457,22 +441,16 @@ func TestObjectStoreSpec(t *testing.T) {
 					BarmanCredentials: apiv1.BarmanCredentials{
 						AWS: &apiv1.S3Credentials{
 							RegionReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "barman-region",
-								},
-								Key: "region",
+								Name: "barman-region",
+								Key:  "region",
 							},
 							AccessKeyIDReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "backup-s3-credentials",
-								},
-								Key: "ACCESS_KEY_ID",
+								Name: "backup-s3-credentials",
+								Key:  "ACCESS_KEY_ID",
 							},
 							SecretAccessKeyReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "backup-s3-credentials",
-								},
-								Key: "SECRET_ACCESS_KEY",
+								Name: "backup-s3-credentials",
+								Key:  "SECRET_ACCESS_KEY",
 							},
 							InheritFromIAMRole: false,
 						},
@@ -575,22 +553,16 @@ func TestObjectStoreSpec(t *testing.T) {
 						AWS: &apiv1.S3Credentials{
 							InheritFromIAMRole: false,
 							RegionReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "barman-dummy-secret",
-								},
-								Key: "dummy",
+								Name: "barman-dummy-secret",
+								Key:  "dummy",
 							},
 							AccessKeyIDReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "minio-eu",
-								},
-								Key: "rootUser",
+								Name: "minio-eu",
+								Key:  "rootUser",
 							},
 							SecretAccessKeyReference: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "minio-eu",
-								},
-								Key: "rootPassword",
+								Name: "minio-eu",
+								Key:  "rootPassword",
 							},
 						},
 					},
@@ -807,11 +779,9 @@ func TestSecret(t *testing.T) {
 			username:  "postgres",
 			password:  "supersecret",
 			want: &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "branch-1-superuser",
-					Namespace: "xata-clusters",
-				},
-				Type: v1.SecretTypeBasicAuth,
+				Name:      "branch-1-superuser",
+				Namespace: "xata-clusters",
+				Type:      v1.SecretTypeBasicAuth,
 				Data: map[string][]byte{
 					v1.BasicAuthUsernameKey: []byte("postgres"),
 					v1.BasicAuthPasswordKey: []byte("supersecret"),
@@ -824,11 +794,9 @@ func TestSecret(t *testing.T) {
 			username:  "xata",
 			password:  "appsecret",
 			want: &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "branch-1-app",
-					Namespace: "xata-clusters",
-				},
-				Type: v1.SecretTypeBasicAuth,
+				Name:      "branch-1-app",
+				Namespace: "xata-clusters",
+				Type:      v1.SecretTypeBasicAuth,
 				Data: map[string][]byte{
 					v1.BasicAuthUsernameKey: []byte("xata"),
 					v1.BasicAuthPasswordKey: []byte("appsecret"),

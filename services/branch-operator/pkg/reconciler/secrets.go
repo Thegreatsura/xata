@@ -7,7 +7,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -100,10 +99,8 @@ func (r *BranchReconciler) reconcileSecret(ctx context.Context,
 	branch *v1alpha1.Branch, name, username string,
 ) (controllerutil.OperationResult, error) {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: r.ClustersNamespace,
-		},
+		Name:      name,
+		Namespace: r.ClustersNamespace,
 	}
 
 	return controllerutil.CreateOrUpdate(ctx, r.Client, secret, func() error {

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	networkingv1 "k8s.io/api/networking/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -20,10 +19,8 @@ func (r *BranchReconciler) reconcileNetworkPolicy(
 	branch *v1alpha1.Branch,
 ) (controllerutil.OperationResult, error) {
 	np := &networkingv1.NetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      branch.Name,
-			Namespace: r.ClustersNamespace,
-		},
+		Name:      branch.Name,
+		Namespace: r.ClustersNamespace,
 	}
 
 	// If the branch has no cluster defined, ensure its NetworkPolicy doesn't

@@ -16,8 +16,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-//go:generate go run github.com/vektra/mockery/v3 --output cellsmock --outpkg cellsmock --with-expecter --name Cells
-//go:generate go run github.com/vektra/mockery/v3 --output cellsmock --outpkg cellsmock --with-expecter --name CellClient
+//go:generate go run github.com/vektra/mockery/v2 --output cellsmock --outpkg cellsmock --with-expecter --name Cells
+//go:generate go run github.com/vektra/mockery/v2 --output cellsmock --outpkg cellsmock --with-expecter --name CellClient
 
 // Cells client for interacting with the clusters service (connect to cells)
 type Cells interface {

@@ -267,8 +267,11 @@ func isIgnorableError(err error) bool {
 }
 
 func branchIDFromError(err error) string {
-	var branchErr interface{ BranchID() string }
-	if errors.As(err, &branchErr) {
+	type branchIDError interface {
+		error
+		BranchID() string
+	}
+	if branchErr, ok := errors.AsType[branchIDError](err); ok {
 		return branchErr.BranchID()
 	}
 	return ""

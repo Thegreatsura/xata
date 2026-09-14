@@ -6,7 +6,6 @@ import (
 
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	apiv1ac "github.com/xataio/xata-cnpg/pkg/client/applyconfiguration/api/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,10 +38,8 @@ func (r *BranchReconciler) reconcilePooler(
 	// configuration
 	if !branch.Spec.Pooler.IsEnabled() {
 		pooler := &apiv1.Pooler{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      poolerName,
-				Namespace: r.ClustersNamespace,
-			},
+			Name:      poolerName,
+			Namespace: r.ClustersNamespace,
 		}
 		err := r.Get(ctx, types.NamespacedName{
 			Name:      poolerName,

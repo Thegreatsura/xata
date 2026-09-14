@@ -5,7 +5,6 @@ import (
 
 	barmanPluginApi "github.com/cloudnative-pg/plugin-barman-cloud/api/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -21,10 +20,8 @@ func (r *BranchReconciler) reconcileObjectStore(
 	branch *v1alpha1.Branch,
 ) (controllerutil.OperationResult, error) {
 	os := &barmanPluginApi.ObjectStore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      branch.Name,
-			Namespace: r.ClustersNamespace,
-		},
+		Name:      branch.Name,
+		Namespace: r.ClustersNamespace,
 	}
 
 	// ObjectStore is only needed for barman. If no backup config or using pgbackrest,

@@ -108,10 +108,8 @@ func (c *ClustersService) ensureWakeupRequest(ctx context.Context,
 
 	// Build the new WakeupRequest for the branch
 	wur = &v1alpha1.WakeupRequest{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      branch.Name,
-			Namespace: c.config.ClustersNamespace,
-		},
+		Name:      branch.Name,
+		Namespace: c.config.ClustersNamespace,
 		Spec: v1alpha1.WakeupRequestSpec{
 			BranchName:   branch.Name,
 			XVolName:     xvolName,

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"xata/services/branch-operator/api/v1alpha1"
@@ -57,10 +56,8 @@ func (r *BranchReconciler) reconcileAdditionalServicePooler(
 
 	name := "branch-" + branch.Name + "-pooler"
 	svc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: r.ClustersNamespace,
-		},
+		Name:      name,
+		Namespace: r.ClustersNamespace,
 	}
 
 	// The Service keeps its branch-based name so callers addressing it are
@@ -95,10 +92,8 @@ func (r *BranchReconciler) reconcileAdditionalService(
 	branch *v1alpha1.Branch, name, selectorType string,
 ) (controllerutil.OperationResult, error) {
 	svc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: r.ClustersNamespace,
-		},
+		Name:      name,
+		Namespace: r.ClustersNamespace,
 	}
 
 	result, err := controllerutil.CreateOrUpdate(ctx, r.Client, svc, func() error {
