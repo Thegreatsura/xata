@@ -20,8 +20,10 @@ const (
 	Viewer Role = "viewer"
 )
 
-// Default is what a member with no reserved group resolves to.
-const Default = Editor
+// Unassigned is what a member holds until a role is granted them. It is the least
+// of the roles on purpose: a membership the backfill missed, or one created while
+// nothing was watching, costs its holder access rather than handing it to them.
+const Unassigned = Viewer
 
 // Definition describes a role for the API.
 type Definition struct {
@@ -94,7 +96,7 @@ func (s *rolesService) Members(ctx context.Context, organizationID string) (map[
 
 	byUser := make(map[string]Role, len(orgMembers))
 	for _, m := range orgMembers {
-		byUser[m.ID] = Default
+		byUser[m.ID] = Unassigned
 	}
 
 	groups, err := s.kcRest.ListGroups(ctx, s.realm, organizationID)

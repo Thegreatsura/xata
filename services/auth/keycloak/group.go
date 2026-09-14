@@ -130,35 +130,12 @@ func (r *restKC) ListGroupMembers(ctx context.Context, realm, organizationID, gr
 		return nil, fmt.Errorf("failed to join URL: %w", err)
 	}
 
-	queryParams := map[string]string{
-		"max": fmt.Sprintf("%d", MaxOrganizationMembers),
-	}
-
-	resp, err := r.makeAuthenticatedRequest(ctx, "GET", listURL, queryParams, nil)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode() == http.StatusNotFound {
-		return nil, ErrGroupNotFound{ID: groupID}
-	}
-	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK) {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
-	}
-
-	var users []User
-	if err := json.Unmarshal(resp.Body(), &users); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal group members: %w", err)
-	}
-
-	res := make([]OrganizationMember, len(users))
-	for i, u := range users {
-		res[i] = OrganizationMember{
-			Email: u.Email,
-			Name:  fmt.Sprintf("%s %s", u.FirstName, u.LastName),
-			ID:    u.ID,
+	return r.listAllMembers(ctx, listURL, func(status int) error {
+		if status == http.StatusNotFound {
+			return ErrGroupNotFound{ID: groupID}
 		}
-	}
-	return res, nil
+		return fmt.Errorf("unexpected status code: %d", status)
+	})
 }
 
 func (r *restKC) AddGroupMember(ctx context.Context, realm, organizationID, groupID, userID string) error {

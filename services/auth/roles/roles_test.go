@@ -2,6 +2,7 @@ package roles
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"xata/internal/apitest"
@@ -61,10 +62,10 @@ func TestMembers(t *testing.T) {
 		holders    map[string][]string
 		want       map[string]Role
 	}{
-		"a member with no reserved group holds the default role": {
+		"a member with no reserved group holds the least role": {
 			orgMembers: []string{testUserID},
 			holders:    map[string][]string{},
-			want:       map[string]Role{testUserID: Default},
+			want:       map[string]Role{testUserID: Unassigned},
 		},
 		"each reserved group reports its role": {
 			orgMembers: []string{testUserID, otherID},
@@ -84,6 +85,25 @@ func TestMembers(t *testing.T) {
 			require.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestMembersPagesBeyondOnePage(t *testing.T) {
+	// The keycloak client pages; this asserts the service reports a role for every
+	// member it is handed, however many that is.
+	const count = 250
+	ids := make([]string, count)
+	for i := range ids {
+		ids[i] = fmt.Sprintf("user-%d", i)
+	}
+
+	s := newService(t, ids, map[string][]string{adminID: ids[:1]}, nil)
+
+	got, err := s.Members(context.Background(), testOrgID)
+
+	require.NoError(t, err)
+	require.Len(t, got, count)
+	require.Equal(t, Admin, got[ids[0]])
+	require.Equal(t, Unassigned, got[ids[count-1]], "a member past the first page must still be reported")
 }
 
 func TestSetMember(t *testing.T) {

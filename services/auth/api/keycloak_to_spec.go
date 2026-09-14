@@ -59,7 +59,7 @@ func ToSpecOrganizationMembersWithRoles(members []keycloak.OrganizationMember, h
 	for i, member := range members {
 		role := held[member.ID]
 		if role == "" {
-			role = roles.Default
+			role = roles.Unassigned
 		}
 		result[i] = spec.OrganizationMember{
 			Email: openapi_types.Email(member.Email),

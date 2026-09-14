@@ -228,32 +228,48 @@ func (r *restKC) ListMembers(ctx context.Context, realm string, organizationID s
 		return nil, fmt.Errorf("failed to join URL: %w", err)
 	}
 
-	queryParams := map[string]string{
-		"max": fmt.Sprintf("%d", MaxOrganizationMembers),
-	}
+	return r.listAllMembers(ctx, listURL, func(status int) error {
+		return fmt.Errorf("unexpected status code: %d", status)
+	})
+}
 
-	resp, err := r.makeAuthenticatedRequest(ctx, "GET", listURL, queryParams, nil)
-	if err != nil {
-		return nil, err
-	}
-	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK) {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
-	}
+// memberPageSize is how many members are read per request. It is a page size, not
+// a ceiling: an organization may be granted a membership limit above it.
+const memberPageSize = 100
 
-	var users []User
-	if err := json.Unmarshal(resp.Body(), &users); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal members: %w", err)
-	}
+// listAllMembers pages until Keycloak returns a short page, so a membership limit
+// larger than one page still yields every member.
+func (r *restKC) listAllMembers(ctx context.Context, listURL string, statusErr func(int) error) ([]OrganizationMember, error) {
+	var members []OrganizationMember
+	for first := 0; ; first += memberPageSize {
+		queryParams := map[string]string{
+			"first": fmt.Sprintf("%d", first),
+			"max":   fmt.Sprintf("%d", memberPageSize),
+		}
 
-	res := make([]OrganizationMember, len(users))
-	for i, u := range users {
-		res[i] = OrganizationMember{
-			Email: u.Email,
-			Name:  fmt.Sprintf("%s %s", u.FirstName, u.LastName),
-			ID:    u.ID,
+		resp, err := r.makeAuthenticatedRequest(ctx, "GET", listURL, queryParams, nil)
+		if err != nil {
+			return nil, err
+		}
+		if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK) {
+			return nil, statusErr(resp.StatusCode())
+		}
+
+		var users []User
+		if err := json.Unmarshal(resp.Body(), &users); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal members: %w", err)
+		}
+		for _, u := range users {
+			members = append(members, OrganizationMember{
+				Email: u.Email,
+				Name:  fmt.Sprintf("%s %s", u.FirstName, u.LastName),
+				ID:    u.ID,
+			})
+		}
+		if len(users) < memberPageSize {
+			return members, nil
 		}
 	}
-	return res, nil
 }
 
 func (r *restKC) CreateInvitation(ctx context.Context, realm string, organizationID string, email string) error {
