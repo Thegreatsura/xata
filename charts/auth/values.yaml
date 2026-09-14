@@ -120,6 +120,21 @@ manualInvoiceReadyAlerts:
       cpu: 50m
       memory: 64Mi
 
+ssoDomainRecheck:
+  schedule: "0 3 * * *"
+  timeZone: "Etc/UTC"
+  # How long a verification record may be missing before the domain stops being
+  # verified. Revoking takes a domain's members back to a password login.
+  grace: "72h"
+  suspend: true
+  resources:
+    limits:
+      cpu: 100m
+      memory: 64Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
 trialExpiryEmails:
   schedule: "0 9 * * *"
   timeZone: "Etc/UTC"
