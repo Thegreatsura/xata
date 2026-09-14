@@ -5,10 +5,4 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   scheduler.yaml: |-
-    default: {{ .Values.scheduler.default }}
-    {{- if .Values.scheduler.regions }}
-    regions:
-      {{- range $region, $strategy := .Values.scheduler.regions }}
-      {{ $region }}: {{ $strategy }}
-      {{- end }}
-    {{- end }}
+    {{- toYaml .Values.scheduler | nindent 4 }}

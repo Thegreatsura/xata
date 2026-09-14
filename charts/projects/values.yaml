@@ -74,11 +74,7 @@ externalSecrets:
   posthogSecret: posthog
   customerioSecret: ""
 
-scheduler:
-  # A minimal CNPG cluster scheduler configuration. Override to configure
-  # specific schedulers for configured regions.
-  default: AlwaysPrimary
-  regions: {}
+scheduler: {}
 
 resources:
   limits:
