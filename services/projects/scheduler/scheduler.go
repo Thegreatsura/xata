@@ -6,7 +6,7 @@ import (
 
 	"xata/services/projects/scheduler/strategy"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 // Scheduler resolves which scheduling strategy to use based on its config
@@ -15,41 +15,30 @@ type Scheduler struct {
 	regionStrategies map[string]strategy.Interface
 }
 
+// config is the scheduler configuration file
+type config struct {
+	Default strategy.Config            `yaml:"default"`
+	Regions map[string]strategy.Config `yaml:"regions"`
+}
+
 // NewScheduler creates a new scheduler from the provided configuration reader
 func NewScheduler(r io.Reader) (*Scheduler, error) {
-	var config struct {
-		DefaultStrategy strategy.Name            `yaml:"default"`
-		Regions         map[string]strategy.Name `yaml:"regions"`
-	}
-
-	// Decode YAML configuration
-	decoder := yaml.NewDecoder(r)
-	decoder.KnownFields(true)
-	if err := decoder.Decode(&config); err != nil {
+	var cfg config
+	decoder := yaml.NewDecoder(r, yaml.Strict())
+	if err := decoder.Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidConfig, err)
 	}
 
 	// Set default strategy if not specified
-	if config.DefaultStrategy == "" {
-		config.DefaultStrategy = strategy.AlwaysPrimaryStrategyName
+	defaultStrategy := cfg.Default.Interface
+	if defaultStrategy == nil {
+		defaultStrategy = &strategy.AlwaysPrimary{}
 	}
 
-	// Create strategies for all regions in the config
-	regionStrategies := make(map[string]strategy.Interface)
-	for regionID, strategyName := range config.Regions {
-		s, err := strategyName.ToStrategy()
-		if err != nil {
-			return nil, err
-		}
-		regionStrategies[regionID] = s
+	regionStrategies := make(map[string]strategy.Interface, len(cfg.Regions))
+	for regionID, regionCfg := range cfg.Regions {
+		regionStrategies[regionID] = regionCfg.Interface
 	}
-
-	// Create default strategy
-	s, err := config.DefaultStrategy.ToStrategy()
-	if err != nil {
-		return nil, err
-	}
-	defaultStrategy := s
 
 	return &Scheduler{
 		DefaultStrategy:  defaultStrategy,

@@ -1,2 +1,3 @@
 # Set a default strategy for all regions
-default: "Random"
+default:
+  type: Random

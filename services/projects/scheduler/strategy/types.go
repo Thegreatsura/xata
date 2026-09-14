@@ -6,34 +6,107 @@ import (
 	"fmt"
 
 	"xata/services/projects/store"
+
+	"github.com/goccy/go-yaml"
+	"github.com/goccy/go-yaml/ast"
+	"github.com/goccy/go-yaml/token"
 )
 
-type Name string
+type Type string
 
 const (
-	AlwaysPrimaryStrategyName   Name = "AlwaysPrimary"
-	AlwaysSecondaryStrategyName Name = "AlwaysSecondary"
-	RandomStrategyName          Name = "Random"
+	AlwaysPrimaryStrategyType   Type = "AlwaysPrimary"
+	AlwaysSecondaryStrategyType Type = "AlwaysSecondary"
+	RandomStrategyType          Type = "Random"
+	PinnedStrategyType          Type = "Pinned"
+	WeightedStrategyType        Type = "Weighted"
 )
 
 var ErrInvalidStrategy = errors.New("invalid strategy")
 
-// Interface defines the interface for a scheduling strategy.
+// Interface defines the interface for a scheduling strategy
 type Interface interface {
-	// Schedule selects a cell from the provided list of cells.
 	Schedule(ctx context.Context, cells []store.Cell) (*store.Cell, error)
 }
 
-// ToStrategy converts a Name to its corresponding strategy implementation.
-func (s Name) ToStrategy() (Interface, error) {
-	switch s {
-	case AlwaysPrimaryStrategyName:
-		return &AlwaysPrimary{}, nil
-	case AlwaysSecondaryStrategyName:
-		return &AlwaysSecondary{}, nil
-	case RandomStrategyName:
-		return &Random{}, nil
-	default:
-		return nil, fmt.Errorf("%w - %q", ErrInvalidStrategy, s)
+// validator is implemented by strategies whose parameters need checking
+type validator interface {
+	Validate() error
+}
+
+// registry maps a strategy name to a constructor for its zero value
+var registry = map[Type]func() Interface{
+	AlwaysPrimaryStrategyType:   func() Interface { return &AlwaysPrimary{} },
+	AlwaysSecondaryStrategyType: func() Interface { return &AlwaysSecondary{} },
+	RandomStrategyType:          func() Interface { return &Random{} },
+	PinnedStrategyType:          func() Interface { return &Pinned{} },
+	WeightedStrategyType:        func() Interface { return &Weighted{} },
+}
+
+// Config exists to decode a strategy from YAML
+type Config struct {
+	Interface
+}
+
+// UnmarshalYAML implements yaml.NodeUnmarshaler
+func (c *Config) UnmarshalYAML(node ast.Node) error {
+	// Legacy shape: a bare strategy type with no parameters, eg `Random`.
+	// Rewrite it as `type: Random` so that the rest of the decode is
+	// unchanged. It lets new code start against a ConfigMap that has not been
+	// updated yet, so the two can roll out independently.
+	//
+	// TODO: remove once all deployed ConfigMaps use the mapping form.
+	if str, ok := node.(*ast.StringNode); ok {
+		tk := str.GetToken()
+		key := ast.String(token.New("type", "type", tk.Position))
+		node = ast.Mapping(tk, false, ast.MappingValue(tk, key, str))
 	}
+
+	mapping, ok := node.(*ast.MappingNode)
+	if !ok {
+		return fmt.Errorf("line %d: strategy must be a mapping", node.GetToken().Position.Line)
+	}
+
+	// Decode the type of strategy
+	var head struct {
+		Type Type `yaml:"type"`
+	}
+	if err := yaml.NodeToValue(mapping, &head); err != nil {
+		return err
+	}
+	strategyType := head.Type
+
+	// Construct the desired type of strategy using the registry
+	newStrategy, ok := registry[strategyType]
+	if !ok {
+		return fmt.Errorf("%w - %q", ErrInvalidStrategy, strategyType)
+	}
+	s := newStrategy()
+
+	// Decode the strategy after removing the `type` field
+	if err := yaml.NodeToValue(withoutType(mapping), s, yaml.Strict()); err != nil {
+		return fmt.Errorf("%w - %q: %w", ErrInvalidStrategy, strategyType, err)
+	}
+
+	// Validate the resulting strategy
+	if v, ok := s.(validator); ok {
+		if err := v.Validate(); err != nil {
+			return fmt.Errorf("%w - %q: %w", ErrInvalidStrategy, strategyType, err)
+		}
+	}
+
+	c.Interface = s
+	return nil
+}
+
+// withoutType returns a copy of the mapping with the `type` key removed, so
+// that what remains can be decoded strictly into a strategy
+func withoutType(n *ast.MappingNode) *ast.MappingNode {
+	m := ast.Mapping(n.Start, n.IsFlowStyle)
+	for _, v := range n.Values {
+		if v.Key.GetToken().Value != "type" {
+			m.Values = append(m.Values, v)
+		}
+	}
+	return m
 }

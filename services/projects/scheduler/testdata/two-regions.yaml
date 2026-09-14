@@ -1,5 +1,8 @@
 # Set an explicit strategy for two regions
-default: "AlwaysSecondary"
+default:
+  type: AlwaysSecondary
 regions:
-  us-east-1: "AlwaysPrimary"
-  eu-central-1: "Random"
+  us-east-1:
+    type: AlwaysPrimary
+  eu-central-1:
+    type: Random

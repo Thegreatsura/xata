@@ -50,6 +50,15 @@ func TestSchedulerReturnsExpectedStrategies(t *testing.T) {
 				"other-region": &strategy.AlwaysSecondary{},
 			},
 		},
+		{
+			name:           "legacy bare-type config shape",
+			configFilePath: "testdata/legacy-two-regions.yaml",
+			expectedStrategies: map[string]strategy.Interface{
+				"us-east-1":    &strategy.AlwaysPrimary{},
+				"eu-central-1": &strategy.Random{},
+				"other-region": &strategy.AlwaysSecondary{},
+			},
+		},
 	}
 
 	for _, tt := range tests {

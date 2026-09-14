@@ -5,55 +5,120 @@ import (
 
 	"xata/services/projects/scheduler/strategy"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 )
 
-func TestToStrategy(t *testing.T) {
+func TestConfigUnmarshalYAML(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name             string
-		strategyName     strategy.Name
-		expectedStrategy strategy.Interface
-		expectedError    error
+	tests := map[string]struct {
+		yaml    string
+		want    strategy.Interface
+		wantErr error
 	}{
-		{
-			name:             "valid strategy - AlwaysPrimary",
-			strategyName:     strategy.AlwaysPrimaryStrategyName,
-			expectedStrategy: &strategy.AlwaysPrimary{},
-			expectedError:    nil,
+		// happy paths
+		"Random": {
+			yaml: "type: Random",
+			want: &strategy.Random{},
 		},
-		{
-			name:             "valid strategy - AlwaysSecondary",
-			strategyName:     strategy.AlwaysSecondaryStrategyName,
-			expectedStrategy: &strategy.AlwaysSecondary{},
-			expectedError:    nil,
+		"AlwaysPrimary": {
+			yaml: "type: AlwaysPrimary",
+			want: &strategy.AlwaysPrimary{},
 		},
-		{
-			name:             "valid strategy - Random",
-			strategyName:     strategy.RandomStrategyName,
-			expectedStrategy: &strategy.Random{},
-			expectedError:    nil,
+		"AlwaysSecondary": {
+			yaml: "type: AlwaysSecondary",
+			want: &strategy.AlwaysSecondary{},
 		},
-		{
-			name:             "invalid strategy",
-			strategyName:     "InvalidStrategy",
-			expectedStrategy: nil,
-			expectedError:    strategy.ErrInvalidStrategy,
+		"Pinned": {
+			yaml: "type: Pinned\ncell: cell-1",
+			want: &strategy.Pinned{Cell: "cell-1"},
+		},
+		"Weighted": {
+			yaml: "type: Weighted\nweights:\n  cell-1: 90\n  cell-2: 10",
+			want: &strategy.Weighted{Weights: map[string]uint{"cell-1": 90, "cell-2": 10}},
+		},
+
+		// parameters not accepted by the strategy
+		"Pinned with weights": {
+			yaml:    "type: Pinned\ncell: cell-1\nweights:\n  cell-1: 1",
+			wantErr: strategy.ErrInvalidStrategy,
+		},
+		"Weighted with cell": {
+			yaml:    "type: Weighted\ncell: cell-1\nweights:\n  cell-1: 1",
+			wantErr: strategy.ErrInvalidStrategy,
+		},
+		"Random with cell": {
+			yaml:    "type: Random\ncell: cell-1",
+			wantErr: strategy.ErrInvalidStrategy,
+		},
+		"AlwaysPrimary with weights": {
+			yaml:    "type: AlwaysPrimary\nweights:\n  cell-1: 1",
+			wantErr: strategy.ErrInvalidStrategy,
+		},
+
+		// parameter validation
+		"Pinned without cell": {
+			yaml:    "type: Pinned",
+			wantErr: strategy.ErrInvalidStrategy,
+		},
+		"Weighted without weights": {
+			yaml:    "type: Weighted",
+			wantErr: strategy.ErrInvalidStrategy,
+		},
+		"Weighted with all weights zero": {
+			yaml:    "type: Weighted\nweights:\n  cell-1: 0",
+			wantErr: strategy.ErrInvalidStrategy,
+		},
+		"Weighted with negative weight": {
+			yaml:    "type: Weighted\nweights:\n  cell-1: -1",
+			wantErr: strategy.ErrInvalidStrategy,
+		},
+
+		"unknown name": {
+			yaml:    "type: InvalidStrategy",
+			wantErr: strategy.ErrInvalidStrategy,
+		},
+		"missing type": {
+			yaml:    "cell: cell-1",
+			wantErr: strategy.ErrInvalidStrategy,
+		},
+
+		// legacy bare-type shape
+		"legacy Random": {
+			yaml: "Random",
+			want: &strategy.Random{},
+		},
+		"legacy unknown type": {
+			yaml:    "InvalidStrategy",
+			wantErr: strategy.ErrInvalidStrategy,
+		},
+		"legacy Pinned has no cell": {
+			yaml:    "Pinned",
+			wantErr: strategy.ErrInvalidStrategy,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			s, err := tt.strategyName.ToStrategy()
-			if tt.expectedError != nil {
-				require.ErrorIs(t, err, tt.expectedError)
-			} else {
-				require.NoError(t, err)
-				require.IsType(t, tt.expectedStrategy, s)
+			var got strategy.Config
+			err := yaml.Unmarshal([]byte(tt.yaml), &got)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				return
 			}
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got.Interface)
 		})
 	}
+
+	t.Run("sequence is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		var got strategy.Config
+		err := yaml.Unmarshal([]byte("- Random"), &got)
+		require.ErrorContains(t, err, "strategy must be a mapping")
+	})
 }

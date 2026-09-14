@@ -1,2 +1,3 @@
 # A config file with an invalid default strategy
-default: "InvalidStrategy"
+default:
+  type: InvalidStrategy
