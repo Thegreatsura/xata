@@ -62,8 +62,10 @@ const (
 )
 
 type Domain struct {
-	Name     string `json:"name"`
-	Verified bool   `json:"verified"`
+	Name                  string `json:"name"`
+	Verified              bool   `json:"verified"`
+	IdentityProviderAlias string `json:"identityProviderAlias,omitempty"`
+	AutoRedirect          bool   `json:"autoRedirect,omitempty"`
 }
 
 // MaxOrganizationMembers is the maximum number of users allowed in an organization

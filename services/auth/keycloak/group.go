@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"strings"
+
+	"github.com/go-resty/resty/v2"
 )
 
 type Group struct {
@@ -181,14 +184,18 @@ func (r *restKC) RemoveGroupMember(ctx context.Context, realm, organizationID, g
 	if err != nil {
 		return fmt.Errorf("failed to remove group member: %w", err)
 	}
-	// DELETE is idempotent: a 404 means the user is already absent from the group.
-	if resp.StatusCode() == http.StatusNotFound {
+	// DELETE is idempotent: a 404, or Keycloak 26.8's 400 "User not a member", means the user is already absent.
+	if resp.StatusCode() == http.StatusNotFound || isNotGroupMember(resp) {
 		return nil
 	}
 	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK, http.StatusNoContent) {
 		return fmt.Errorf("failed to remove group member: status code: %d", resp.StatusCode())
 	}
 	return nil
+}
+
+func isNotGroupMember(resp *resty.Response) bool {
+	return resp.StatusCode() == http.StatusBadRequest && strings.Contains(resp.String(), "User not a member")
 }
 
 func (r *restKC) listOrgGroups(ctx context.Context, realm, orgInternalID string) ([]Group, error) {

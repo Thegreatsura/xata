@@ -97,6 +97,25 @@ func TestGroupOperations(t *testing.T) {
 				require.NoError(t, kc.RemoveGroupMember(context.Background(), "test-realm", "org-alias", "g1", "u1"))
 			},
 		},
+		"remove member is idempotent when the user is not in the group": {
+			admin: func(w http.ResponseWriter, req *http.Request) {
+				require.Equal(t, http.MethodDelete, req.Method)
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"errorMessage":"User not a member"}`))
+			},
+			run: func(t *testing.T, kc KeyCloak) {
+				require.NoError(t, kc.RemoveGroupMember(context.Background(), "test-realm", "org-alias", "g1", "u1"))
+			},
+		},
+		"remove member surfaces any other bad request": {
+			admin: func(w http.ResponseWriter, req *http.Request) {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"errorMessage":"Invalid request"}`))
+			},
+			run: func(t *testing.T, kc KeyCloak) {
+				require.Error(t, kc.RemoveGroupMember(context.Background(), "test-realm", "org-alias", "g1", "u1"))
+			},
+		},
 		"list members maps user representations": {
 			admin: func(w http.ResponseWriter, req *http.Request) {
 				require.True(t, strings.HasSuffix(req.URL.Path, "/organizations/internal-1/groups/g1/members"))

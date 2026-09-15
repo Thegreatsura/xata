@@ -2,6 +2,7 @@ package keycloak
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -44,6 +45,43 @@ func TestSetOrganizationDomainsClassifiesRejections(t *testing.T) {
 			got := newTestRestKC(srv.URL).SetOrganizationDomains(context.Background(), "xata", "org-alias", []Domain{{Name: "acme.test"}})
 
 			require.ErrorAs(t, got, &tt.want)
+		})
+	}
+}
+
+func TestSetOrganizationDomainsRoundTripsRouting(t *testing.T) {
+	tests := map[string]struct {
+		domain Domain
+		want   string
+	}{
+		"leaves unset routing out": {
+			domain: Domain{Name: "acme.test", Verified: true},
+			want:   `{"name":"acme.test","verified":true}`,
+		},
+		"sends routing that is set": {
+			domain: Domain{Name: "acme.test", Verified: true, IdentityProviderAlias: "sso-acme", AutoRedirect: true},
+			want:   `{"name":"acme.test","verified":true,"identityProviderAlias":"sso-acme","autoRedirect":true}`,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			var got json.RawMessage
+			srv := orgAdminTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+				var body struct {
+					Domains []json.RawMessage `json:"domains"`
+				}
+				if err := json.NewDecoder(req.Body).Decode(&body); err == nil && len(body.Domains) == 1 {
+					got = body.Domains[0]
+				}
+				w.WriteHeader(http.StatusNoContent)
+			})
+			defer srv.Close()
+
+			err := newTestRestKC(srv.URL).SetOrganizationDomains(context.Background(), "xata", "org-alias", []Domain{tt.domain})
+
+			require.NoError(t, err)
+			require.JSONEq(t, tt.want, string(got))
 		})
 	}
 }
