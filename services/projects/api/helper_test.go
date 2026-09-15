@@ -2,6 +2,7 @@ package api
 
 import (
 	"xata/internal/apitest"
+	branchsvc "xata/services/projects/branch"
 	"xata/services/projects/store"
 )
 
@@ -35,7 +36,7 @@ func createBranchConfig(name string, parentID, description *string) *store.Creat
 		Name:                  name,
 		ParentID:              parentID,
 		Description:           description,
-		BackupRetentionPeriod: DefaultBackupRetentionPeriod,
+		BackupRetentionPeriod: branchsvc.DefaultBackupRetentionPeriod,
 		BackupsEnabled:        true,
 		UsageTier:             string(apitest.TestClaims.Organizations[apitest.TestOrganization].UsageTier),
 		Limits: &store.OrgLimits{

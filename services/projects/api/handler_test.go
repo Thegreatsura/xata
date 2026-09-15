@@ -29,6 +29,7 @@ import (
 	"xata/internal/xvalidator"
 	"xata/services/clusters"
 	"xata/services/projects/api/spec"
+	branchsvc "xata/services/projects/branch"
 	"xata/services/projects/cells"
 	"xata/services/projects/cells/cellsmock"
 	"xata/services/projects/metrics"
@@ -86,6 +87,40 @@ func TestTryAcquireProjectLockBusy(t *testing.T) {
 	release, err := handler.tryAcquireProjectLock(c, "project_id")
 
 	require.Nil(t, release)
+	require.Error(t, err)
+	require.Equal(t, http.StatusTooManyRequests, api.GetErrorStatusCode(err))
+	require.Equal(t, projectLockRetryAfter, rec.Header().Get("Retry-After"))
+}
+
+// TestCreateBranchLockContention covers CreateBranch's own Retry-After handling
+// end to end: when the project lock is busy, the handler must set the Retry-After
+// header and return a 429. It uses inherit mode so the request reaches the lock
+// step with minimal payload-building setup.
+func TestCreateBranchLockContention(t *testing.T) {
+	mockStore := mocks.NewProjectsStore(t)
+	mockClusters := protomocks.NewClustersServiceClient(t)
+	mockCells := cellsmock.NewCellsMock(t, mockClusters)
+	mockPostgresConfig := postgrescfgmocks.NewPostgresConfigProvider(t)
+	mockImageProvider := postgresversionsmocks.NewImageProvider(t)
+	mockProvisioner := provisionermocks.NewProvisioner(t)
+
+	feat := openfeaturetest.NewClient(nil)
+	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
+	mockAnalytics := analyticsmocks.NewClient(t)
+	handler := NewAPIHandler(feat, mockStore, mockCells, "testdomain:5432", nil, sched, mockAnalytics, mockPostgresConfig, mockImageProvider, mockProvisioner)
+	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
+
+	parentID := "parent-1"
+	mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
+	mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, "project_id", parentID).
+		Return(&store.Branch{ID: parentID, CellID: "cell_id", Region: "region-id-1", BackupsEnabled: true}, nil).Once()
+	mockStore.EXPECT().TryAcquireProjectLock(mock.Anything, "project_id").
+		Return(nil, store.ErrProjectBusy{ProjectID: "project_id"}).Once()
+
+	c, rec := e.POST("/organizations/" + apitest.TestOrganization + "/projects/project_id/branches").
+		WithJSONBody(map[string]any{"name": "child", "mode": "inherit", "parentID": parentID}).Context()
+	err := handler.CreateBranch(c, apitest.TestOrganization, "project_id")
+
 	require.Error(t, err)
 	require.Equal(t, http.StatusTooManyRequests, api.GetErrorStatusCode(err))
 	require.Equal(t, projectLockRetryAfter, rec.Header().Get("Retry-After"))
@@ -2936,7 +2971,7 @@ func TestDescribeBranch(t *testing.T) {
 				assert.Equal(t, new("postgresql://user:pass@branchID-deprecated.footest.tld:1234/xata?sslmode=require"), got.ConnectionString)
 				assert.Equal(t, int32(0), got.Configuration.Replicas)
 				assert.Equal(t, defaultStorage, *got.Configuration.Storage)
-				assert.Equal(t, FallbackInstanceType, got.Configuration.InstanceType)
+				assert.Equal(t, branchsvc.FallbackInstanceType, got.Configuration.InstanceType)
 				assert.Equal(t, "postgres:17.11", got.Configuration.Image)
 				assert.Equal(t, apiv1.PhaseHealthy, got.Status.Status)
 				assert.Equal(t, 1, got.Status.InstanceCount)
@@ -4062,80 +4097,6 @@ func TestGetBranchCredentials(t *testing.T) {
 	}
 }
 
-func TestBranchEndpoint(t *testing.T) {
-	tests := map[string]struct {
-		regionHostPort  string
-		defaultHostPort string
-		subdomain       string // "" means no cell subdomain (region-only hostname)
-		wantHostname    string
-		wantPort        int
-		wantError       bool
-	}{
-		"region host:port": {
-			regionHostPort: "eu-central-1.xata.tech:7654",
-			wantHostname:   "br-1.eu-central-1.xata.tech",
-			wantPort:       7654,
-		},
-		"host-only region uses the default postgres port": {
-			regionHostPort: "us-east-1.xata.tech",
-			wantHostname:   "br-1.us-east-1.xata.tech",
-			wantPort:       5432,
-		},
-		"empty region falls back to the handler default": {
-			defaultHostPort: "testdomain:5432",
-			wantHostname:    "br-1.testdomain",
-			wantPort:        5432,
-		},
-		"subdomain qualifies a host-only region": {
-			regionHostPort: "us-east-1.xata.tech",
-			subdomain:      "cell-2",
-			wantHostname:   "br-1.cell-2.us-east-1.xata.tech",
-			wantPort:       5432,
-		},
-		"subdomain qualifies a host:port region": {
-			regionHostPort: "eu-central-1.xata.tech:7654",
-			subdomain:      "cell-2",
-			wantHostname:   "br-1.cell-2.eu-central-1.xata.tech",
-			wantPort:       7654,
-		},
-		"subdomain qualifies the handler default": {
-			defaultHostPort: "testdomain:5432",
-			subdomain:       "cell-2",
-			wantHostname:    "br-1.cell-2.testdomain",
-			wantPort:        5432,
-		},
-		"no gateway configured at all fails": {
-			wantError: true,
-		},
-		"no gateway configured fails even with a subdomain": {
-			subdomain: "cell-2",
-			wantError: true,
-		},
-		"non-numeric port fails": {
-			regionHostPort: "us-east-1.xata.tech:sql",
-			wantError:      true,
-		},
-	}
-
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			var subdomain *string
-			if tt.subdomain != "" {
-				subdomain = &tt.subdomain
-			}
-			h := &handler{defaultGatewayHostPort: tt.defaultHostPort}
-			gotHostname, gotPort, err := h.branchEndpoint(&store.Region{GatewayHostPort: tt.regionHostPort}, subdomain, "br-1")
-			if tt.wantError {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			require.Equal(t, tt.wantHostname, gotHostname)
-			require.Equal(t, tt.wantPort, gotPort)
-		})
-	}
-}
-
 func TestRotateBranchCredentials(t *testing.T) {
 	mockStore := mocks.NewProjectsStore(t)
 	mockClusters := protomocks.NewClustersServiceClient(t)
@@ -4536,7 +4497,7 @@ func TestUpdateBranch(t *testing.T) {
 			name:      "update branch configuration instance type 'custom' does not fail but ignores the instance type",
 			projectID: "project_id",
 			branchID:  "123",
-			jsonBody:  map[string]string{"instanceType": FallbackInstanceType},
+			jsonBody:  map[string]string{"instanceType": branchsvc.FallbackInstanceType},
 			setupMocks: func() {
 				mockStore.EXPECT().GetOrgLimits(mock.Anything, apitest.TestOrganization, "project_id").Return(map[store.LimitKey]any{}, nil).Once()
 				branch := store.Branch{
@@ -6049,89 +6010,6 @@ func mustParseTime(s string) time.Time {
 	return t
 }
 
-func TestParseCPUResource(t *testing.T) {
-	tests := []struct {
-		name     string
-		cpuSpec  string
-		expected int
-	}{
-		{
-			name:     "250 millicores",
-			cpuSpec:  "250m",
-			expected: 250,
-		},
-		{
-			name:     "500 millicores",
-			cpuSpec:  "500m",
-			expected: 500,
-		},
-		{
-			name:     "1000 millicores",
-			cpuSpec:  "1000m",
-			expected: 1000,
-		},
-		{
-			name:     "1 core",
-			cpuSpec:  "1",
-			expected: 1000,
-		},
-		{
-			name:     "2 cores",
-			cpuSpec:  "2",
-			expected: 2000,
-		},
-		{
-			name:     "2.5 cores",
-			cpuSpec:  "2.5",
-			expected: 2500,
-		},
-		{
-			name:     "0.5 cores",
-			cpuSpec:  "0.5",
-			expected: 500,
-		},
-		{
-			name:     "zero cores",
-			cpuSpec:  "0",
-			expected: 0,
-		},
-		{
-			name:     "zero millicores",
-			cpuSpec:  "0m",
-			expected: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := parseCPUResource(tt.cpuSpec)
-			assert.NoError(t, err)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-// Test round-trip conversion: milliCPUs -> format -> parse -> milliCPUs
-func TestCPUResourceRoundTrip(t *testing.T) {
-	testCases := []int{250, 500, 999, 1000, 2000, 3500}
-
-	for _, milliCPUs := range testCases {
-		t.Run(fmt.Sprintf("%d_millicores", milliCPUs), func(t *testing.T) {
-			formatted := store.InstanceType{VCPUsRequest: milliCPUs}.CPURequest()
-			parsed, err := parseCPUResource(formatted)
-			assert.NoError(t, err)
-
-			// For values >= 1000, formatting truncates fractional cores
-			if milliCPUs >= 1000 {
-				expectedParsed := (milliCPUs / 1000) * 1000
-				assert.Equal(t, expectedParsed, parsed)
-			} else {
-				assert.Equal(t, milliCPUs, parsed)
-			}
-		})
-	}
-}
-
 func TestGetBranchPostgresConfig(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -6339,77 +6217,6 @@ func TestGetBranchPostgresConfig(t *testing.T) {
 
 			mockStore.AssertExpectations(t)
 			mockClient.AssertExpectations(t)
-		})
-	}
-}
-
-func TestGetInstanceTypeByName(t *testing.T) {
-	t.Parallel()
-
-	// Limit is meant to apply to VCPUsRequest (what we show users on the
-	// pricing page), not VCPUsLimit. xata.large has a request of 2000 and a
-	// limit of 4000, so a 2000-millicore ceiling must still allow it.
-	instanceTypes := []store.InstanceType{
-		{Name: "xata.micro", VCPUsRequest: 250, VCPUsLimit: 2000, RAM: 1, Region: "us-east-1"},
-		{Name: "xata.large", VCPUsRequest: 2000, VCPUsLimit: 4000, RAM: 8, Region: "us-east-1"},
-		{Name: "xata.xlarge", VCPUsRequest: 4000, VCPUsLimit: 8000, RAM: 16, Region: "us-east-1"},
-	}
-
-	tests := map[string]struct {
-		name                   string
-		maxAllowedInstanceType int
-		want                   store.InstanceType
-		wantErr                bool
-		wantErrContains        string
-	}{
-		"request at the limit is allowed": {
-			name:                   "xata.large",
-			maxAllowedInstanceType: 2000,
-			want:                   store.InstanceType{Name: "xata.large", VCPUsRequest: 2000, VCPUsLimit: 4000, RAM: 8, Region: "us-east-1"},
-		},
-		"request above the limit is rejected": {
-			name:                   "xata.xlarge",
-			maxAllowedInstanceType: 2000,
-			wantErr:                true,
-			wantErrContains:        "not available on your current plan",
-		},
-		"limit above ceiling but request below is allowed": {
-			// xata.large has VCPUsLimit 4000 > 4000? no, and request 2000 < 4000.
-			name:                   "xata.large",
-			maxAllowedInstanceType: 4000,
-			want:                   store.InstanceType{Name: "xata.large", VCPUsRequest: 2000, VCPUsLimit: 4000, RAM: 8, Region: "us-east-1"},
-		},
-		"zero ceiling disables enforcement": {
-			name:                   "xata.xlarge",
-			maxAllowedInstanceType: 0,
-			want:                   store.InstanceType{Name: "xata.xlarge", VCPUsRequest: 4000, VCPUsLimit: 8000, RAM: 16, Region: "us-east-1"},
-		},
-		"unknown instance type errors": {
-			name:                   "xata.unknown",
-			maxAllowedInstanceType: 0,
-			wantErr:                true,
-			wantErrContains:        "is not found",
-		},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			mockStore := mocks.NewProjectsStore(t)
-			mockStore.EXPECT().ListInstanceTypes(mock.Anything, apitest.TestOrganization, "us-east-1").Return(instanceTypes, nil)
-			h := &handler{store: mockStore}
-
-			got, err := h.getInstanceTypeByName(context.Background(), apitest.TestOrganization, "us-east-1", tc.name, tc.maxAllowedInstanceType)
-			if tc.wantErr {
-				require.Error(t, err)
-				if tc.wantErrContains != "" {
-					require.ErrorContains(t, err, tc.wantErrContains)
-				}
-				return
-			}
-			require.NoError(t, err)
-			require.Equal(t, tc.want, got)
 		})
 	}
 }
@@ -6919,11 +6726,8 @@ func TestValidateImageHiddenMinors(t *testing.T) {
 	hiddenImage := hiddenPostgresImage(t)
 
 	t.Run("rejected when flag is disabled", func(t *testing.T) {
-		s := &handler{
-			feat:          openfeaturetest.NewClient(nil),
-			imageProvider: postgresversionsmocks.NewImageProvider(t),
-		}
-		_, err := s.validateImage(context.Background(), apitest.TestOrganization, hiddenImage)
+		s := branchsvc.New(nil, nil, openfeaturetest.NewClient(nil), nil, "", nil, postgresversionsmocks.NewImageProvider(t), nil)
+		_, err := s.ValidateImage(context.Background(), apitest.TestOrganization, hiddenImage)
 		require.EqualError(t, err, fmt.Sprintf("image %s is not available", hiddenImage))
 	})
 
@@ -6932,11 +6736,8 @@ func TestValidateImageHiddenMinors(t *testing.T) {
 		mockImageProvider := postgresversionsmocks.NewImageProvider(t)
 		mockImageProvider.EXPECT().GetAllImageNames().Return([]string{hiddenImage}).Once()
 		mockImageProvider.EXPECT().BuildImageURL(hiddenImage).Return(expectedURL).Once()
-		s := &handler{
-			feat:          openfeaturetest.NewClient(map[openfeature.FeatureFlag]bool{flags.LegacyPgVersions: true}),
-			imageProvider: mockImageProvider,
-		}
-		imageURL, err := s.validateImage(context.Background(), apitest.TestOrganization, hiddenImage)
+		s := branchsvc.New(nil, nil, openfeaturetest.NewClient(map[openfeature.FeatureFlag]bool{flags.LegacyPgVersions: true}), nil, "", nil, mockImageProvider, nil)
+		imageURL, err := s.ValidateImage(context.Background(), apitest.TestOrganization, hiddenImage)
 		require.NoError(t, err)
 		require.Equal(t, expectedURL, imageURL)
 	})
@@ -6947,11 +6748,8 @@ func TestValidateImageHiddenMajors(t *testing.T) {
 	majorFlag := flags.PgMajorFlags[hiddenMajor]
 
 	t.Run("rejected on branch creation when flag is disabled", func(t *testing.T) {
-		s := &handler{
-			feat:          openfeaturetest.NewClient(nil),
-			imageProvider: postgresversionsmocks.NewImageProvider(t),
-		}
-		_, err := s.validateImage(context.Background(), apitest.TestOrganization, hiddenImage)
+		s := branchsvc.New(nil, nil, openfeaturetest.NewClient(nil), nil, "", nil, postgresversionsmocks.NewImageProvider(t), nil)
+		_, err := s.ValidateImage(context.Background(), apitest.TestOrganization, hiddenImage)
 		require.EqualError(t, err, fmt.Sprintf("image %s is not available", hiddenImage))
 	})
 
@@ -6960,11 +6758,8 @@ func TestValidateImageHiddenMajors(t *testing.T) {
 		mockImageProvider := postgresversionsmocks.NewImageProvider(t)
 		mockImageProvider.EXPECT().GetAllImageNames().Return([]string{hiddenImage}).Once()
 		mockImageProvider.EXPECT().BuildImageURL(hiddenImage).Return(expectedURL).Once()
-		s := &handler{
-			feat:          openfeaturetest.NewClient(map[openfeature.FeatureFlag]bool{majorFlag: true}),
-			imageProvider: mockImageProvider,
-		}
-		imageURL, err := s.validateImage(context.Background(), apitest.TestOrganization, hiddenImage)
+		s := branchsvc.New(nil, nil, openfeaturetest.NewClient(map[openfeature.FeatureFlag]bool{majorFlag: true}), nil, "", nil, mockImageProvider, nil)
+		imageURL, err := s.ValidateImage(context.Background(), apitest.TestOrganization, hiddenImage)
 		require.NoError(t, err)
 		require.Equal(t, expectedURL, imageURL)
 	})
@@ -6983,11 +6778,8 @@ func TestValidateImageHiddenMajors(t *testing.T) {
 		mockImageProvider.EXPECT().BuildImageURL(newImage).Return(newImageURL).Once()
 		mockImageProvider.EXPECT().ParseImageVersion(newImageURL).Return(postgresversions.ParseImageVersion(newImageURL)).Once()
 		mockImageProvider.EXPECT().ParseImageVersion(currentImage).Return(postgresversions.ParseImageVersion(currentImage)).Once()
-		s := &handler{
-			feat:          openfeaturetest.NewClient(nil),
-			imageProvider: mockImageProvider,
-		}
-		imageURL, err := s.validateImageUpgrade(context.Background(), apitest.TestOrganization, newImage, currentImage)
+		s := branchsvc.New(nil, nil, openfeaturetest.NewClient(nil), nil, "", nil, mockImageProvider, nil)
+		imageURL, err := s.ValidateImageUpgrade(context.Background(), apitest.TestOrganization, newImage, currentImage)
 		require.NoError(t, err)
 		require.Equal(t, newImageURL, imageURL)
 	})
@@ -7025,12 +6817,9 @@ func TestValidateImageHiddenMajorOldMinor(t *testing.T) {
 				mockImageProvider.EXPECT().GetAllImageNames().Return([]string{image}).Once()
 				mockImageProvider.EXPECT().BuildImageURL(image).Return(want).Once()
 			}
-			s := &handler{
-				feat:          openfeaturetest.NewClient(tt.featureFlags),
-				imageProvider: mockImageProvider,
-			}
+			s := branchsvc.New(nil, nil, openfeaturetest.NewClient(tt.featureFlags), nil, "", nil, mockImageProvider, nil)
 
-			got, err := s.validateImage(context.Background(), apitest.TestOrganization, image)
+			got, err := s.ValidateImage(context.Background(), apitest.TestOrganization, image)
 			if !tt.wantAvailable {
 				require.EqualError(t, err, fmt.Sprintf("image %s is not available", image))
 				return

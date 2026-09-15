@@ -1,9 +1,7 @@
 package api
 
 import (
-	"crypto/rand"
 	"fmt"
-	"math/big"
 	"sort"
 	"strings"
 	"time"
@@ -13,12 +11,12 @@ import (
 	clustersv1 "xata/gen/proto/clusters/v1"
 	"xata/internal/postgrescfg"
 	"xata/services/projects/api/spec"
+	branchsvc "xata/services/projects/branch"
 	"xata/services/projects/store"
 )
 
 const (
 	defaultInactivityDuration = 30 * time.Minute
-	defaultBackupSchedule     = "0 0 0 * * 0"
 )
 
 func storeToAPIProjectList(projects []store.Project) []spec.Project {
@@ -270,55 +268,6 @@ func clustersToAPIScaleToZero(scaleToZero *clustersv1.ScaleToZero) spec.ScaleToZ
 	}
 }
 
-// generateRandomBackupTime generates a random backup window between 2-6 am UTC
-// We will use it to set a start for the default backup window for daily backups.
-// The weekly backups will use this and add 1 in front - for Sunday - to create the start for the default backup window
-// generateRandomBackupCron generates a random cron schedule between 2-6 AM UTC on Sunday
-// Returns robfig/cron format: "second minute hour day-of-month month day-of-week"
-// Output example: "0 45 3 * * 0" (Sunday at 3:45 AM)
-func generateRandomBackupCron() string {
-	// Random hour between 2-5 (for 2:00-5:59 AM range)
-	hour, err := rand.Int(rand.Reader, big.NewInt(4))
-	if err != nil {
-		return defaultBackupSchedule
-	}
-	randomHour := int(hour.Int64()) + 2
-
-	// Random minute between 0-59
-	minute, err := rand.Int(rand.Reader, big.NewInt(60))
-	if err != nil {
-		return defaultBackupSchedule
-	}
-	randomMinute := int(minute.Int64())
-
-	// robfig/cron format: "second minute hour day-of-month month day-of-week"
-	// 0 = Sunday in cron format
-	return fmt.Sprintf("0 %d %d * * 0", randomMinute, randomHour)
-}
-
-// generateCron converts a schedule string to robfig/cron format
-// Input format: "d:hh:mm" where:
-//   - d: * for daily, 0-6 for days of week (0=Sunday, 1=Monday, ..., 6=Saturday)
-//   - hh: hour (00-23)
-//   - mm: minute (00-59)
-//
-// Output: robfig/cron format "second minute hour day-of-month month day-of-week"
-//
-// Examples:
-//
-//	"*:14:30" -> "0 30 14 * * *" (daily at 2:30 PM)
-//	"0:23:45" -> "0 45 23 * * 0" (Sunday at 11:45 PM)
-//	"1:06:15" -> "0 15 6 * * 1"  (Monday at 6:15 AM)
-func generateCron(schedule string) string {
-	parts := strings.SplitN(schedule, ":", 3)
-	d, hh, mm := parts[0], parts[1], parts[2]
-
-	if d == "*" {
-		return "0 " + mm + " " + hh + " * * *"
-	}
-	return "0 " + mm + " " + hh + " * * " + d
-}
-
 // generateSchedule converts a robfig/cron format to schedule string
 // Input: robfig/cron format "second minute hour day-of-month month day-of-week"
 // Output format: "d:hh:mm" where:
@@ -356,49 +305,11 @@ func generateSchedule(cron string) string {
 	return fmt.Sprintf("%s:%s:%s", dayOfWeek, hour, minute)
 }
 
+// apiToClustersBackupConfig maps the spec backup configuration to the clusters
+// backup configuration by delegating to the branch service, so the conversion
+// logic lives in one place.
 func apiToClustersBackupConfig(backupConfig *spec.BackupConfiguration, backupsEnabled bool, usePgBackRest bool) *clustersv1.BackupConfiguration {
-	// if backups are disabled, return nil
-	if !backupsEnabled {
-		return &clustersv1.BackupConfiguration{
-			BackupsEnabled: backupsEnabled,
-		}
-	}
-
-	// if nothing was set via the API request, use defaults = weekly, sunday random
-	if backupConfig == nil {
-		cfg := &clustersv1.BackupConfiguration{
-			BackupSchedule:  generateRandomBackupCron(),
-			BackupRetention: fmt.Sprintf("%dd", DefaultBackupRetentionPeriod),
-			BackupsEnabled:  backupsEnabled,
-		}
-		if usePgBackRest {
-			cfg.BackupMethod = BackupMethodPgBackRest
-		} else {
-			cfg.BackupMethod = BackupMethodBarman
-		}
-		return cfg
-	}
-
-	var backupConfiguration clustersv1.BackupConfiguration
-	if backupConfig.BackupTime == nil || *backupConfig.BackupTime == "" {
-		backupConfiguration.BackupSchedule = generateRandomBackupCron()
-	} else {
-		backupConfiguration.BackupSchedule = generateCron(*backupConfig.BackupTime)
-	}
-
-	if backupConfig.RetentionPeriod == nil || *backupConfig.RetentionPeriod == 0 {
-		// TODO(simona) once we remove storing thing in the metadata store, change the const to be "2d" so we don't need this conversion
-		backupConfiguration.BackupRetention = fmt.Sprintf("%dd", DefaultBackupRetentionPeriod)
-	} else {
-		backupConfiguration.BackupRetention = fmt.Sprintf("%dd", *backupConfig.RetentionPeriod)
-	}
-	backupConfiguration.BackupsEnabled = backupsEnabled
-	if usePgBackRest {
-		backupConfiguration.BackupMethod = BackupMethodPgBackRest
-	} else {
-		backupConfiguration.BackupMethod = BackupMethodBarman
-	}
-	return &backupConfiguration
+	return branchsvc.ClustersBackupConfig(toBranchBackup(backupConfig), backupsEnabled, usePgBackRest)
 }
 
 func clustersToAPIBackupConfig(backupConfig *clustersv1.BackupConfiguration) *spec.BackupConfiguration {
@@ -409,7 +320,7 @@ func clustersToAPIBackupConfig(backupConfig *clustersv1.BackupConfiguration) *sp
 	var retentionDays int32
 	_, err := fmt.Sscanf(backupConfig.BackupRetention, "%dd", &retentionDays)
 	if err != nil {
-		retentionDays = DefaultBackupRetentionPeriod
+		retentionDays = branchsvc.DefaultBackupRetentionPeriod
 	}
 
 	schedule := generateSchedule(backupConfig.BackupSchedule)
@@ -419,11 +330,10 @@ func clustersToAPIBackupConfig(backupConfig *clustersv1.BackupConfiguration) *sp
 	}
 }
 
+// apiToStoreBackupConfig returns the retention period for the spec backup
+// configuration by delegating to the branch service.
 func apiToStoreBackupConfig(backupConfig *spec.BackupConfiguration) int {
-	if backupConfig == nil || backupConfig.RetentionPeriod == nil || *backupConfig.RetentionPeriod == 0 {
-		return DefaultBackupRetentionPeriod
-	}
-	return int(*backupConfig.RetentionPeriod)
+	return branchsvc.BackupRetentionDays(toBranchBackup(backupConfig))
 }
 
 func mapStatus(status *clustersv1.ClusterStatus) spec.BranchStatus {

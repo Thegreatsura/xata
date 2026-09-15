@@ -8,76 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	clustersv1 "xata/gen/proto/clusters/v1"
-	"xata/services/projects/api/spec"
+	branchsvc "xata/services/projects/branch"
 )
-
-func TestApiToClustersBackupConfig(t *testing.T) {
-	tests := []struct {
-		name           string
-		backupConfig   *spec.BackupConfiguration
-		backupsEnabled bool
-		usePgBackRest  bool
-		wantSchedule   bool
-		wantMethod     string
-	}{
-		{
-			name:           "backups disabled returns config with BackupsEnabled false",
-			backupConfig:   &spec.BackupConfiguration{BackupTime: new("0:14:30")},
-			backupsEnabled: false,
-			wantSchedule:   false,
-		},
-		{
-			name:           "backups enabled with no config returns default barman",
-			backupConfig:   nil,
-			backupsEnabled: true,
-			wantSchedule:   true,
-			wantMethod:     BackupMethodBarman,
-		},
-		{
-			name:           "backups enabled with config returns schedule barman",
-			backupConfig:   &spec.BackupConfiguration{BackupTime: new("0:14:30")},
-			backupsEnabled: true,
-			wantSchedule:   true,
-			wantMethod:     BackupMethodBarman,
-		},
-		{
-			name:           "pgbackrest with no config returns default pgbackrest",
-			backupConfig:   nil,
-			backupsEnabled: true,
-			usePgBackRest:  true,
-			wantSchedule:   true,
-			wantMethod:     BackupMethodPgBackRest,
-		},
-		{
-			name:           "pgbackrest with config returns schedule pgbackrest",
-			backupConfig:   &spec.BackupConfiguration{BackupTime: new("0:14:30")},
-			backupsEnabled: true,
-			usePgBackRest:  true,
-			wantSchedule:   true,
-			wantMethod:     BackupMethodPgBackRest,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := apiToClustersBackupConfig(tt.backupConfig, tt.backupsEnabled, tt.usePgBackRest)
-
-			assert.Equal(t, tt.backupsEnabled, result.BackupsEnabled)
-
-			if tt.wantSchedule {
-				assert.NotEmpty(t, result.BackupSchedule)
-				assert.NotEmpty(t, result.BackupRetention)
-			} else {
-				assert.Empty(t, result.BackupSchedule)
-				assert.Empty(t, result.BackupRetention)
-			}
-
-			if tt.wantMethod != "" {
-				assert.Equal(t, tt.wantMethod, result.BackupMethod)
-			}
-		})
-	}
-}
 
 func Test_generateSchedule(t *testing.T) {
 	tests := []struct {
@@ -160,72 +92,6 @@ func Test_generateSchedule(t *testing.T) {
 	}
 }
 
-func Test_generateCron(t *testing.T) {
-	tests := []struct {
-		name     string
-		schedule string
-		expected string
-	}{
-		{
-			name:     "daily backup at 2:30 PM",
-			schedule: "*:14:30",
-			expected: "0 30 14 * * *",
-		},
-		{
-			name:     "Sunday backup at 11:45 PM",
-			schedule: "0:23:45",
-			expected: "0 45 23 * * 0",
-		},
-		{
-			name:     "Monday backup at 6:15 AM",
-			schedule: "1:06:15",
-			expected: "0 15 06 * * 1",
-		},
-		{
-			name:     "Tuesday backup at 3:00 AM",
-			schedule: "2:03:00",
-			expected: "0 00 03 * * 2",
-		},
-		{
-			name:     "Wednesday backup at midnight",
-			schedule: "3:00:00",
-			expected: "0 00 00 * * 3",
-		},
-		{
-			name:     "Thursday backup with single digit minute",
-			schedule: "4:12:05",
-			expected: "0 05 12 * * 4",
-		},
-		{
-			name:     "Friday backup with single digit hour",
-			schedule: "5:09:30",
-			expected: "0 30 09 * * 5",
-		},
-		{
-			name:     "Saturday backup at 23:59",
-			schedule: "6:23:59",
-			expected: "0 59 23 * * 6",
-		},
-		{
-			name:     "daily backup at midnight",
-			schedule: "*:00:00",
-			expected: "0 00 00 * * *",
-		},
-		{
-			name:     "daily backup at noon",
-			schedule: "*:12:00",
-			expected: "0 00 12 * * *",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := generateCron(tt.schedule)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 // Test that generateCron and generateSchedule are inverses of each other
 func Test_generateCron_generateSchedule_inverse(t *testing.T) {
 	schedules := []string{
@@ -243,7 +109,7 @@ func Test_generateCron_generateSchedule_inverse(t *testing.T) {
 
 	for _, schedule := range schedules {
 		t.Run("schedule_"+schedule, func(t *testing.T) {
-			cron := generateCron(schedule)
+			cron := branchsvc.GenerateCron(schedule)
 			backToSchedule := generateSchedule(cron)
 			assert.Equal(t, schedule, backToSchedule, "generateCron and generateSchedule should be inverses")
 		})

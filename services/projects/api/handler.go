@@ -4,12 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
-	"net"
 	"net/http"
-	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +22,7 @@ import (
 	"xata/internal/postgresversions"
 	"xata/services/clusters"
 	"xata/services/projects/api/spec"
+	branchsvc "xata/services/projects/branch"
 	"xata/services/projects/cells"
 	"xata/services/projects/metrics"
 	"xata/services/projects/provisioner"
@@ -34,7 +31,6 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/ptr"
 
 	clustersv1 "xata/gen/proto/clusters/v1"
@@ -44,14 +40,8 @@ import (
 )
 
 const (
-	FallbackInstanceType         = "custom"
-	DefaultBackupRetentionPeriod = 2 // days
-	MinRetentionPeriod           = 2
-	MaxRetentionPeriod           = 35
-	DefaultBackupFrequency       = "weekly"
-	BackupMethodBarman           = "barman"
-	BackupMethodPgBackRest       = "pgbackrest"
-	projectLockRetryAfter        = "1"
+	DefaultBackupFrequency = "weekly"
+	projectLockRetryAfter  = "1"
 )
 
 type Permission int
@@ -67,9 +57,6 @@ var (
 
 	// maxDateRange is the maximum date range for metrics queries
 	maxDateRange = 6 * 30 * 24 * time.Hour // 6 months
-	// we are still receiving this from the FE when loading our custom image
-	// TODO remove once UI no longer uses it
-	validImage = "postgresql:17"
 
 	// internalExtensions are extensions that should not be exposed in the API
 	internalExtensions = []string{"xatautils"}
@@ -79,11 +66,7 @@ type handler struct {
 	store     store.ProjectsStore
 	cells     cells.Cells
 	feat      openfeature.Client
-	sched     *scheduler.Scheduler
 	analytics analytics.Client
-
-	// defaultGatewayHostPort is the host:port of the gateway service, used to build connection strings
-	defaultGatewayHostPort string
 
 	// metricsClient routes branch metric/log queries to the per-cell
 	// VictoriaMetrics/VictoriaLogs backend via the clusters gRPC service.
@@ -97,6 +80,10 @@ type handler struct {
 
 	// provisioner handles branch create/delete provisioning
 	provisioner provisioner.Provisioner
+
+	// branches holds the branch business logic shared with other callers
+	// (e.g. Vercel resource provisioning).
+	branches *branchsvc.Service
 
 	githubInstallationValidator GithubInstallationValidator
 }
@@ -117,14 +104,21 @@ func WithGithubInstallationValidator(v GithubInstallationValidator) HandlerOptio
 	}
 }
 
+// WithBranchService injects the branch business-logic service so the handler
+// shares a single instance with other callers (e.g. the Branches() accessor the
+// Vercel resource handler uses). Without it the handler builds its own.
+func WithBranchService(branches *branchsvc.Service) HandlerOption {
+	return func(h *handler) {
+		h.branches = branches
+	}
+}
+
 func NewAPIHandler(feat openfeature.Client, store store.ProjectsStore, cells cells.Cells, gatewayHostPort string, metricsClient metrics.Client, scheduler *scheduler.Scheduler, analytics analytics.Client, postgresConfigProvider postgrescfg.PostgresConfigProvider, imageProvider postgresversions.ImageProvider, orch provisioner.Provisioner, opts ...HandlerOption) spec.ServerInterface {
 	h := &handler{
 		feat:                   feat,
 		store:                  store,
 		cells:                  cells,
-		defaultGatewayHostPort: gatewayHostPort,
 		metricsClient:          metricsClient,
-		sched:                  scheduler,
 		analytics:              analytics,
 		postgresConfigProvider: postgresConfigProvider,
 		imageProvider:          imageProvider,
@@ -132,6 +126,12 @@ func NewAPIHandler(feat openfeature.Client, store store.ProjectsStore, cells cel
 	}
 	for _, opt := range opts {
 		opt(h)
+	}
+	// Build a default branch service when the caller did not inject one. SaaS
+	// wrappers pass WithBranchService so the handler and the Branches() accessor
+	// share a single instance.
+	if h.branches == nil {
+		h.branches = branchsvc.New(store, cells, feat, scheduler, gatewayHostPort, postgresConfigProvider, imageProvider, orch)
 	}
 	return h
 }
@@ -241,7 +241,7 @@ func (s *handler) ListImages(c echo.Context, organizationID spec.OrganizationID,
 					continue
 				}
 				if _, ok := enabled[major]; !ok {
-					enabled[major] = s.majorVersionEnabled(c.Request().Context(), major)
+					enabled[major] = s.branches.MajorVersionEnabled(c.Request().Context(), major)
 				}
 				if enabled[major] {
 					filtered = append(filtered, img)
@@ -635,36 +635,10 @@ func (s *handler) ListBranches(c echo.Context, organizationID spec.OrganizationI
 	})
 }
 
-// Validate backup time format
-func isValidBackupTimeFormat(s string) bool {
-	// Regex pattern: ^(\*|[0-6]):(0[0-9]|1[0-9]|2[0-3]):([0-5][0-9])$
-	// 0-6-days of the week, * = daily
-	s = strings.TrimSpace(s)
-	pattern := regexp.MustCompile(`^(\*|[0-6]):(0[0-9]|1[0-9]|2[0-3]):([0-5][0-9])$`)
-	return pattern.MatchString(s)
-}
-
-// validateStorageSize checks a requested storage size against the org's limit.
-// A max of 0 means "no limit".
+// validateStorageSize delegates to the branch service's storage validator so the
+// rule lives in one place, mapping the domain error back to the api error type.
 func validateStorageSize(branchName string, storageGB int32, max int) error {
-	if storageGB < 1 {
-		return ErrorInvalidParam{BranchName: branchName, Param: "storage", Message: "storage size must be at least 1 GB"}
-	}
-	if max > 0 && storageGB > int32(max) {
-		return ErrorInvalidParam{BranchName: branchName, Param: "storage", Message: fmt.Sprintf("storage size exceeds the maximum of %d GB", max)}
-	}
-	return nil
-}
-
-func validateReplicaCount(branchName string, replicas int32, min, max int) error {
-	numInstances := replicas + 1
-	if numInstances < int32(min) {
-		return ErrorInvalidParam{BranchName: branchName, Param: "configuration", Message: fmt.Sprintf("number of replicas requires at least %d instance(s)", min)}
-	}
-	if numInstances > int32(max) {
-		return ErrorInvalidParam{BranchName: branchName, Param: "configuration", Message: fmt.Sprintf("number of replicas exceeds the maximum of %d instance(s)", max)}
-	}
-	return nil
+	return apiErrorFromBranch(branchsvc.ValidateStorage(branchName, storageGB, max))
 }
 
 type ValidatableCreateRequest interface {
@@ -691,17 +665,11 @@ func validateBranchRequestCommons[T ValidatableCreateRequest](body T) error {
 	return validateBackupConfiguration(name, backupConfig)
 }
 
+// validateBackupConfiguration delegates to the branch service's validator (via
+// toBranchBackup) so the retention/time rules live in one place, and maps the
+// domain error back to the api error type.
 func validateBackupConfiguration(branchName string, c *spec.BackupConfiguration) error {
-	if c == nil {
-		return nil
-	}
-	if c.RetentionPeriod != nil && (*c.RetentionPeriod < MinRetentionPeriod || *c.RetentionPeriod > MaxRetentionPeriod) {
-		return ErrorInvalidParam{BranchName: branchName, Param: "backup retentionPeriod", Message: fmt.Sprintf("must be at least %d days and maximum %d days", MinRetentionPeriod, MaxRetentionPeriod)}
-	}
-	if c.BackupTime != nil && !isValidBackupTimeFormat(*c.BackupTime) {
-		return ErrorInvalidParam{BranchName: branchName, Param: "backup time", Message: fmt.Sprintf("invalid backup time format '%s', must match format 'D:HH:MM' where D= * or 0-6, HH=00-23, MM=00-59", *c.BackupTime)}
-	}
-	return nil
+	return apiErrorFromBranch(branchsvc.ValidateBackup(branchName, toBranchBackup(c)))
 }
 
 // ClusterServicePayload is an alias for the provisioner payload type, kept
@@ -758,329 +726,78 @@ func (s *handler) CreateBranch(c echo.Context, organizationID spec.OrganizationI
 			return err
 		}
 
-		if err := validateBranchRequestCommons(body); err != nil {
-			return err
-		}
+		// Name and backup validation live in the branch service (BuildPayload)
+		// now — the single gate shared with the Vercel handler — so we do not
+		// re-run validateBranchRequestCommons here. RestoreFromBackup, which does
+		// not go through the service, still calls it.
 
 		value, err := body.ValueByDiscriminator()
 		if err != nil {
 			return ErrorInvalidParam{BranchName: body.Name, Param: "body", Message: fmt.Sprintf("failed to parse branch creation details - %s", err.Error())}
 		}
 
-		var createClusterPayload ClusterServicePayload
-
-		switch payload := value.(type) {
-		// mode: inherit - we create a child branch
-		case spec.BranchFromParent:
-			// keeping feature flag separate from other checks for visibility
-			if s.feat.BoolValue(ctx, flags.ChildBranchCreationDisabled) {
-				return ErrorChildBranchCreationDisabled{}
-			}
-			createClusterPayload, err = s.handleBranchFromParent(ctx, organizationID, projectID, body.Name, payload)
-			if err != nil {
-				return err
-			}
-			if err := s.validateMarketplaceRegion(ctx, validateMarketplaceRegionParams{
-				organizationID: organizationID,
-				marketplace:    marketplace,
-				region:         createClusterPayload.Region,
-			}); err != nil {
-				return ErrorInvalidParam{BranchName: body.Name, Param: "region", Message: err.Error()}
-			}
-		// mode custom - we create a main branch
-		case spec.BranchFromConfiguration:
-			createClusterPayload, err = s.handleBranchFromConfiguration(ctx, organizationID, projectID, body.Name, payload, orgLimits, marketplace)
-			if err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("unsupported branch creation mode: %T", payload)
-
+		branchMode, err := toBranchMode(value)
+		if err != nil {
+			return err
 		}
-		setRegionReqAttribute(c, createClusterPayload.Region)
+
+		in := branchsvc.CreateInput{
+			OrganizationID: organizationID,
+			ProjectID:      projectID,
+			Name:           body.Name,
+			Mode:           branchMode,
+			Marketplace:    marketplace,
+			UsageTier:      claims.Organizations[organizationID].UsageTier,
+			OrgLimits:      orgLimits,
+			Flags:          featureFlags,
+			UsePgBackRest:  usePgBackRest,
+			Description:    body.Description,
+			Backup:         toBranchBackup(body.BackupConfiguration),
+			ScaleToZero:    toBranchScaleToZero(body.ScaleToZero),
+		}
+
+		payload, err := s.branches.BuildPayload(ctx, in)
+		if err != nil {
+			return apiErrorFromBranch(err)
+		}
+		// Set the region attribute BEFORE provisioning so a failed create (lock
+		// contention, the backups-disabled 400, any provisioner error) still
+		// carries the region in the request log and span — the failures we
+		// debug by region. setRegionReqAttribute replaces the request context,
+		// so re-read it before provisioning.
+		setRegionReqAttribute(c, payload.Region)
 		ctx = c.Request().Context()
 
-		if !createClusterPayload.BackupsEnabled && body.BackupConfiguration != nil {
-			return ErrorInvalidParam{BranchName: body.Name, Param: "backupConfiguration", Message: "backup configuration cannot be specified when backups are disabled in the selected region"}
-		}
-
-		// Populate remaining payload fields for the provisioner
-		createClusterPayload.Description = body.Description
-		createClusterPayload.BackupRetentionPeriod = apiToStoreBackupConfig(body.BackupConfiguration)
-		createClusterPayload.BackupConfig = apiToClustersBackupConfig(body.BackupConfiguration, createClusterPayload.BackupsEnabled, usePgBackRest)
-		createClusterPayload.Flags = featureFlags
-		createClusterPayload.UsageTier = claims.Organizations[organizationID].UsageTier
-		createClusterPayload.Limits = orgLimits.StoreLimits()
-
-		if body.ScaleToZero != nil {
-			createClusterPayload.Configuration.ScaleToZero = &clustersv1.ScaleToZero{
-				Enabled:                 body.ScaleToZero.Enabled,
-				InactivityPeriodMinutes: int64(body.ScaleToZero.InactivityPeriodMinutes),
-			}
-		}
-
-		// Acquire project lock BEFORE creating the branch to prevent race conditions with IP filtering updates
-		releaseLock, err := s.tryAcquireProjectLock(c, projectID)
+		br, connString, err := s.branches.Provision(ctx, in, payload)
 		if err != nil {
-			return err
-		}
-		defer releaseLock()
-
-		branch, err := s.provisioner.CreateBranch(ctx, projectID, organizationID, body.Name, &createClusterPayload)
-		if err != nil {
-			if notFound, ok := errors.AsType[provisioner.ErrBranchNotFound](err); ok {
-				return ErrorBranchNotFound{BranchID: notFound.BranchID}
+			// Surface Retry-After on lock contention, matching the previous
+			// tryAcquireProjectLock behavior.
+			if _, ok := errors.AsType[store.ErrProjectBusy](err); ok {
+				c.Response().Header().Set("Retry-After", projectLockRetryAfter)
 			}
-			if invalidCfg, ok := errors.AsType[provisioner.ErrInvalidConfiguration](err); ok {
-				return ErrorInvalidParam{BranchName: body.Name, Param: "configuration", Message: invalidCfg.Message}
-			}
-			if unhealthy, ok := errors.AsType[provisioner.ErrParentBranchUnhealthy](err); ok {
-				return ErrorParentBranchUnhealthy{ParentID: unhealthy.ParentID}
-			}
-			return err
+			return apiErrorFromBranch(err)
 		}
 
 		var analyticsEvent events.Event
-		switch payload := value.(type) {
+		switch mode := value.(type) {
 		case spec.BranchFromConfiguration:
 			analyticsEvent = events.NewBranchFromConfigurationEvent(
 				string(organizationID),
 				projectID,
-				branch.ID,
-				branch.Region,
-				string(payload.Configuration.Image),
-				payload.Configuration.InstanceType,
-				int(payload.Configuration.Replicas),
-				payload.Configuration.Storage,
+				br.ID,
+				br.Region,
+				string(mode.Configuration.Image),
+				mode.Configuration.InstanceType,
+				int(mode.Configuration.Replicas),
+				mode.Configuration.Storage,
 			)
 		case spec.BranchFromParent:
-			analyticsEvent = events.NewBranchFromParentEvent(string(organizationID), projectID, payload.ParentID, branch.ID, branch.Region)
+			analyticsEvent = events.NewBranchFromParentEvent(string(organizationID), projectID, mode.ParentID, br.ID, br.Region)
 		}
 		s.analytics.Track(c.Request().Context(), analyticsEvent)
 
-		// get the connection string
-		// swallow the error, the resource got created and the connection string will be eventually available
-		connString, _ := s.getConnectionString(c, organizationID, branch)
-		return c.JSON(http.StatusCreated, storeToAPIBranchShortMetadata(branch, connString))
+		return c.JSON(http.StatusCreated, storeToAPIBranchShortMetadata(br, connString))
 	})
-}
-
-func (s *handler) handleBranchFromParent(c context.Context, organizationID spec.OrganizationID, projectID, branchName string, payload spec.BranchFromParent) (ClusterServicePayload, error) {
-	if err := validateBranchFromParent(branchName, payload); err != nil {
-		return ClusterServicePayload{}, err
-	}
-	return s.prepareCreateClusterFromParent(c, organizationID, projectID, payload)
-}
-
-func validateBranchFromParent(branchName string, payload spec.BranchFromParent) error {
-	if payload.ParentID == "" {
-		return ErrorInvalidParam{BranchName: branchName, Param: "parentID", Message: "parentId is required for 'inherit' mode"}
-	}
-	return nil
-}
-
-func (s *handler) prepareCreateClusterFromParent(ctx context.Context, organizationID spec.OrganizationID, projectID string, payload spec.BranchFromParent) (ClusterServicePayload, error) {
-	// get the cell ID from the parent branch
-	parentBranch, err := s.store.DescribeBranch(ctx, organizationID, projectID, payload.ParentID)
-	if err != nil {
-		if errors.As(err, &store.ErrBranchNotFound{}) {
-			return ClusterServicePayload{}, ErrorBranchNotFound{BranchID: payload.ParentID}
-		}
-		return ClusterServicePayload{}, err
-	}
-
-	return ClusterServicePayload{
-		ParentID: new(payload.ParentID),
-		// If the parent branch ID is present, all settings (including vcpu, memory, and Postgres parameters) get copied from the
-		// parent branch. This means we don't need to send them over, they just get copied locally in the cell.
-		Configuration:  clustersv1.ClusterConfiguration{},
-		CellID:         parentBranch.CellID,
-		Region:         parentBranch.Region,
-		BackupsEnabled: parentBranch.BackupsEnabled,
-	}, nil
-}
-
-func (s *handler) handleBranchFromConfiguration(c context.Context, organizationID spec.OrganizationID, projectID, branchName string, payload spec.BranchFromConfiguration, orgLimits provisioner.OrgLimits, marketplace string) (ClusterServicePayload, error) {
-	if err := s.validateBranchFromConfiguration(c, organizationID, branchName, payload, orgLimits); err != nil {
-		return ClusterServicePayload{}, err
-	}
-	return s.prepareCreateClusterFromConfiguration(c, organizationID, projectID, branchName, payload, orgLimits, marketplace)
-}
-
-func (s *handler) validateBranchFromConfiguration(ctx context.Context, organizationID spec.OrganizationID, name string, payload spec.BranchFromConfiguration, orgLimits provisioner.OrgLimits) error {
-	// validate payload
-	if payload.Configuration == (spec.ClusterConfiguration{}) {
-		return ErrorInvalidParam{BranchName: name, Param: "configuration", Message: "configuration is required for 'custom' mode"}
-	}
-
-	if payload.Configuration.Storage != nil {
-		if err := validateStorageSize(name, *payload.Configuration.Storage, orgLimits.MaxStorageGBPerBranch); err != nil {
-			return err
-		}
-	}
-
-	return validateReplicaCount(name, payload.Configuration.Replicas, orgLimits.MinInstancesPerBranch, orgLimits.MaxInstancesPerBranch)
-}
-
-func (s *handler) prepareCreateClusterFromConfiguration(ctx context.Context, organizationID spec.OrganizationID, projectID, branchName string, payload spec.BranchFromConfiguration, orgLimits provisioner.OrgLimits, marketplace string) (ClusterServicePayload, error) {
-	// validate image - from this moment on, the image is in the correct format, no need for prefix, suffix, extra validation
-	validImageFormat, err := s.validateImage(ctx, organizationID, payload.Configuration.Image)
-	if err != nil {
-		return ClusterServicePayload{}, ErrorInvalidParam{BranchName: branchName, Param: "configuration", Message: "invalid image: " + err.Error()}
-	}
-
-	region, err := s.store.GetRegion(ctx, organizationID, payload.Configuration.Region)
-	if err != nil {
-		return ClusterServicePayload{}, ErrorInvalidParam{BranchName: branchName, Param: "configuration", Message: "invalid region: " + err.Error()}
-	}
-	if err := validateRegionForMarketplace(marketplace, *region); err != nil {
-		return ClusterServicePayload{}, ErrorInvalidParam{BranchName: branchName, Param: "region", Message: err.Error()}
-	}
-
-	// allocate to a cell in the region
-	cellID, err := s.allocateCell(ctx, organizationID, branchName, payload.Configuration.Region)
-	if err != nil {
-		return ClusterServicePayload{}, err
-	}
-
-	// look up the instance type, enforcing the org's compute limit
-	it, err := s.getInstanceTypeByName(ctx, organizationID, payload.Configuration.Region, payload.Configuration.InstanceType, orgLimits.MaxAllowedInstanceType)
-	if err != nil {
-		return ClusterServicePayload{}, ErrorInvalidParam{BranchName: branchName, Param: "instanceType", Message: err.Error()}
-	}
-	// Extract major version from image name
-	majorVersion := postgresversions.ExtractMajorVersionFromImage(validImageFormat)
-
-	// use configured preload libraries if provided, otherwise use defaults
-	var preloadLibraries []string
-	if payload.Configuration.PreloadLibraries != nil && len(*payload.Configuration.PreloadLibraries) > 0 {
-		if err := s.postgresConfigProvider.ValidatePreloadLibraries(validImageFormat, *payload.Configuration.PreloadLibraries); err != nil {
-			return ClusterServicePayload{}, ErrorInvalidParam{BranchName: branchName, Param: "preloadLibraries", Message: err.Error()}
-		}
-		preloadLibraries = *payload.Configuration.PreloadLibraries
-	} else {
-		preloadLibraries, err = s.postgresConfigProvider.GetDefaultPreloadLibraries(validImageFormat)
-		if err != nil {
-			return ClusterServicePayload{}, ErrorInvalidParam{BranchName: branchName, Param: "image", Message: fmt.Sprintf("failed to get default preload libraries: %v", err)}
-		}
-	}
-
-	// validate configured postgres parameters if provided
-	if payload.Configuration.PostgresConfigurationParameters != nil {
-		errs, err := s.postgresConfigProvider.ValidateSettings(payload.Configuration.InstanceType, *payload.Configuration.PostgresConfigurationParameters, majorVersion, validImageFormat, preloadLibraries)
-		if err != nil {
-			return ClusterServicePayload{}, ErrorInvalidParam{BranchName: branchName, Param: "postgresConfigurationParameters", Message: fmt.Sprintf("validation failed: %v", err)}
-		}
-		if errs != nil {
-			paramNames := slices.Sorted(maps.Keys(errs))
-			var errorMessages []string
-			for _, paramName := range paramNames {
-				errorMessages = append(errorMessages, fmt.Sprintf("%s: %s", paramName, errs[paramName].Error()))
-			}
-			return ClusterServicePayload{}, ErrorInvalidParam{BranchName: branchName, Param: "postgresConfigurationParameters", Message: strings.Join(errorMessages, "; ")}
-		}
-	}
-
-	// compute default Postgres parameters based on instance type, image, and preloaded extensions
-	postgresParameters, err := s.postgresConfigProvider.GetDefaultPostgresParameters(payload.Configuration.InstanceType, majorVersion, validImageFormat, preloadLibraries)
-	if err != nil {
-		return ClusterServicePayload{}, ErrorInvalidParam{BranchName: branchName, Param: "instanceType", Message: fmt.Sprintf("failed to compute Postgres parameters: %v", err)}
-	}
-
-	// merge configured postgres parameters if provided (they override defaults)
-	if payload.Configuration.PostgresConfigurationParameters != nil {
-		maps.Copy(postgresParameters, *payload.Configuration.PostgresConfigurationParameters)
-	}
-
-	numInstances := payload.Configuration.Replicas + 1 // the primary is always created
-
-	// storage QoS class is optional, so only set it if it's not empty
-	var storageQoSClass *string
-	if it.StorageQoSClass != "" {
-		storageQoSClass = new(it.StorageQoSClass)
-	}
-
-	// Zero leaves the cluster service to apply its configured default.
-	var storageSize int32
-	if payload.Configuration.Storage != nil {
-		storageSize = *payload.Configuration.Storage
-	}
-
-	return ClusterServicePayload{
-		ParentID: nil,
-		Configuration: clustersv1.ClusterConfiguration{
-			NumInstances:                    numInstances,
-			ImageName:                       validImageFormat,
-			VcpuRequest:                     it.CPURequest(),
-			VcpuLimit:                       it.CPULimit(),
-			Memory:                          it.Memory(),
-			PostgresConfigurationParameters: postgresParameters,
-			PreloadLibraries:                preloadLibraries,
-			StorageQosClass:                 storageQoSClass,
-			StorageSize:                     storageSize,
-		},
-		CellID:         cellID,
-		Region:         payload.Configuration.Region,
-		BackupsEnabled: region.BackupsEnabled,
-	}, nil
-}
-
-// parseCPUResource parses k8s cpu spec into milliCPUs
-func parseCPUResource(cpuSpec string) (int, error) {
-	quantity, err := resource.ParseQuantity(cpuSpec)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse cpu resource: %w", err)
-	}
-	return int(quantity.MilliValue()), nil
-}
-
-// returns the instance type with the given name, enforcing maxAllowedInstanceType.
-func (s *handler) getInstanceTypeByName(ctx context.Context, organizationID spec.OrganizationID, region string, name string, maxAllowedInstanceType int) (store.InstanceType, error) {
-	instanceTypes, err := s.store.ListInstanceTypes(ctx, organizationID, region)
-	if err != nil {
-		return store.InstanceType{}, err
-	}
-	for _, instance := range instanceTypes {
-		if instance.Name == name {
-			if maxAllowedInstanceType != 0 && instance.VCPUsRequest > maxAllowedInstanceType {
-				return store.InstanceType{}, fmt.Errorf("instance type %s is not available on your current plan; please add a payment method in your billing settings or contact support to enable larger instances", name)
-			}
-			return instance, nil
-		}
-	}
-	return store.InstanceType{}, fmt.Errorf("instance type %s is not found", name)
-}
-
-// returns the instance type for the pair vcpu, memory
-func (s *handler) getInstanceTypeByResources(ctx context.Context, organizationID spec.OrganizationID, region string, cpuRequest string, cpuLimit string, memory string) (name string, err error) {
-	instanceTypes, err := s.store.ListInstanceTypes(ctx, organizationID, region)
-	if err != nil {
-		return "", err
-	}
-
-	vcpusRequest, err := parseCPUResource(cpuRequest)
-	if err != nil {
-		return "", err
-	}
-
-	vcpusLimit, err := parseCPUResource(cpuLimit)
-	if err != nil {
-		return "", err
-	}
-
-	ram, err := strconv.Atoi(memory)
-	if err != nil {
-		return "", err
-	}
-
-	for _, instance := range instanceTypes {
-		if instance.VCPUsRequest == vcpusRequest && instance.VCPUsLimit == vcpusLimit && instance.RAM == ram {
-			return instance.Name, nil
-		}
-	}
-
-	// for invalid combinations we will return the FallbackInstanceType defined as "custom" string as not to break the UI in the case we needed to amend the configs manually
-	return FallbackInstanceType, nil
 }
 
 type validateRegionParams struct {
@@ -1097,28 +814,13 @@ func (s *handler) validateRegion(ctx context.Context, params validateRegionParam
 
 	for _, region := range regions {
 		if params.region == region.ID {
-			return validateRegionForMarketplace(params.marketplace, region)
+			if branchsvc.IsRegionAvailableForMarketplace(params.marketplace, region) {
+				return nil
+			}
+			return ErrorInvalidRegion{Message: fmt.Sprintf("provider %s is not available for %s marketplace organizations", region.Provider, params.marketplace)}
 		}
 	}
 	return ErrorInvalidRegion{Message: fmt.Sprintf("region %s is not found", params.region)}
-}
-
-type validateMarketplaceRegionParams struct {
-	organizationID spec.OrganizationID
-	marketplace    string
-	region         string
-}
-
-func (s *handler) validateMarketplaceRegion(ctx context.Context, params validateMarketplaceRegionParams) error {
-	if params.marketplace == "" {
-		return nil
-	}
-
-	region, err := s.store.GetRegion(ctx, params.organizationID, params.region)
-	if err != nil {
-		return err
-	}
-	return validateRegionForMarketplace(params.marketplace, *region)
 }
 
 func filterRegionsForMarketplace(marketplace string, regions []store.Region) []store.Region {
@@ -1128,15 +830,11 @@ func filterRegionsForMarketplace(marketplace string, regions []store.Region) []s
 
 	filtered := make([]store.Region, 0, len(regions))
 	for _, region := range regions {
-		if isRegionAvailableForMarketplace(marketplace, region) {
+		if branchsvc.IsRegionAvailableForMarketplace(marketplace, region) {
 			filtered = append(filtered, region)
 		}
 	}
 	return filtered
-}
-
-func isRegionAvailableForMarketplace(marketplace string, region store.Region) bool {
-	return marketplace == "" || marketplace == string(region.Provider)
 }
 
 type ErrorInvalidRegion struct {
@@ -1150,121 +848,6 @@ func (e ErrorInvalidRegion) Error() string {
 func isInvalidRegionError(err error) bool {
 	var invalid ErrorInvalidRegion
 	return errors.As(err, &invalid)
-}
-
-func validateRegionForMarketplace(marketplace string, region store.Region) error {
-	if isRegionAvailableForMarketplace(marketplace, region) {
-		return nil
-	}
-	return ErrorInvalidRegion{Message: fmt.Sprintf("provider %s is not available for %s marketplace organizations", region.Provider, marketplace)}
-}
-
-// majorVersionEnabled reports whether a PostgreSQL major version hidden by
-// default is available to the organization in ctx. A major marked hidden in
-// versions.yaml without a flag in flags.PgMajorFlags stays hidden for everyone.
-func (s *handler) majorVersionEnabled(ctx context.Context, major string) bool {
-	flag, ok := flags.PgMajorFlags[major]
-	if !ok {
-		return false
-	}
-	return s.feat.BoolValue(ctx, flag)
-}
-
-// validateImage resolves an image for a new branch, rejecting images that are
-// not available to the organization.
-func (s *handler) validateImage(ctx context.Context, organizationID spec.OrganizationID, image string) (string, error) {
-	// Reject experimental images if the feature flag is not enabled
-	if strings.HasPrefix(image, "experimental:") && !s.feat.BoolValue(ctx, flags.ExperimentalImages) {
-		return "", fmt.Errorf("image %s is not available", image)
-	}
-
-	// Reject analytics images if the feature flag is not enabled
-	if strings.HasPrefix(image, "analytics:") && !s.feat.BoolValue(ctx, flags.AnalyticsImages) {
-		return "", fmt.Errorf("image %s is not available", image)
-	}
-
-	// Reject major versions hidden by default if the flag for that major is not
-	// enabled
-	if major, hidden := postgresversions.HiddenMajorImages()[image]; hidden && !s.majorVersionEnabled(ctx, major) {
-		return "", fmt.Errorf("image %s is not available", image)
-	}
-
-	// Reject older minors hidden by default if the feature flag is not enabled
-	if slices.Contains(postgresversions.HiddenImageNames(), image) && !s.feat.BoolValue(ctx, flags.LegacyPgVersions) {
-		return "", fmt.Errorf("image %s is not available", image)
-	}
-
-	return s.resolveImage(ctx, organizationID, image)
-}
-
-// resolveImage checks that an image exists and returns its full registry URL,
-// without applying the availability rules enforced by validateImage.
-func (s *handler) resolveImage(ctx context.Context, organizationID spec.OrganizationID, image string) (string, error) {
-	allValidImages := s.imageProvider.GetAllImageNames()
-	// TODO once the UI starts sending valid responses, remove the validImages var
-	// this is only for backward compat
-	if image == validImage {
-		return "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5", nil
-	}
-	if slices.Contains(allValidImages, image) {
-		imageURL := s.imageProvider.BuildImageURL(image)
-		return imageURL, nil
-	}
-	return "", fmt.Errorf("image %s is not valid", image)
-}
-
-func (s *handler) validateImageUpgrade(ctx context.Context, organizationID spec.OrganizationID, newImage, currentImage string) (string, error) {
-	// Is the new image a valid one? This deliberately skips the availability
-	// rules of validateImage: the checks below constrain the upgrade to a newer
-	// minor of the offering and major the branch already runs, so a branch must
-	// stay patchable even when that offering or version is hidden by default.
-	newImageURL, err := s.resolveImage(ctx, organizationID, newImage)
-	if err != nil {
-		return "", err
-	}
-
-	// make sure the offering is the same and that the minor is bigger than the current one
-	newImageInfo, err := s.imageProvider.ParseImageVersion(newImageURL)
-	if err != nil {
-		return "", err
-	}
-	currentImageInfo, err := s.imageProvider.ParseImageVersion(currentImage)
-	if err != nil {
-		return "", err
-	}
-
-	if newImageInfo.Offering != currentImageInfo.Offering {
-		return "", fmt.Errorf("incompatible offering: %s is not compatible with %s", newImageInfo.Offering, currentImageInfo.Offering)
-	}
-	if newImageInfo.Major != currentImageInfo.Major {
-		return "", fmt.Errorf("no major version upgrades supported: %d is different than current %d", newImageInfo.Major, currentImageInfo.Major)
-	}
-
-	if newImageInfo.Minor < currentImageInfo.Minor {
-		return "", fmt.Errorf("new minor: %d is older than current  %d", newImageInfo.Minor, currentImageInfo.Minor)
-	}
-
-	return newImageURL, nil
-}
-
-// allocateCell allocates a cell in the region
-func (s *handler) allocateCell(ctx context.Context, organizationID spec.OrganizationID, branchName, regionID string) (string, error) {
-	cells, err := s.store.ListCells(ctx, organizationID, regionID)
-	if err != nil {
-		return "", err
-	}
-
-	if len(cells) == 0 {
-		return "", ErrorInvalidParam{BranchName: branchName, Param: "region", Message: "cannot allocate to given region"}
-	}
-
-	strategy := s.sched.StrategyForRegion(regionID)
-	cell, err := strategy.Schedule(ctx, cells)
-	if err != nil {
-		return "", fmt.Errorf("failed to schedule branch %q: %w", branchName, err)
-	}
-
-	return cell.ID, nil
 }
 
 // Describe a new branch
@@ -1304,7 +887,7 @@ func (s *handler) DescribeBranch(c echo.Context, organizationID spec.Organizatio
 		cluster.Configuration.PreloadLibraries = postgrescfg.FilterOutInternalPreloadLibraries(cluster.Configuration.PreloadLibraries)
 
 		// get the connection string, ignore errors as we may not have a connection string yet
-		connString, err := s.getConnectionString(c, organizationID, branch)
+		connString, err := s.branches.ConnectionString(c.Request().Context(), organizationID, branch)
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			log.Ctx(c.Request().Context()).
 				Info().
@@ -1314,7 +897,7 @@ func (s *handler) DescribeBranch(c echo.Context, organizationID spec.Organizatio
 		}
 
 		// get instance type from resources
-		instanceType, err := s.getInstanceTypeByResources(c.Request().Context(), organizationID, branch.Region, cluster.Configuration.VcpuRequest, cluster.Configuration.VcpuLimit, cluster.Configuration.Memory)
+		instanceType, err := s.branches.InstanceTypeByResources(c.Request().Context(), organizationID, branch.Region, cluster.Configuration.VcpuRequest, cluster.Configuration.VcpuLimit, cluster.Configuration.Memory)
 		if err != nil {
 			return fmt.Errorf("converting resources to instance type: %w", err)
 		}
@@ -1329,102 +912,6 @@ func (s *handler) DescribeBranch(c echo.Context, organizationID spec.Organizatio
 
 // branchDatabaseName is the database managed users connect to on every branch.
 const branchDatabaseName = "xata"
-
-// defaultPostgresPort is omitted from connection strings, clients assume it.
-const defaultPostgresPort = 5432
-
-// deprecatedHostSuffix marks hostnames served in the deprecated branch
-// connectionString field. The gateway strips it and logs the connection,
-// so clients still using that field can be detected.
-const deprecatedHostSuffix = "-deprecated"
-
-// formatConnectionString assembles the branch DSN from its parts. It carries
-// no sslmode parameter, clients choose their own TLS settings.
-func formatConnectionString(username, password, hostname string, port int) string {
-	hostPort := hostname
-	if port != defaultPostgresPort {
-		hostPort = fmt.Sprintf("%s:%d", hostname, port)
-	}
-	return fmt.Sprintf("postgresql://%s:%s@%s/%s",
-		username, password, hostPort, branchDatabaseName)
-}
-
-// resolveGatewayHostPort returns the region's gateway host:port, falling back to
-// the handler default when the region does not override it.
-func (s *handler) resolveGatewayHostPort(region *store.Region) string {
-	if region.GatewayHostPort != "" {
-		return region.GatewayHostPort
-	}
-	return s.defaultGatewayHostPort
-}
-
-// branchEndpoint returns the hostname and port clients use to reach a branch
-// through the region's gateway. hostLabel is normally the branch ID, optionally
-// decorated with a suffix the gateway understands. A non-nil subdomain
-// qualifies the hostname with the branch's cell (<label>.<subdomain>.<host>)
-func (s *handler) branchEndpoint(region *store.Region, subdomain *string, hostLabel string) (string, int, error) {
-	hostPort := s.resolveGatewayHostPort(region)
-	if hostPort == "" {
-		return "", 0, errors.New("no gateway host:port configured")
-	}
-
-	if subdomain != nil {
-		hostPort = *subdomain + "." + hostPort
-	}
-
-	// Regions may register a host-only gateway address (ie us-east-1.xata.tech),
-	// in that case connections use the default postgres port.
-	if !strings.Contains(hostPort, ":") {
-		return hostLabel + "." + hostPort, defaultPostgresPort, nil
-	}
-	host, portStr, err := net.SplitHostPort(hostPort)
-	if err != nil {
-		return "", 0, fmt.Errorf("parse gateway host:port [%s]: %w", hostPort, err)
-	}
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return "", 0, fmt.Errorf("parse gateway port [%s]: %w", portStr, err)
-	}
-	return hostLabel + "." + host, port, nil
-}
-
-func (s *handler) getConnectionString(c echo.Context, organizationID string, branch *store.Branch) (string, error) {
-	// TODO I believe eventually this must be its own API call (ie, we may support several managed users in the future)
-	client, err := s.cells.GetCellConnection(c.Request().Context(), organizationID, branch.CellID)
-	if err != nil {
-		return "", err
-	}
-	defer client.Close()
-
-	// get gateway host:port from the region
-	region, err := s.store.GetRegion(c.Request().Context(), organizationID, branch.Region)
-	if err != nil {
-		return "", err
-	}
-
-	cell, err := s.store.GetCell(c.Request().Context(), organizationID, branch.CellID)
-	if err != nil {
-		return "", err
-	}
-
-	creds, err := client.GetPostgresClusterCredentials(c.Request().Context(), &clustersv1.GetPostgresClusterCredentialsRequest{
-		Id:       branch.ID,
-		Username: "app",
-	})
-	if err != nil {
-		return "", err
-	}
-
-	// The deprecated marker keeps the connection routable while letting the
-	// gateway log which clients still use this connection string.
-	hostname, port, err := s.branchEndpoint(region, cell.Subdomain, branch.ID+deprecatedHostSuffix)
-	if err != nil {
-		return "", err
-	}
-	// The deprecated branch connectionString keeps sslmode for backwards
-	// compatibility.
-	return formatConnectionString(creds.GetUsername(), creds.GetPassword(), hostname, port) + "?sslmode=require", nil
-}
 
 // Get branch credentials
 // (GET /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/credentials)
@@ -1467,7 +954,7 @@ func (s *handler) GetBranchCredentials(c echo.Context, organizationID spec.Organ
 			return err
 		}
 
-		hostname, port, err := s.branchEndpoint(region, cell.Subdomain, branch.ID)
+		hostname, port, err := s.branches.BranchEndpoint(region, cell.Subdomain, branch.ID)
 		if err != nil {
 			return err
 		}
@@ -1478,7 +965,7 @@ func (s *handler) GetBranchCredentials(c echo.Context, organizationID spec.Organ
 			Hostname:         hostname,
 			Port:             port,
 			Dbname:           branchDatabaseName,
-			ConnectionString: formatConnectionString(creds.GetUsername(), creds.GetPassword(), hostname, port),
+			ConnectionString: branchsvc.FormatConnectionString(creds.GetUsername(), creds.GetPassword(), hostname, port),
 		})
 	})
 }
@@ -1550,8 +1037,8 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 		}
 
 		if body.Replicas != nil {
-			if err := validateReplicaCount(branchID, *body.Replicas, orgLimits.MinInstancesPerBranch, orgLimits.MaxInstancesPerBranch); err != nil {
-				return err
+			if err := branchsvc.ValidateReplicaCount(branchID, *body.Replicas, orgLimits.MinInstancesPerBranch, orgLimits.MaxInstancesPerBranch); err != nil {
+				return apiErrorFromBranch(err)
 			}
 		}
 
@@ -1593,8 +1080,8 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 				config.ScaleToZero = apiToClustersScaleToZero(body.ScaleToZero, nil, nil)
 			}
 			// if the UI sends custom back we don't try to decode vcpu and memory
-			if body.InstanceType != nil && *body.InstanceType != FallbackInstanceType {
-				it, err := s.getInstanceTypeByName(c.Request().Context(), organizationID, branch.Region, *body.InstanceType, orgLimits.MaxAllowedInstanceType)
+			if body.InstanceType != nil && *body.InstanceType != branchsvc.FallbackInstanceType {
+				it, err := s.branches.InstanceTypeByName(c.Request().Context(), organizationID, branch.Region, *body.InstanceType, orgLimits.MaxAllowedInstanceType)
 				if err != nil {
 					return ErrorInvalidParam{BranchName: branchID, Param: "configuration", Message: fmt.Sprintf("branch [%s]: %s", branchID, err.Error())}
 				}
@@ -1616,7 +1103,7 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 
 			// Fetch cluster info once if needed for any of the operations
 			var cluster *clustersv1.DescribePostgresClusterResponse
-			needsClusterInfo := (body.InstanceType != nil && *body.InstanceType != FallbackInstanceType) ||
+			needsClusterInfo := (body.InstanceType != nil && *body.InstanceType != branchsvc.FallbackInstanceType) ||
 				body.PostgresConfigurationParameters != nil ||
 				body.PreloadLibraries != nil ||
 				body.Image != nil ||
@@ -1646,8 +1133,8 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 			}
 
 			// If instance type is changing, we need to update default settings
-			if body.InstanceType != nil && *body.InstanceType != FallbackInstanceType {
-				oldInstanceType, err := s.getInstanceTypeByResources(c.Request().Context(), organizationID, branch.Region, cluster.Configuration.VcpuRequest, cluster.Configuration.VcpuLimit, cluster.Configuration.Memory)
+			if body.InstanceType != nil && *body.InstanceType != branchsvc.FallbackInstanceType {
+				oldInstanceType, err := s.branches.InstanceTypeByResources(c.Request().Context(), organizationID, branch.Region, cluster.Configuration.VcpuRequest, cluster.Configuration.VcpuLimit, cluster.Configuration.Memory)
 				if err != nil {
 					return fmt.Errorf("converting current resources (%s, %s, %s) to instance type: %w", cluster.Configuration.VcpuRequest, cluster.Configuration.VcpuLimit, cluster.Configuration.Memory, err)
 				}
@@ -1717,13 +1204,13 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 
 			if body.PostgresConfigurationParameters != nil {
 				// find the instance type, because valid configuration depends on that
-				instanceType := FallbackInstanceType
+				instanceType := branchsvc.FallbackInstanceType
 				if body.InstanceType != nil {
 					body.InstanceType = &instanceType
 				} else {
 					// otherwise, find the instance type from the cluster (already fetched above)
 					var err error
-					instanceType, err = s.getInstanceTypeByResources(c.Request().Context(), organizationID, branch.Region, cluster.Configuration.VcpuRequest, cluster.Configuration.VcpuLimit, cluster.Configuration.Memory)
+					instanceType, err = s.branches.InstanceTypeByResources(c.Request().Context(), organizationID, branch.Region, cluster.Configuration.VcpuRequest, cluster.Configuration.VcpuLimit, cluster.Configuration.Memory)
 					if err != nil {
 						return fmt.Errorf("converting resources to instance type: %w", err)
 					}
@@ -1805,7 +1292,7 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 					backupConfig.BackupRetention = fmt.Sprintf("%dd", *body.BackupConfiguration.RetentionPeriod)
 				}
 				if body.BackupConfiguration.BackupTime != nil && *body.BackupConfiguration.BackupTime != "" {
-					backupConfig.BackupSchedule = generateCron(*body.BackupConfiguration.BackupTime)
+					backupConfig.BackupSchedule = branchsvc.GenerateCron(*body.BackupConfiguration.BackupTime)
 				}
 				config.BackupConfiguration = backupConfig
 			}
@@ -1815,7 +1302,7 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 				// It can be argued that this should be decided by the operator. However - more than what
 				// the operator supports - there should be a way for us to allow/disallow certain
 				// upgrades - there can be business reasons for this and so it needs to happen here.
-				imageURL, err := s.validateImageUpgrade(c.Request().Context(), organizationID, *body.Image, cluster.Configuration.ImageName)
+				imageURL, err := s.branches.ValidateImageUpgrade(c.Request().Context(), organizationID, *body.Image, cluster.Configuration.ImageName)
 				if err != nil {
 					return ErrorInvalidParam{BranchName: branch.ID, Param: "image", Message: err.Error()}
 				}
@@ -1891,7 +1378,7 @@ func (s *handler) UpdateBranch(c echo.Context, organizationID spec.OrganizationI
 
 		// get the connection string
 		// swallow the error, the resource got created and the connection string will be eventually available
-		connString, err := s.getConnectionString(c, organizationID, branch)
+		connString, err := s.branches.ConnectionString(c.Request().Context(), organizationID, branch)
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			log.Ctx(c.Request().Context()).
 				Err(err).
@@ -2154,12 +1641,9 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 			if s.feat.BoolValue(ctx, flags.ChildBranchCreationDisabled) {
 				return ErrorChildBranchCreationDisabled{}
 			}
-			createClusterPayload, err = s.handleBranchFromParent(ctx, organizationID, projectID, body.Name, spec.BranchFromParent{
-				Mode:     spec.Inherit,
-				ParentID: branchID,
-			})
+			createClusterPayload, err = s.branches.PayloadFromParent(ctx, organizationID, projectID, body.Name, branchID)
 			if err != nil {
-				return err
+				return apiErrorFromBranch(err)
 			}
 		} else {
 			// Use source branch's region if not specified, otherwise validate it matches
@@ -2169,12 +1653,9 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 				return ErrorInvalidParam{BranchName: body.Name, Param: "region", Message: "restore must be in the same region as the source branch"}
 			}
 			// Use provided configuration
-			createClusterPayload, err = s.handleBranchFromConfiguration(ctx, organizationID, projectID, body.Name, spec.BranchFromConfiguration{
-				Mode:          spec.BranchFromConfigurationModeCustom,
-				Configuration: *body.Configuration,
-			}, orgLimits, marketplace)
+			createClusterPayload, err = s.branches.PayloadFromConfiguration(ctx, organizationID, projectID, body.Name, toBranchConfiguration(*body.Configuration), orgLimits, marketplace)
 			if err != nil {
-				return err
+				return apiErrorFromBranch(err)
 			}
 			// Use source branch's cell - the backup only exists there
 			createClusterPayload.CellID = sourceBranch.CellID
@@ -2183,10 +1664,10 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 		}
 
 		if body.Configuration == nil {
-			if err := s.validateMarketplaceRegion(ctx, validateMarketplaceRegionParams{
-				organizationID: organizationID,
-				marketplace:    marketplace,
-				region:         createClusterPayload.Region,
+			if err := s.branches.ValidateMarketplaceRegion(ctx, branchsvc.MarketplaceRegionParams{
+				OrganizationID: organizationID,
+				Marketplace:    marketplace,
+				Region:         createClusterPayload.Region,
 			}); err != nil {
 				return ErrorInvalidParam{BranchName: body.Name, Param: "region", Message: err.Error()}
 			}
@@ -2256,7 +1737,7 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 			s.analytics.Track(ctx, events.NewBranchRestoredFromBackupEvent(string(organizationID), projectID, branchID, branch.ID))
 
 			// swallow the error, the resource got created and the connection string will be eventually available
-			connString, _ := s.getConnectionString(c, organizationID, branch)
+			connString, _ := s.branches.ConnectionString(c.Request().Context(), organizationID, branch)
 			return c.JSON(http.StatusCreated, storeToAPIBranchShortMetadata(branch, connString))
 		})
 	})
@@ -2400,7 +1881,7 @@ func (s *handler) GetBranchPostgresConfig(c echo.Context, organizationID spec.Or
 			return err
 		}
 
-		instanceType, err := s.getInstanceTypeByResources(c.Request().Context(), organizationID, branch.Region, cluster.Configuration.VcpuRequest, cluster.Configuration.VcpuLimit, cluster.Configuration.Memory)
+		instanceType, err := s.branches.InstanceTypeByResources(c.Request().Context(), organizationID, branch.Region, cluster.Configuration.VcpuRequest, cluster.Configuration.VcpuLimit, cluster.Configuration.Memory)
 		if err != nil {
 			return fmt.Errorf("converting resources to instance type: %w", err)
 		}

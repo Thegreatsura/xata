@@ -22,6 +22,7 @@ import (
 	"xata/internal/service"
 	"xata/services/projects/api"
 	"xata/services/projects/api/spec"
+	"xata/services/projects/branch"
 	"xata/services/projects/cells"
 	"xata/services/projects/orgstatus"
 	"xata/services/projects/provisioner"
@@ -52,6 +53,7 @@ type ProjectsService struct {
 	cells                       cells.Cells                    // pooled gRPC connections to cells
 	githubInstallationValidator api.GithubInstallationValidator
 	orgStatusWorker             *orgstatus.Worker
+	branches                    *branch.Service
 }
 
 func NewProjectsService() *ProjectsService {
@@ -204,6 +206,20 @@ func (s *ProjectsService) RegisterHTTPHandlers(o *o11y.O, router *echo.Group) er
 		opts = append(opts, api.WithGithubInstallationValidator(s.githubInstallationValidator))
 	}
 
+	s.branches = branch.New(
+		s.store,
+		cellsConn,
+		s.feat,
+		s.scheduler,
+		s.config.GatewayHostPort,
+		&postgrescfg.DefaultPostgresConfigProvider{},
+		&postgresversions.DefaultImageProvider{},
+		prov,
+	)
+	// Share the one branch.Service between the REST handler and the Branches()
+	// accessor instead of building a second instance inside the handler.
+	opts = append(opts, api.WithBranchService(s.branches))
+
 	spec.RegisterHandlers(group,
 		api.NewAPIHandler(
 			s.feat,
@@ -220,6 +236,13 @@ func (s *ProjectsService) RegisterHTTPHandlers(o *o11y.O, router *echo.Group) er
 	)
 
 	return nil
+}
+
+// Branches returns the branch business-logic service so that SaaS wrappers
+// (e.g. the Vercel resource handler) can provision branches without
+// re-implementing payload assembly, locking, and connection-string retrieval.
+func (s *ProjectsService) Branches() *branch.Service {
+	return s.branches
 }
 
 // Store returns the underlying ProjectsStore so that SaaS wrappers can register
