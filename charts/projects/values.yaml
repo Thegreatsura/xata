@@ -74,7 +74,9 @@ externalSecrets:
   posthogSecret: posthog
   customerioSecret: ""
 
-scheduler: {}
+scheduler:
+  default:
+    type: Random
 
 resources:
   limits:
