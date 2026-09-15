@@ -62,17 +62,16 @@ func roleOfGroup(name string) (Role, bool) {
 	return "", false
 }
 
-// SeedMembers is resolved only when the Admin role needs seeding.
-type SeedMembers func(ctx context.Context) ([]string, error)
-
 // Roles enforces the Xata role rules on top of Keycloak organization groups.
 type Roles interface {
 	// Members returns the role held by every member of the organization.
 	Members(ctx context.Context, organizationID string) (map[string]Role, error)
+	// IsAdmin reports whether the user holds Admin.
+	IsAdmin(ctx context.Context, organizationID, userID string) (bool, error)
 	// SetMember replaces the role of one member.
 	SetMember(ctx context.Context, organizationID, userID string, role Role, callerID string) error
-	// EnsureRoles creates any missing reserved group, seeding Admin when empty.
-	EnsureRoles(ctx context.Context, organizationID string, seed SeedMembers) error
+	// AddAdmins creates any missing reserved group and grants Admin to each user.
+	AddAdmins(ctx context.Context, organizationID string, userIDs ...string) error
 	// CheckOrganizationMemberRemovable refuses to strand an organization with no Admin.
 	CheckOrganizationMemberRemovable(ctx context.Context, organizationID, userID string) error
 	// RemoveMemberFromAllRoles clears a member's role when they leave.
@@ -122,6 +121,31 @@ func (s *rolesService) Members(ctx context.Context, organizationID string) (map[
 	return byUser, nil
 }
 
+func (s *rolesService) IsAdmin(ctx context.Context, organizationID, userID string) (bool, error) {
+	if userID == "" {
+		return false, nil
+	}
+	groups, err := s.kcRest.ListGroups(ctx, s.realm, organizationID)
+	if err != nil {
+		return false, fmt.Errorf("list groups: %w", err)
+	}
+	for _, g := range groups {
+		if role, ok := roleOfGroup(g.Name); !ok || role != Admin {
+			continue
+		}
+		admins, err := s.kcRest.ListGroupMembers(ctx, s.realm, organizationID, g.ID)
+		if err != nil {
+			return false, fmt.Errorf("list role members: %w", err)
+		}
+		for _, m := range admins {
+			if m.ID == userID {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
 func (s *rolesService) SetMember(ctx context.Context, organizationID, userID string, role Role, callerID string) error {
 	if !role.Valid() {
 		return ErrUnknownRole{Role: string(role)}
@@ -168,29 +192,21 @@ func (s *rolesService) SetMember(ctx context.Context, organizationID, userID str
 	return nil
 }
 
-func (s *rolesService) EnsureRoles(ctx context.Context, organizationID string, seed SeedMembers) error {
-	groups, err := s.kcRest.ListGroups(ctx, s.realm, organizationID)
-	if err != nil {
-		return fmt.Errorf("list groups: %w", err)
-	}
-
-	for _, d := range All {
-		if _, err := s.groupFor(ctx, organizationID, groups, d.Role); err != nil {
-			return err
-		}
-	}
-
-	if seed == nil {
-		return nil
-	}
-	admins, err := s.membersOf(ctx, organizationID, Admin)
+func (s *rolesService) AddAdmins(ctx context.Context, organizationID string, userIDs ...string) error {
+	groups, err := s.ensureGroups(ctx, organizationID)
 	if err != nil {
 		return err
 	}
-	if len(admins) > 0 {
-		return nil
+	var errs []error
+	for _, id := range userIDs {
+		if id == "" {
+			continue
+		}
+		if err := s.kcRest.AddGroupMember(ctx, s.realm, organizationID, groups[Admin], id); err != nil {
+			errs = append(errs, fmt.Errorf("grant admin %s: %w", id, err))
+		}
 	}
-	return s.seedAdmins(ctx, organizationID, seed)
+	return errors.Join(errs...)
 }
 
 func (s *rolesService) CheckOrganizationMemberRemovable(ctx context.Context, organizationID, userID string) error {
@@ -222,57 +238,52 @@ func (s *rolesService) RemoveMemberFromAllRoles(ctx context.Context, organizatio
 	return errors.Join(errs...)
 }
 
-// groupFor returns the reserved group backing a role, creating it if absent.
-func (s *rolesService) groupFor(ctx context.Context, organizationID string, groups []keycloak.Group, role Role) (string, error) {
-	for _, g := range groups {
-		if found, ok := roleOfGroup(g.Name); ok && found == role {
-			return g.ID, nil
-		}
-	}
-	created, err := s.kcRest.CreateGroup(ctx, s.realm, organizationID, role.groupName())
+func (s *rolesService) ensureGroups(ctx context.Context, organizationID string) (map[Role]string, error) {
+	groups, err := s.kcRest.ListGroups(ctx, s.realm, organizationID)
 	if err != nil {
-		return "", fmt.Errorf("create role %s: %w", role, err)
+		return nil, fmt.Errorf("list groups: %w", err)
 	}
-	return created.ID, nil
-}
-
-func (s *rolesService) membersOf(ctx context.Context, organizationID string, role Role) ([]string, error) {
-	current, err := s.Members(ctx, organizationID)
-	if err != nil {
-		return nil, err
-	}
-	var ids []string
-	for userID, held := range current {
-		if held == role {
-			ids = append(ids, userID)
+	ids := make(map[Role]string, len(All))
+	for _, d := range All {
+		id, err := s.groupFor(ctx, organizationID, groups, d.Role)
+		if err != nil {
+			return nil, err
 		}
+		ids[d.Role] = id
 	}
 	return ids, nil
 }
 
-// seedAdmins preserves the prior behaviour, where every member could do anything.
-func (s *rolesService) seedAdmins(ctx context.Context, organizationID string, seed SeedMembers) error {
-	memberIDs, err := seed(ctx)
-	if err != nil {
-		return fmt.Errorf("resolve admin seed: %w", err)
+// groupFor returns the reserved group backing a role, creating it if absent.
+func (s *rolesService) groupFor(ctx context.Context, organizationID string, groups []keycloak.Group, role Role) (string, error) {
+	if id, ok := findRoleGroup(groups, role); ok {
+		return id, nil
 	}
-	groups, err := s.kcRest.ListGroups(ctx, s.realm, organizationID)
-	if err != nil {
-		return fmt.Errorf("list groups: %w", err)
+	created, err := s.kcRest.CreateGroup(ctx, s.realm, organizationID, role.groupName())
+	if err == nil {
+		return created.ID, nil
 	}
-	target, err := s.groupFor(ctx, organizationID, groups, Admin)
-	if err != nil {
-		return err
+	if !errors.As(err, &keycloak.ErrGroupAlreadyExists{}) {
+		return "", fmt.Errorf("create role %s: %w", role, err)
 	}
-	for _, id := range memberIDs {
-		if id == "" {
-			continue
+
+	current, listErr := s.kcRest.ListGroups(ctx, s.realm, organizationID)
+	if listErr != nil {
+		return "", fmt.Errorf("list groups: %w", listErr)
+	}
+	if id, ok := findRoleGroup(current, role); ok {
+		return id, nil
+	}
+	return "", fmt.Errorf("create role %s: %w", role, err)
+}
+
+func findRoleGroup(groups []keycloak.Group, role Role) (string, bool) {
+	for _, g := range groups {
+		if found, ok := roleOfGroup(g.Name); ok && found == role {
+			return g.ID, true
 		}
-		if err := s.kcRest.AddGroupMember(ctx, s.realm, organizationID, target, id); err != nil {
-			return fmt.Errorf("seed admin %s: %w", id, err)
-		}
 	}
-	return nil
+	return "", false
 }
 
 func countRole(byUser map[string]Role, role Role) int {

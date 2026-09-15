@@ -156,6 +156,10 @@ func (r *restKC) AddGroupMember(ctx context.Context, realm, organizationID, grou
 	if resp.StatusCode() == http.StatusNotFound {
 		return ErrGroupNotFound{ID: groupID}
 	}
+	// Keycloak answers 409 when the user is already a member.
+	if resp.StatusCode() == http.StatusConflict {
+		return nil
+	}
 	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK, http.StatusCreated, http.StatusNoContent) {
 		return fmt.Errorf("failed to add group member: status code: %d", resp.StatusCode())
 	}

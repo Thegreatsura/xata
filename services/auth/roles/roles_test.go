@@ -2,6 +2,7 @@ package roles
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -87,9 +88,7 @@ func TestMembers(t *testing.T) {
 	}
 }
 
-func TestMembersPagesBeyondOnePage(t *testing.T) {
-	// The keycloak client pages; this asserts the service reports a role for every
-	// member it is handed, however many that is.
+func TestMembersReportsEveryListedMember(t *testing.T) {
 	const count = 250
 	ids := make([]string, count)
 	for i := range ids {
@@ -103,7 +102,7 @@ func TestMembersPagesBeyondOnePage(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, count)
 	require.Equal(t, Admin, got[ids[0]])
-	require.Equal(t, Unassigned, got[ids[count-1]], "a member past the first page must still be reported")
+	require.Equal(t, Unassigned, got[ids[count-1]])
 }
 
 func TestSetMember(t *testing.T) {
@@ -182,38 +181,143 @@ func TestSetMember(t *testing.T) {
 	}
 }
 
-func TestEnsureRoles(t *testing.T) {
-	t.Run("creates the reserved groups an organization is missing", func(t *testing.T) {
-		kc := keycloakMocks.NewKeyCloak(t)
-		kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).
-			Return([]keycloak.Group{{ID: adminID, Name: "Admin"}}, nil).Maybe()
-		kc.EXPECT().CreateGroup(mock.Anything, apitest.TestRealm, testOrgID, "Editor").
-			Return(keycloak.Group{ID: editorID, Name: "Editor"}, nil).Once()
-		kc.EXPECT().CreateGroup(mock.Anything, apitest.TestRealm, testOrgID, "Viewer").
-			Return(keycloak.Group{ID: viewerID, Name: "Viewer"}, nil).Once()
-		kc.EXPECT().ListMembers(mock.Anything, apitest.TestRealm, testOrgID).
-			Return(members(testUserID), nil).Maybe()
-		kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, adminID).
-			Return(members(testUserID), nil).Maybe()
+func TestIsAdmin(t *testing.T) {
+	tests := map[string]struct {
+		groups []keycloak.Group
+		admins []string
+		userID string
+		want   bool
+	}{
+		"an Admin is": {
+			groups: reservedGroups(),
+			admins: []string{otherID, testUserID},
+			userID: testUserID,
+			want:   true,
+		},
+		"a member outside the Admin group is not": {
+			groups: reservedGroups(),
+			admins: []string{otherID},
+			userID: testUserID,
+		},
+		"an organization without an Admin group has no Admin": {
+			groups: reservedGroups()[1:],
+			userID: testUserID,
+		},
+		"an empty user id is never an Admin and reads nothing": {
+			userID: "",
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			kc := keycloakMocks.NewKeyCloak(t)
+			if tt.userID != "" {
+				kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(tt.groups, nil).Once()
+			}
+			if tt.admins != nil {
+				kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, adminID).
+					Return(members(tt.admins...), nil).Once()
+			}
 
-		require.NoError(t, NewRoles(apitest.TestRealm, kc).EnsureRoles(context.Background(), testOrgID, nil))
-	})
+			got, err := NewRoles(apitest.TestRealm, kc).IsAdmin(context.Background(), testOrgID, tt.userID)
 
-	t.Run("seeds every member as Admin when an organization has none", func(t *testing.T) {
-		kc := keycloakMocks.NewKeyCloak(t)
-		kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(reservedGroups(), nil).Maybe()
-		kc.EXPECT().ListMembers(mock.Anything, apitest.TestRealm, testOrgID).
-			Return(members(testUserID, otherID), nil).Maybe()
-		for _, g := range reservedGroups() {
-			kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, g.ID).
-				Return(nil, nil).Maybe()
-		}
-		kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, adminID, testUserID).Return(nil).Once()
-		kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, adminID, otherID).Return(nil).Once()
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
 
-		seed := func(context.Context) ([]string, error) { return []string{testUserID, otherID}, nil }
-		require.NoError(t, NewRoles(apitest.TestRealm, kc).EnsureRoles(context.Background(), testOrgID, seed))
-	})
+func TestAddAdmins(t *testing.T) {
+	tests := map[string]struct {
+		expect  func(*keycloakMocks.KeyCloak)
+		userIDs []string
+		wantErr bool
+	}{
+		"a new organization gets every reserved group and the Admin group it just created": {
+			expect: func(kc *keycloakMocks.KeyCloak) {
+				kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(nil, nil).Once()
+				for _, g := range reservedGroups() {
+					kc.EXPECT().CreateGroup(mock.Anything, apitest.TestRealm, testOrgID, g.Name).Return(g, nil).Once()
+				}
+				kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, adminID, testUserID).Return(nil).Once()
+			},
+			userIDs: []string{testUserID},
+		},
+		"existing groups are reused": {
+			expect: func(kc *keycloakMocks.KeyCloak) {
+				kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(reservedGroups(), nil).Once()
+				kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, adminID, testUserID).Return(nil).Once()
+				kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, adminID, otherID).Return(nil).Once()
+			},
+			userIDs: []string{testUserID, "", otherID},
+		},
+		"a failing user does not stop the rest": {
+			expect: func(kc *keycloakMocks.KeyCloak) {
+				kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(reservedGroups(), nil).Once()
+				kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, adminID, testUserID).
+					Return(errors.New("keycloak unavailable")).Once()
+				kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, adminID, otherID).Return(nil).Once()
+			},
+			userIDs: []string{testUserID, otherID},
+			wantErr: true,
+		},
+		"a group that cannot be created grants nothing": {
+			expect: func(kc *keycloakMocks.KeyCloak) {
+				kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(nil, nil).Once()
+				kc.EXPECT().CreateGroup(mock.Anything, apitest.TestRealm, testOrgID, "Admin").
+					Return(keycloak.Group{}, errors.New("keycloak unavailable")).Once()
+			},
+			userIDs: []string{testUserID},
+			wantErr: true,
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			kc := keycloakMocks.NewKeyCloak(t)
+			tt.expect(kc)
+
+			got := NewRoles(apitest.TestRealm, kc).AddAdmins(context.Background(), testOrgID, tt.userIDs...)
+
+			if tt.wantErr {
+				require.Error(t, got)
+				return
+			}
+			require.NoError(t, got)
+		})
+	}
+}
+
+func TestAddAdminsConcurrentCreation(t *testing.T) {
+	tests := map[string]struct {
+		relisted []keycloak.Group
+		wantErr  bool
+	}{
+		"the group another request created is used": {
+			relisted: reservedGroups(),
+		},
+		"a conflict with the group still missing fails": {
+			relisted: reservedGroups()[:2],
+			wantErr:  true,
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			kc := keycloakMocks.NewKeyCloak(t)
+			kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).
+				Return(reservedGroups()[:2], nil).Once()
+			kc.EXPECT().CreateGroup(mock.Anything, apitest.TestRealm, testOrgID, "Viewer").
+				Return(keycloak.Group{}, keycloak.ErrGroupAlreadyExists{Name: "Viewer"}).Once()
+			kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).
+				Return(tt.relisted, nil).Once()
+
+			got := NewRoles(apitest.TestRealm, kc).AddAdmins(context.Background(), testOrgID)
+
+			if tt.wantErr {
+				require.ErrorAs(t, got, &keycloak.ErrGroupAlreadyExists{})
+				return
+			}
+			require.NoError(t, got)
+		})
+	}
 }
 
 func TestCheckOrganizationMemberRemovable(t *testing.T) {

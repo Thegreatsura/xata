@@ -237,11 +237,15 @@ func (r *restKC) ListMembers(ctx context.Context, realm string, organizationID s
 // a ceiling: an organization may be granted a membership limit above it.
 const memberPageSize = 100
 
+const maxMemberPages = 100
+
 // listAllMembers pages until Keycloak returns a short page, so a membership limit
-// larger than one page still yields every member.
+// larger than one page still yields every member; a concurrent leave can skip one.
 func (r *restKC) listAllMembers(ctx context.Context, listURL string, statusErr func(int) error) ([]OrganizationMember, error) {
 	var members []OrganizationMember
-	for first := 0; ; first += memberPageSize {
+	seen := map[string]struct{}{}
+	for page := range maxMemberPages {
+		first := page * memberPageSize
 		queryParams := map[string]string{
 			"first": fmt.Sprintf("%d", first),
 			"max":   fmt.Sprintf("%d", memberPageSize),
@@ -260,6 +264,10 @@ func (r *restKC) listAllMembers(ctx context.Context, listURL string, statusErr f
 			return nil, fmt.Errorf("failed to unmarshal members: %w", err)
 		}
 		for _, u := range users {
+			if _, ok := seen[u.ID]; ok {
+				continue
+			}
+			seen[u.ID] = struct{}{}
 			members = append(members, OrganizationMember{
 				Email: u.Email,
 				Name:  fmt.Sprintf("%s %s", u.FirstName, u.LastName),
@@ -270,6 +278,7 @@ func (r *restKC) listAllMembers(ctx context.Context, listURL string, statusErr f
 			return members, nil
 		}
 	}
+	return nil, fmt.Errorf("list members: more than %d pages", maxMemberPages)
 }
 
 func (r *restKC) CreateInvitation(ctx context.Context, realm string, organizationID string, email string) error {

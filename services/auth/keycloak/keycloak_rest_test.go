@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1146,5 +1147,143 @@ func TestInvitationOperations(t *testing.T) {
 			assert.Equal(t, tc.wantMethod, gotMethod)
 			assert.Equal(t, tc.wantPath, gotPath)
 		})
+	}
+}
+
+type memberPageRequest struct {
+	path, first, max string
+}
+
+func honourPaging(ids []string, first, limit int) (int, []string) {
+	return http.StatusOK, ids[min(first, len(ids)):min(first+limit, len(ids))]
+}
+
+func TestListMembersPaging(t *testing.T) {
+	targets := map[string]struct {
+		path string
+		list func(kc KeyCloak) ([]OrganizationMember, error)
+	}{
+		"organization members": {
+			path: "/admin/realms/test-realm/organizations/internal-1/members",
+			list: func(kc KeyCloak) ([]OrganizationMember, error) {
+				return kc.ListMembers(context.Background(), "test-realm", "org-alias")
+			},
+		},
+		"group members": {
+			path: "/admin/realms/test-realm/organizations/internal-1/groups/g1/members",
+			list: func(kc KeyCloak) ([]OrganizationMember, error) {
+				return kc.ListGroupMembers(context.Background(), "test-realm", "org-alias", "g1")
+			},
+		},
+	}
+
+	everyPage := make([]int, maxMemberPages)
+	for i := range everyPage {
+		everyPage[i] = i * memberPageSize
+	}
+
+	tests := map[string]struct {
+		total      int
+		serve      func(ids []string, first, limit int) (int, []string)
+		wantCount  int
+		wantFirsts []int
+		wantErr    bool
+	}{
+		"no members":       {total: 0, serve: honourPaging, wantCount: 0, wantFirsts: []int{0}},
+		"one short page":   {total: 99, serve: honourPaging, wantCount: 99, wantFirsts: []int{0}},
+		"exactly one page": {total: 100, serve: honourPaging, wantCount: 100, wantFirsts: []int{0, 100}},
+		"one past a page":  {total: 101, serve: honourPaging, wantCount: 101, wantFirsts: []int{0, 100}},
+		"several pages":    {total: 250, serve: honourPaging, wantCount: 250, wantFirsts: []int{0, 100, 200}},
+		"error on page two": {
+			total: 250,
+			serve: func(ids []string, first, limit int) (int, []string) {
+				if first > 0 {
+					return http.StatusInternalServerError, nil
+				}
+				return honourPaging(ids, first, limit)
+			},
+			wantFirsts: []int{0, 100},
+			wantErr:    true,
+		},
+		"a server ignoring first": {
+			total: 250,
+			serve: func(ids []string, _, limit int) (int, []string) {
+				return honourPaging(ids, 0, limit)
+			},
+			wantFirsts: everyPage,
+			wantErr:    true,
+		},
+		"a member repeated across pages": {
+			total: 150,
+			serve: func(ids []string, first, limit int) (int, []string) {
+				if first > 0 {
+					first--
+				}
+				return honourPaging(ids, first, limit)
+			},
+			wantCount:  150,
+			wantFirsts: []int{0, 100},
+		},
+	}
+
+	for targetName, target := range targets {
+		for name, tt := range tests {
+			t.Run(targetName+"/"+name, func(t *testing.T) {
+				ids := make([]string, tt.total)
+				for i := range ids {
+					ids[i] = fmt.Sprintf("user-%d", i)
+				}
+
+				var mu sync.Mutex
+				var got []memberPageRequest
+				srv := orgAdminTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+					query := req.URL.Query()
+					mu.Lock()
+					got = append(got, memberPageRequest{path: req.URL.Path, first: query.Get("first"), max: query.Get("max")})
+					mu.Unlock()
+
+					first, firstErr := strconv.Atoi(query.Get("first"))
+					limit, limitErr := strconv.Atoi(query.Get("max"))
+					if firstErr != nil || limitErr != nil {
+						w.WriteHeader(http.StatusBadRequest)
+						return
+					}
+					status, page := tt.serve(ids, first, limit)
+					if status != http.StatusOK {
+						w.WriteHeader(status)
+						return
+					}
+					users := make([]User, len(page))
+					for i, id := range page {
+						users[i] = User{ID: id}
+					}
+					_ = json.NewEncoder(w).Encode(users)
+				})
+				defer srv.Close()
+
+				members, err := target.list(newTestRestKC(srv.URL))
+
+				want := make([]memberPageRequest, len(tt.wantFirsts))
+				for i, first := range tt.wantFirsts {
+					want[i] = memberPageRequest{path: target.path, first: strconv.Itoa(first), max: "100"}
+				}
+				mu.Lock()
+				require.Equal(t, want, got)
+				mu.Unlock()
+
+				if tt.wantErr {
+					require.Error(t, err)
+					require.Nil(t, members)
+					return
+				}
+				require.NoError(t, err)
+				require.Len(t, members, tt.wantCount)
+				unique := map[string]struct{}{}
+				for _, m := range members {
+					unique[m.ID] = struct{}{}
+				}
+				require.Len(t, unique, tt.wantCount)
+			})
+		}
 	}
 }

@@ -13,6 +13,8 @@ import (
 
 	"xata/internal/envcfg"
 	"xata/services/auth/config"
+	"xata/services/auth/keycloak"
+	"xata/services/auth/roles"
 )
 
 const (
@@ -52,6 +54,11 @@ func CreateDevUserCmd() *cobra.Command {
 			err = createOrganization(cmd.Context(), client, jwt.AccessToken, cfg.KeycloakURL, cfg.Realm, DevOrganization, userID)
 			if err != nil {
 				return fmt.Errorf("failed to create organization: %w", err)
+			}
+
+			err = setUpRoles(cmd.Context(), keycloak.NewRestKC(client, cfg.AuthConfig), cfg.Realm, userID)
+			if err != nil {
+				return fmt.Errorf("failed to set up roles: %w", err)
 			}
 
 			//nolint:forbidigo
@@ -151,6 +158,17 @@ func createOrganization(ctx context.Context, client *gocloak.GoCloak, token, key
 
 	//nolint:forbidigo
 	fmt.Printf("User %s is member of organization %s\n", userID, orgName)
+
+	return nil
+}
+
+func setUpRoles(ctx context.Context, kc keycloak.KeyCloak, realm, userID string) error {
+	if err := roles.NewRoles(realm, kc).AddAdmins(ctx, DevOrganization, userID); err != nil {
+		return err
+	}
+
+	//nolint:forbidigo
+	fmt.Printf("User %s is admin of organization %s\n", userID, DevOrganization)
 
 	return nil
 }

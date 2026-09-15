@@ -71,6 +71,23 @@ func TestGroupOperations(t *testing.T) {
 				require.NoError(t, kc.AddGroupMember(context.Background(), "test-realm", "org-alias", "g1", "u1"))
 			},
 		},
+		"add member is idempotent on 409": {
+			admin: func(w http.ResponseWriter, req *http.Request) {
+				require.Equal(t, http.MethodPut, req.Method)
+				w.WriteHeader(http.StatusConflict)
+			},
+			run: func(t *testing.T, kc KeyCloak) {
+				require.NoError(t, kc.AddGroupMember(context.Background(), "test-realm", "org-alias", "g1", "u1"))
+			},
+		},
+		"add member fails on a server error": {
+			admin: func(w http.ResponseWriter, req *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+			},
+			run: func(t *testing.T, kc KeyCloak) {
+				require.Error(t, kc.AddGroupMember(context.Background(), "test-realm", "org-alias", "g1", "u1"))
+			},
+		},
 		"remove member is idempotent on 404": {
 			admin: func(w http.ResponseWriter, req *http.Request) {
 				require.Equal(t, http.MethodDelete, req.Method)
