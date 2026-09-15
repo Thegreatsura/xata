@@ -42,6 +42,8 @@ type KeyCloak interface {
 	// ListDisabledOrganizations returns organizations where disabledByAdmin=true OR billingStatus!=ok.
 	// When returnCleanedUpOrgs is false, orgs with a resourcesCleanedAt attribute are excluded.
 	ListDisabledOrganizations(ctx context.Context, realm string, returnCleanedUpOrgs bool) ([]Organization, error)
+	// ListAllOrganizations returns every organization in the realm that is not deleted.
+	ListAllOrganizations(ctx context.Context, realm string) ([]Organization, error)
 	// UpdateUserAttributes merges the given attributes into the user's existing attributes.
 	UpdateUserAttributes(ctx context.Context, realm, userID string, update UserAttributesUpdate) error
 	// GetIdentityProviderToken retrieves the external identity provider token (e.g. the

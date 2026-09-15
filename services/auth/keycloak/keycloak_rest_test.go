@@ -1287,3 +1287,103 @@ func TestListMembersPaging(t *testing.T) {
 		}
 	}
 }
+
+func TestListAllOrganizations(t *testing.T) {
+	type pageRequest struct {
+		path, q, brief, first, max string
+	}
+	tests := map[string]struct {
+		total       int
+		deletedAt   map[int]string
+		status      int
+		ignoreFirst bool
+		wantFirsts  []string
+		wantCount   int
+		wantErr     bool
+	}{
+		"no organizations": {wantFirsts: []string{"0"}},
+		"deleted organizations are skipped across pages": {
+			total:      250,
+			deletedAt:  map[int]string{3: "2026-01-01T00:00:00Z", 210: "2026-01-01T00:00:00Z", 5: ""},
+			wantFirsts: []string{"0", "200"},
+			wantCount:  248,
+		},
+		"an error status fails": {
+			total:      10,
+			status:     http.StatusInternalServerError,
+			wantFirsts: []string{"0"},
+			wantErr:    true,
+		},
+		"a server ignoring first fails instead of looping": {
+			total:       250,
+			ignoreFirst: true,
+			wantFirsts:  []string{"0", "200"},
+			wantErr:     true,
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			orgs := make([]KeycloakOrganization, tt.total)
+			for i := range orgs {
+				orgs[i] = KeycloakOrganization{Alias: fmt.Sprintf("org-%d", i)}
+				if deletedAt, ok := tt.deletedAt[i]; ok {
+					orgs[i].Attributes = map[string][]string{OrganizationDeletedAtKey: {deletedAt}}
+				}
+			}
+
+			var mu sync.Mutex
+			var got []pageRequest
+			srv := orgAdminTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+				query := req.URL.Query()
+				mu.Lock()
+				got = append(got, pageRequest{
+					path: req.URL.Path, q: query.Get("q"), brief: query.Get("briefRepresentation"),
+					first: query.Get("first"), max: query.Get("max"),
+				})
+				mu.Unlock()
+
+				if tt.status != 0 {
+					w.WriteHeader(tt.status)
+					return
+				}
+				first, _ := strconv.Atoi(query.Get("first"))
+				limit, _ := strconv.Atoi(query.Get("max"))
+				if tt.ignoreFirst {
+					first = 0
+				}
+				_ = json.NewEncoder(w).Encode(orgs[min(first, len(orgs)):min(first+limit, len(orgs))])
+			})
+			defer srv.Close()
+
+			result, err := newTestRestKC(srv.URL).ListAllOrganizations(context.Background(), "test-realm")
+
+			want := make([]pageRequest, len(tt.wantFirsts))
+			for i, first := range tt.wantFirsts {
+				want[i] = pageRequest{path: "/admin/realms/test-realm/organizations", brief: "false", first: first, max: "200"}
+			}
+			mu.Lock()
+			require.Equal(t, want, got)
+			mu.Unlock()
+
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Nil(t, result)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, result, tt.wantCount)
+			ids := make([]string, len(result))
+			for i, org := range result {
+				ids[i] = org.ID
+			}
+			for i, deletedAt := range tt.deletedAt {
+				alias := fmt.Sprintf("org-%d", i)
+				if deletedAt == "" {
+					require.Contains(t, ids, alias)
+					continue
+				}
+				require.NotContains(t, ids, alias)
+			}
+		})
+	}
+}

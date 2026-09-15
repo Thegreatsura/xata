@@ -1005,6 +1005,65 @@ func (_c *KeyCloak_LinkIdentityProviderToOrganization_Call) RunAndReturn(run fun
 	return _c
 }
 
+// ListAllOrganizations provides a mock function with given fields: ctx, realm
+func (_m *KeyCloak) ListAllOrganizations(ctx context.Context, realm string) ([]keycloak.Organization, error) {
+	ret := _m.Called(ctx, realm)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAllOrganizations")
+	}
+
+	var r0 []keycloak.Organization
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]keycloak.Organization, error)); ok {
+		return rf(ctx, realm)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []keycloak.Organization); ok {
+		r0 = rf(ctx, realm)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]keycloak.Organization)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, realm)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// KeyCloak_ListAllOrganizations_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAllOrganizations'
+type KeyCloak_ListAllOrganizations_Call struct {
+	*mock.Call
+}
+
+// ListAllOrganizations is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+func (_e *KeyCloak_Expecter) ListAllOrganizations(ctx interface{}, realm interface{}) *KeyCloak_ListAllOrganizations_Call {
+	return &KeyCloak_ListAllOrganizations_Call{Call: _e.mock.On("ListAllOrganizations", ctx, realm)}
+}
+
+func (_c *KeyCloak_ListAllOrganizations_Call) Run(run func(ctx context.Context, realm string)) *KeyCloak_ListAllOrganizations_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_ListAllOrganizations_Call) Return(_a0 []keycloak.Organization, _a1 error) *KeyCloak_ListAllOrganizations_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *KeyCloak_ListAllOrganizations_Call) RunAndReturn(run func(context.Context, string) ([]keycloak.Organization, error)) *KeyCloak_ListAllOrganizations_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListDisabledOrganizations provides a mock function with given fields: ctx, realm, returnCleanedUpOrgs
 func (_m *KeyCloak) ListDisabledOrganizations(ctx context.Context, realm string, returnCleanedUpOrgs bool) ([]keycloak.Organization, error) {
 	ret := _m.Called(ctx, realm, returnCleanedUpOrgs)

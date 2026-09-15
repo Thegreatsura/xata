@@ -72,6 +72,8 @@ type Roles interface {
 	SetMember(ctx context.Context, organizationID, userID string, role Role, callerID string) error
 	// AddAdmins creates any missing reserved group and grants Admin to each user.
 	AddAdmins(ctx context.Context, organizationID string, userIDs ...string) error
+	// Audit reads an organization's role state without writing.
+	Audit(ctx context.Context, organizationID string) (Audit, error)
 	// CheckOrganizationMemberRemovable refuses to strand an organization with no Admin.
 	CheckOrganizationMemberRemovable(ctx context.Context, organizationID, userID string) error
 	// RemoveMemberFromAllRoles clears a member's role when they leave.
@@ -87,21 +89,40 @@ func NewRoles(realm string, kcRest keycloak.KeyCloak) Roles {
 	return &rolesService{realm: realm, kcRest: kcRest}
 }
 
-func (s *rolesService) Members(ctx context.Context, organizationID string) (map[string]Role, error) {
+// Audit describes an organization's reserved groups and who holds them.
+type Audit struct {
+	Members        int
+	MissingRoles   []Role
+	DuplicateRoles []Role
+	Admins         int
+	Unassigned     []string
+}
+
+type holding struct {
+	role    Role
+	userIDs []string
+}
+
+type snapshot struct {
+	members  []keycloak.OrganizationMember
+	holdings []holding
+}
+
+func (s *rolesService) read(ctx context.Context, organizationID string) (snapshot, error) {
 	orgMembers, err := s.kcRest.ListMembers(ctx, s.realm, organizationID)
 	if err != nil {
-		return nil, fmt.Errorf("list organization members: %w", err)
+		return snapshot{}, fmt.Errorf("list organization members: %w", err)
 	}
-
-	byUser := make(map[string]Role, len(orgMembers))
+	current := make(map[string]struct{}, len(orgMembers))
 	for _, m := range orgMembers {
-		byUser[m.ID] = Unassigned
+		current[m.ID] = struct{}{}
 	}
 
 	groups, err := s.kcRest.ListGroups(ctx, s.realm, organizationID)
 	if err != nil {
-		return nil, fmt.Errorf("list groups: %w", err)
+		return snapshot{}, fmt.Errorf("list groups: %w", err)
 	}
+	snap := snapshot{members: orgMembers}
 	for _, g := range groups {
 		role, ok := roleOfGroup(g.Name)
 		if !ok {
@@ -109,16 +130,71 @@ func (s *rolesService) Members(ctx context.Context, organizationID string) (map[
 		}
 		members, err := s.kcRest.ListGroupMembers(ctx, s.realm, organizationID, g.ID)
 		if err != nil {
-			return nil, fmt.Errorf("list role members: %w", err)
+			return snapshot{}, fmt.Errorf("list role members: %w", err)
 		}
+		h := holding{role: role}
 		for _, m := range members {
 			// Keycloak keeps membership after a user leaves the organization.
-			if _, current := byUser[m.ID]; current {
-				byUser[m.ID] = role
+			if _, ok := current[m.ID]; ok {
+				h.userIDs = append(h.userIDs, m.ID)
 			}
+		}
+		snap.holdings = append(snap.holdings, h)
+	}
+	return snap, nil
+}
+
+func (s *rolesService) Members(ctx context.Context, organizationID string) (map[string]Role, error) {
+	snap, err := s.read(ctx, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	byUser := make(map[string]Role, len(snap.members))
+	for _, m := range snap.members {
+		byUser[m.ID] = Unassigned
+	}
+	for _, h := range snap.holdings {
+		for _, id := range h.userIDs {
+			byUser[id] = h.role
 		}
 	}
 	return byUser, nil
+}
+
+func (s *rolesService) Audit(ctx context.Context, organizationID string) (Audit, error) {
+	snap, err := s.read(ctx, organizationID)
+	if err != nil {
+		return Audit{}, err
+	}
+
+	groupsOf := make(map[Role]int, len(All))
+	assigned := make(map[string]struct{}, len(snap.members))
+	admins := make(map[string]struct{})
+	for _, h := range snap.holdings {
+		groupsOf[h.role]++
+		for _, id := range h.userIDs {
+			assigned[id] = struct{}{}
+			if h.role == Admin {
+				admins[id] = struct{}{}
+			}
+		}
+	}
+
+	audit := Audit{Members: len(snap.members), Admins: len(admins)}
+	for _, d := range All {
+		switch n := groupsOf[d.Role]; {
+		case n == 0:
+			audit.MissingRoles = append(audit.MissingRoles, d.Role)
+		case n > 1:
+			audit.DuplicateRoles = append(audit.DuplicateRoles, d.Role)
+		}
+	}
+	for _, m := range snap.members {
+		if _, ok := assigned[m.ID]; !ok {
+			audit.Unassigned = append(audit.Unassigned, m.ID)
+		}
+	}
+	return audit, nil
 }
 
 func (s *rolesService) IsAdmin(ctx context.Context, organizationID, userID string) (bool, error) {

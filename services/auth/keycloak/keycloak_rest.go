@@ -661,6 +661,54 @@ func (r *restKC) ListDisabledOrganizations(ctx context.Context, realm string, re
 	return result, nil
 }
 
+func (r *restKC) ListAllOrganizations(ctx context.Context, realm string) ([]Organization, error) {
+	orgsURL, err := r.buildRealmURL(realm, "organizations")
+	if err != nil {
+		return nil, fmt.Errorf("build organizations url: %w", err)
+	}
+
+	const pageSize = 200
+	var result []Organization
+	seen := make(map[string]struct{})
+	for first := 0; ; first += pageSize {
+		queryParams := map[string]string{
+			"briefRepresentation": "false",
+			"first":               fmt.Sprintf("%d", first),
+			"max":                 fmt.Sprintf("%d", pageSize),
+		}
+		resp, err := r.makeAuthenticatedRequest(ctx, http.MethodGet, orgsURL, queryParams, nil)
+		if err != nil {
+			return nil, fmt.Errorf("list organizations from offset %d: %w", first, err)
+		}
+		if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK) {
+			return nil, fmt.Errorf("list organizations from offset %d: unexpected status %d", first, resp.StatusCode())
+		}
+
+		var page []KeycloakOrganization
+		if err := json.Unmarshal(resp.Body(), &page); err != nil {
+			return nil, fmt.Errorf("unmarshal organizations: %w", err)
+		}
+		added := 0
+		for _, org := range page {
+			if _, ok := seen[org.Alias]; ok {
+				continue
+			}
+			seen[org.Alias] = struct{}{}
+			added++
+			if _, deleted := FirstAttr(org.Attributes, OrganizationDeletedAtKey); deleted {
+				continue
+			}
+			result = append(result, r.convertToOrganization(org))
+		}
+		if len(page) < pageSize {
+			return result, nil
+		}
+		if added == 0 {
+			return nil, fmt.Errorf("list organizations from offset %d: full page repeats organizations already read", first)
+		}
+	}
+}
+
 func (r *restKC) GetUserRepresentation(ctx context.Context, realm string, userID string) (User, error) {
 	userURL, err := r.buildRealmURL(realm, "users", userID)
 	if err != nil {

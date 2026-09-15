@@ -354,3 +354,63 @@ func TestRemoveMemberFromAllRoles(t *testing.T) {
 
 	require.NoError(t, NewRoles(apitest.TestRealm, kc).RemoveMemberFromAllRoles(context.Background(), testOrgID, testUserID))
 }
+
+func TestAudit(t *testing.T) {
+	tests := map[string]struct {
+		orgMembers []string
+		groups     []keycloak.Group
+		holders    map[string][]string
+		want       Audit
+	}{
+		"every member holding a role is healthy": {
+			orgMembers: []string{testUserID, otherID},
+			groups:     reservedGroups(),
+			holders:    map[string][]string{adminID: {testUserID}, editorID: {otherID}},
+			want:       Audit{Members: 2, Admins: 1},
+		},
+		"missing reserved groups are reported": {
+			orgMembers: []string{testUserID},
+			groups:     []keycloak.Group{{ID: adminID, Name: "Admin"}},
+			holders:    map[string][]string{adminID: {testUserID}},
+			want:       Audit{Members: 1, Admins: 1, MissingRoles: []Role{Editor, Viewer}},
+		},
+		"a role backed by groups differing only in case is a duplicate": {
+			orgMembers: []string{testUserID},
+			groups:     append(reservedGroups(), keycloak.Group{ID: "group-admin-2", Name: "ADMIN"}),
+			holders:    map[string][]string{adminID: {testUserID}, "group-admin-2": {testUserID}},
+			want:       Audit{Members: 1, Admins: 1, DuplicateRoles: []Role{Admin}},
+		},
+		"members in no reserved group are listed in organization order": {
+			orgMembers: []string{testUserID, otherID, "user-3"},
+			groups:     reservedGroups(),
+			holders:    map[string][]string{adminID: {testUserID}},
+			want:       Audit{Members: 3, Admins: 1, Unassigned: []string{otherID, "user-3"}},
+		},
+		"a holder who has left the organization is not counted": {
+			orgMembers: []string{testUserID},
+			groups:     reservedGroups(),
+			holders:    map[string][]string{adminID: {"who-left"}},
+			want:       Audit{Members: 1, Unassigned: []string{testUserID}},
+		},
+		"an organization with no members": {
+			groups: reservedGroups(),
+			want:   Audit{},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			kc := keycloakMocks.NewKeyCloak(t)
+			kc.EXPECT().ListMembers(mock.Anything, apitest.TestRealm, testOrgID).Return(members(tt.orgMembers...), nil).Once()
+			kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(tt.groups, nil).Once()
+			for _, g := range tt.groups {
+				kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, g.ID).
+					Return(members(tt.holders[g.ID]...), nil).Once()
+			}
+
+			got, err := NewRoles(apitest.TestRealm, kc).Audit(context.Background(), testOrgID)
+
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
