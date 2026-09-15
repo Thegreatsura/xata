@@ -3,7 +3,10 @@ package keycloak
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -144,6 +147,56 @@ func TestOrganizationsForDomain(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestSetOrganizationDomainsKeepsOtherFields(t *testing.T) {
+	const stored = `{"id":"internal-1","name":"abc123","alias":"abc123","enabled":false,"description":"kept",` +
+		`"redirectUrl":"https://app.xata.io/organizations/abc123",` +
+		`"domains":[{"name":"abc123","verified":false},{"name":"acme.com","verified":true}],` +
+		`"attributes":{"displayName":["Acme"],"billingStatus":["ok"]}}`
+
+	tests := map[string]struct {
+		domains []Domain
+		want    string
+	}{
+		"replaces only the domains": {
+			domains: []Domain{{Name: "acme.com", Verified: true}},
+			want: `{"id":"internal-1","name":"abc123","alias":"abc123","enabled":false,"description":"kept",` +
+				`"redirectUrl":"https://app.xata.io/organizations/abc123",` +
+				`"domains":[{"name":"acme.com","verified":true}],` +
+				`"attributes":{"displayName":["Acme"],"billingStatus":["ok"]}}`,
+		},
+		"sends an empty list when every domain goes": {
+			domains: []Domain{},
+			want: `{"id":"internal-1","name":"abc123","alias":"abc123","enabled":false,"description":"kept",` +
+				`"redirectUrl":"https://app.xata.io/organizations/abc123","domains":[],` +
+				`"attributes":{"displayName":["Acme"],"billingStatus":["ok"]}}`,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			bodies := make(chan string, 1)
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				switch {
+				case strings.HasSuffix(req.URL.Path, tokenEndpointSuffix):
+					_, _ = w.Write([]byte(`{"access_token":"test-token","expires_in":300,"token_type":"Bearer"}`))
+				case req.Method == http.MethodPut:
+					body, _ := io.ReadAll(req.Body)
+					bodies <- string(body)
+					w.WriteHeader(http.StatusNoContent)
+				default:
+					_, _ = w.Write([]byte("[" + stored + "]"))
+				}
+			}))
+			defer srv.Close()
+
+			err := newTestRestKC(srv.URL).SetOrganizationDomains(context.Background(), "xata", "abc123", tt.domains)
+
+			require.NoError(t, err)
+			require.JSONEq(t, tt.want, <-bodies)
 		})
 	}
 }

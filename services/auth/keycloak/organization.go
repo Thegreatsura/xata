@@ -79,6 +79,7 @@ type KeycloakOrganization struct {
 	Domains     []Domain            `json:"domains"`
 	Attributes  map[string][]string `json:"attributes,omitempty"`
 	RedirectURL string              `json:"redirectUrl,omitempty"`
+	Enabled     *bool               `json:"enabled,omitempty"`
 }
 
 type OrganizationMember struct {

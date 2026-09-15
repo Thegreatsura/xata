@@ -851,6 +851,71 @@ func TestUpdateOrganizationBillingCollectionMethod(t *testing.T) {
 	assert.Equal(t, string(OrganizationBillingCollectionMethodStripePaymentMethod), organization.Attributes[OrganizationBillingCollectionMethodKey][0])
 }
 
+func TestOrganizationWritesKeepEnabled(t *testing.T) {
+	rename := func(r *restKC) error {
+		name := "Renamed"
+		_, err := r.UpdateOrganization(context.Background(), "xata", "abc123", OrganizationUpdate{Name: &name})
+		return err
+	}
+	deleteOrganization := func(r *restKC) error {
+		return r.DeleteOrganization(context.Background(), "xata", "abc123")
+	}
+
+	tests := map[string]struct {
+		enabled string
+		write   func(r *restKC) error
+		want    any
+	}{
+		"rename keeps a disabled organization disabled": {
+			enabled: "false",
+			write:   rename,
+			want:    false,
+		},
+		"deletion keeps a disabled organization disabled": {
+			enabled: "false",
+			write:   deleteOrganization,
+			want:    false,
+		},
+		"rename keeps an enabled organization enabled": {
+			enabled: "true",
+			write:   rename,
+			want:    true,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			bodies := make(chan map[string]any, 1)
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				switch {
+				case strings.HasSuffix(req.URL.Path, tokenEndpointSuffix):
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`{"access_token":"test-token","expires_in":300,"token_type":"Bearer"}`))
+				case req.Method == http.MethodPut:
+					var body map[string]any
+					if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+						http.Error(w, err.Error(), http.StatusBadRequest)
+						return
+					}
+					bodies <- body
+					w.WriteHeader(http.StatusNoContent)
+				default:
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`[{"id":"internal-1","name":"abc123","alias":"abc123","enabled":` + tt.enabled +
+						`,"attributes":{"displayName":["Acme"]}}]`))
+				}
+			}))
+			defer srv.Close()
+
+			require.NoError(t, tt.write(newTestRestKC(srv.URL)))
+
+			require.Len(t, bodies, 1)
+			got := <-bodies
+			require.Equal(t, tt.want, got["enabled"])
+		})
+	}
+}
+
 func TestConvertToOrganization_AWSMarketplace(t *testing.T) {
 	t.Parallel()
 
