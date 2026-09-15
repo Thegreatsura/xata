@@ -105,7 +105,7 @@ func TestCreateBranchLockContention(t *testing.T) {
 	mockProvisioner := provisionermocks.NewProvisioner(t)
 
 	feat := openfeaturetest.NewClient(nil)
-	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.AlwaysPrimary{}}
+	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.Random{}}
 	mockAnalytics := analyticsmocks.NewClient(t)
 	handler := NewAPIHandler(feat, mockStore, mockCells, "testdomain:5432", nil, sched, mockAnalytics, mockPostgresConfig, mockImageProvider, mockProvisioner)
 	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
