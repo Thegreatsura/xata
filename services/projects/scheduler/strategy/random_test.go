@@ -27,10 +27,10 @@ func TestRandomScheduler(t *testing.T) {
 		ctx := context.Background()
 
 		cells := []store.Cell{
-			{ID: "cell-1", RegionID: "us-east-1", Primary: true},
-			{ID: "cell-2", RegionID: "us-east-1", Primary: false},
-			{ID: "cell-3", RegionID: "us-east-1", Primary: false},
-			{ID: "cell-4", RegionID: "us-east-1", Primary: false},
+			{ID: "cell-1", RegionID: "us-east-1"},
+			{ID: "cell-2", RegionID: "us-east-1"},
+			{ID: "cell-3", RegionID: "us-east-1"},
+			{ID: "cell-4", RegionID: "us-east-1"},
 		}
 
 		scheduler := strategy.Random{}

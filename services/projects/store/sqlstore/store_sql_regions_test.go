@@ -22,7 +22,6 @@ func TestSQLStoreRegions(t *testing.T) {
 	testOrganizationCellID := "test-organization-cell"
 	testOrganizationID := "test-organization"
 	testGRPCURL := "grpc://localhost:50051"
-	isPrimaryCell := true
 
 	// no regions
 	regions, err := sqlStore.ListRegions(ctx, testOrganizationID)
@@ -101,29 +100,27 @@ func TestSQLStoreRegions(t *testing.T) {
 	require.Empty(t, cells)
 
 	// create cell in public region
-	cell, err := sqlStore.CreateCell(ctx, testRegionID, testCellID, testGRPCURL, isPrimaryCell, nil)
+	cell, err := sqlStore.CreateCell(ctx, testRegionID, testCellID, testGRPCURL, nil)
 	require.NoError(t, err)
 	require.Equal(t, testCellID, cell.ID)
 	require.Equal(t, testRegionID, cell.RegionID)
 	require.Equal(t, testGRPCURL, cell.ClustersGRPCURL)
-	require.Equal(t, isPrimaryCell, cell.Primary)
 
 	cells, err = sqlStore.ListCells(ctx, testOrganizationID, testRegionID)
 	require.NoError(t, err)
 	require.ElementsMatch(t, cells, []store.Cell{*cell})
 
 	// cell names must be unique
-	_, err = sqlStore.CreateCell(ctx, testRegionID, testCellID, testGRPCURL, isPrimaryCell, nil)
+	_, err = sqlStore.CreateCell(ctx, testRegionID, testCellID, testGRPCURL, nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &store.ErrCellAlreadyExists{})
 
 	// create cell in organization region
-	orgCell, err := sqlStore.CreateCell(ctx, testOrganizationRegionID, testOrganizationCellID, testGRPCURL, isPrimaryCell, nil)
+	orgCell, err := sqlStore.CreateCell(ctx, testOrganizationRegionID, testOrganizationCellID, testGRPCURL, nil)
 	require.NoError(t, err)
 	require.Equal(t, testOrganizationCellID, orgCell.ID)
 	require.Equal(t, testOrganizationRegionID, orgCell.RegionID)
 	require.Equal(t, testGRPCURL, orgCell.ClustersGRPCURL)
-	require.Equal(t, isPrimaryCell, orgCell.Primary)
 
 	cells, err = sqlStore.ListCells(ctx, testOrganizationID, testOrganizationRegionID)
 	require.NoError(t, err)
@@ -241,53 +238,6 @@ func TestSQLStoreRegions(t *testing.T) {
 	require.ErrorAs(t, err, &store.ErrRegionNotFound{})
 }
 
-func TestPrimaryCellUniqueness(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-	sqlStore := setupSQLStore(ctx, t, maxDepth)
-
-	testRegionID := "test-region"
-	testCellID := "test-cell"
-	testGRPCURL := "grpc://localhost:50051"
-
-	// Create a public region
-	region, err := sqlStore.CreateRegion(ctx, testRegionID, store.RegionFlags{PublicAccess: true, BackupsEnabled: true, Provider: store.ProviderAWS}, testGRPCURL)
-	require.NoError(t, err)
-	require.Equal(t, testRegionID, region.ID)
-
-	// Create a primary cell in the public region
-	cell, err := sqlStore.CreateCell(ctx, testRegionID, testCellID, testGRPCURL, true, nil)
-	require.NoError(t, err)
-	require.Equal(t, testCellID, cell.ID)
-	require.Equal(t, true, cell.Primary)
-
-	// Get the cell and ensure it is primary
-	gotCell, err := sqlStore.GetCell(ctx, "", testCellID)
-	require.NoError(t, err)
-	require.Equal(t, cell.ID, gotCell.ID)
-	require.Equal(t, true, gotCell.Primary)
-
-	// Create another cell in the same region, but not primary
-	nonPrimaryCellID := "test-non-primary-cell"
-	nonPrimaryCell, err := sqlStore.CreateCell(ctx, testRegionID, nonPrimaryCellID, testGRPCURL, false, nil)
-	require.NoError(t, err)
-	require.Equal(t, nonPrimaryCellID, nonPrimaryCell.ID)
-	require.Equal(t, false, nonPrimaryCell.Primary)
-
-	// Get the non-primary cell and ensure it is not primary
-	gotNonPrimaryCell, err := sqlStore.GetCell(ctx, "", nonPrimaryCellID)
-	require.NoError(t, err)
-	require.Equal(t, nonPrimaryCell.ID, gotNonPrimaryCell.ID)
-	require.Equal(t, false, gotNonPrimaryCell.Primary)
-
-	// Attempt to create another primary cell in the same region
-	anotherPrimaryCellID := "test-another-primary-cell"
-	_, err = sqlStore.CreateCell(ctx, testRegionID, anotherPrimaryCellID, testGRPCURL, true, nil)
-	// Expect an error because only one primary cell is allowed per region
-	require.Error(t, err)
-}
-
 func TestCellSubdomain(t *testing.T) {
 	t.Parallel()
 
@@ -302,13 +252,13 @@ func TestCellSubdomain(t *testing.T) {
 	require.NoError(t, err)
 
 	// a cell created without a subdomain round-trips it as nil
-	plainCell, err := sqlStore.CreateCell(ctx, testRegionID, "plain-cell", testGRPCURL, false, nil)
+	plainCell, err := sqlStore.CreateCell(ctx, testRegionID, "plain-cell", testGRPCURL, nil)
 	require.NoError(t, err)
 	require.Nil(t, plainCell.Subdomain)
 
 	// a cell created with a subdomain round-trips it on every read path
 	subdomain := "cell-2"
-	cell, err := sqlStore.CreateCell(ctx, testRegionID, "subdomain-cell", testGRPCURL, true, &subdomain)
+	cell, err := sqlStore.CreateCell(ctx, testRegionID, "subdomain-cell", testGRPCURL, &subdomain)
 	require.NoError(t, err)
 	require.NotNil(t, cell.Subdomain)
 	require.Equal(t, subdomain, *cell.Subdomain)
@@ -327,7 +277,7 @@ func TestCellSubdomain(t *testing.T) {
 
 	// Ensure that only valid subdomain labels are accepted
 	for _, invalid := range []string{"Not.A.Label", "UPPER", "-leading-hyphen", "trailing-hyphen-", ""} {
-		_, err := sqlStore.CreateCell(ctx, testRegionID, "invalid-subdomain-cell", testGRPCURL, false, &invalid)
+		_, err := sqlStore.CreateCell(ctx, testRegionID, "invalid-subdomain-cell", testGRPCURL, &invalid)
 		require.Error(t, err, "subdomain %q should be rejected", invalid)
 		require.ErrorContains(t, err, "cells_subdomain_label")
 	}

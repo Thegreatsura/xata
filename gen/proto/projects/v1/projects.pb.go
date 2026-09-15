@@ -425,7 +425,6 @@ type Cell struct {
 	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	RegionId        string                 `protobuf:"bytes,2,opt,name=region_id,json=regionId,proto3" json:"region_id,omitempty"`
 	ClustersGrpcUrl string                 `protobuf:"bytes,3,opt,name=clusters_grpc_url,json=clustersGrpcUrl,proto3" json:"clusters_grpc_url,omitempty"`
-	IsPrimary       bool                   `protobuf:"varint,4,opt,name=is_primary,json=isPrimary,proto3" json:"is_primary,omitempty"`
 	Subdomain       *string                `protobuf:"bytes,5,opt,name=subdomain,proto3,oneof" json:"subdomain,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -482,13 +481,6 @@ func (x *Cell) GetClustersGrpcUrl() string {
 	return ""
 }
 
-func (x *Cell) GetIsPrimary() bool {
-	if x != nil {
-		return x.IsPrimary
-	}
-	return false
-}
-
 func (x *Cell) GetSubdomain() string {
 	if x != nil && x.Subdomain != nil {
 		return *x.Subdomain
@@ -501,7 +493,6 @@ type CreateCellRequest struct {
 	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	RegionId        string                 `protobuf:"bytes,2,opt,name=region_id,json=regionId,proto3" json:"region_id,omitempty"`
 	ClustersGrpcUrl string                 `protobuf:"bytes,3,opt,name=clusters_grpc_url,json=clustersGrpcUrl,proto3" json:"clusters_grpc_url,omitempty"`
-	IsPrimary       bool                   `protobuf:"varint,4,opt,name=is_primary,json=isPrimary,proto3" json:"is_primary,omitempty"`
 	Subdomain       *string                `protobuf:"bytes,5,opt,name=subdomain,proto3,oneof" json:"subdomain,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -556,13 +547,6 @@ func (x *CreateCellRequest) GetClustersGrpcUrl() string {
 		return x.ClustersGrpcUrl
 	}
 	return ""
-}
-
-func (x *CreateCellRequest) GetIsPrimary() bool {
-	if x != nil {
-		return x.IsPrimary
-	}
-	return false
 }
 
 func (x *CreateCellRequest) GetSubdomain() string {
@@ -1341,22 +1325,18 @@ const file_projects_v1_projects_proto_rawDesc = "" +
 	"\x10ListCellsRequest\"<\n" +
 	"\x11ListCellsResponse\x12'\n" +
 	"\x05cells\x18\x01 \x03(\v2\x11.projects.v1.CellR\x05cells\"\x14\n" +
-	"\x12CreateCellResponse\"\xaf\x01\n" +
+	"\x12CreateCellResponse\"\x90\x01\n" +
 	"\x04Cell\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tregion_id\x18\x02 \x01(\tR\bregionId\x12*\n" +
-	"\x11clusters_grpc_url\x18\x03 \x01(\tR\x0fclustersGrpcUrl\x12\x1d\n" +
-	"\n" +
-	"is_primary\x18\x04 \x01(\bR\tisPrimary\x12!\n" +
+	"\x11clusters_grpc_url\x18\x03 \x01(\tR\x0fclustersGrpcUrl\x12!\n" +
 	"\tsubdomain\x18\x05 \x01(\tH\x00R\tsubdomain\x88\x01\x01B\f\n" +
 	"\n" +
-	"_subdomain\"\xbc\x01\n" +
+	"_subdomain\"\x9d\x01\n" +
 	"\x11CreateCellRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tregion_id\x18\x02 \x01(\tR\bregionId\x12*\n" +
-	"\x11clusters_grpc_url\x18\x03 \x01(\tR\x0fclustersGrpcUrl\x12\x1d\n" +
-	"\n" +
-	"is_primary\x18\x04 \x01(\bR\tisPrimary\x12!\n" +
+	"\x11clusters_grpc_url\x18\x03 \x01(\tR\x0fclustersGrpcUrl\x12!\n" +
 	"\tsubdomain\x18\x05 \x01(\tH\x00R\tsubdomain\x88\x01\x01B\f\n" +
 	"\n" +
 	"_subdomain\"\x85\x01\n" +

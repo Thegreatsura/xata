@@ -222,7 +222,7 @@ func (s *sqlProjectStore) GetRegion(ctx context.Context, organizationID string, 
 }
 
 func (s *sqlProjectStore) ListCells(ctx context.Context, organizationID string, regionID string) ([]store.Cell, error) {
-	res, err := s.sql.QueryContext(ctx, "SELECT c.id, c.region_id, c.grpc_url, c.created_at, c.is_primary, c.subdomain FROM cells c INNER JOIN regions ON c.region_id = regions.id WHERE c.region_id = $1 AND (regions.organization_id = $2 OR regions.organization_id IS NULL)",
+	res, err := s.sql.QueryContext(ctx, "SELECT c.id, c.region_id, c.grpc_url, c.created_at, c.subdomain FROM cells c INNER JOIN regions ON c.region_id = regions.id WHERE c.region_id = $1 AND (regions.organization_id = $2 OR regions.organization_id IS NULL)",
 		regionID, organizationID)
 	if err != nil {
 		return nil, err
@@ -232,7 +232,7 @@ func (s *sqlProjectStore) ListCells(ctx context.Context, organizationID string, 
 	cells := []store.Cell{}
 	for res.Next() {
 		var cell store.Cell
-		err := res.Scan(&cell.ID, &cell.RegionID, &cell.ClustersGRPCURL, &cell.CreatedAt, &cell.Primary, &cell.Subdomain)
+		err := res.Scan(&cell.ID, &cell.RegionID, &cell.ClustersGRPCURL, &cell.CreatedAt, &cell.Subdomain)
 		if err != nil {
 			return nil, err
 		}
@@ -245,7 +245,7 @@ func (s *sqlProjectStore) ListCells(ctx context.Context, organizationID string, 
 
 // ListAllCells returns a list of all existing cells (across all regions)
 func (s *sqlProjectStore) ListAllCells(ctx context.Context) ([]store.Cell, error) {
-	res, err := s.sql.QueryContext(ctx, "SELECT id, region_id, grpc_url, created_at, is_primary, subdomain FROM cells")
+	res, err := s.sql.QueryContext(ctx, "SELECT id, region_id, grpc_url, created_at, subdomain FROM cells")
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +254,7 @@ func (s *sqlProjectStore) ListAllCells(ctx context.Context) ([]store.Cell, error
 	cells := []store.Cell{}
 	for res.Next() {
 		var cell store.Cell
-		err := res.Scan(&cell.ID, &cell.RegionID, &cell.ClustersGRPCURL, &cell.CreatedAt, &cell.Primary, &cell.Subdomain)
+		err := res.Scan(&cell.ID, &cell.RegionID, &cell.ClustersGRPCURL, &cell.CreatedAt, &cell.Subdomain)
 		if err != nil {
 			return nil, err
 		}
@@ -265,12 +265,12 @@ func (s *sqlProjectStore) ListAllCells(ctx context.Context) ([]store.Cell, error
 	return cells, nil
 }
 
-func (s *sqlProjectStore) CreateCell(ctx context.Context, regionID, cellID, grpcURL string, isPrimary bool, subdomain *string) (*store.Cell, error) {
-	rows := s.sql.QueryRowContext(ctx, "INSERT INTO cells (id, region_id, grpc_url, is_primary, subdomain) VALUES ($1, $2, $3, $4, $5) RETURNING id, region_id, grpc_url, created_at, is_primary, subdomain",
-		cellID, regionID, grpcURL, isPrimary, subdomain)
+func (s *sqlProjectStore) CreateCell(ctx context.Context, regionID, cellID, grpcURL string, subdomain *string) (*store.Cell, error) {
+	rows := s.sql.QueryRowContext(ctx, "INSERT INTO cells (id, region_id, grpc_url, subdomain) VALUES ($1, $2, $3, $4) RETURNING id, region_id, grpc_url, created_at, subdomain",
+		cellID, regionID, grpcURL, subdomain)
 	var cell store.Cell
 
-	err := rows.Scan(&cell.ID, &cell.RegionID, &cell.ClustersGRPCURL, &cell.CreatedAt, &cell.Primary, &cell.Subdomain)
+	err := rows.Scan(&cell.ID, &cell.RegionID, &cell.ClustersGRPCURL, &cell.CreatedAt, &cell.Subdomain)
 	if err != nil {
 		// cell already exists in this region
 		if IsConstraintError(err, "cells_pkey") {
@@ -497,10 +497,10 @@ func (s *sqlProjectStore) getProject(ctx context.Context, tx *sql.Tx, organizati
 }
 
 func (s *sqlProjectStore) getCell(ctx context.Context, tx *sql.Tx, organizationID, cellID string) (*store.Cell, error) {
-	res := tx.QueryRowContext(ctx, "SELECT c.id, c.region_id, c.grpc_url, c.created_at, c.is_primary, c.subdomain FROM cells c INNER JOIN regions ON c.region_id = regions.id WHERE c.id = $1 AND (regions.organization_id = $2 OR regions.organization_id IS NULL)", cellID, organizationID)
+	res := tx.QueryRowContext(ctx, "SELECT c.id, c.region_id, c.grpc_url, c.created_at, c.subdomain FROM cells c INNER JOIN regions ON c.region_id = regions.id WHERE c.id = $1 AND (regions.organization_id = $2 OR regions.organization_id IS NULL)", cellID, organizationID)
 
 	var cell store.Cell
-	err := res.Scan(&cell.ID, &cell.RegionID, &cell.ClustersGRPCURL, &cell.CreatedAt, &cell.Primary, &cell.Subdomain)
+	err := res.Scan(&cell.ID, &cell.RegionID, &cell.ClustersGRPCURL, &cell.CreatedAt, &cell.Subdomain)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrCellNotFound{ID: cellID}

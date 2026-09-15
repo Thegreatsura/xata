@@ -240,7 +240,6 @@ type Cell struct {
 	ID        string
 	RegionID  string
 	CreatedAt time.Time
-	Primary   bool
 
 	ClustersGRPCURL string
 	Subdomain       *string
@@ -605,7 +604,7 @@ type ProjectsStore interface {
 	ListAllCells(ctx context.Context) ([]Cell, error)
 
 	// CreateCell creates a new cell in the region
-	CreateCell(ctx context.Context, regionID, cellID, grpcURL string, isPrimary bool, subdomain *string) (*Cell, error)
+	CreateCell(ctx context.Context, regionID, cellID, grpcURL string, subdomain *string) (*Cell, error)
 
 	// DeleteCell deletes a cell in the region
 	// It is not possible to delete a cell if there are branches in the cell

@@ -92,9 +92,8 @@ func (s *ProjectsService) Setup(ctx context.Context) error {
 		}
 
 		// create the default cell (if it doesn't exist)
-		isPrimaryCell := true
 		var subdomain *string
-		_, err = s.store.CreateCell(ctx, s.config.DefaultRegion, "cell-1", s.config.ClustersGRPCURL, isPrimaryCell, subdomain)
+		_, err = s.store.CreateCell(ctx, s.config.DefaultRegion, "cell-1", s.config.ClustersGRPCURL, subdomain)
 		if err != nil && !errors.As(err, &store.ErrCellAlreadyExists{}) {
 			return err
 		}

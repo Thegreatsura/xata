@@ -85,7 +85,6 @@ message Cell {
   string id = 1;
   string region_id = 2;
   string clusters_grpc_url = 3;
-  bool is_primary = 4;
   optional string subdomain = 5;
 }
 
@@ -93,7 +92,6 @@ message CreateCellRequest {
   string id = 1;
   string region_id = 2;
   string clusters_grpc_url = 3;
-  bool is_primary = 4;
   optional string subdomain = 5;
 }
 

@@ -1190,8 +1190,7 @@ func createRegionAndCell(t testing.TB, sqlStore *sqlProjectStore, regionID, cell
 		sqlStore.DeleteRegion(ctx, region.ID)
 	})
 
-	isPrimaryCell := true
-	cell, err := sqlStore.CreateCell(ctx, regionID, cellID, "grpc://localhost:50051", isPrimaryCell, nil)
+	cell, err := sqlStore.CreateCell(ctx, regionID, cellID, "grpc://localhost:50051", nil)
 	if err != nil {
 		t.Fatalf("failed to create cell: %v", err)
 	}

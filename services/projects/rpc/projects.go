@@ -48,7 +48,7 @@ func (p *ProjectsService) SetNudger(n Nudger) { p.nudger = n }
 
 // CreateCell implements projectsv1.ProjectsServiceServer.
 func (p *ProjectsService) CreateCell(ctx context.Context, input *projectsv1.CreateCellRequest) (*projectsv1.CreateCellResponse, error) {
-	_, err := p.store.CreateCell(ctx, input.GetRegionId(), input.GetId(), input.GetClustersGrpcUrl(), input.GetIsPrimary(), input.Subdomain)
+	_, err := p.store.CreateCell(ctx, input.GetRegionId(), input.GetId(), input.GetClustersGrpcUrl(), input.Subdomain)
 	return &projectsv1.CreateCellResponse{}, err
 }
 
@@ -85,7 +85,6 @@ func (p *ProjectsService) ListCells(ctx context.Context, _ *projectsv1.ListCells
 			Id:              cell.ID,
 			RegionId:        cell.RegionID,
 			ClustersGrpcUrl: cell.ClustersGRPCURL,
-			IsPrimary:       cell.Primary,
 			Subdomain:       cell.Subdomain,
 		})
 	}
