@@ -1,6 +1,0 @@
-# The pre-parameter config shape, where a strategy is a bare type. Same
-# content as two-regions.yaml
-default: AlwaysSecondary
-regions:
-  us-east-1: AlwaysPrimary
-  eu-central-1: Random

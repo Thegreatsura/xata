@@ -83,20 +83,6 @@ func TestConfigUnmarshalYAML(t *testing.T) {
 			yaml:    "cell: cell-1",
 			wantErr: strategy.ErrInvalidStrategy,
 		},
-
-		// legacy bare-type shape
-		"legacy Random": {
-			yaml: "Random",
-			want: &strategy.Random{},
-		},
-		"legacy unknown type": {
-			yaml:    "InvalidStrategy",
-			wantErr: strategy.ErrInvalidStrategy,
-		},
-		"legacy Pinned has no cell": {
-			yaml:    "Pinned",
-			wantErr: strategy.ErrInvalidStrategy,
-		},
 	}
 
 	for name, tt := range tests {
@@ -114,11 +100,13 @@ func TestConfigUnmarshalYAML(t *testing.T) {
 		})
 	}
 
-	t.Run("sequence is rejected", func(t *testing.T) {
+	t.Run("non-mapping is rejected", func(t *testing.T) {
 		t.Parallel()
 
-		var got strategy.Config
-		err := yaml.Unmarshal([]byte("- Random"), &got)
-		require.ErrorContains(t, err, "strategy must be a mapping")
+		for _, input := range []string{"Random", "- Random"} {
+			var got strategy.Config
+			err := yaml.Unmarshal([]byte(input), &got)
+			require.ErrorContains(t, err, "strategy must be a mapping", input)
+		}
 	})
 }

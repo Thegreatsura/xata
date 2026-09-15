@@ -9,7 +9,6 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
-	"github.com/goccy/go-yaml/token"
 )
 
 type Type string
@@ -50,18 +49,6 @@ type Config struct {
 
 // UnmarshalYAML implements yaml.NodeUnmarshaler
 func (c *Config) UnmarshalYAML(node ast.Node) error {
-	// Legacy shape: a bare strategy type with no parameters, eg `Random`.
-	// Rewrite it as `type: Random` so that the rest of the decode is
-	// unchanged. It lets new code start against a ConfigMap that has not been
-	// updated yet, so the two can roll out independently.
-	//
-	// TODO: remove once all deployed ConfigMaps use the mapping form.
-	if str, ok := node.(*ast.StringNode); ok {
-		tk := str.GetToken()
-		key := ast.String(token.New("type", "type", tk.Position))
-		node = ast.Mapping(tk, false, ast.MappingValue(tk, key, str))
-	}
-
 	mapping, ok := node.(*ast.MappingNode)
 	if !ok {
 		return fmt.Errorf("line %d: strategy must be a mapping", node.GetToken().Position.Line)
