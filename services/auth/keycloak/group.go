@@ -23,28 +23,28 @@ type groupPayload struct {
 }
 
 func (r *restKC) ListGroups(ctx context.Context, realm, organizationID string) ([]Group, error) {
-	organization, err := r.searchOrganization(ctx, realm, organizationID)
+	orgID, err := r.organizationInternalID(ctx, realm, organizationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get organization: %w", err)
 	}
-	return r.listOrgGroups(ctx, realm, organization.ID)
+	return r.listOrgGroups(ctx, realm, orgID)
 }
 
 func (r *restKC) GetGroup(ctx context.Context, realm, organizationID, groupID string) (Group, error) {
-	organization, err := r.searchOrganization(ctx, realm, organizationID)
+	orgID, err := r.organizationInternalID(ctx, realm, organizationID)
 	if err != nil {
 		return Group{}, fmt.Errorf("failed to get organization: %w", err)
 	}
-	return r.getOrgGroup(ctx, realm, organization.ID, groupID)
+	return r.getOrgGroup(ctx, realm, orgID, groupID)
 }
 
 func (r *restKC) CreateGroup(ctx context.Context, realm, organizationID, name string) (Group, error) {
-	organization, err := r.searchOrganization(ctx, realm, organizationID)
+	orgID, err := r.organizationInternalID(ctx, realm, organizationID)
 	if err != nil {
 		return Group{}, fmt.Errorf("failed to get organization: %w", err)
 	}
 
-	groupsURL, err := r.buildRealmURL(realm, "organizations", organization.ID, "groups")
+	groupsURL, err := r.buildRealmURL(realm, "organizations", orgID, "groups")
 	if err != nil {
 		return Group{}, fmt.Errorf("failed to join URL: %w", err)
 	}
@@ -70,12 +70,12 @@ func (r *restKC) CreateGroup(ctx context.Context, realm, organizationID, name st
 }
 
 func (r *restKC) UpdateGroup(ctx context.Context, realm, organizationID, groupID, name string) (Group, error) {
-	organization, err := r.searchOrganization(ctx, realm, organizationID)
+	orgID, err := r.organizationInternalID(ctx, realm, organizationID)
 	if err != nil {
 		return Group{}, fmt.Errorf("failed to get organization: %w", err)
 	}
 
-	groupURL, err := r.buildRealmURL(realm, "organizations", organization.ID, "groups", groupID)
+	groupURL, err := r.buildRealmURL(realm, "organizations", orgID, "groups", groupID)
 	if err != nil {
 		return Group{}, fmt.Errorf("failed to join URL: %w", err)
 	}
@@ -94,16 +94,16 @@ func (r *restKC) UpdateGroup(ctx context.Context, realm, organizationID, groupID
 		return Group{}, fmt.Errorf("failed to update group: status code: %d", resp.StatusCode())
 	}
 
-	return r.getOrgGroup(ctx, realm, organization.ID, groupID)
+	return r.getOrgGroup(ctx, realm, orgID, groupID)
 }
 
 func (r *restKC) DeleteGroup(ctx context.Context, realm, organizationID, groupID string) error {
-	organization, err := r.searchOrganization(ctx, realm, organizationID)
+	orgID, err := r.organizationInternalID(ctx, realm, organizationID)
 	if err != nil {
 		return fmt.Errorf("failed to get organization: %w", err)
 	}
 
-	groupURL, err := r.buildRealmURL(realm, "organizations", organization.ID, "groups", groupID)
+	groupURL, err := r.buildRealmURL(realm, "organizations", orgID, "groups", groupID)
 	if err != nil {
 		return fmt.Errorf("failed to join URL: %w", err)
 	}
@@ -123,12 +123,12 @@ func (r *restKC) DeleteGroup(ctx context.Context, realm, organizationID, groupID
 }
 
 func (r *restKC) ListGroupMembers(ctx context.Context, realm, organizationID, groupID string) ([]OrganizationMember, error) {
-	organization, err := r.searchOrganization(ctx, realm, organizationID)
+	orgID, err := r.organizationInternalID(ctx, realm, organizationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get organization: %w", err)
 	}
 
-	listURL, err := r.buildRealmURL(realm, "organizations", organization.ID, "groups", groupID, "members")
+	listURL, err := r.buildRealmURL(realm, "organizations", orgID, "groups", groupID, "members")
 	if err != nil {
 		return nil, fmt.Errorf("failed to join URL: %w", err)
 	}
@@ -142,12 +142,12 @@ func (r *restKC) ListGroupMembers(ctx context.Context, realm, organizationID, gr
 }
 
 func (r *restKC) AddGroupMember(ctx context.Context, realm, organizationID, groupID, userID string) error {
-	organization, err := r.searchOrganization(ctx, realm, organizationID)
+	orgID, err := r.organizationInternalID(ctx, realm, organizationID)
 	if err != nil {
 		return fmt.Errorf("failed to get organization: %w", err)
 	}
 
-	memberURL, err := r.buildRealmURL(realm, "organizations", organization.ID, "groups", groupID, "members", userID)
+	memberURL, err := r.buildRealmURL(realm, "organizations", orgID, "groups", groupID, "members", userID)
 	if err != nil {
 		return fmt.Errorf("failed to join URL: %w", err)
 	}
@@ -170,12 +170,12 @@ func (r *restKC) AddGroupMember(ctx context.Context, realm, organizationID, grou
 }
 
 func (r *restKC) RemoveGroupMember(ctx context.Context, realm, organizationID, groupID, userID string) error {
-	organization, err := r.searchOrganization(ctx, realm, organizationID)
+	orgID, err := r.organizationInternalID(ctx, realm, organizationID)
 	if err != nil {
 		return fmt.Errorf("failed to get organization: %w", err)
 	}
 
-	memberURL, err := r.buildRealmURL(realm, "organizations", organization.ID, "groups", groupID, "members", userID)
+	memberURL, err := r.buildRealmURL(realm, "organizations", orgID, "groups", groupID, "members", userID)
 	if err != nil {
 		return fmt.Errorf("failed to join URL: %w", err)
 	}

@@ -33,13 +33,26 @@ type restKC struct {
 	tokenMu     sync.Mutex
 	cachedToken *gocloak.JWT
 	tokenExpiry time.Time // wall-clock time the cached token stops being usable
+
+	organizationIDs *sync.Map
 }
 
-func NewRestKC(client *gocloak.GoCloak, authConfig config.AuthConfig) KeyCloak {
-	return &restKC{
+type RestOption func(*restKC)
+
+// WithOrganizationIDCache remembers each organization alias's internal ID instead of searching for it on every call.
+func WithOrganizationIDCache() RestOption {
+	return func(r *restKC) { r.organizationIDs = &sync.Map{} }
+}
+
+func NewRestKC(client *gocloak.GoCloak, authConfig config.AuthConfig, opts ...RestOption) KeyCloak {
+	r := &restKC{
 		client:     client,
 		authConfig: authConfig,
 	}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
 }
 
 func (r *restKC) CreateOrganization(ctx context.Context, realm string, params OrganizationCreate) (Organization, error) {
@@ -218,12 +231,12 @@ func (r *restKC) RemoveMember(ctx context.Context, realm string, organizationID 
 }
 
 func (r *restKC) ListMembers(ctx context.Context, realm string, organizationID string) ([]OrganizationMember, error) {
-	organization, err := r.searchOrganization(ctx, realm, organizationID)
+	orgID, err := r.organizationInternalID(ctx, realm, organizationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get organization: %w", err)
 	}
 
-	listURL, err := r.buildRealmURL(realm, "organizations", organization.ID, "members")
+	listURL, err := r.buildRealmURL(realm, "organizations", orgID, "members")
 	if err != nil {
 		return nil, fmt.Errorf("failed to join URL: %w", err)
 	}
@@ -698,6 +711,9 @@ func (r *restKC) ListAllOrganizations(ctx context.Context, realm string) ([]Orga
 			if _, deleted := FirstAttr(org.Attributes, OrganizationDeletedAtKey); deleted {
 				continue
 			}
+			if r.organizationIDs != nil {
+				r.organizationIDs.Store(realm+"/"+org.Alias, org.ID)
+			}
 			result = append(result, r.convertToOrganization(org))
 		}
 		if len(page) < pageSize {
@@ -843,6 +859,24 @@ func (r *restKC) invalidateToken() {
 	defer r.tokenMu.Unlock()
 	r.cachedToken = nil
 	r.tokenExpiry = time.Time{}
+}
+
+func (r *restKC) organizationInternalID(ctx context.Context, realm, alias string) (string, error) {
+	if r.organizationIDs != nil {
+		if id, ok := r.organizationIDs.Load(realm + "/" + alias); ok {
+			if s, ok := id.(string); ok {
+				return s, nil
+			}
+		}
+	}
+	organization, err := r.searchOrganization(ctx, realm, alias)
+	if err != nil {
+		return "", err
+	}
+	if r.organizationIDs != nil {
+		r.organizationIDs.Store(realm+"/"+alias, organization.ID)
+	}
+	return organization.ID, nil
 }
 
 func (r *restKC) searchOrganization(ctx context.Context, realm, alias string) (KeycloakOrganization, error) {
