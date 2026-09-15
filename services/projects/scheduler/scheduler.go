@@ -32,7 +32,7 @@ func NewScheduler(r io.Reader) (*Scheduler, error) {
 	// Set default strategy if not specified
 	defaultStrategy := cfg.Default.Interface
 	if defaultStrategy == nil {
-		defaultStrategy = &strategy.AlwaysPrimary{}
+		defaultStrategy = &strategy.Random{}
 	}
 
 	regionStrategies := make(map[string]strategy.Interface, len(cfg.Regions))

@@ -14,11 +14,9 @@ import (
 type Type string
 
 const (
-	AlwaysPrimaryStrategyType   Type = "AlwaysPrimary"
-	AlwaysSecondaryStrategyType Type = "AlwaysSecondary"
-	RandomStrategyType          Type = "Random"
-	PinnedStrategyType          Type = "Pinned"
-	WeightedStrategyType        Type = "Weighted"
+	RandomStrategyType   Type = "Random"
+	PinnedStrategyType   Type = "Pinned"
+	WeightedStrategyType Type = "Weighted"
 )
 
 var ErrInvalidStrategy = errors.New("invalid strategy")
@@ -35,11 +33,9 @@ type validator interface {
 
 // registry maps a strategy name to a constructor for its zero value
 var registry = map[Type]func() Interface{
-	AlwaysPrimaryStrategyType:   func() Interface { return &AlwaysPrimary{} },
-	AlwaysSecondaryStrategyType: func() Interface { return &AlwaysSecondary{} },
-	RandomStrategyType:          func() Interface { return &Random{} },
-	PinnedStrategyType:          func() Interface { return &Pinned{} },
-	WeightedStrategyType:        func() Interface { return &Weighted{} },
+	RandomStrategyType:   func() Interface { return &Random{} },
+	PinnedStrategyType:   func() Interface { return &Pinned{} },
+	WeightedStrategyType: func() Interface { return &Weighted{} },
 }
 
 // Config exists to decode a strategy from YAML

@@ -1,8 +1,12 @@
 # Set an explicit strategy for two regions
 default:
-  type: AlwaysSecondary
+  type: Random
 regions:
   us-east-1:
-    type: AlwaysPrimary
+    type: Pinned
+    cell: cell-1
   eu-central-1:
-    type: Random
+    type: Weighted
+    weights:
+      cell-1: 70
+      cell-2: 30

@@ -3,4 +3,5 @@ default:
   type: Random
 regions:
   us-east-1:
-    type: AlwaysSecondary
+    type: Pinned
+    cell: cell-1

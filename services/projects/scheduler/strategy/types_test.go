@@ -22,14 +22,6 @@ func TestConfigUnmarshalYAML(t *testing.T) {
 			yaml: "type: Random",
 			want: &strategy.Random{},
 		},
-		"AlwaysPrimary": {
-			yaml: "type: AlwaysPrimary",
-			want: &strategy.AlwaysPrimary{},
-		},
-		"AlwaysSecondary": {
-			yaml: "type: AlwaysSecondary",
-			want: &strategy.AlwaysSecondary{},
-		},
 		"Pinned": {
 			yaml: "type: Pinned\ncell: cell-1",
 			want: &strategy.Pinned{Cell: "cell-1"},
@@ -50,10 +42,6 @@ func TestConfigUnmarshalYAML(t *testing.T) {
 		},
 		"Random with cell": {
 			yaml:    "type: Random\ncell: cell-1",
-			wantErr: strategy.ErrInvalidStrategy,
-		},
-		"AlwaysPrimary with weights": {
-			yaml:    "type: AlwaysPrimary\nweights:\n  cell-1: 1",
 			wantErr: strategy.ErrInvalidStrategy,
 		},
 

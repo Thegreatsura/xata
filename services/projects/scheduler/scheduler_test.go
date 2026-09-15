@@ -23,7 +23,7 @@ func TestSchedulerReturnsExpectedStrategies(t *testing.T) {
 			name:           "no default strategy, should use built-in default",
 			configFilePath: "testdata/empty.yaml",
 			expectedStrategies: map[string]strategy.Interface{
-				"any-region": &strategy.AlwaysPrimary{},
+				"any-region": &strategy.Random{},
 			},
 		},
 		{
@@ -37,17 +37,17 @@ func TestSchedulerReturnsExpectedStrategies(t *testing.T) {
 			name:           "explicit strategy for one region",
 			configFilePath: "testdata/one-region.yaml",
 			expectedStrategies: map[string]strategy.Interface{
-				"us-east-1":    &strategy.AlwaysSecondary{},
 				"other-region": &strategy.Random{},
+				"us-east-1":    &strategy.Pinned{Cell: "cell-1"},
 			},
 		},
 		{
 			name:           "explicit strategy for two regions",
 			configFilePath: "testdata/two-regions.yaml",
 			expectedStrategies: map[string]strategy.Interface{
-				"us-east-1":    &strategy.AlwaysPrimary{},
-				"eu-central-1": &strategy.Random{},
-				"other-region": &strategy.AlwaysSecondary{},
+				"us-east-1":    &strategy.Pinned{Cell: "cell-1"},
+				"eu-central-1": &strategy.Weighted{Weights: map[string]uint{"cell-1": 70, "cell-2": 30}},
+				"other-region": &strategy.Random{},
 			},
 		},
 	}
@@ -64,7 +64,7 @@ func TestSchedulerReturnsExpectedStrategies(t *testing.T) {
 			require.NoError(t, err)
 
 			for region, expectedStrategy := range tt.expectedStrategies {
-				assert.IsType(t, expectedStrategy, s.StrategyForRegion(region))
+				assert.Equal(t, expectedStrategy, s.StrategyForRegion(region))
 			}
 		})
 	}
