@@ -17,17 +17,25 @@ const (
 	configTrue = "true"
 )
 
+// Without them a provider runs Keycloak's built-in broker flows and skips xata-require-domain-sso.
+const (
+	FirstBrokerLoginFlow = "xata first broker login"
+	PostBrokerLoginFlow  = "xata post broker login"
+)
+
 // IdentityProvider mirrors the fields of Keycloak's IdentityProviderRepresentation
 // an organization's provider needs. Since Keycloak 26 hideOnLogin is top-level,
 // not config["hideOnLoginPage"].
 type IdentityProvider struct {
-	Alias       string            `json:"alias"`
-	DisplayName string            `json:"displayName,omitempty"`
-	ProviderID  string            `json:"providerId"`
-	Enabled     bool              `json:"enabled"`
-	HideOnLogin bool              `json:"hideOnLogin"`
-	TrustEmail  bool              `json:"trustEmail"`
-	Config      map[string]string `json:"config,omitempty"`
+	Alias                     string            `json:"alias"`
+	DisplayName               string            `json:"displayName,omitempty"`
+	ProviderID                string            `json:"providerId"`
+	Enabled                   bool              `json:"enabled"`
+	HideOnLogin               bool              `json:"hideOnLogin"`
+	TrustEmail                bool              `json:"trustEmail"`
+	FirstBrokerLoginFlowAlias string            `json:"firstBrokerLoginFlowAlias,omitempty"`
+	PostBrokerLoginFlowAlias  string            `json:"postBrokerLoginFlowAlias,omitempty"`
+	Config                    map[string]string `json:"config,omitempty"`
 }
 
 func (idp IdentityProvider) Issuer() string { return idp.Config["issuer"] }
@@ -95,9 +103,11 @@ func NewIdentityProvider(spec IdentityProviderSpec) IdentityProvider {
 		Enabled:     true,
 		// Never a button on the login page. Members arrive by the email-domain
 		// redirect, or by a kc_idp_hint link, which ignores this flag.
-		HideOnLogin: true,
-		TrustEmail:  true,
-		Config:      config,
+		HideOnLogin:               true,
+		TrustEmail:                true,
+		FirstBrokerLoginFlowAlias: FirstBrokerLoginFlow,
+		PostBrokerLoginFlowAlias:  PostBrokerLoginFlow,
+		Config:                    config,
 	}
 	idp.SetOrganizationDomain(spec.Domain)
 	return idp
@@ -178,6 +188,14 @@ func (r *restKC) ImportIdentityProviderConfig(ctx context.Context, realm, fromUR
 // UpsertIdentityProvider creates the provider, or replaces it on 409. Keycloak
 // has no upsert.
 func (r *restKC) UpsertIdentityProvider(ctx context.Context, realm string, idp IdentityProvider) error {
+	// Backfills providers created before NewIdentityProvider set the flows.
+	if idp.FirstBrokerLoginFlowAlias == "" {
+		idp.FirstBrokerLoginFlowAlias = FirstBrokerLoginFlow
+	}
+	if idp.PostBrokerLoginFlowAlias == "" {
+		idp.PostBrokerLoginFlowAlias = PostBrokerLoginFlow
+	}
+
 	instancesURL, err := r.buildRealmURL(realm, "identity-provider", "instances")
 	if err != nil {
 		return fmt.Errorf("build identity provider URL: %w", err)
