@@ -2,7 +2,7 @@
   "realm": "xata",
   "enabled": true,
   "eventsEnabled": true,
-  "eventsExpiration": 1209600,
+  "eventsExpiration": 2592000,
   "enabledEventTypes": [],
   "registrationAllowed": true,
   "registrationEmailAsUsername": true,
