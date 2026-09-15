@@ -27,7 +27,7 @@ type Config struct {
 	CSINodeNamespace                     string                     `env:"XATA_CSI_NODE_NAMESPACE" env-default:"xatastor" env-description:"namespace where CSI node plugin pods run"`
 	CSINodePort                          int                        `env:"XATA_CSI_NODE_PORT" env-default:"50061" env-description:"port for the SlotController service on CSI node plugin pods"`
 	WakeupRequestTTL                     time.Duration              `env:"XATA_WAKEUP_REQUEST_TTL" env-default:"60s" env-description:"time to keep completed WakeupRequests before deletion"`
-	WakeupRPCTimeout                     time.Duration              `env:"XATA_WAKEUP_RPC_TIMEOUT" env-default:"10s" env-description:"timeout for the WakeUp RPC to the SlotController service on CSI node plugin pods"`
+	WakeupRPCTimeout                     time.Duration              `env:"XATA_WAKEUP_RPC_TIMEOUT" env-default:"30s" env-description:"timeout for the WakeUp RPC to the SlotController service on CSI node plugin pods"`
 	WakeupMaxConcurrent                  int                        `env:"XATA_WAKEUP_MAX_CONCURRENT" env-default:"16" env-description:"maximum concurrent wakeup reconciliations"`
 	BranchMaxConcurrent                  int                        `env:"XATA_BRANCH_MAX_CONCURRENT" env-default:"1" env-description:"maximum concurrent Branch reconciliations (default 1 = current behavior)"`
 	KubeClientQPS                        float64                    `env:"XATA_KUBE_CLIENT_QPS" env-default:"0" env-description:"Kubernetes API client QPS; 0 keeps the controller-runtime default (20)"`
