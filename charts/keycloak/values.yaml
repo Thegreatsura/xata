@@ -57,6 +57,12 @@ config:
     url: http://auth-keycloak-service:8080
     realm: xata
   realm:
+    # Non-secret realm import variables. Each one set here takes precedence over
+    # the same key in keycloak-realm-secret; left empty, the secret still applies.
+    frontendRedirectURI: ""
+    frontendAppRedirectURI: ""
+    frontendWebOrigin: ""
+    mcpResourceURL: ""
     smtp:
       host: "email-smtp.us-east-1.amazonaws.com"
       port: "2587"

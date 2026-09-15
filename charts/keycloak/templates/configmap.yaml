@@ -18,3 +18,15 @@ data:
   SMTP_SSL: "{{ .Values.config.realm.smtp.ssl }}"
   SMTP_FROM: "{{ .Values.config.realm.smtp.from }}"
   SMTP_REPLY_TO: "{{ .Values.config.realm.smtp.replyTo }}"
+  {{- with .Values.config.realm.frontendRedirectURI }}
+  FRONTEND_REDIRECT_URI: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.config.realm.frontendAppRedirectURI }}
+  FRONTEND_APP_REDIRECT_URI: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.config.realm.frontendWebOrigin }}
+  FRONTEND_WEB_ORIGIN_URL: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.config.realm.mcpResourceURL }}
+  MCP_RESOURCE_URL: {{ . | quote }}
+  {{- end }}
