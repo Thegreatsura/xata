@@ -1,0 +1,16 @@
+{
+	"operations": [
+		{
+			"drop_index": {
+				"name": "idx_cells_primary_unique"
+			}
+		},
+		{
+			"drop_column": {
+				"table": "cells",
+				"column": "is_primary",
+				"down": "false"
+			}
+		}
+	]
+}
