@@ -293,15 +293,17 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		image := branch.Spec.ClusterSpec.Image
 		cpuReq := branch.Spec.ClusterSpec.Resources.Requests.Cpu().String()
 		memReq := branch.Spec.ClusterSpec.Resources.Requests.Memory().String()
+		storageSize := branch.Spec.ClusterSpec.Storage.Size
 		log.Ctx(ctx).Info().
 			Str("storageClass", storageClass).
 			Str("image", image).
 			Str("cpu", cpuReq).
 			Str("memory", memReq).
+			Str("storageSize", storageSize).
 			Msg("looking for pool cluster")
 
 		poolName, poolCluster, err := findPoolCluster(ctx, c.kubeClient, c.clusterReader, c.config.ClustersNamespace,
-			storageClass, image, cpuReq, memReq,
+			storageClass, image, cpuReq, memReq, storageSize,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("find pool cluster: %w", err)

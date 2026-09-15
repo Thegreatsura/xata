@@ -18,8 +18,8 @@ import (
 
 // findPoolCluster finds a healthy, pre-provisioned cluster from a ClusterPool
 // that matches the requested configuration (storage class, Postgres version,
-// CPU, and memory).
-func findPoolCluster(ctx context.Context, kubeClient client.Client, clusterReader client.Reader, namespace, storageClass, image, cpuRequest, memory string) (string, *apiv1.Cluster, error) {
+// CPU, memory, and a disk no larger than the requested storage size).
+func findPoolCluster(ctx context.Context, kubeClient client.Client, clusterReader client.Reader, namespace, storageClass, image, cpuRequest, memory, storageSize string) (string, *apiv1.Cluster, error) {
 	var pools cpv1alpha1.ClusterPoolList
 	if err := kubeClient.List(ctx, &pools, client.InNamespace(namespace)); err != nil {
 		return "", nil, fmt.Errorf("list cluster pools: %w", err)
@@ -27,6 +27,7 @@ func findPoolCluster(ctx context.Context, kubeClient client.Client, clusterReade
 
 	requestedCPU := resource.MustParse(cpuRequest)
 	requestedMemory := resource.MustParse(memory)
+	requestedStorage := resource.MustParse(storageSize)
 
 	for i := range pools.Items {
 		pool := &pools.Items[i]
@@ -50,7 +51,16 @@ func findPoolCluster(ctx context.Context, kubeClient client.Client, clusterReade
 			continue
 		}
 
-		cluster, err := findAvailableClusterInPool(ctx, kubeClient, clusterReader, namespace, pool)
+		// CNPG cannot shrink volumes, so skip a larger pool disk before polling its clusters
+		larger, err := storageLargerThan(spec.StorageConfiguration.Size, requestedStorage)
+		if err != nil {
+			return "", nil, fmt.Errorf("parse storage size of pool %s: %w", pool.Name, err)
+		}
+		if larger {
+			continue
+		}
+
+		cluster, err := findAvailableClusterInPool(ctx, kubeClient, clusterReader, namespace, pool, requestedStorage)
 		if err != nil {
 			return "", nil, fmt.Errorf("find available cluster in pool %s: %w", pool.Name, err)
 		}
@@ -60,6 +70,19 @@ func findPoolCluster(ctx context.Context, kubeClient client.Client, clusterReade
 	}
 
 	return "", nil, nil
+}
+
+// storageLargerThan reports whether size is larger than the requested storage.
+// An unset size is never larger.
+func storageLargerThan(size string, requested resource.Quantity) (bool, error) {
+	if size == "" {
+		return false, nil
+	}
+	quantity, err := resource.ParseQuantity(size)
+	if err != nil {
+		return false, err
+	}
+	return quantity.Cmp(requested) > 0, nil
 }
 
 // slotPoolName derives the slot pool name from a pool name. Each pool (used
@@ -85,10 +108,11 @@ func findAvailableClusterInPool(
 	clusterReader client.Reader,
 	namespace string,
 	pool *cpv1alpha1.ClusterPool,
+	requestedStorage resource.Quantity,
 ) (*apiv1.Cluster, error) {
 	deadline := time.Now().Add(poolClusterWaitTimeout)
 	for {
-		cluster, err := findHealthyClusterInPool(ctx, kubeClient, clusterReader, namespace, pool)
+		cluster, err := findHealthyClusterInPool(ctx, kubeClient, clusterReader, namespace, pool, requestedStorage)
 		if err != nil {
 			return nil, err
 		}
@@ -107,13 +131,15 @@ func findAvailableClusterInPool(
 }
 
 // findHealthyClusterInPool returns the first cluster owned by the pool that is
-// in the Healthy phase and not being deleted.
+// in the Healthy phase, not being deleted, and has a disk no larger than the
+// requested storage.
 func findHealthyClusterInPool(
 	ctx context.Context,
 	kubeClient client.Client,
 	clusterReader client.Reader,
 	namespace string,
 	pool *cpv1alpha1.ClusterPool,
+	requestedStorage resource.Quantity,
 ) (*apiv1.Cluster, error) {
 	var clusters apiv1.ClusterList
 	if err := clusterReader.List(ctx, &clusters,
@@ -126,6 +152,14 @@ func findHealthyClusterInPool(
 	for i := range clusters.Items {
 		cluster := &clusters.Items[i]
 		if cluster.DeletionTimestamp != nil {
+			continue
+		}
+		// CNPG rejects shrinking existing clusters when a pool's size is lowered
+		larger, err := storageLargerThan(cluster.Spec.StorageConfiguration.Size, requestedStorage)
+		if err != nil {
+			return nil, fmt.Errorf("parse storage size of cluster %s: %w", cluster.Name, err)
+		}
+		if larger {
 			continue
 		}
 		if cluster.Status.ReadyInstances > 0 {

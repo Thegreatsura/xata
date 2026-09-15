@@ -492,6 +492,20 @@ func TestCreatePostgresCluster(t *testing.T) {
 			},
 		},
 		{
+			name: "use_pool with a pool disk larger than requested - falls back to normal creation",
+			extraObjects: []client.Object{
+				func() client.Object {
+					pool := poolForTest("default-storage-class", testImage, "2", "3996Mi")
+					pool.Spec.ClusterSpec.StorageConfiguration.Size = "1Ti"
+					return pool
+				}(),
+				poolClusterForTest(),
+			},
+			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
+				r.UsePool = new(true)
+			},
+		},
+		{
 			name: "use_pool false - normal creation unchanged",
 			extraObjects: []client.Object{
 				poolForTest("default-storage-class", testImage, "2", "3996Mi"),

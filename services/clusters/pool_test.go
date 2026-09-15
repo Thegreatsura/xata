@@ -43,6 +43,7 @@ func TestFindPoolCluster(t *testing.T) {
 				ImageName: "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5",
 				StorageConfiguration: apiv1.StorageConfiguration{
 					StorageClass: new("default-storage-class"),
+					Size:         "250Gi",
 				},
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
@@ -72,14 +73,22 @@ func TestFindPoolCluster(t *testing.T) {
 		},
 	}
 
+	poolWithSize := func(size string) *cpv1alpha1.ClusterPool {
+		pool := matchingPool.DeepCopy()
+		pool.Spec.ClusterSpec.StorageConfiguration.Size = size
+		return pool
+	}
+
 	tests := map[string]struct {
 		objects      []client.Object
 		storageClass string
 		image        string
 		cpuRequest   string
 		memory       string
+		storageSize  string
 		wantPoolName string
 		wantName     string
+		wantErr      bool
 	}{
 		"matching pool with available cluster": {
 			objects:      []client.Object{matchingPool, availableCluster},
@@ -87,8 +96,58 @@ func TestFindPoolCluster(t *testing.T) {
 			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5",
 			cpuRequest:   "2",
 			memory:       "4Gi",
+			storageSize:  "250Gi",
 			wantPoolName: "test-pool",
 			wantName:     "pool-cluster-1",
+		},
+		"matching pool with a disk smaller than requested": {
+			objects:      []client.Object{matchingPool, availableCluster},
+			storageClass: "default-storage-class",
+			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5",
+			cpuRequest:   "2",
+			memory:       "4Gi",
+			storageSize:  "500Gi",
+			wantPoolName: "test-pool",
+			wantName:     "pool-cluster-1",
+		},
+		"no matching pool - disk larger than requested": {
+			objects:      []client.Object{matchingPool, availableCluster},
+			storageClass: "default-storage-class",
+			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5",
+			cpuRequest:   "2",
+			memory:       "4Gi",
+			storageSize:  "20Gi",
+		},
+		"matching pool without a disk size": {
+			objects:      []client.Object{poolWithSize(""), availableCluster},
+			storageClass: "default-storage-class",
+			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5",
+			cpuRequest:   "2",
+			memory:       "4Gi",
+			storageSize:  "20Gi",
+			wantPoolName: "test-pool",
+			wantName:     "pool-cluster-1",
+		},
+		"matching pool with an invalid disk size": {
+			objects:      []client.Object{poolWithSize("not-a-size"), availableCluster},
+			storageClass: "default-storage-class",
+			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5",
+			cpuRequest:   "2",
+			memory:       "4Gi",
+			storageSize:  "250Gi",
+			wantErr:      true,
+		},
+		"no matching cluster - pool disk lowered below the cluster disk": {
+			objects: []client.Object{poolWithSize("10Gi"), func() *apiv1.Cluster {
+				cluster := availableCluster.DeepCopy()
+				cluster.Spec.StorageConfiguration.Size = "250Gi"
+				return cluster
+			}()},
+			storageClass: "default-storage-class",
+			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5",
+			cpuRequest:   "2",
+			memory:       "4Gi",
+			storageSize:  "20Gi",
 		},
 		"no matching pool - different storage class": {
 			objects:      []client.Object{matchingPool, availableCluster},
@@ -96,6 +155,7 @@ func TestFindPoolCluster(t *testing.T) {
 			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5",
 			cpuRequest:   "2",
 			memory:       "4Gi",
+			storageSize:  "250Gi",
 		},
 		"no matching pool - different postgres major": {
 			objects:      []client.Object{matchingPool, availableCluster},
@@ -103,6 +163,7 @@ func TestFindPoolCluster(t *testing.T) {
 			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:16.3",
 			cpuRequest:   "2",
 			memory:       "4Gi",
+			storageSize:  "250Gi",
 		},
 		"no matching pool - different postgres minor": {
 			objects:      []client.Object{matchingPool, availableCluster},
@@ -110,6 +171,7 @@ func TestFindPoolCluster(t *testing.T) {
 			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.2",
 			cpuRequest:   "2",
 			memory:       "4Gi",
+			storageSize:  "250Gi",
 		},
 		"no matching pool - different image offering": {
 			objects:      []client.Object{matchingPool, availableCluster},
@@ -117,6 +179,7 @@ func TestFindPoolCluster(t *testing.T) {
 			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-analytics:17.5",
 			cpuRequest:   "2",
 			memory:       "4Gi",
+			storageSize:  "250Gi",
 		},
 		"no matching pool - different cpu": {
 			objects:      []client.Object{matchingPool, availableCluster},
@@ -124,6 +187,7 @@ func TestFindPoolCluster(t *testing.T) {
 			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5",
 			cpuRequest:   "4",
 			memory:       "4Gi",
+			storageSize:  "250Gi",
 		},
 		"no matching pool - different memory": {
 			objects:      []client.Object{matchingPool, availableCluster},
@@ -131,6 +195,7 @@ func TestFindPoolCluster(t *testing.T) {
 			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5",
 			cpuRequest:   "2",
 			memory:       "8Gi",
+			storageSize:  "250Gi",
 		},
 		"matching pool but no available clusters": {
 			objects:      []client.Object{matchingPool},
@@ -138,6 +203,7 @@ func TestFindPoolCluster(t *testing.T) {
 			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5",
 			cpuRequest:   "2",
 			memory:       "4Gi",
+			storageSize:  "250Gi",
 		},
 		"matching pool with unhealthy cluster": {
 			objects: []client.Object{matchingPool, &apiv1.Cluster{
@@ -154,6 +220,7 @@ func TestFindPoolCluster(t *testing.T) {
 			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5",
 			cpuRequest:   "2",
 			memory:       "4Gi",
+			storageSize:  "250Gi",
 		},
 		"no pools at all": {
 			objects:      nil,
@@ -161,6 +228,7 @@ func TestFindPoolCluster(t *testing.T) {
 			image:        "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5",
 			cpuRequest:   "2",
 			memory:       "4Gi",
+			storageSize:  "250Gi",
 		},
 	}
 
@@ -170,7 +238,11 @@ func TestFindPoolCluster(t *testing.T) {
 			k8sClient := newPoolTestClient(t, tt.objects...)
 
 			gotPoolName, got, err := findPoolCluster(ctx, k8sClient, k8sClient, namespace,
-				tt.storageClass, tt.image, tt.cpuRequest, tt.memory)
+				tt.storageClass, tt.image, tt.cpuRequest, tt.memory, tt.storageSize)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
 			require.NoError(t, err)
 
 			if tt.wantName == "" {
@@ -201,6 +273,7 @@ func TestFindPoolClusterConcurrent(t *testing.T) {
 		image        = "ghcr.io/xataio/postgres-images/cnpg-postgres-plus:17.5"
 		cpuRequest   = "2"
 		memory       = "4Gi"
+		storageSize  = "250Gi"
 		concurrency  = 10
 	)
 	poolUID := types.UID("pool-uid-123")
@@ -258,7 +331,7 @@ func TestFindPoolClusterConcurrent(t *testing.T) {
 	for i := range concurrency {
 		wg.Go(func() {
 			<-start
-			poolName, c, err := findPoolCluster(context.Background(), k8sClient, k8sClient, namespace, storageClass, image, cpuRequest, memory)
+			poolName, c, err := findPoolCluster(context.Background(), k8sClient, k8sClient, namespace, storageClass, image, cpuRequest, memory, storageSize)
 			results[i] = result{poolName: poolName, cluster: c, err: err}
 		})
 	}
@@ -348,9 +421,17 @@ func TestFindHealthyClusterInPool(t *testing.T) {
 
 	now := metav1.Now()
 
+	clusterWithSize := func(name, size string) *apiv1.Cluster {
+		cluster := poolClusterForTest()
+		cluster.Name = name
+		cluster.Spec.StorageConfiguration.Size = size
+		return cluster
+	}
+
 	tests := map[string]struct {
 		objects  []client.Object
 		wantName string
+		wantErr  bool
 	}{
 		"returns healthy cluster": {
 			objects: []client.Object{pool, &apiv1.Cluster{
@@ -406,6 +487,17 @@ func TestFindHealthyClusterInPool(t *testing.T) {
 			},
 			wantName: "healthy-2",
 		},
+		"skips cluster whose disk is larger than requested": {
+			objects: []client.Object{pool, clusterWithSize("larger-1", "250Gi")},
+		},
+		"returns cluster whose disk equals the request": {
+			objects:  []client.Object{pool, clusterWithSize("equal-1", "100Gi")},
+			wantName: "equal-1",
+		},
+		"returns error for an invalid cluster disk size": {
+			objects: []client.Object{pool, clusterWithSize("invalid-1", "not-a-size")},
+			wantErr: true,
+		},
 		"no clusters at all": {
 			objects: []client.Object{pool},
 		},
@@ -416,7 +508,11 @@ func TestFindHealthyClusterInPool(t *testing.T) {
 			ctx := context.Background()
 			k8sClient := newPoolTestClient(t, tt.objects...)
 
-			got, err := findHealthyClusterInPool(ctx, k8sClient, k8sClient, namespace, pool)
+			got, err := findHealthyClusterInPool(ctx, k8sClient, k8sClient, namespace, pool, resource.MustParse("100Gi"))
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
 			require.NoError(t, err)
 
 			if tt.wantName == "" {
