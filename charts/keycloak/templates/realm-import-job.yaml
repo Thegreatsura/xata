@@ -10,8 +10,9 @@ spec:
   template:
     metadata:
       annotations:
-        # Recreates the Job on every realm.json change so the import re-runs.
-        xata.tech/realm-checksum: {{ .Files.Get "files/realm.json" | sha256sum }}
+        # Recreates the Job whenever realm.json or the keycloak-realm-config values it
+        # substitutes change, so the import re-runs.
+        xata.tech/realm-checksum: {{ list (.Files.Get "files/realm.json") .Values.config.realm | toJson | sha256sum }}
     spec:
       enableServiceLinks: false
       containers:
@@ -34,6 +35,11 @@ spec:
               value: /keycloak-realm/realm.json
             - name: IMPORT_VARSUBSTITUTION_ENABLED
               value: "true"
+            # Wait for Keycloak to answer instead of failing pods while it starts.
+            - name: KEYCLOAK_AVAILABILITYCHECK_ENABLED
+              value: "true"
+            - name: KEYCLOAK_AVAILABILITYCHECK_TIMEOUT
+              value: "300s"
             # Organizations register their own identity provider through the SSO API, so the
             # realm holds providers this file has never heard of. keycloak-config-cli defaults
             # both of these to "full", which deletes anything absent from the import, and this
