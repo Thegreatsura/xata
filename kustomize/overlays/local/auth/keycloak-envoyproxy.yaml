@@ -1,0 +1,24 @@
+# Keycloak's own EnvoyProxy for local clusters, so its Envoy Service name does
+# not collide with the envoy-api name that overlays/local/api-gateway pins on
+# the shared one. The shutdown-manager limits keep it small on a kind node.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: keycloak-eg-local-proxy-config
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              template:
+                spec:
+                  containers:
+                    - name: shutdown-manager
+                      resources:
+                        limits:
+                          cpu: 200m
+                          memory: 100Mi
