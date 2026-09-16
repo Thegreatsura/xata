@@ -6,7 +6,6 @@ import (
 
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	apiv1ac "github.com/xataio/xata-cnpg/pkg/client/applyconfiguration/api/v1"
-	"k8s.io/apimachinery/pkg/types"
 	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -41,15 +40,8 @@ func (r *BranchReconciler) reconcilePooler(
 			Name:      poolerName,
 			Namespace: r.ClustersNamespace,
 		}
-		err := r.Get(ctx, types.NamespacedName{
-			Name:      poolerName,
-			Namespace: r.ClustersNamespace,
-		}, pooler)
-		if err != nil {
-			return client.IgnoreNotFound(err)
-		}
 
-		return r.Delete(ctx, pooler)
+		return client.IgnoreNotFound(r.Delete(ctx, pooler))
 	}
 
 	// Get the Cluster associated with the Branch.
