@@ -4,6 +4,7 @@ kind: Kustomization
 components:
   - ../../components/xata-cnpg-1.28.0
   - ../../components/barman-cloud-0.10.0
+  - feature-flags
 
 resources:
   - ../../base/xata

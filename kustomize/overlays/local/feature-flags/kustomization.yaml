@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# Feature flag values for the services that evaluate flags, as comma separated
+# name:value pairs (e.g. usePgBackRest:true). They win over PostHog and the
+# defaults in internal/flags for every organization.
+patches:
+  - target:
+      kind: Deployment
+      name: ^(auth|projects|mcp)$
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: XATA_FEATURE_FLAGS
+          value: ""
