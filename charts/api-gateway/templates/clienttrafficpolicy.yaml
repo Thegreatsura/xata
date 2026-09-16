@@ -1,0 +1,23 @@
+# Envoy appends to X-Forwarded-For rather than replacing it, so a client-supplied value
+# survives in the leftmost position. Removing it before Envoy's own handling runs lets
+# Envoy recreate the header from the connection's peer address. Keep clientIPDetection
+# unset (it turns off use_remote_address), and revisit if a CDN is ever put in front.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: api-gateway-sanitize-forwarding-headers
+  namespace: {{ .Release.Namespace }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: eg
+  headers:
+    earlyRequestHeaders:
+      remove:
+        - x-forwarded-for
+        - forwarded
+        - x-real-ip
+        - true-client-ip
+        - cf-connecting-ip
+        - x-envoy-external-address
