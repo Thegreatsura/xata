@@ -11,11 +11,13 @@ import (
 	snapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	"github.com/stretchr/testify/require"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
+	apiv1ac "github.com/xataio/xata-cnpg/pkg/client/applyconfiguration/api/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 )
 
 func TestNetworkPolicySpec(t *testing.T) {
@@ -620,43 +622,35 @@ func TestScheduledBackupSpec(t *testing.T) {
 		branchName string
 		schedule   string
 		suspend    bool
-		want       apiv1.ScheduledBackupSpec
+		want       *apiv1ac.ScheduledBackupSpecApplyConfiguration
 	}{
 		{
 			name:       "barman scheduled backup with hourly schedule",
 			method:     v1alpha1.BackupMethodBarman,
 			branchName: "test-branch-1",
 			schedule:   "0 0 * * * *",
-			want: apiv1.ScheduledBackupSpec{
-				Cluster: apiv1.LocalObjectReference{
-					Name: "test-branch-1",
-				},
-				Method:    apiv1.BackupMethodPlugin,
-				Schedule:  "0 0 * * * *",
-				Immediate: new(true),
-				Suspend:   new(false),
-				PluginConfiguration: &apiv1.BackupPluginConfiguration{
-					Name: "barman-cloud.cloudnative-pg.io",
-				},
-			},
+			want: apiv1ac.ScheduledBackupSpec().
+				WithCluster(corev1ac.LocalObjectReference().WithName("test-branch-1")).
+				WithMethod(apiv1.BackupMethodPlugin).
+				WithSchedule("0 0 * * * *").
+				WithImmediate(true).
+				WithSuspend(false).
+				WithPluginConfiguration(apiv1ac.BackupPluginConfiguration().
+					WithName("barman-cloud.cloudnative-pg.io")),
 		},
 		{
 			name:       "barman scheduled backup with very frequent schedule",
 			method:     v1alpha1.BackupMethodBarman,
 			branchName: "test-branch-2",
 			schedule:   "0 * * * * *",
-			want: apiv1.ScheduledBackupSpec{
-				Cluster: apiv1.LocalObjectReference{
-					Name: "test-branch-2",
-				},
-				Method:    apiv1.BackupMethodPlugin,
-				Schedule:  "0 * * * * *",
-				Immediate: new(true),
-				Suspend:   new(false),
-				PluginConfiguration: &apiv1.BackupPluginConfiguration{
-					Name: "barman-cloud.cloudnative-pg.io",
-				},
-			},
+			want: apiv1ac.ScheduledBackupSpec().
+				WithCluster(corev1ac.LocalObjectReference().WithName("test-branch-2")).
+				WithMethod(apiv1.BackupMethodPlugin).
+				WithSchedule("0 * * * * *").
+				WithImmediate(true).
+				WithSuspend(false).
+				WithPluginConfiguration(apiv1ac.BackupPluginConfiguration().
+					WithName("barman-cloud.cloudnative-pg.io")),
 		},
 		{
 			name:       "barman suspended scheduled backup",
@@ -664,34 +658,27 @@ func TestScheduledBackupSpec(t *testing.T) {
 			branchName: "test-branch-2",
 			schedule:   "0 * * * * *",
 			suspend:    true,
-			want: apiv1.ScheduledBackupSpec{
-				Cluster: apiv1.LocalObjectReference{
-					Name: "test-branch-2",
-				},
-				Method:    apiv1.BackupMethodPlugin,
-				Schedule:  "0 * * * * *",
-				Immediate: new(true),
-				Suspend:   new(true),
-				PluginConfiguration: &apiv1.BackupPluginConfiguration{
-					Name: "barman-cloud.cloudnative-pg.io",
-				},
-			},
+			want: apiv1ac.ScheduledBackupSpec().
+				WithCluster(corev1ac.LocalObjectReference().WithName("test-branch-2")).
+				WithMethod(apiv1.BackupMethodPlugin).
+				WithSchedule("0 * * * * *").
+				WithImmediate(true).
+				WithSuspend(true).
+				WithPluginConfiguration(apiv1ac.BackupPluginConfiguration().
+					WithName("barman-cloud.cloudnative-pg.io")),
 		},
 		{
 			name:       "pgbackrest scheduled backup",
 			method:     v1alpha1.BackupMethodPgBackRest,
 			branchName: "test-branch-1",
 			schedule:   "0 0 0 * * *",
-			want: apiv1.ScheduledBackupSpec{
-				Cluster: apiv1.LocalObjectReference{
-					Name: "test-branch-1",
-				},
-				Method:               apiv1.BackupMethodPgBackRest,
-				Schedule:             "0 0 0 * * *",
-				Immediate:            new(true),
-				Suspend:              new(false),
-				PgBackRestBackupType: apiv1.PgBackRestBackupTypeFull,
-			},
+			want: apiv1ac.ScheduledBackupSpec().
+				WithCluster(corev1ac.LocalObjectReference().WithName("test-branch-1")).
+				WithMethod(apiv1.BackupMethodPgBackRest).
+				WithSchedule("0 0 0 * * *").
+				WithImmediate(true).
+				WithSuspend(false).
+				WithPgBackRestBackupType(apiv1.PgBackRestBackupTypeFull),
 		},
 		{
 			name:       "pgbackrest suspended scheduled backup",
@@ -699,16 +686,13 @@ func TestScheduledBackupSpec(t *testing.T) {
 			branchName: "test-branch-2",
 			schedule:   "0 0 2 * * 0",
 			suspend:    true,
-			want: apiv1.ScheduledBackupSpec{
-				Cluster: apiv1.LocalObjectReference{
-					Name: "test-branch-2",
-				},
-				Method:               apiv1.BackupMethodPgBackRest,
-				Schedule:             "0 0 2 * * 0",
-				Immediate:            new(true),
-				Suspend:              new(true),
-				PgBackRestBackupType: apiv1.PgBackRestBackupTypeFull,
-			},
+			want: apiv1ac.ScheduledBackupSpec().
+				WithCluster(corev1ac.LocalObjectReference().WithName("test-branch-2")).
+				WithMethod(apiv1.BackupMethodPgBackRest).
+				WithSchedule("0 0 2 * * 0").
+				WithImmediate(true).
+				WithSuspend(true).
+				WithPgBackRestBackupType(apiv1.PgBackRestBackupTypeFull),
 		},
 	}
 

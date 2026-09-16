@@ -7,11 +7,13 @@ import (
 	barmanPluginApi "github.com/cloudnative-pg/plugin-barman-cloud/api/v1"
 	snapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
+	apiv1ac "github.com/xataio/xata-cnpg/pkg/client/applyconfiguration/api/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 )
 
 // NetworkPolicySpec defines the NetworkPolicySpec for the given cluster name.
@@ -202,30 +204,31 @@ func ObjectStoreSpec(
 	return spec
 }
 
-// ScheduledBackupSpec defines the ScheduledBackupSpec for a branch's scheduled backups.
-// The method parameter determines the backup method: barman uses the barman-cloud
-// plugin, pgbackrest uses in-core pgbackrest with full backups.
-func ScheduledBackupSpec(clusterName, schedule string, suspend bool, method v1alpha1.BackupMethod) apiv1.ScheduledBackupSpec {
-	spec := apiv1.ScheduledBackupSpec{
-		Cluster: apiv1.LocalObjectReference{
-			Name: clusterName,
-		},
-		Schedule:  schedule,
-		Immediate: new(true),
-		Suspend:   new(suspend),
-	}
+// ScheduledBackupSpec generates the ScheduledBackup spec apply configuration for a
+// branch's scheduled backups. The method parameter determines the backup method:
+// barman uses the barman-cloud plugin, pgbackrest uses in-core pgbackrest with
+// full backups.
+func ScheduledBackupSpec(
+	clusterName, schedule string,
+	suspend bool,
+	method v1alpha1.BackupMethod,
+) *apiv1ac.ScheduledBackupSpecApplyConfiguration {
+	spec := apiv1ac.ScheduledBackupSpec().
+		WithCluster(corev1ac.LocalObjectReference().WithName(clusterName)).
+		WithSchedule(schedule).
+		WithImmediate(true).
+		WithSuspend(suspend)
 
 	if method == v1alpha1.BackupMethodPgBackRest {
-		spec.Method = apiv1.BackupMethodPgBackRest
-		spec.PgBackRestBackupType = apiv1.PgBackRestBackupTypeFull
-	} else {
-		spec.Method = apiv1.BackupMethodPlugin
-		spec.PluginConfiguration = &apiv1.BackupPluginConfiguration{
-			Name: "barman-cloud.cloudnative-pg.io",
-		}
+		return spec.
+			WithMethod(apiv1.BackupMethodPgBackRest).
+			WithPgBackRestBackupType(apiv1.PgBackRestBackupTypeFull)
 	}
 
-	return spec
+	return spec.
+		WithMethod(apiv1.BackupMethodPlugin).
+		WithPluginConfiguration(apiv1ac.BackupPluginConfiguration().
+			WithName("barman-cloud.cloudnative-pg.io"))
 }
 
 // Secret builds a BasicAuth Secret with the given name, username, and password.

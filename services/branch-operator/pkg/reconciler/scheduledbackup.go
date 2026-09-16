@@ -4,67 +4,50 @@ import (
 	"context"
 
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	apiv1ac "github.com/xataio/xata-cnpg/pkg/client/applyconfiguration/api/v1"
+	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"xata/services/branch-operator/api/v1alpha1"
 	"xata/services/branch-operator/pkg/reconciler/resources"
 )
 
 // reconcileScheduledBackup ensures that the correct ScheduledBackup exists for the
-// given Branch when backups are configured. When BackupConfiguration is nil,
-// it ensures no ScheduledBackup exists.
+// given Branch when backups are configured, using server-side apply. When
+// BackupConfiguration is nil, it ensures no ScheduledBackup exists.
+//
+// Both paths go straight to the apiserver. A read of the informer cache can lag
+// a Branch create or delete, which makes the decision to create, update or
+// delete act on stale state.
 func (r *BranchReconciler) reconcileScheduledBackup(
 	ctx context.Context,
 	branch *v1alpha1.Branch,
-) (controllerutil.OperationResult, error) {
-	sb := &apiv1.ScheduledBackup{
-		Name:      branch.Name,
-		Namespace: r.ClustersNamespace,
-	}
-
+) error {
 	// If scheduled backup is not configured, ensure ScheduledBackup doesn't exist
 	if !branch.Spec.BackupSpec.IsScheduledBackupEnabled() {
-		// Try to get the ScheduledBackup
-		err := r.Get(ctx, types.NamespacedName{
+		sb := &apiv1.ScheduledBackup{
 			Name:      branch.Name,
 			Namespace: r.ClustersNamespace,
-		}, sb)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return controllerutil.OperationResultNone, nil
-			}
-			return controllerutil.OperationResultNone, err
 		}
 
-		// ScheduledBackup exists but shouldn't so delete it
-		if err := r.Delete(ctx, sb); err != nil {
-			return controllerutil.OperationResultNone, err
-		}
-		return controllerutil.OperationResultUpdated, nil
+		return client.IgnoreNotFound(r.Delete(ctx, sb))
 	}
 
-	// BackupConfiguration is set, create or update the ScheduledBackup
-	result, err := controllerutil.CreateOrUpdate(ctx, r.Client, sb, func() error {
-		// Ensure the owner reference is set on the ScheduledBackup
-		if err := controllerutil.SetControllerReference(branch, sb, r.Scheme); err != nil {
-			return err
-		}
-
-		// Ensure labels are set on the ScheduledBackup
-		ensureLabels(sb, branch.Spec.InheritedMetadata)
-
-		// Set the spec for the ScheduledBackup
-		sb.Spec = resources.ScheduledBackupSpec(
+	ac := apiv1ac.ScheduledBackup(branch.Name, r.ClustersNamespace).
+		WithLabels(clusterLabels(branch.Spec.InheritedMetadata)).
+		WithOwnerReferences(metav1ac.OwnerReference().
+			WithAPIVersion(v1alpha1.GroupVersion.String()).
+			WithKind(v1alpha1.BranchKind).
+			WithName(branch.Name).
+			WithUID(branch.UID).
+			WithBlockOwnerDeletion(true).
+			WithController(true)).
+		WithSpec(resources.ScheduledBackupSpec(
 			branch.ClusterName(),
 			branch.Spec.BackupSpec.ScheduledBackup.Schedule,
 			!branch.HasClusterName() || branch.Spec.ClusterSpec.Hibernation.IsEnabled(),
 			branch.Spec.BackupSpec.Method,
-		)
+		))
 
-		return nil
-	})
-
-	return result, err
+	return r.Apply(ctx, ac, client.FieldOwner(OperatorName), client.ForceOwnership)
 }

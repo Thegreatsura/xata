@@ -205,7 +205,7 @@ func (r *BranchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// Reconcile the ScheduledBackup for the branch
-	_, err = r.reconcileScheduledBackup(ctx, branch)
+	err = r.reconcileScheduledBackup(ctx, branch)
 	if err != nil {
 		log.Error(err, "reconciling ScheduledBackup")
 		return ctrl.Result{}, err
