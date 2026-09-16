@@ -1444,6 +1444,9 @@ components:
           description: Email address of the user to invite
           type: string
           format: email
+        role:
+          description: Role the user holds once they accept the invitation. Optional; when omitted, the least privileged role (Viewer) applies once roles are enabled for the organization
+          $ref: '#/components/schemas/OrganizationRoleName'
       required:
         - email
     OrganizationInvitation:
@@ -1481,6 +1484,9 @@ components:
           enum:
             - pending
             - expired
+        role:
+          description: Role the user holds once they accept the invitation
+          $ref: '#/components/schemas/OrganizationRoleName'
       required:
         - id
         - organization_id
@@ -1488,6 +1494,7 @@ components:
         - created_at
         - expires_at
         - status
+        - role
     BillingCollectionMethod:
       description: How billing payment is collected for the organization.
       type: string

@@ -1911,6 +1911,57 @@ func (_c *KeyCloak_UpdateGroup_Call) RunAndReturn(run func(context.Context, stri
 	return _c
 }
 
+// UpdateGroupAttribute provides a mock function with given fields: ctx, realm, organizationID, groupID, key, update
+func (_m *KeyCloak) UpdateGroupAttribute(ctx context.Context, realm string, organizationID string, groupID string, key string, update func([]string) []string) error {
+	ret := _m.Called(ctx, realm, organizationID, groupID, key, update)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateGroupAttribute")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, func([]string) []string) error); ok {
+		r0 = rf(ctx, realm, organizationID, groupID, key, update)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// KeyCloak_UpdateGroupAttribute_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateGroupAttribute'
+type KeyCloak_UpdateGroupAttribute_Call struct {
+	*mock.Call
+}
+
+// UpdateGroupAttribute is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+//   - groupID string
+//   - key string
+//   - update func([]string) []string
+func (_e *KeyCloak_Expecter) UpdateGroupAttribute(ctx interface{}, realm interface{}, organizationID interface{}, groupID interface{}, key interface{}, update interface{}) *KeyCloak_UpdateGroupAttribute_Call {
+	return &KeyCloak_UpdateGroupAttribute_Call{Call: _e.mock.On("UpdateGroupAttribute", ctx, realm, organizationID, groupID, key, update)}
+}
+
+func (_c *KeyCloak_UpdateGroupAttribute_Call) Run(run func(ctx context.Context, realm string, organizationID string, groupID string, key string, update func([]string) []string)) *KeyCloak_UpdateGroupAttribute_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string), args[5].(func([]string) []string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_UpdateGroupAttribute_Call) Return(_a0 error) *KeyCloak_UpdateGroupAttribute_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *KeyCloak_UpdateGroupAttribute_Call) RunAndReturn(run func(context.Context, string, string, string, string, func([]string) []string) error) *KeyCloak_UpdateGroupAttribute_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateOrganization provides a mock function with given fields: c, realm, organizationID, update
 func (_m *KeyCloak) UpdateOrganization(c context.Context, realm string, organizationID string, update keycloak.OrganizationUpdate) (keycloak.Organization, error) {
 	ret := _m.Called(c, realm, organizationID, update)

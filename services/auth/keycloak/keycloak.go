@@ -66,6 +66,8 @@ type KeyCloak interface {
 	AddGroupMember(ctx context.Context, realm, organizationID, groupID, userID string) error
 	// RemoveGroupMember removes a member from an organization group.
 	RemoveGroupMember(ctx context.Context, realm, organizationID, groupID, userID string) error
+	// UpdateGroupAttribute rewrites one attribute; an empty result removes it.
+	UpdateGroupAttribute(ctx context.Context, realm, organizationID, groupID, key string, update func([]string) []string) error
 	// UpsertIdentityProvider creates the provider, or replaces an existing alias.
 	UpsertIdentityProvider(ctx context.Context, realm string, idp IdentityProvider) error
 	// DeleteIdentityProvider removes an identity provider. Idempotent.

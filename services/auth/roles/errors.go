@@ -17,6 +17,16 @@ func (e ErrUnknownRole) StatusCode() int {
 	return http.StatusBadRequest
 }
 
+type ErrEmailTooLong struct{}
+
+func (e ErrEmailTooLong) Error() string {
+	return "email address is too long to invite with a role"
+}
+
+func (e ErrEmailTooLong) StatusCode() int {
+	return http.StatusBadRequest
+}
+
 // ErrLastAdmin means the organization would be left with no Admin.
 type ErrLastAdmin struct{}
 

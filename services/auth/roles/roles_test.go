@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"xata/internal/apitest"
@@ -355,6 +356,91 @@ func TestRemoveMemberFromAllRoles(t *testing.T) {
 	require.NoError(t, NewRoles(apitest.TestRealm, kc).RemoveMemberFromAllRoles(context.Background(), testOrgID, testUserID))
 }
 
+func expectInvitationsUpdate(t *testing.T, kc *keycloakMocks.KeyCloak, current, want []string) {
+	kc.EXPECT().UpdateGroupAttribute(mock.Anything, apitest.TestRealm, testOrgID, viewerID, invitedRolesAttribute, mock.Anything).
+		RunAndReturn(func(_ context.Context, _, _, _, _ string, update func([]string) []string) error {
+			require.Equal(t, want, update(current))
+			return nil
+		}).Once()
+}
+
+func TestSetInvitation(t *testing.T) {
+	errKeycloak := errors.New("keycloak unavailable")
+	tests := map[string]struct {
+		groups  []keycloak.Group
+		email   string
+		role    Role
+		current []string
+		want    []string
+		expect  func(*keycloakMocks.KeyCloak)
+		wantErr error
+	}{
+		"records one entry on the Viewer group": {
+			groups: reservedGroups(),
+			email:  " Invitee@Example.com ",
+			role:   Editor,
+			want:   []string{"invitee@example.com=editor"},
+		},
+		"replaces the entry already recorded for the address": {
+			groups:  reservedGroups(),
+			email:   "invitee@example.com",
+			role:    Viewer,
+			current: []string{"other@example.com=admin", "INVITEE@example.com=admin"},
+			want:    []string{"other@example.com=admin", "invitee@example.com=viewer"},
+		},
+		"creates the missing reserved groups first": {
+			email: "invitee@example.com",
+			role:  Admin,
+			want:  []string{"invitee@example.com=admin"},
+			expect: func(kc *keycloakMocks.KeyCloak) {
+				for _, g := range reservedGroups() {
+					kc.EXPECT().CreateGroup(mock.Anything, apitest.TestRealm, testOrgID, g.Name).Return(g, nil).Once()
+				}
+			},
+		},
+		"a failed write is returned": {
+			groups: reservedGroups(),
+			email:  "invitee@example.com",
+			role:   Editor,
+			expect: func(kc *keycloakMocks.KeyCloak) {
+				kc.EXPECT().UpdateGroupAttribute(mock.Anything, apitest.TestRealm, testOrgID, viewerID, invitedRolesAttribute, mock.Anything).
+					Return(errKeycloak).Once()
+			},
+			wantErr: errKeycloak,
+		},
+		"an unknown role is refused": {
+			email:   "invitee@example.com",
+			role:    "owner",
+			wantErr: ErrUnknownRole{Role: "owner"},
+		},
+		"an address too long to record is refused": {
+			email:   strings.Repeat("a", 243) + "@example.com",
+			role:    Editor,
+			wantErr: ErrEmailTooLong{},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			kc := keycloakMocks.NewKeyCloak(t)
+			kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(tt.groups, nil).Maybe()
+			if tt.want != nil {
+				expectInvitationsUpdate(t, kc, tt.current, tt.want)
+			}
+			if tt.expect != nil {
+				tt.expect(kc)
+			}
+
+			got := NewRoles(apitest.TestRealm, kc).SetInvitation(context.Background(), testOrgID, tt.email, tt.role)
+
+			if tt.wantErr != nil {
+				require.ErrorIs(t, got, tt.wantErr)
+				return
+			}
+			require.NoError(t, got)
+		})
+	}
+}
+
 func TestAudit(t *testing.T) {
 	tests := map[string]struct {
 		orgMembers []string
@@ -408,6 +494,73 @@ func TestAudit(t *testing.T) {
 			}
 
 			got, err := NewRoles(apitest.TestRealm, kc).Audit(context.Background(), testOrgID)
+
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestClearInvitation(t *testing.T) {
+	tests := map[string]struct {
+		current []string
+		want    []string
+	}{
+		"removes only the address's entry": {
+			current: []string{"invitee@example.com=editor", "other@example.com=admin"},
+			want:    []string{"other@example.com=admin"},
+		},
+		"the last entry leaves none": {
+			current: []string{"invitee@example.com=editor"},
+			want:    []string{},
+		},
+		"an address with no entry changes nothing": {
+			current: []string{"other@example.com=admin"},
+			want:    []string{"other@example.com=admin"},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			kc := keycloakMocks.NewKeyCloak(t)
+			kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(reservedGroups(), nil).Once()
+			expectInvitationsUpdate(t, kc, tt.current, tt.want)
+
+			got := NewRoles(apitest.TestRealm, kc).ClearInvitation(context.Background(), testOrgID, "INVITEE@example.com")
+
+			require.NoError(t, got)
+		})
+	}
+}
+
+func TestInvitations(t *testing.T) {
+	withEntries := func(name string, entries ...string) keycloak.Group {
+		return keycloak.Group{ID: "group-" + name, Name: name, Attributes: map[string][]string{invitedRolesAttribute: entries}}
+	}
+	tests := map[string]struct {
+		groups []keycloak.Group
+		want   map[string]Role
+	}{
+		"parses the entries of the Viewer group": {
+			groups: []keycloak.Group{
+				withEntries("Admin", "elsewhere@example.com=admin"),
+				withEntries("VIEWER", "admin@example.com=admin", "Editor@Example.com=editor", "a=b@example.com=viewer",
+					"no-role@example.com", "owner@example.com=owner", "=admin"),
+				withEntries("Viewer", "second@example.com=admin"),
+				withEntries("eng", "eng@example.com=editor"),
+			},
+			want: map[string]Role{"admin@example.com": Admin, "editor@example.com": Editor, "a=b@example.com": Viewer},
+		},
+		"no entries report no roles": {
+			groups: reservedGroups(),
+			want:   map[string]Role{},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			kc := keycloakMocks.NewKeyCloak(t)
+			kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(tt.groups, nil).Once()
+
+			got, err := NewRoles(apitest.TestRealm, kc).Invitations(context.Background(), testOrgID)
 
 			require.NoError(t, err)
 			require.Equal(t, tt.want, got)

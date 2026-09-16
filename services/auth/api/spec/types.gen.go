@@ -427,6 +427,9 @@ type CreateAPIKeyRequest struct {
 type CreateOrganizationInvitationRequest struct {
 	// Email Email address of the user to invite
 	Email openapi_types.Email `json:"email"`
+
+	// Role The roles a member of an organization can hold
+	Role *OrganizationRoleName `json:"role,omitempty"`
 }
 
 // CreateOrganizationRequest Request payload for creating a new organization
@@ -541,6 +544,9 @@ type OrganizationInvitation struct {
 	// LastName Last name of the invited user
 	LastName       *string        `json:"last_name,omitempty"`
 	OrganizationId OrganizationID `json:"organization_id" validate:"identifier"`
+
+	// Role The roles a member of an organization can hold
+	Role OrganizationRoleName `json:"role"`
 
 	// Status Current status of the invitation
 	Status OrganizationInvitationStatus `json:"status"`

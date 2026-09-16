@@ -2,6 +2,7 @@ package keycloak
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -129,6 +130,65 @@ func TestGroupOperations(t *testing.T) {
 				assert.Equal(t, "Ada Byron", members[0].Name)
 			},
 		},
+		"list asks for attributes": {
+			admin: func(w http.ResponseWriter, req *http.Request) {
+				require.Equal(t, "false", req.URL.Query().Get("briefRepresentation"))
+				_, _ = w.Write([]byte(`[{"id":"g1","name":"Viewer","attributes":{"invitedRoles":["a@b.com=admin"]}}]`))
+			},
+			run: func(t *testing.T, kc KeyCloak) {
+				groups, err := kc.ListGroups(context.Background(), "test-realm", "org-alias")
+				require.NoError(t, err)
+				require.Len(t, groups, 1)
+				assert.Equal(t, []string{"a@b.com=admin"}, groups[0].Attributes["invitedRoles"])
+			},
+		},
+		"update attribute keeps the other attributes and the description": {
+			admin: groupAttributeServer(t, `{"id":"g1","name":"Viewer","description":"Read-only","attributes":{"keep":["x"],"invitedRoles":["a@b.com=admin"]}}`,
+				`{"name":"Viewer","description":"Read-only","attributes":{"invitedRoles":["a@b.com=admin","c@d.com=editor"],"keep":["x"]}}`),
+			run: func(t *testing.T, kc KeyCloak) {
+				err := kc.UpdateGroupAttribute(context.Background(), "test-realm", "org-alias", "g1", "invitedRoles", func(values []string) []string {
+					assert.Equal(t, []string{"a@b.com=admin"}, values)
+					return append(values, "c@d.com=editor")
+				})
+				require.NoError(t, err)
+			},
+		},
+		"update attribute to no values removes it": {
+			admin: groupAttributeServer(t, `{"id":"g1","name":"Viewer","description":"Read-only","attributes":{"keep":["x"],"invitedRoles":["a@b.com=admin"]}}`,
+				`{"name":"Viewer","description":"Read-only","attributes":{"keep":["x"]}}`),
+			run: func(t *testing.T, kc KeyCloak) {
+				err := kc.UpdateGroupAttribute(context.Background(), "test-realm", "org-alias", "g1", "invitedRoles", func([]string) []string { return nil })
+				require.NoError(t, err)
+			},
+		},
+		"update attribute that changes nothing skips the write": {
+			admin: groupAttributeServer(t, `{"id":"g1","name":"Viewer","attributes":{"invitedRoles":["a@b.com=admin"]}}`, ""),
+			run: func(t *testing.T, kc KeyCloak) {
+				err := kc.UpdateGroupAttribute(context.Background(), "test-realm", "org-alias", "g1", "invitedRoles", func(values []string) []string {
+					return values
+				})
+				require.NoError(t, err)
+			},
+		},
+		"update attribute with nothing to remove skips the write": {
+			admin: groupAttributeServer(t, `{"id":"g1","name":"Viewer"}`, ""),
+			run: func(t *testing.T, kc KeyCloak) {
+				err := kc.UpdateGroupAttribute(context.Background(), "test-realm", "org-alias", "g1", "invitedRoles", func([]string) []string { return nil })
+				require.NoError(t, err)
+			},
+		},
+		"update attribute maps 404 to ErrGroupNotFound": {
+			admin: func(w http.ResponseWriter, req *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
+			},
+			run: func(t *testing.T, kc KeyCloak) {
+				err := kc.UpdateGroupAttribute(context.Background(), "test-realm", "org-alias", "missing", "invitedRoles", func(values []string) []string {
+					t.Error("update ran without a group")
+					return values
+				})
+				require.ErrorAs(t, err, &ErrGroupNotFound{})
+			},
+		},
 	}
 
 	for name, tt := range tests {
@@ -137,5 +197,25 @@ func TestGroupOperations(t *testing.T) {
 			defer srv.Close()
 			tt.run(t, newTestRestKC(srv.URL))
 		})
+	}
+}
+
+func groupAttributeServer(t *testing.T, current, want string) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		assert.Equal(t, "/admin/realms/test-realm/organizations/internal-1/groups/g1", req.URL.Path)
+		switch req.Method {
+		case http.MethodGet:
+			_, _ = w.Write([]byte(current))
+		case http.MethodPut:
+			if want == "" {
+				t.Error("unexpected write")
+			}
+			got, err := io.ReadAll(req.Body)
+			assert.NoError(t, err)
+			assert.JSONEq(t, want, string(got))
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Errorf("unexpected method %s", req.Method)
+		}
 	}
 }

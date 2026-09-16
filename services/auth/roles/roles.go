@@ -78,6 +78,12 @@ type Roles interface {
 	CheckOrganizationMemberRemovable(ctx context.Context, organizationID, userID string) error
 	// RemoveMemberFromAllRoles clears a member's role when they leave.
 	RemoveMemberFromAllRoles(ctx context.Context, organizationID, userID string) error
+	// SetInvitation records the role an invitee receives on joining.
+	SetInvitation(ctx context.Context, organizationID, email string, role Role) error
+	// ClearInvitation forgets the role recorded for an invitee.
+	ClearInvitation(ctx context.Context, organizationID, email string) error
+	// Invitations returns the role recorded for each invited address.
+	Invitations(ctx context.Context, organizationID string) (map[string]Role, error)
 }
 
 type rolesService struct {

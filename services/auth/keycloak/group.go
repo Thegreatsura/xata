@@ -4,22 +4,33 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"path"
+	"slices"
 	"strings"
 
 	"github.com/go-resty/resty/v2"
 )
 
 type Group struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Path string `json:"path,omitempty"`
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Path        string              `json:"path,omitempty"`
+	Description string              `json:"description,omitempty"`
+	Attributes  map[string][]string `json:"attributes,omitempty"`
 }
 
 // groupPayload is the minimal GroupRepresentation Keycloak accepts for a group.
 type groupPayload struct {
 	Name string `json:"name"`
+}
+
+// groupAttributesPayload repeats the fields Keycloak's update would otherwise clear.
+type groupAttributesPayload struct {
+	Name        string              `json:"name"`
+	Description string              `json:"description,omitempty"`
+	Attributes  map[string][]string `json:"attributes"`
 }
 
 func (r *restKC) ListGroups(ctx context.Context, realm, organizationID string) ([]Group, error) {
@@ -194,6 +205,52 @@ func (r *restKC) RemoveGroupMember(ctx context.Context, realm, organizationID, g
 	return nil
 }
 
+func (r *restKC) UpdateGroupAttribute(ctx context.Context, realm, organizationID, groupID, key string, update func([]string) []string) error {
+	organization, err := r.searchOrganization(ctx, realm, organizationID)
+	if err != nil {
+		return fmt.Errorf("failed to get organization: %w", err)
+	}
+
+	group, err := r.getOrgGroup(ctx, realm, organization.ID, groupID)
+	if err != nil {
+		return err
+	}
+
+	attributes := maps.Clone(group.Attributes)
+	if attributes == nil {
+		attributes = map[string][]string{}
+	}
+	current := attributes[key]
+	values := update(slices.Clone(current))
+	// Skipping a no-op write keeps it from overwriting a concurrent change.
+	if slices.Equal(values, current) {
+		return nil
+	}
+	if len(values) > 0 {
+		attributes[key] = values
+	} else {
+		delete(attributes, key)
+	}
+
+	groupURL, err := r.buildRealmURL(realm, "organizations", organization.ID, "groups", groupID)
+	if err != nil {
+		return fmt.Errorf("failed to join URL: %w", err)
+	}
+
+	payload := groupAttributesPayload{Name: group.Name, Description: group.Description, Attributes: attributes}
+	resp, err := r.makeAuthenticatedRequest(ctx, http.MethodPut, groupURL, nil, payload)
+	if err != nil {
+		return fmt.Errorf("update group attribute: %w", err)
+	}
+	if resp.StatusCode() == http.StatusNotFound {
+		return ErrGroupNotFound{ID: groupID}
+	}
+	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK, http.StatusNoContent) {
+		return fmt.Errorf("update group attribute: status code: %d", resp.StatusCode())
+	}
+	return nil
+}
+
 func isNotGroupMember(resp *resty.Response) bool {
 	return resp.StatusCode() == http.StatusBadRequest && strings.Contains(resp.String(), "User not a member")
 }
@@ -204,7 +261,7 @@ func (r *restKC) listOrgGroups(ctx context.Context, realm, orgInternalID string)
 		return nil, fmt.Errorf("failed to join URL: %w", err)
 	}
 
-	resp, err := r.makeAuthenticatedRequest(ctx, "GET", listURL, nil, nil)
+	resp, err := r.makeAuthenticatedRequest(ctx, "GET", listURL, map[string]string{"briefRepresentation": "false"}, nil)
 	if err != nil {
 		return nil, err
 	}
