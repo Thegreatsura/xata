@@ -12,15 +12,10 @@ import (
 	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 )
 
-// InheritedAnnotations are set on resources CNPG creates from the Pooler. They
-// must match the annotations the Cluster builder sets so a pool-warmed pooler
-// is identical to the one a branch applies on adoption.
+// InheritedAnnotations are set on resources CNPG creates from the Pooler.
 var InheritedAnnotations = map[string]string{
 	// TLS is enabled on the metrics endpoint
 	"prometheus.io/scheme": "https",
-
-	// Mark cluster services as Cilium global services
-	"service.cilium.io/global": "true",
 }
 
 // Spec builds the CNPG PoolerSpec for a PgBouncer connection pooler fronting

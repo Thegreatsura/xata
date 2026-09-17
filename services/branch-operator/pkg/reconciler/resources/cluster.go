@@ -39,9 +39,6 @@ const (
 var InheritedAnnotations = map[string]string{
 	// TLS is enabled on the metrics endpoint
 	"prometheus.io/scheme": "https",
-
-	// Mark cluster services as Cilium global services
-	"service.cilium.io/global": "true",
 }
 
 // PostgreSQL version-specific privileges for xata_superuser role

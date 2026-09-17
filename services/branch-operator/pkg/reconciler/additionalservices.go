@@ -10,8 +10,6 @@ import (
 	"xata/services/branch-operator/pkg/reconciler/resources"
 )
 
-const ciliumGlobalAnnotation = "service.cilium.io/global"
-
 // reconcileAdditionalServiceRW ensures that the read-write additional service
 // exists for the given Branch.
 func (r *BranchReconciler) reconcileAdditionalServiceRW(
@@ -40,12 +38,7 @@ func (r *BranchReconciler) reconcileAdditionalServiceRO(
 }
 
 // reconcileAdditionalServicePooler ensures that the pooler additional service
-// exists for the given Branch once the pooler has been enabled. When the pooler
-// is not enabled, the service is left untouched: if one already exists from a
-// previous enabled state it persists with a selector that matches no pods, and
-// if none exists it is not created. Like the rw/r/ro additional services, this
-// runs on every cell — on cells without local pooler pods, the selector matches
-// nothing and Cilium routes to the remote cell.
+// exists for the given Branch if the pooler has been enabled.
 func (r *BranchReconciler) reconcileAdditionalServicePooler(
 	ctx context.Context,
 	branch *v1alpha1.Branch,
@@ -70,11 +63,6 @@ func (r *BranchReconciler) reconcileAdditionalServicePooler(
 		}
 
 		ensureLabels(svc, branch.Spec.InheritedMetadata)
-
-		if svc.Annotations == nil {
-			svc.Annotations = make(map[string]string)
-		}
-		svc.Annotations[ciliumGlobalAnnotation] = kubeTrue
 
 		svc.Spec = resources.PoolerServiceSpec(poolerName)
 
@@ -104,12 +92,6 @@ func (r *BranchReconciler) reconcileAdditionalService(
 
 		// Ensure labels are set on the Service
 		ensureLabels(svc, branch.Spec.InheritedMetadata)
-
-		// Ensure the Cilium global annotation is set on the Service
-		if svc.Annotations == nil {
-			svc.Annotations = make(map[string]string)
-		}
-		svc.Annotations[ciliumGlobalAnnotation] = kubeTrue
 
 		// Set the spec for the Service
 		svc.Spec = resources.AdditionalServiceSpec(branch.ClusterName(), selectorType)
