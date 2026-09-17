@@ -26,6 +26,9 @@ const (
 	// AWS_WEB_IDENTITY_TOKEN_FILE.
 	pgBackRestAWSS3KeyType = "auto"
 
+	// pgBackRestAzureKeyTypeAuto selects managed-identity auth for the Azure repo.
+	pgBackRestAzureKeyTypeAuto = "auto"
+
 	// gkeServiceAccountAnnotation maps the cluster's pod ServiceAccount to a GCP
 	// service account via Workload Identity.
 	gkeServiceAccountAnnotation = "iam.gke.io/gcp-service-account"
@@ -311,14 +314,16 @@ func ObjectStoreBootstrapRecovery(branchName string, restoreSpec *v1alpha1.Resto
 
 // ExternalClusters creates the ExternalClusters apply configuration for
 // point-in-time recovery from object storage. For pgbackrest it points at the
-// source branch's repository (S3 or GCS); for barman it uses the barman-cloud
-// plugin. Returns nil if the restore spec is not for ObjectStore type.
+// source branch's repository (S3, GCS, or Azure); for barman it uses the
+// barman-cloud plugin. Returns nil if the restore spec is not for ObjectStore
+// type.
 func ExternalClusters(cfg ClusterConfig) []*apiv1ac.ExternalClusterApplyConfiguration {
 	if !cfg.RestoreSpec.IsObjectStoreType() {
 		return nil
 	}
 
-	// pgbackrest: external cluster points to the source branch's repo (S3 or GCS)
+	// pgbackrest: external cluster points to the source branch's repo (S3,
+	// GCS, or Azure)
 	if cfg.IsPgBackRest() {
 		pgb := cfg.PgBackRest
 
@@ -480,7 +485,7 @@ func backupConfiguration(branchName string, cfg ClusterConfig) *apiv1ac.BackupCo
 }
 
 // pgbackrestRepository selects the pgbackrest storage backend. Precedence is
-// gcs > s3 > the deprecated top-level S3 fields.
+// azure > gcs > s3 > the deprecated top-level S3 fields.
 func pgbackrestRepository(
 	pgb *v1alpha1.PgBackRestSpec,
 	creds BackupCredentials,
@@ -488,6 +493,8 @@ func pgbackrestRepository(
 ) *apiv1ac.PgBackRestRepositoryApplyConfiguration {
 	repo := apiv1ac.PgBackRestRepository()
 	switch {
+	case pgb.Azure != nil:
+		repo = repo.WithAzure(pgbackrestAzure(pgb.Azure))
 	case pgb.GCS != nil:
 		repo = repo.WithGCS(pgbackrestGCS(pgb.GCS))
 	case pgb.S3 != nil:
@@ -566,10 +573,24 @@ func pgbackrestGCS(gcs *v1alpha1.PgBackRestGCSSpec) *apiv1ac.PgBackRestGCSApplyC
 		WithKeyType(pgBackRestGCSKeyTypeAuto)
 }
 
+// pgbackrestAzure builds the Azure apply configuration. Auth is managed
+// identity only (keyType=auto).
+func pgbackrestAzure(azure *v1alpha1.PgBackRestAzureSpec) *apiv1ac.PgBackRestAzureApplyConfiguration {
+	return apiv1ac.PgBackRestAzure().
+		WithAccount(azure.Account).
+		WithContainer(azure.Container).
+		WithKeyType(pgBackRestAzureKeyTypeAuto)
+}
+
 // serviceAccountTemplate maps each cluster-specific Kubernetes ServiceAccount
 // to the cell-wide cloud identity.
 func serviceAccountTemplate(cfg ClusterConfig) *apiv1ac.ServiceAccountTemplateApplyConfiguration {
 	if !cfg.IsPgBackRest() {
+		return nil
+	}
+
+	// Azure managed identity comes from the node, not the ServiceAccount.
+	if cfg.PgBackRest.Azure != nil {
 		return nil
 	}
 

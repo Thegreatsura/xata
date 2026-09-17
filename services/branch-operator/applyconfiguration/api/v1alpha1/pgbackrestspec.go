@@ -11,10 +11,11 @@ import (
 //
 // PgBackRestSpec defines pgbackrest-specific backup configuration.
 //
-// Exactly one storage backend must be specified via either the s3 or gcs
+// Exactly one storage backend must be specified via the s3, gcs, or azure
 // sub-struct. The deprecated top-level S3 fields (bucket/region/endpoint/
-// inheritFromIAMRole) remain honored as a fallback when neither sub-struct is
-// set. Backend precedence in the operator is gcs > s3 > legacy top-level.
+// inheritFromIAMRole) remain honored as a fallback when no sub-struct is
+// set. Backend precedence in the operator is azure > gcs > s3 > legacy
+// top-level.
 //
 // The following pgbackrest options are set internally with fixed defaults
 // and not exposed to users:
@@ -32,6 +33,8 @@ type PgBackRestSpecApplyConfiguration struct {
 	S3 *PgBackRestS3SpecApplyConfiguration `json:"s3,omitempty"`
 	// GCS configures a Google Cloud Storage backend (Workload Identity auth).
 	GCS *PgBackRestGCSSpecApplyConfiguration `json:"gcs,omitempty"`
+	// Azure configures an Azure Blob Storage backend (managed identity auth).
+	Azure *PgBackRestAzureSpecApplyConfiguration `json:"azure,omitempty"`
 	// CipherPassphraseSecretRef references the passphrase for client-side
 	// repository encryption. When unset, pgbackrest does not encrypt the
 	// repository.
@@ -96,6 +99,14 @@ func (b *PgBackRestSpecApplyConfiguration) WithS3(value *PgBackRestS3SpecApplyCo
 // If called multiple times, the GCS field is set to the value of the last call.
 func (b *PgBackRestSpecApplyConfiguration) WithGCS(value *PgBackRestGCSSpecApplyConfiguration) *PgBackRestSpecApplyConfiguration {
 	b.GCS = value
+	return b
+}
+
+// WithAzure sets the Azure field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Azure field is set to the value of the last call.
+func (b *PgBackRestSpecApplyConfiguration) WithAzure(value *PgBackRestAzureSpecApplyConfiguration) *PgBackRestSpecApplyConfiguration {
+	b.Azure = value
 	return b
 }
 

@@ -37,6 +37,12 @@ data:
   {{- if .Values.config.clusters.pgbackrest.gcsServiceAccount }}
   XATA_PGBACKREST_GCS_SERVICE_ACCOUNT: {{ .Values.config.clusters.pgbackrest.gcsServiceAccount | quote }}
   {{- end }}
+  {{- if .Values.config.clusters.pgbackrest.azureStorageAccount }}
+  XATA_PGBACKREST_AZURE_STORAGE_ACCOUNT: {{ .Values.config.clusters.pgbackrest.azureStorageAccount | quote }}
+  {{- end }}
+  {{- if .Values.config.clusters.pgbackrest.azureContainer }}
+  XATA_PGBACKREST_AZURE_CONTAINER: {{ .Values.config.clusters.pgbackrest.azureContainer | quote }}
+  {{- end }}
   {{- if .Values.config.clusters.pgbackrest.credentialsSecret }}
   XATA_PGBACKREST_CREDENTIALS_SECRET: {{ .Values.config.clusters.pgbackrest.credentialsSecret | quote }}
   {{- end }}

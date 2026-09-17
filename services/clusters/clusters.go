@@ -267,7 +267,7 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		WithDefaultVolumeSnapshotClass(volumeSnapshotClass).
 		WithDefaultNodeSelector(c.config.ClustersNodeSelector).
 		WithPooler(c.config.EnablePooler).
-		WithPgBackRest(c.config.CloudProvider, c.config.PgBackRestBucket, c.config.PgBackRestRegion, c.config.PgBackRestEndpoint, c.config.PgBackRestGCSServiceAccount, c.config.PgBackRestCredentialsSecret).
+		WithPgBackRest(c.config.CloudProvider, c.config.PgBackRestBucket, c.config.PgBackRestRegion, c.config.PgBackRestEndpoint, c.config.PgBackRestGCSServiceAccount, c.config.PgBackRestCredentialsSecret, c.config.PgBackRestAzureAccount, c.config.PgBackRestAzureContainer).
 		WithXataUtilsPreloadLibrary().
 		WithMandatoryPostgresParameters()
 
@@ -393,6 +393,10 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 // the cell's backend env is incomplete for its cloud provider.
 func validatePgBackRestConfigured(pgb *branchv1alpha1.PgBackRestSpec) error {
 	switch {
+	case pgb.Azure != nil:
+		if pgb.Azure.Account == "" || pgb.Azure.Container == "" {
+			return status.Errorf(codes.FailedPrecondition, "pgbackrest backup method requested but XATA_PGBACKREST_AZURE_STORAGE_ACCOUNT/XATA_PGBACKREST_AZURE_CONTAINER is not configured in this cell")
+		}
 	case pgb.GCS != nil:
 		if pgb.GCS.Bucket == "" || pgb.GCS.ServiceAccountEmail == "" {
 			return status.Errorf(codes.FailedPrecondition, "pgbackrest backup method requested but XATA_PGBACKREST_BUCKET/XATA_PGBACKREST_GCS_SERVICE_ACCOUNT is not configured in this cell")

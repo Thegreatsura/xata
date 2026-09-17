@@ -907,6 +907,118 @@ func TestClusterSpec(t *testing.T) {
 				),
 		},
 		{
+			name: "pgbackrest backup with azure backend",
+			cfgModifier: func(cfg *resources.ClusterConfig) {
+				cfg.BackupSpec = &v1alpha1.BackupSpec{
+					Method: v1alpha1.BackupMethodPgBackRest,
+					PgBackRest: &v1alpha1.PgBackRestSpec{
+						Azure: &v1alpha1.PgBackRestAzureSpec{
+							Account:   "testaccount",
+							Container: "backups",
+						},
+						RetentionFullDays:   7,
+						CompressType:        "lz4",
+						ArchiveAsync:        true,
+						ArchivePushQueueMax: "2GiB",
+						ArchiveGetQueueMax:  "2GiB",
+					},
+				}
+			},
+			expected: baseExpectedSpec().
+				WithPlugins(scaleToZeroPlugin()).
+				WithBackup(apiv1ac.BackupConfiguration().
+					WithVolumeSnapshot(apiv1ac.VolumeSnapshotConfiguration().
+						WithClassName("snapshot-class").
+						WithOnline(true).
+						WithOnlineConfiguration(apiv1ac.OnlineConfiguration().
+							WithImmediateCheckpoint(true))).
+					WithPgBackRest(apiv1ac.PgBackRestConfiguration().
+						WithStanzaName(testBranchName).
+						WithRepository(apiv1ac.PgBackRestRepository().
+							WithAzure(apiv1ac.PgBackRestAzure().
+								WithAccount("testaccount").
+								WithContainer("backups").
+								WithKeyType("auto"))).
+						WithOptions(apiv1ac.PgBackRestOptions().
+							WithCompressType("lz4").
+							WithArchiveAsync(true).
+							WithArchivePushQueueMax("2GiB").
+							WithArchiveGetQueueMax("2GiB").
+							WithBundle(true).
+							WithBlockIncremental(true).
+							WithStartFast(true).
+							WithDelta(true).
+							WithPriority(19).
+							WithRetention(apiv1ac.PgBackRestRetention().
+								WithFull(7).
+								WithFullType("time")))).
+					WithTarget(apiv1.BackupTargetStandby)),
+		},
+		{
+			name: "pgbackrest restore from azure backend",
+			cfgModifier: func(cfg *resources.ClusterConfig) {
+				cfg.BackupSpec = &v1alpha1.BackupSpec{
+					Method: v1alpha1.BackupMethodPgBackRest,
+					PgBackRest: &v1alpha1.PgBackRestSpec{
+						Azure: &v1alpha1.PgBackRestAzureSpec{
+							Account:   "testaccount",
+							Container: "backups",
+						},
+					},
+				}
+				cfg.RestoreSpec = &v1alpha1.RestoreSpec{
+					Type: v1alpha1.RestoreTypeObjectStore,
+					Name: "source-cluster",
+				}
+			},
+			expected: baseExpectedSpec().
+				WithPlugins(scaleToZeroPlugin()).
+				WithBackup(apiv1ac.BackupConfiguration().
+					WithVolumeSnapshot(apiv1ac.VolumeSnapshotConfiguration().
+						WithClassName("snapshot-class").
+						WithOnline(true).
+						WithOnlineConfiguration(apiv1ac.OnlineConfiguration().
+							WithImmediateCheckpoint(true))).
+					WithPgBackRest(apiv1ac.PgBackRestConfiguration().
+						WithStanzaName(testBranchName).
+						WithRepository(apiv1ac.PgBackRestRepository().
+							WithAzure(apiv1ac.PgBackRestAzure().
+								WithAccount("testaccount").
+								WithContainer("backups").
+								WithKeyType("auto"))).
+						WithOptions(apiv1ac.PgBackRestOptions().
+							WithCompressType("").
+							WithArchiveAsync(false).
+							WithArchivePushQueueMax("").
+							WithArchiveGetQueueMax("").
+							WithBundle(true).
+							WithBlockIncremental(true).
+							WithStartFast(true).
+							WithDelta(true).
+							WithPriority(19).
+							WithRetention(apiv1ac.PgBackRestRetention().
+								WithFull(0).
+								WithFullType("time")))).
+					WithTarget(apiv1.BackupTargetStandby)).
+				WithBootstrap(apiv1ac.BootstrapConfiguration().
+					WithRecovery(resources.ObjectStoreBootstrapRecovery(testBranchName, &v1alpha1.RestoreSpec{
+						Type: v1alpha1.RestoreTypeObjectStore,
+						Name: "source-cluster",
+					}))).
+				WithExternalClusters(
+					apiv1ac.ExternalCluster().
+						WithName("source-cluster").
+						WithPgBackRest(apiv1ac.PgBackRestExternalCluster().
+							WithRepository(apiv1ac.PgBackRestRepository().
+								WithAzure(apiv1ac.PgBackRestAzure().
+									WithAccount("testaccount").
+									WithContainer("backups").
+									WithKeyType("auto"))).
+							WithOptions(apiv1ac.PgBackRestOptions().
+								WithRepoPath("source-cluster"))),
+				),
+		},
+		{
 			name: "smart shutdown timeout - custom value set",
 			cfgModifier: func(cfg *resources.ClusterConfig) {
 				cfg.SmartShutdownTimeout = ptr.To[int32](300)
@@ -1029,6 +1141,29 @@ func TestClusterSpecAWSIRSADoesNotApplyToBarman(t *testing.T) {
 
 	spec := resources.ClusterSpec(testBranchName, testBranchName, cfg)
 	require.Nil(t, spec.ServiceAccountTemplate)
+}
+
+func TestClusterSpecAWSIRSADoesNotApplyToAzure(t *testing.T) {
+	t.Parallel()
+
+	cfg := baseClusterConfig()
+	cfg.BackupsAWSRoleARN = "arn:aws:iam::123456789012:role/cell-1-cnpg-backups"
+	cfg.BackupSpec = &v1alpha1.BackupSpec{
+		Method: v1alpha1.BackupMethodPgBackRest,
+		PgBackRest: &v1alpha1.PgBackRestSpec{
+			Azure: &v1alpha1.PgBackRestAzureSpec{
+				Account:   "testaccount",
+				Container: "backups",
+			},
+			// The deprecated top-level field is what a hand-written Branch can
+			// still carry alongside an azure repository.
+			InheritFromIAMRole: true,
+		},
+	}
+
+	spec := resources.ClusterSpec(testBranchName, testBranchName, cfg)
+	require.Nil(t, spec.ServiceAccountTemplate)
+	require.Equal(t, new("auto"), spec.Backup.PgBackRest.Repository.Azure.KeyType)
 }
 
 func TestGeneratePostInitSQL(t *testing.T) {

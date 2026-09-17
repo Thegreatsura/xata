@@ -308,14 +308,16 @@ func (b *BranchBuilder) WithStorageQoSClass(useStorageQoSClasses bool, storageQo
 }
 
 // WithPgBackRest sets the pgbackrest storage backend for the cell's cloud
-// provider: gcs for gcp (bucket + GCP service account, Workload Identity auth),
-// s3 otherwise. Only applies when the backup method is pgbackrest. A non-empty
-// s3 endpoint targets a non-AWS S3-compatible store (MinIO, Cloudflare R2),
-// which makes the operator authenticate with static credentials instead of an
-// IAM role. credentialsSecretName pins the Secret holding those credentials to
-// the branch, so later cell-wide credential changes don't affect it; empty
-// falls back to the operator-configured Secret.
-func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, serviceAccount, credentialsSecretName string) *BranchBuilder {
+// provider: gcs for gcp (bucket + GCP service account, Workload Identity
+// auth), azure for azure (storage account + container, managed identity
+// auth), s3 otherwise. Only applies when the backup method is pgbackrest. A
+// non-empty s3 endpoint targets a non-AWS S3-compatible store (MinIO,
+// Cloudflare R2), which makes the operator authenticate with static
+// credentials instead of an IAM role. credentialsSecretName pins the Secret
+// holding those credentials to the branch, so later cell-wide credential
+// changes don't affect it; empty falls back to the operator-configured
+// Secret.
+func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, serviceAccount, credentialsSecretName, azureAccount, azureContainer string) *BranchBuilder {
 	if b.branch.Spec.BackupSpec == nil || !b.branch.Spec.BackupSpec.IsPgBackRest() {
 		return b
 	}
@@ -325,6 +327,11 @@ func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, servi
 		b.branch.Spec.BackupSpec.PgBackRest.GCS = &v1alpha1.PgBackRestGCSSpec{
 			Bucket:              bucket,
 			ServiceAccountEmail: serviceAccount,
+		}
+	case CloudProviderAzure:
+		b.branch.Spec.BackupSpec.PgBackRest.Azure = &v1alpha1.PgBackRestAzureSpec{
+			Account:   azureAccount,
+			Container: azureContainer,
 		}
 	default:
 		b.branch.Spec.BackupSpec.PgBackRest.S3 = &v1alpha1.PgBackRestS3Spec{

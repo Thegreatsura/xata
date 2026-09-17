@@ -310,6 +310,13 @@ func TestPgBackRestBackendValidation(t *testing.T) {
 		}, true)
 	})
 
+	t.Run("azure sub-struct only is accepted", func(t *testing.T) {
+		t.Parallel()
+		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
+			Azure: &v1alpha1.PgBackRestAzureSpec{Account: "testaccount", Container: "backups"},
+		}, true)
+	})
+
 	t.Run("s3 and gcs together is rejected", func(t *testing.T) {
 		t.Parallel()
 		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
@@ -318,10 +325,35 @@ func TestPgBackRestBackendValidation(t *testing.T) {
 		}, false)
 	})
 
+	t.Run("s3 and azure together is rejected", func(t *testing.T) {
+		t.Parallel()
+		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
+			S3:    &v1alpha1.PgBackRestS3Spec{Bucket: "test-bucket", Region: "us-east-1"},
+			Azure: &v1alpha1.PgBackRestAzureSpec{Account: "testaccount", Container: "backups"},
+		}, false)
+	})
+
+	t.Run("gcs and azure together is rejected", func(t *testing.T) {
+		t.Parallel()
+		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
+			GCS:   &v1alpha1.PgBackRestGCSSpec{Bucket: "test-bucket", ServiceAccountEmail: serviceAccount},
+			Azure: &v1alpha1.PgBackRestAzureSpec{Account: "testaccount", Container: "backups"},
+		}, false)
+	})
+
 	t.Run("gcs together with legacy is rejected", func(t *testing.T) {
 		t.Parallel()
 		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
 			GCS:    &v1alpha1.PgBackRestGCSSpec{Bucket: "test-bucket", ServiceAccountEmail: serviceAccount},
+			Bucket: "test-bucket",
+			Region: "us-east-1",
+		}, false)
+	})
+
+	t.Run("azure together with legacy is rejected", func(t *testing.T) {
+		t.Parallel()
+		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
+			Azure:  &v1alpha1.PgBackRestAzureSpec{Account: "testaccount", Container: "backups"},
 			Bucket: "test-bucket",
 			Region: "us-east-1",
 		}, false)

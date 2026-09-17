@@ -90,6 +90,22 @@ spec:
                           ArchivePushQueueMax is the max WAL push queue size when async is enabled.
                           Uses pgbackrest size format (e.g. "2GiB", "256MiB").
                         type: string
+                      azure:
+                        description: Azure configures an Azure Blob Storage backend
+                          (managed identity auth).
+                        properties:
+                          account:
+                            description: Account is the Azure storage account for
+                              backups and WAL archives.
+                            type: string
+                          container:
+                            description: Container is the Azure Blob Storage container
+                              within Account.
+                            type: string
+                        required:
+                        - account
+                        - container
+                        type: object
                       bucket:
                         description: |-
                           Bucket is the S3 bucket for backups and WAL archives.
@@ -232,16 +248,17 @@ spec:
                         type: string
                     type: object
                     x-kubernetes-validations:
-                    - message: s3 and gcs are mutually exclusive
-                      rule: '!(has(self.s3) && has(self.gcs))'
-                    - message: gcs cannot be combined with the deprecated top-level
-                        S3 fields
-                      rule: '!(has(self.gcs) && (has(self.bucket) || has(self.region)
-                        || has(self.endpoint)))'
-                    - message: 'a pgbackrest backend is required: set s3, gcs, or
-                        the deprecated top-level bucket and region'
-                      rule: has(self.s3) || has(self.gcs) || (has(self.bucket) &&
-                        has(self.region))
+                    - message: s3, gcs, and azure are mutually exclusive
+                      rule: '(has(self.s3) ? 1 : 0) + (has(self.gcs) ? 1 : 0) + (has(self.azure)
+                        ? 1 : 0) <= 1'
+                    - message: gcs and azure cannot be combined with the deprecated
+                        top-level S3 fields
+                      rule: '!((has(self.gcs) || has(self.azure)) && (has(self.bucket)
+                        || has(self.region) || has(self.endpoint)))'
+                    - message: 'a pgbackrest backend is required: set s3, gcs, azure,
+                        or the deprecated top-level bucket and region'
+                      rule: has(self.s3) || has(self.gcs) || has(self.azure) || (has(self.bucket)
+                        && has(self.region))
                   retention:
                     default: 2d
                     description: |-

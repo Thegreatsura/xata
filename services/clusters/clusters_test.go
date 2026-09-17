@@ -765,6 +765,30 @@ func TestCreatePostgresCluster(t *testing.T) {
 			},
 		},
 		{
+			name: "main branch - pgbackrest azure backend",
+			serviceOpts: []testServiceOption{
+				withCloudProvider(CloudProviderAzure),
+				withPgBackRestAzure("testaccount", "backups"),
+			},
+			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
+				r.BackupConfiguration.BackupMethod = string(v1alpha1.BackupMethodPgBackRest)
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
+				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
+					Azure: &v1alpha1.PgBackRestAzureSpec{
+						Account:   "testaccount",
+						Container: "backups",
+					},
+					RetentionFullDays:   7,
+					CompressType:        DefaultPgBackRestCompressType,
+					ArchiveAsync:        DefaultPgBackRestArchiveAsync,
+					ArchivePushQueueMax: DefaultPgBackRestPushQueueMax,
+					ArchiveGetQueueMax:  DefaultPgBackRestGetQueueMax,
+				}
+			},
+		},
+		{
 			name:        "error - pgbackrest without cell config",
 			serviceOpts: []testServiceOption{withPgBackRestBucket("")},
 			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
@@ -775,6 +799,14 @@ func TestCreatePostgresCluster(t *testing.T) {
 		{
 			name:        "error - pgbackrest gcs without service account",
 			serviceOpts: []testServiceOption{withCloudProvider(CloudProviderGCP)},
+			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
+				r.BackupConfiguration.BackupMethod = "pgbackrest"
+			},
+			expectedStatusCode: codes.FailedPrecondition,
+		},
+		{
+			name:        "error - pgbackrest azure without account and container",
+			serviceOpts: []testServiceOption{withCloudProvider(CloudProviderAzure)},
 			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
 				r.BackupConfiguration.BackupMethod = "pgbackrest"
 			},
@@ -2484,6 +2516,8 @@ type testServiceConfig struct {
 	pgBackRestEncryption bool
 	cloudProvider        string
 	pgBackRestGCSService string
+	pgBackRestAzureAcct  string
+	pgBackRestAzureCont  string
 	interceptorFuncs     interceptor.Funcs
 }
 
@@ -2543,6 +2577,13 @@ func withPgBackRestGCSServiceAccount(serviceAccount string) testServiceOption {
 	}
 }
 
+func withPgBackRestAzure(account, container string) testServiceOption {
+	return func(c *testServiceConfig) {
+		c.pgBackRestAzureAcct = account
+		c.pgBackRestAzureCont = container
+	}
+}
+
 func withInterceptorFuncs(funcs interceptor.Funcs) testServiceOption {
 	return func(c *testServiceConfig) {
 		c.interceptorFuncs = funcs
@@ -2598,6 +2639,8 @@ func setupTestClustersService(t *testing.T, opts ...testServiceOption) (*Cluster
 			PgBackRestBucket:            cfg.pgBackRestBucket,
 			PgBackRestRegion:            "us-east-1",
 			PgBackRestGCSServiceAccount: cfg.pgBackRestGCSService,
+			PgBackRestAzureAccount:      cfg.pgBackRestAzureAcct,
+			PgBackRestAzureContainer:    cfg.pgBackRestAzureCont,
 			PgBackRestEncryptionEnabled: cfg.pgBackRestEncryption,
 		},
 		kubeClient:     fakeClient,

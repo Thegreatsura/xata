@@ -5,8 +5,9 @@ import (
 )
 
 const (
-	CloudProviderAWS = "aws"
-	CloudProviderGCP = "gcp"
+	CloudProviderAWS   = "aws"
+	CloudProviderGCP   = "gcp"
+	CloudProviderAzure = "azure"
 )
 
 type Config struct {
@@ -19,12 +20,14 @@ type Config struct {
 	ClustersVolumeSnapshotClass string            `env:"XATA_CLUSTERS_VOLUME_SNAPSHOT_CLASS" env-description:"volumesnapshotclass to use for clusters"`
 	EnablePooler                bool              `env:"XATA_ENABLE_POOLER" env-default:"true" env-description:"enable PgBouncer connection pooler for new branches"`
 	XatastorEnabled             bool              `env:"XATA_XATASTOR_ENABLED" env-default:"false" env-description:"whether the xatastor StorageClass is deployed in this cell"`
-	CloudProvider               string            `env:"XATA_CLOUD_PROVIDER" env-default:"aws" env-description:"cloud provider for this cell, selects the pgbackrest backend: aws or gcp"`
+	CloudProvider               string            `env:"XATA_CLOUD_PROVIDER" env-default:"aws" env-description:"cloud provider for this cell, selects the pgbackrest backend: aws, gcp, or azure"`
 	PgBackRestBucket            string            `env:"XATA_PGBACKREST_BUCKET" env-default:"" env-description:"bucket for pgbackrest backups (S3 or GCS)"`
 	PgBackRestRegion            string            `env:"XATA_BACKUPS_REGION" env-default:"" env-description:"S3 region for pgbackrest backups (aws only)"`
 	PgBackRestEndpoint          string            `env:"XATA_PGBACKREST_ENDPOINT" env-default:"" env-description:"S3 endpoint for pgbackrest backups; set for a non-AWS S3-compatible store such as MinIO (local dev) or Cloudflare R2"`
 	PgBackRestCredentialsSecret string            `env:"XATA_PGBACKREST_CREDENTIALS_SECRET" env-default:"" env-description:"Secret with static S3 credentials for pgbackrest, stamped on new branches; empty uses the branch-operator's configured default"`
 	PgBackRestGCSServiceAccount string            `env:"XATA_PGBACKREST_GCS_SERVICE_ACCOUNT" env-default:"" env-description:"GCP service account email for pgbackrest GCS backups via Workload Identity (gcp only)"`
+	PgBackRestAzureAccount      string            `env:"XATA_PGBACKREST_AZURE_STORAGE_ACCOUNT" env-default:"" env-description:"Azure storage account for pgbackrest backups via managed identity (azure only)"`
+	PgBackRestAzureContainer    string            `env:"XATA_PGBACKREST_AZURE_CONTAINER" env-default:"" env-description:"Azure Blob Storage container for pgbackrest backups (azure only)"`
 	PgBackRestEncryptionEnabled bool              `env:"XATA_PGBACKREST_ENCRYPTION_ENABLED" env-default:"false" env-description:"enable client-side encryption for new pgbackrest backup destinations in this cell"`
 	UseStorageQoSClasses        bool              `env:"XATA_USE_STORAGE_QOS_CLASSES" env-default:"false" env-description:"whether to use storage QoS classes for new branches"`
 
@@ -44,8 +47,8 @@ func (cfg *Config) Validate() error {
 	if cfg.ClustersVolumeSnapshotClass == "" {
 		return fmt.Errorf("volume snapshot class is required but not set")
 	}
-	if cfg.CloudProvider != CloudProviderAWS && cfg.CloudProvider != CloudProviderGCP {
-		return fmt.Errorf("cloud provider must be %q or %q, got: %q", CloudProviderAWS, CloudProviderGCP, cfg.CloudProvider)
+	if cfg.CloudProvider != CloudProviderAWS && cfg.CloudProvider != CloudProviderGCP && cfg.CloudProvider != CloudProviderAzure {
+		return fmt.Errorf("cloud provider must be %q, %q, or %q, got: %q", CloudProviderAWS, CloudProviderGCP, CloudProviderAzure, cfg.CloudProvider)
 	}
 	return nil
 }

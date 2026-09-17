@@ -430,10 +430,11 @@ type BackupSpec struct {
 
 // PgBackRestSpec defines pgbackrest-specific backup configuration.
 //
-// Exactly one storage backend must be specified via either the s3 or gcs
+// Exactly one storage backend must be specified via the s3, gcs, or azure
 // sub-struct. The deprecated top-level S3 fields (bucket/region/endpoint/
-// inheritFromIAMRole) remain honored as a fallback when neither sub-struct is
-// set. Backend precedence in the operator is gcs > s3 > legacy top-level.
+// inheritFromIAMRole) remain honored as a fallback when no sub-struct is
+// set. Backend precedence in the operator is azure > gcs > s3 > legacy
+// top-level.
 //
 // The following pgbackrest options are set internally with fixed defaults
 // and not exposed to users:
@@ -447,9 +448,9 @@ type BackupSpec struct {
 //   - priority: 19 (lowest CPU priority, avoids impacting postgres)
 //   - processMax: computed from instance CPU resources
 //
-// +kubebuilder:validation:XValidation:rule="!(has(self.s3) && has(self.gcs))",message="s3 and gcs are mutually exclusive"
-// +kubebuilder:validation:XValidation:rule="!(has(self.gcs) && (has(self.bucket) || has(self.region) || has(self.endpoint)))",message="gcs cannot be combined with the deprecated top-level S3 fields"
-// +kubebuilder:validation:XValidation:rule="has(self.s3) || has(self.gcs) || (has(self.bucket) && has(self.region))",message="a pgbackrest backend is required: set s3, gcs, or the deprecated top-level bucket and region"
+// +kubebuilder:validation:XValidation:rule="(has(self.s3) ? 1 : 0) + (has(self.gcs) ? 1 : 0) + (has(self.azure) ? 1 : 0) <= 1",message="s3, gcs, and azure are mutually exclusive"
+// +kubebuilder:validation:XValidation:rule="!((has(self.gcs) || has(self.azure)) && (has(self.bucket) || has(self.region) || has(self.endpoint)))",message="gcs and azure cannot be combined with the deprecated top-level S3 fields"
+// +kubebuilder:validation:XValidation:rule="has(self.s3) || has(self.gcs) || has(self.azure) || (has(self.bucket) && has(self.region))",message="a pgbackrest backend is required: set s3, gcs, azure, or the deprecated top-level bucket and region"
 type PgBackRestSpec struct {
 	// S3 configures an S3-compatible storage backend.
 	// +optional
@@ -458,6 +459,10 @@ type PgBackRestSpec struct {
 	// GCS configures a Google Cloud Storage backend (Workload Identity auth).
 	// +optional
 	GCS *PgBackRestGCSSpec `json:"gcs,omitempty"`
+
+	// Azure configures an Azure Blob Storage backend (managed identity auth).
+	// +optional
+	Azure *PgBackRestAzureSpec `json:"azure,omitempty"`
 
 	// CipherPassphraseSecretRef references the passphrase for client-side
 	// repository encryption. When unset, pgbackrest does not encrypt the
@@ -587,6 +592,20 @@ type PgBackRestGCSSpec struct {
 	// impersonate via Workload Identity to access the bucket.
 	// +kubebuilder:validation:Required
 	ServiceAccountEmail string `json:"serviceAccountEmail"`
+}
+
+// PgBackRestAzureSpec configures an Azure Blob Storage pgbackrest backend.
+// Authentication is managed identity only: the operator renders the cnpg
+// Azure repository with keyType=auto, an IMDS token request that resolves to
+// the node's kubelet identity on AKS.
+type PgBackRestAzureSpec struct {
+	// Account is the Azure storage account for backups and WAL archives.
+	// +kubebuilder:validation:Required
+	Account string `json:"account"`
+
+	// Container is the Azure Blob Storage container within Account.
+	// +kubebuilder:validation:Required
+	Container string `json:"container"`
 }
 
 // ScheduledBackupSpec configures periodic base backups
