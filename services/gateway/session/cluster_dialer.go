@@ -26,6 +26,10 @@ var ErrBranchHibernated = errors.New("branch is hibernated")
 // clusters service no longer knows it.
 var ErrBranchNotFound = errors.New("branch not found")
 
+// ErrReactivateTimeout is returned when a held connection gives up waiting
+// for its cluster to become reachable.
+var ErrReactivateTimeout = errors.New("timed out waiting for cluster to be reactivated")
+
 // ClusterDialer is responsible for dialing into a Postgres cluster, handling
 // reactivation when the cluster is hibernated.
 type ClusterDialer struct {
@@ -37,7 +41,7 @@ type ClusterDialer struct {
 	statusCheckInterval time.Duration
 }
 
-type reactivateClusterFn func(ctx context.Context, svc clustersService, clusterID, network, address string) (net.Conn, error)
+type reactivateClusterFn func(ctx context.Context, svc clustersService, clusterID, network, address string, pool bool) (net.Conn, error)
 
 type dialerFn func(ctx context.Context, network, address string) (net.Conn, error)
 
@@ -82,7 +86,9 @@ func NewClusterDialer(cfg ClusterDialerConfiguration, clusters clustersService, 
 		statusCheckInterval: cfg.StatusCheckInterval,
 	}
 
-	d.reactivateFn = d.reactivateCluster
+	d.reactivateFn = func(ctx context.Context, svc clustersService, clusterID, network, address string, _ bool) (net.Conn, error) {
+		return d.reactivateCluster(ctx, svc, clusterID, network, address)
+	}
 
 	for _, opt := range opts {
 		opt(d)
@@ -94,12 +100,11 @@ func NewClusterDialer(cfg ClusterDialerConfiguration, clusters clustersService, 
 func WithInstrumentation(gwMetrics *metrics.GatewayMetrics) ClusterDialerOption {
 	return func(d *ClusterDialer) {
 		reactivate := d.reactivateCluster
-		d.reactivateFn = func(ctx context.Context, svc clustersService, clusterID, network, address string) (net.Conn, error) {
+		d.reactivateFn = func(ctx context.Context, svc clustersService, clusterID, network, address string, pool bool) (net.Conn, error) {
 			startTime := time.Now()
-			defer func() {
-				gwMetrics.RecordClusterReactivation(ctx, time.Since(startTime))
-			}()
-			return reactivate(ctx, svc, clusterID, network, address)
+			conn, err := reactivate(ctx, svc, clusterID, network, address)
+			gwMetrics.RecordClusterReactivation(ctx, time.Since(startTime), pool, err == nil, waitErrorType(err))
+			return conn, err
 		}
 	}
 }
@@ -142,7 +147,7 @@ func (d *ClusterDialer) Dial(ctx context.Context, network string, branch *Branch
 	case d.isClusterHibernated(cluster.Status) && d.isScaleToZeroEnabled(cluster.Configuration):
 		dialLogger.Info().Msg("cluster is hibernated, reactivating...")
 
-		conn, err := d.reactivateFn(ctx, svc, branch.ID, network, branch.Address)
+		conn, err := d.reactivateFn(ctx, svc, branch.ID, network, branch.Address, cluster.GetUsesWakeupPool())
 		if err != nil {
 			dialLogger.Error().Err(err).Msg("failed to reactivate cluster")
 			return nil, dialErr
@@ -221,6 +226,32 @@ func (d *ClusterDialer) isClusterStartingOrHealthy(status *clustersv1.ClusterSta
 		status.StatusType == clustersv1.ClusterStatus_STATUS_TYPE_TRANSIENT
 }
 
+// waitErrorType classifies a failed cluster wait into one of the bounded
+// metrics.WaitError* values.
+func waitErrorType(err error) string {
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, ErrReactivateTimeout):
+		return metrics.WaitErrorTimeout
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		return metrics.WaitErrorCanceled
+	case status.Code(err) == codes.Canceled, status.Code(err) == codes.DeadlineExceeded:
+		return metrics.WaitErrorCanceled
+	case isGRPCStatusError(err):
+		return metrics.WaitErrorRPC
+	default:
+		return metrics.WaitErrorDial
+	}
+}
+
+// isGRPCStatusError reports whether err wraps a gRPC status error, which is
+// what the clusters service calls return on failure.
+func isGRPCStatusError(err error) bool {
+	_, ok := status.FromError(err)
+	return ok
+}
+
 func (d *ClusterDialer) reactivateCluster(ctx context.Context, svc clustersService, clusterID, network, address string) (net.Conn, error) {
 	_, err := svc.UpdatePostgresCluster(ctx, &clustersv1.UpdatePostgresClusterRequest{
 		Id: clusterID,
@@ -255,7 +286,7 @@ func (d *ClusterDialer) waitUntilReachable(ctx context.Context, svc clustersServ
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-reactivateTimeout.C:
-			return nil, fmt.Errorf("timed out waiting for cluster %s to be reactivated after %s", clusterID, d.reactivateTimeout)
+			return nil, fmt.Errorf("%w: cluster %s after %s", ErrReactivateTimeout, clusterID, d.reactivateTimeout)
 		case <-statusChecker.C:
 			if !clusterReady {
 				cluster, err := svc.DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{

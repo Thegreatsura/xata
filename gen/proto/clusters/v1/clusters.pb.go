@@ -461,6 +461,7 @@ type DescribePostgresClusterResponse struct {
 	Configuration       *ClusterConfiguration  `protobuf:"bytes,2,opt,name=configuration,proto3" json:"configuration,omitempty"`
 	Status              *ClusterStatus         `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
 	BackupConfiguration *BackupConfiguration   `protobuf:"bytes,4,opt,name=backup_configuration,json=backupConfiguration,proto3" json:"backup_configuration,omitempty"`
+	UsesWakeupPool      *bool                  `protobuf:"varint,5,opt,name=uses_wakeup_pool,json=usesWakeupPool,proto3,oneof" json:"uses_wakeup_pool,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -521,6 +522,13 @@ func (x *DescribePostgresClusterResponse) GetBackupConfiguration() *BackupConfig
 		return x.BackupConfiguration
 	}
 	return nil
+}
+
+func (x *DescribePostgresClusterResponse) GetUsesWakeupPool() bool {
+	if x != nil && x.UsesWakeupPool != nil {
+		return *x.UsesWakeupPool
+	}
+	return false
 }
 
 // UpdatePostgresClusterRequest is the request object for UpdatePostgresCluster
@@ -3002,12 +3010,14 @@ const file_clusters_v1_clusters_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x1f\n" +
 	"\x1dDeletePostgresClusterResponse\"0\n" +
 	"\x1eDescribePostgresClusterRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x83\x02\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\xc7\x02\n" +
 	"\x1fDescribePostgresClusterResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12G\n" +
 	"\rconfiguration\x18\x02 \x01(\v2!.clusters.v1.ClusterConfigurationR\rconfiguration\x122\n" +
 	"\x06status\x18\x03 \x01(\v2\x1a.clusters.v1.ClusterStatusR\x06status\x12S\n" +
-	"\x14backup_configuration\x18\x04 \x01(\v2 .clusters.v1.BackupConfigurationR\x13backupConfiguration\"\x8a\x01\n" +
+	"\x14backup_configuration\x18\x04 \x01(\v2 .clusters.v1.BackupConfigurationR\x13backupConfiguration\x12-\n" +
+	"\x10uses_wakeup_pool\x18\x05 \x01(\bH\x00R\x0eusesWakeupPool\x88\x01\x01B\x13\n" +
+	"\x11_uses_wakeup_pool\"\x8a\x01\n" +
 	"\x1cUpdatePostgresClusterRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12Z\n" +
 	"\x14update_configuration\x18\x02 \x01(\v2'.clusters.v1.UpdateClusterConfigurationR\x13updateConfiguration\"\x1f\n" +
@@ -3384,6 +3394,7 @@ func file_clusters_v1_clusters_proto_init() {
 		(*CreatePostgresClusterRequest_ContinuousBackup)(nil),
 		(*CreatePostgresClusterRequest_BaseBackup)(nil),
 	}
+	file_clusters_v1_clusters_proto_msgTypes[5].OneofWrappers = []any{}
 	file_clusters_v1_clusters_proto_msgTypes[12].OneofWrappers = []any{}
 	file_clusters_v1_clusters_proto_msgTypes[13].OneofWrappers = []any{}
 	file_clusters_v1_clusters_proto_msgTypes[26].OneofWrappers = []any{}

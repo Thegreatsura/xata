@@ -1647,7 +1647,8 @@ func TestDescribePostgresCluster(t *testing.T) {
 			},
 			requestID: "test-branch",
 			wantResp: &clustersv1.DescribePostgresClusterResponse{
-				Id: "test-branch",
+				UsesWakeupPool: new(false),
+				Id:             "test-branch",
 				Configuration: &clustersv1.ClusterConfiguration{
 					NumInstances: 2,
 					StorageSize:  100,
@@ -1720,7 +1721,8 @@ func TestDescribePostgresCluster(t *testing.T) {
 			},
 			requestID: "test-branch",
 			wantResp: &clustersv1.DescribePostgresClusterResponse{
-				Id: "test-branch",
+				UsesWakeupPool: new(false),
+				Id:             "test-branch",
 				Configuration: &clustersv1.ClusterConfiguration{
 					NumInstances:                    1,
 					StorageSize:                     100,
@@ -1780,7 +1782,8 @@ func TestDescribePostgresCluster(t *testing.T) {
 			},
 			requestID: "test-branch",
 			wantResp: &clustersv1.DescribePostgresClusterResponse{
-				Id: "test-branch",
+				UsesWakeupPool: new(false),
+				Id:             "test-branch",
 				Configuration: &clustersv1.ClusterConfiguration{
 					NumInstances:                    2,
 					StorageSize:                     100,
@@ -2719,7 +2722,8 @@ func exampleRequestsAndBranches() (*clustersv1.CreatePostgresClusterRequest, *v1
 			},
 		},
 		&clustersv1.DescribePostgresClusterResponse{
-			Id: "lsmevenv7t3l56euo1v9bh3b74",
+			UsesWakeupPool: new(false),
+			Id:             "lsmevenv7t3l56euo1v9bh3b74",
 			Configuration: &clustersv1.ClusterConfiguration{
 				NumInstances: 2,
 				StorageSize:  100,
@@ -3380,4 +3384,47 @@ func updatePostgresParam(params []v1alpha1.PostgresParameter, name, value string
 		}
 	}
 	return append(params, v1alpha1.PostgresParameter{Name: name, Value: value})
+}
+
+func TestDescribePostgresClusterWakeupPool(t *testing.T) {
+	tests := map[string]struct{ pooled, clusterExists, requestWake bool }{
+		"pooled hibernation":                             {pooled: true},
+		"non-pooled cluster not created yet":             {},
+		"non-pooled wake before operator reconciliation": {clusterExists: true, requestWake: true},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			_, branch, _, _, _ := exampleRequestsAndBranches()
+			branch.Annotations = nil
+			branch.Spec.ClusterSpec.Hibernation = nil
+			if tc.pooled {
+				branch.Annotations = map[string]string{v1alpha1.WakeupPoolAnnotation: "test-pool"}
+				branch.Spec.ClusterSpec.Name = nil
+			}
+			objs := []client.Object{branch}
+			if tc.clusterExists {
+				branch.Spec.ClusterSpec.Hibernation = ptr.To(v1alpha1.HibernationModeEnabled)
+				objs = append(objs, &apiv1.Cluster{
+					Name:        branch.ClusterName(),
+					Namespace:   "xata-clusters",
+					Annotations: map[string]string{"cnpg.io/hibernation": "on"},
+					Status:      apiv1.ClusterStatus{Phase: apiv1.PhaseHealthy},
+				})
+			}
+			svc, _ := setupTestClustersService(t, withExistingObjects(objs...))
+			if tc.requestWake {
+				_, err := svc.UpdatePostgresCluster(context.Background(), &clustersv1.UpdatePostgresClusterRequest{
+					Id: branch.Name, UpdateConfiguration: &clustersv1.UpdateClusterConfiguration{Hibernate: new(false)},
+				})
+				require.NoError(t, err)
+			}
+			got, err := svc.DescribePostgresCluster(context.Background(), &clustersv1.DescribePostgresClusterRequest{Id: branch.Name})
+			require.NoError(t, err)
+			require.Equal(t, clustersv1.ClusterStatus_STATUS_TYPE_HIBERNATED, got.Status.StatusType)
+			require.False(t, got.Configuration.Hibernate)
+			require.True(t, got.Configuration.ScaleToZero.Enabled)
+			require.NotNil(t, got.UsesWakeupPool)
+			require.Equal(t, tc.pooled, *got.UsesWakeupPool)
+		})
+	}
 }

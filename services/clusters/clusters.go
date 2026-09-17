@@ -568,7 +568,8 @@ func (c *ClustersService) DescribePostgresCluster(ctx context.Context, request *
 	}
 
 	return &clustersv1.DescribePostgresClusterResponse{
-		Id: branch.Name,
+		Id:             branch.Name,
+		UsesWakeupPool: new(branch.HasWakeupPoolAnnotation()),
 		Configuration: &clustersv1.ClusterConfiguration{
 			NumInstances:                    branch.Spec.ClusterSpec.Instances,
 			StorageSize:                     quantityGi(resource.MustParse(branch.Spec.ClusterSpec.Storage.Size)),

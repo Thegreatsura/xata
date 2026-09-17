@@ -107,6 +107,7 @@ message DescribePostgresClusterResponse {
   ClusterConfiguration configuration = 2;
   ClusterStatus status = 3;
   BackupConfiguration backup_configuration = 4;
+  optional bool uses_wakeup_pool = 5;
 }
 
 // UpdatePostgresClusterRequest is the request object for UpdatePostgresCluster

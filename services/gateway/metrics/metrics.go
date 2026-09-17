@@ -8,6 +8,12 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+// clusterReactivationBuckets are in seconds. Waking a hibernated cluster takes
+// seconds to tens of seconds, and the gateway gives up after the reactivate
+// timeout (50s by default), so the default OTel boundaries (0, 5, 10, 25, ...
+// 10000) would put nearly every sample in the first two buckets.
+var clusterReactivationBuckets = []float64{0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10, 15, 30, 60, 120, 300}
+
 type GatewayMetrics struct {
 	connections         metric.Int64UpDownCounter
 	connectionDuration  metric.Float64Histogram
@@ -49,7 +55,8 @@ func New(meter metric.Meter) (*GatewayMetrics, error) {
 
 	m.clusterReactivation, err = meter.Float64Histogram("xata.gateway.cluster.reactivation_duration_seconds",
 		metric.WithUnit("s"),
-		metric.WithDescription("duration of cluster reactivation"))
+		metric.WithDescription("duration of cluster reactivation"),
+		metric.WithExplicitBucketBoundaries(clusterReactivationBuckets...))
 	if err != nil {
 		return nil, err
 	}
@@ -84,8 +91,18 @@ func (m *GatewayMetrics) RecordRequest(ctx context.Context, protocol string, suc
 	m.requestDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(allAttrs...))
 }
 
-func (m *GatewayMetrics) RecordClusterReactivation(ctx context.Context, duration time.Duration) {
-	m.clusterReactivation.Record(ctx, duration.Seconds())
+// RecordClusterReactivation records the duration and outcome of a reactivation.
+// A nil receiver is a no-op so a dialer can run without metrics.
+func (m *GatewayMetrics) RecordClusterReactivation(ctx context.Context, duration time.Duration, pool bool, success bool, errorType string) {
+	if m == nil {
+		return
+	}
+	attrs := make([]attribute.KeyValue, 0, 3)
+	attrs = append(attrs, AttrSuccess.Bool(success), AttrPool.Bool(pool))
+	if !success && errorType != "" {
+		attrs = append(attrs, AttrErrorType.String(errorType))
+	}
+	m.clusterReactivation.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
 }
 
 // RecordBytesForwarded records the bytes copied in one direction of a wire

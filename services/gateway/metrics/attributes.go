@@ -12,6 +12,8 @@ const (
 	AttrSuccess   = attribute.Key("success")
 	AttrErrorType = attribute.Key("error_type")
 	AttrDirection = attribute.Key("direction")
+
+	AttrPool = attribute.Key("pool")
 )
 
 // Copy directions for xata.gateway.bytes_forwarded. These are distinct from
@@ -25,4 +27,12 @@ const (
 	ProtocolWire      = "wire"
 	ProtocolWebSocket = "websocket"
 	ProtocolHTTP      = "http"
+)
+
+// Error types for a failed cluster wait, recorded as AttrErrorType.
+const (
+	WaitErrorTimeout  = "timeout"
+	WaitErrorCanceled = "canceled"
+	WaitErrorRPC      = "rpc"
+	WaitErrorDial     = "dial"
 )

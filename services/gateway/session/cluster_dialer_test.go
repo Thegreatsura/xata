@@ -10,9 +10,13 @@ import (
 
 	clustersv1 "xata/gen/proto/clusters/v1"
 	"xata/gen/protomocks"
+	"xata/services/gateway/metrics"
 
 	"github.com/stretchr/testify/require"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
+	"go.opentelemetry.io/otel/attribute"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -809,6 +813,198 @@ func TestClusterDialer_Dial(t *testing.T) {
 			}
 
 			mockClusters.AssertExpectations(t)
+		})
+	}
+}
+
+// TestClusterDialer_ReactivationMetrics checks pool labels and outcomes for
+// reactivation attempts. Connections that only wait do not record a sample.
+func TestClusterDialer_ReactivationMetrics(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	errRPC := status.Error(codes.Internal, "boom")
+
+	hibernated := &clustersv1.DescribePostgresClusterResponse{
+		UsesWakeupPool: new(true),
+		Status: &clustersv1.ClusterStatus{
+			StatusType: clustersv1.ClusterStatus_STATUS_TYPE_HIBERNATED,
+		},
+		Configuration: &clustersv1.ClusterConfiguration{
+			ScaleToZero: &clustersv1.ScaleToZero{Enabled: true},
+		},
+	}
+	healthy := &clustersv1.DescribePostgresClusterResponse{
+		Status: &clustersv1.ClusterStatus{
+			Status:             apiv1.PhaseHealthy,
+			StatusType:         clustersv1.ClusterStatus_STATUS_TYPE_HEALTHY,
+			InstanceCount:      1,
+			InstanceReadyCount: 1,
+		},
+		Configuration: &clustersv1.ClusterConfiguration{},
+	}
+	reactivate := &clustersv1.UpdatePostgresClusterRequest{
+		Id: "test-branch",
+		UpdateConfiguration: &clustersv1.UpdateClusterConfiguration{
+			Hibernate: new(false),
+		},
+	}
+	describe := &clustersv1.DescribePostgresClusterRequest{Id: "test-branch"}
+
+	refusedThenOK := func(ctx context.Context, i uint, network, address string) (net.Conn, error) {
+		if i == 1 {
+			return nil, syscall.ECONNREFUSED
+		}
+		return &net.TCPConn{}, nil
+	}
+	alwaysRefused := func(ctx context.Context, _ uint, network, address string) (net.Conn, error) {
+		return nil, syscall.ECONNREFUSED
+	}
+
+	type testCase struct {
+		dialFn     func(ctx context.Context, i uint, network, address string) (net.Conn, error)
+		setupMocks func(*protomocks.ClustersServiceClient)
+
+		wantErr      error
+		wantAttrs    attribute.Set
+		wantNoMetric bool
+	}
+
+	tests := map[string]testCase{
+		"reactivated - this connection triggered the wake": {
+			dialFn: refusedThenOK,
+			setupMocks: func(m *protomocks.ClustersServiceClient) {
+				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(hibernated, nil).Once()
+				m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
+				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(healthy, nil).Once()
+			},
+			wantAttrs: attribute.NewSet(
+				metrics.AttrPool.Bool(true),
+				metrics.AttrSuccess.Bool(true)),
+		},
+		"waited - wake already in flight": {
+			dialFn: refusedThenOK,
+			setupMocks: func(m *protomocks.ClustersServiceClient) {
+				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(healthy, nil).Twice()
+			},
+			wantNoMetric: true,
+		},
+		"reactivated - timed out": {
+			dialFn: alwaysRefused,
+			setupMocks: func(m *protomocks.ClustersServiceClient) {
+				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(hibernated, nil).Once()
+				m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
+				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(healthy, nil)
+			},
+			wantErr:   syscall.ECONNREFUSED,
+			wantAttrs: attribute.NewSet(metrics.AttrPool.Bool(true), metrics.AttrSuccess.Bool(false), metrics.AttrErrorType.String(metrics.WaitErrorTimeout)),
+		},
+		"reactivated - clusters service rpc failed": {
+			dialFn: alwaysRefused,
+			setupMocks: func(m *protomocks.ClustersServiceClient) {
+				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(hibernated, nil).Once()
+				m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(nil, errRPC).Once()
+			},
+			wantErr: syscall.ECONNREFUSED,
+			wantAttrs: attribute.NewSet(
+				metrics.AttrPool.Bool(true),
+				metrics.AttrSuccess.Bool(false),
+				metrics.AttrErrorType.String(metrics.WaitErrorRPC)),
+		},
+	}
+
+	for name, pool := range map[string]*bool{"non-pooled": new(false), "older server": nil} {
+		cluster := &clustersv1.DescribePostgresClusterResponse{
+			Configuration:  hibernated.Configuration,
+			Status:         hibernated.Status,
+			UsesWakeupPool: pool,
+		}
+		attrs := []attribute.KeyValue{metrics.AttrSuccess.Bool(true), metrics.AttrPool.Bool(false)}
+		tests[name] = testCase{
+			dialFn: refusedThenOK,
+			setupMocks: func(m *protomocks.ClustersServiceClient) {
+				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(cluster, nil).Once()
+				m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
+				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(healthy, nil).Once()
+			},
+			wantAttrs: attribute.NewSet(attrs...),
+		}
+	}
+
+	for name, cause := range map[string]error{
+		"canceled":          context.Canceled,
+		"deadline exceeded": context.DeadlineExceeded,
+	} {
+		err := status.FromContextError(cause).Err()
+		tests["reactivated - "+name+" during update"] = testCase{
+			dialFn: alwaysRefused,
+			setupMocks: func(m *protomocks.ClustersServiceClient) {
+				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(hibernated, nil).Once()
+				m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(nil, err).Once()
+			},
+			wantErr: syscall.ECONNREFUSED,
+			wantAttrs: attribute.NewSet(
+				metrics.AttrPool.Bool(true),
+				metrics.AttrSuccess.Bool(false),
+				metrics.AttrErrorType.String(metrics.WaitErrorCanceled)),
+		}
+		tests["reactivated - "+name+" during describe"] = testCase{
+			dialFn: alwaysRefused,
+			setupMocks: func(m *protomocks.ClustersServiceClient) {
+				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(hibernated, nil).Once()
+				m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
+				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(nil, err).Once()
+			},
+			wantErr: syscall.ECONNREFUSED,
+			wantAttrs: attribute.NewSet(
+				metrics.AttrPool.Bool(true),
+				metrics.AttrSuccess.Bool(false),
+				metrics.AttrErrorType.String(metrics.WaitErrorCanceled)),
+		}
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			reader := sdkmetric.NewManualReader()
+			mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+			t.Cleanup(func() { _ = mp.Shutdown(context.Background()) })
+			gwMetrics, err := metrics.New(mp.Meter("test"))
+			require.NoError(t, err)
+
+			mockClusters := protomocks.NewClustersServiceClient(t)
+			tc.setupMocks(mockClusters)
+
+			d := NewClusterDialer(ClusterDialerConfiguration{
+				ReactivateTimeout:   200 * time.Millisecond,
+				StatusCheckInterval: 20 * time.Millisecond,
+			}, mockClusters, WithDialer((&mockDialer{dialFn: tc.dialFn}).Dial),
+				WithInstrumentation(gwMetrics))
+
+			_, err = d.Dial(ctx, "tcp", &Branch{ID: "test-branch", Address: "test-branch-address"})
+			require.ErrorIs(t, err, tc.wantErr)
+
+			var rm metricdata.ResourceMetrics
+			require.NoError(t, reader.Collect(ctx, &rm))
+			var hist metricdata.Histogram[float64]
+			found := false
+			for _, sm := range rm.ScopeMetrics {
+				for _, m := range sm.Metrics {
+					if m.Name == "xata.gateway.cluster.reactivation_duration_seconds" {
+						hist, found = m.Data.(metricdata.Histogram[float64])
+					}
+				}
+			}
+			if tc.wantNoMetric {
+				require.False(t, found, "wait-only connection recorded a reactivation")
+				return
+			}
+			require.True(t, found, "reactivation histogram not collected")
+			require.Len(t, hist.DataPoints, 1)
+			dp := hist.DataPoints[0]
+			require.Equal(t, uint64(1), dp.Count)
+			require.True(t, dp.Attributes.Equals(&tc.wantAttrs), "got attributes %v", dp.Attributes.ToSlice())
 		})
 	}
 }

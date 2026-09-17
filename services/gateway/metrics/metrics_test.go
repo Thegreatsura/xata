@@ -184,15 +184,72 @@ func TestRecordRequest(t *testing.T) {
 }
 
 func TestRecordClusterReactivation(t *testing.T) {
-	m, reader := newTestMetrics(t)
+	tests := map[string]struct {
+		duration  time.Duration
+		pool      bool
+		success   bool
+		errorType string
+		want      attribute.Set
+	}{
+		"pooled success": {
+			duration: 3 * time.Second,
+			pool:     true,
+			success:  true,
+			want:     attribute.NewSet(AttrPool.Bool(true), AttrSuccess.Bool(true)),
+		},
+		"non-pooled success": {
+			duration: 500 * time.Millisecond,
+			pool:     false,
+			success:  true,
+			want:     attribute.NewSet(AttrPool.Bool(false), AttrSuccess.Bool(true)),
+		},
+		"non-pooled timeout": {
+			duration:  50 * time.Second,
+			pool:      false,
+			success:   false,
+			errorType: WaitErrorTimeout,
+			want: attribute.NewSet(AttrPool.Bool(false), AttrSuccess.Bool(false),
+				AttrErrorType.String(WaitErrorTimeout)),
+		},
+		"unset pool defaults to false": {
+			duration: time.Second,
+			success:  true,
+			want:     attribute.NewSet(AttrPool.Bool(false), AttrSuccess.Bool(true)),
+		},
+		// The error type only belongs on failures; a success never carries one
+		// even when a caller passes it.
+		"success ignores error type": {
+			duration:  time.Second,
+			pool:      true,
+			success:   true,
+			errorType: WaitErrorDial,
+			want:      attribute.NewSet(AttrPool.Bool(true), AttrSuccess.Bool(true)),
+		},
+	}
 
-	m.RecordClusterReactivation(context.Background(), 3*time.Second)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			m, reader := newTestMetrics(t)
 
-	metrics := collectMetrics(t, reader)
-	got := metrics["xata.gateway.cluster.reactivation_duration_seconds"]
-	hist, ok := got.Data.(metricdata.Histogram[float64])
-	require.True(t, ok)
-	require.Len(t, hist.DataPoints, 1)
-	require.Equal(t, uint64(1), hist.DataPoints[0].Count)
-	require.InDelta(t, 3.0, hist.DataPoints[0].Sum, 0.001)
+			m.RecordClusterReactivation(context.Background(), tc.duration, tc.pool, tc.success, tc.errorType)
+
+			metrics := collectMetrics(t, reader)
+			got := metrics["xata.gateway.cluster.reactivation_duration_seconds"]
+			hist, ok := got.Data.(metricdata.Histogram[float64])
+			require.True(t, ok)
+			require.Len(t, hist.DataPoints, 1)
+			dp := hist.DataPoints[0]
+			require.Equal(t, uint64(1), dp.Count)
+			require.InDelta(t, tc.duration.Seconds(), dp.Sum, 0.001)
+			require.True(t, dp.Attributes.Equals(&tc.want), "got attributes %v", dp.Attributes.ToSlice())
+			require.Equal(t, clusterReactivationBuckets, dp.Bounds)
+		})
+	}
+}
+
+func TestRecordClusterReactivationNilReceiver(t *testing.T) {
+	var m *GatewayMetrics
+	require.NotPanics(t, func() {
+		m.RecordClusterReactivation(context.Background(), time.Second, false, true, "")
+	})
 }
