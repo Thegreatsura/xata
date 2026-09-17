@@ -25,6 +25,14 @@ http:
   httpEnabled: true
   httpPort: 8080
 
+gateway:
+  envoyProxy:
+    # The api-gateway chart owns this one; name another to give Keycloak a dedicated proxy.
+    name: eg-custom-proxy-config
+    # Renders the named EnvoyProxy here, for consumers that cannot share the api-gateway one.
+    create: false
+    spec: {}
+
 features:
   enabled:
     - docker
