@@ -141,25 +141,12 @@ func (r *BranchReconciler) ensureNoVolumeSnapshotExists(
 	ctx context.Context,
 	branch *v1alpha1.Branch,
 ) (controllerutil.OperationResult, error) {
-	// Get the VolumeSnapshot
-	vs := &snapshotv1.VolumeSnapshot{}
-	err := r.Get(ctx, types.NamespacedName{
+	vs := &snapshotv1.VolumeSnapshot{
 		Name:      branch.Spec.Restore.Name + "-" + branch.Name,
 		Namespace: r.ClustersNamespace,
-	}, vs)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return controllerutil.OperationResultNone, nil
-		}
-		return controllerutil.OperationResultNone, err
 	}
 
-	// VolumeSnapshot exists but shouldn't so delete it
-	if err := r.Delete(ctx, vs); err != nil {
-		return controllerutil.OperationResultNone, client.IgnoreNotFound(err)
-	}
-
-	return controllerutil.OperationResultUpdated, nil
+	return controllerutil.OperationResultNone, client.IgnoreNotFound(r.Delete(ctx, vs))
 }
 
 // getClusterForBranch retrieves the CNPG cluster for the given Branch ID or

@@ -4,8 +4,7 @@ import (
 	"context"
 
 	barmanPluginApi "github.com/cloudnative-pg/plugin-barman-cloud/api/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"xata/services/branch-operator/api/v1alpha1"
@@ -27,23 +26,7 @@ func (r *BranchReconciler) reconcileObjectStore(
 	// ObjectStore is only needed for barman. If no backup config or using pgbackrest,
 	// ensure no ObjectStore exists.
 	if branch.Spec.BackupSpec == nil || branch.Spec.BackupSpec.IsPgBackRest() {
-		// Try to get the ObjectStore
-		err := r.Get(ctx, types.NamespacedName{
-			Name:      branch.Name,
-			Namespace: r.ClustersNamespace,
-		}, os)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return controllerutil.OperationResultNone, nil
-			}
-			return controllerutil.OperationResultNone, err
-		}
-
-		// ObjectStore exists but shouldn't so delete it
-		if err := r.Delete(ctx, os); err != nil {
-			return controllerutil.OperationResultNone, err
-		}
-		return controllerutil.OperationResultUpdated, nil
+		return controllerutil.OperationResultNone, client.IgnoreNotFound(r.Delete(ctx, os))
 	}
 
 	// BackupConfiguration is set, create or update the ObjectStore

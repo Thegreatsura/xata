@@ -4,7 +4,6 @@ import (
 	"context"
 
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -26,21 +25,7 @@ func (r *BranchReconciler) reconcileNetworkPolicy(
 	// If the branch has no cluster defined, ensure its NetworkPolicy doesn't
 	// exist
 	if !branch.HasClusterName() {
-		// Attempt to get the NetworkPolicy. If it doesn't exist, there is nothing
-		// to do
-		err := r.Get(ctx, types.NamespacedName{
-			Name:      branch.Name,
-			Namespace: r.ClustersNamespace,
-		}, np)
-		if err != nil {
-			return controllerutil.OperationResultNone, client.IgnoreNotFound(err)
-		}
-
-		// Delete the NetworkPolicy
-		if err := r.Delete(ctx, np); err != nil {
-			return controllerutil.OperationResultNone, err
-		}
-		return controllerutil.OperationResultUpdated, nil
+		return controllerutil.OperationResultNone, client.IgnoreNotFound(r.Delete(ctx, np))
 	}
 
 	result, err := controllerutil.CreateOrUpdate(ctx, r.Client, np, func() error {
