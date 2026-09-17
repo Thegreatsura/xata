@@ -7,6 +7,7 @@ GOMPLATE := $(GO) run github.com/hairyhenderson/gomplate/v4/cmd/gomplate@latest
 DOCKER_FLAGS=--rm --user $(shell id -u):$(shell id -g)
 DOCKER_OPA := docker run $(DOCKER_FLAGS) -v $(PWD)/internal/opa:/policy openpolicyagent/opa:latest
 DOCKER_JQ := docker run $(DOCKER_FLAGS) -v $(PWD):/data -w /data jq-tools
+DOCKER_SHELLCHECK := docker run $(DOCKER_FLAGS) -v $(PWD):/mnt -w /mnt koalaman/shellcheck:v0.11.0
 DEV_API_KEY := kubectl -n xata exec deploy/auth -c auth -- /server create_dev_api_key
 GIT_COMMIT_SHORT := $(shell git rev-parse --short=7 HEAD)
 SOURCE_URL := $(or $(GITHUB_SERVER_URL),https://github.com)/$(or $(GITHUB_REPOSITORY),xataio/maki)
@@ -40,7 +41,7 @@ machine-destroy: ## Destroy your personal EC2 machine
 check: lint check-playbooks  ## CI code checks
 
 .PHONY: lint
-lint: lint-openapi lint-go lint-buf lint-opa lint-keycloak-extensions lint-charts lint-kube ## Lint source code
+lint: lint-openapi lint-go lint-buf lint-opa lint-keycloak-extensions lint-charts lint-kube lint-shell ## Lint source code
 	@echo "All lint tasks completed at $$(date)"
 
 .PHONY: lint-charts
@@ -50,6 +51,10 @@ lint-charts: ## Lint Helm charts
 .PHONY: lint-kube
 lint-kube: ## Lint Kubernetes manifests
 	@cd kustomize && $(MAKE) lint
+
+.PHONY: lint-shell
+lint-shell: ## Lint shell scripts
+	@git ls-files "*.sh" -z | xargs -0 $(DOCKER_SHELLCHECK) --severity=warning
 
 .PHONY: lint-openapi
 lint-openapi: ## Lint OpenAPI code
