@@ -79,6 +79,10 @@ spec:
             - name: POSTGRES_PORT
               value: {{ .Values.postgres.port | quote }}
             {{- end }}
+            {{- if .Values.gateway.hostport }}
+            - name: GATEWAY_HOSTPORT
+              value: {{ .Values.gateway.hostport | quote }}
+            {{- end }}
             {{- if .Values.defaultRegion }}
             - name: DEFAULT_REGION
               value: {{ .Values.defaultRegion | quote }}
