@@ -99,10 +99,10 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		r.setLastErrorStatus(ctx, wr, err)
 
 		if err != nil {
-			log.Error(err, "reconciling WakeupRequest", "namespacedName", req.NamespacedName, "duration", time.Since(start))
+			log.Error(err, "reconciling WakeupRequest", "namespacedName", req.NamespacedName, "durationMs", time.Since(start).Milliseconds())
 			return
 		}
-		log.Info("reconciled WakeupRequest", "namespacedName", req.NamespacedName, "duration", time.Since(start))
+		log.Info("reconciled WakeupRequest", "namespacedName", req.NamespacedName, "durationMs", time.Since(start).Milliseconds())
 	}()
 
 	// Set the WakeupRequest status to InProgress. This ensures that we get an
