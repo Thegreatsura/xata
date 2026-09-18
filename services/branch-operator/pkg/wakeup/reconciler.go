@@ -51,6 +51,7 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	log := ctrl.Log.WithName(ReconcilerName)
 
 	log.Info("reconciling WakeupRequest", "namespacedName", req.NamespacedName)
+	start := time.Now()
 
 	// Fetch the WakeupRequest resource
 	wr := &v1alpha1.WakeupRequest{}
@@ -89,12 +90,19 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
-	// Defer setting status based on errors that occur during reconciliation
+	// Defer setting status based on errors that occur during reconciliation,
+	// then log the outcome and duration
 	var err error
 	defer func() {
 		r.recordFailureEvent(wr, err)
 		r.setStatusConditionFromError(ctx, wr, err)
 		r.setLastErrorStatus(ctx, wr, err)
+
+		if err != nil {
+			log.Error(err, "reconciling WakeupRequest", "namespacedName", req.NamespacedName, "duration", time.Since(start))
+			return
+		}
+		log.Info("reconciled WakeupRequest", "namespacedName", req.NamespacedName, "duration", time.Since(start))
 	}()
 
 	// Set the WakeupRequest status to InProgress. This ensures that we get an
@@ -259,7 +267,8 @@ func (r *WakeupReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manage
 // name. Without this, claiming a Cluster from a pool would require listing all
 // clusters in the namespace and filtering in memory
 func setupIndexers(ctx context.Context, mgr ctrl.Manager) error {
-	return mgr.GetFieldIndexer().IndexField(ctx, &apiv1.Cluster{}, PoolClusterOwnerKey,
+	return mgr.GetFieldIndexer().IndexField(
+		ctx, &apiv1.Cluster{}, PoolClusterOwnerKey,
 		func(obj client.Object) []string {
 			owner := metav1.GetControllerOf(obj)
 			if owner == nil {
