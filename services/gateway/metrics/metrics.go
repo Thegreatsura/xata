@@ -12,7 +12,17 @@ import (
 // seconds to tens of seconds, and the gateway gives up after the reactivate
 // timeout (50s by default), so the default OTel boundaries (0, 5, 10, 25, ...
 // 10000) would put nearly every sample in the first two buckets.
-var clusterReactivationBuckets = []float64{0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10, 15, 30, 60, 120, 300}
+//
+// The observed distribution is bimodal: ~90% of wakeups land between 0.5s
+// and 3s with the mode around 1-1.25s, there is a near-empty valley between
+// 5s and 10s, and a second mode between 10s and 30s. Boundaries are 100ms
+// apart around the first mode, coarser through the valley, 5s apart across
+// the second mode, and end at the timeout region (45s, 60s, 120s) so the
+// +Inf bucket only holds pathological cases.
+var clusterReactivationBuckets = []float64{
+	0.25, 0.5, 0.75, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.75, 2, 2.5, 3,
+	4, 5, 7.5, 10, 12.5, 15, 20, 25, 30, 45, 60, 120,
+}
 
 type GatewayMetrics struct {
 	connections         metric.Int64UpDownCounter
