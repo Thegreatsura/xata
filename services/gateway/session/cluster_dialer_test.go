@@ -4,14 +4,17 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sync"
 	"syscall"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	clustersv1 "xata/gen/proto/clusters/v1"
 	"xata/gen/protomocks"
 	"xata/services/gateway/metrics"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	"go.opentelemetry.io/otel/attribute"
@@ -61,7 +64,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -79,7 +82,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 					},
 				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
 
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -107,7 +110,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -125,7 +128,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 					},
 				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
 
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -153,7 +156,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -165,7 +168,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 					},
 				}, nil).Once()
 
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -203,7 +206,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -221,7 +224,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 					},
 				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
 
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -259,7 +262,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -277,7 +280,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 					},
 				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
 
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -286,7 +289,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 						InstanceReadyCount: 0,
 					},
 				}, nil).Once()
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -312,7 +315,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -341,7 +344,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -372,7 +375,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -398,7 +401,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -434,7 +437,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -446,7 +449,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 					},
 				}, nil).Once()
 
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -477,7 +480,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -487,7 +490,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 					Configuration: &clustersv1.ClusterConfiguration{},
 				}, nil).Once()
 
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -516,7 +519,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -543,7 +546,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -576,7 +579,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -594,7 +597,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 					},
 				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
 
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -620,7 +623,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(nil, errTest).Once()
 			},
@@ -640,7 +643,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -674,7 +677,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -692,7 +695,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 					},
 				}).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
 
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(nil, errTest).Once()
 			},
@@ -712,7 +715,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(&clustersv1.DescribePostgresClusterResponse{
 					Status: &clustersv1.ClusterStatus{
@@ -764,7 +767,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(nil, status.Error(codes.Unavailable, "connection refused")).Once()
 			},
@@ -779,7 +782,7 @@ func TestClusterDialer_Dial(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
-				mockClusters.EXPECT().DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
 					Id: "test-branch",
 				}).Return(nil, status.Error(codes.NotFound, "resource not found")).Once()
 			},
@@ -885,9 +888,9 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 		"reactivated - this connection triggered the wake": {
 			dialFn: refusedThenOK,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(hibernated, nil).Once()
+				m.EXPECT().DescribePostgresCluster(mock.Anything, describe()).Return(hibernated, nil).Once()
 				m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
-				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(healthy, nil).Once()
+				m.EXPECT().DescribePostgresCluster(mock.Anything, describe()).Return(healthy, nil).Once()
 			},
 			wantAttrs: attribute.NewSet(
 				metrics.AttrPool.Bool(true),
@@ -898,16 +901,16 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 		"waited - wake already in flight": {
 			dialFn: refusedThenOK,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(healthy, nil).Twice()
+				m.EXPECT().DescribePostgresCluster(mock.Anything, describe()).Return(healthy, nil).Twice()
 			},
 			wantNoMetric: true,
 		},
 		"reactivated - timed out": {
 			dialFn: alwaysRefused,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(hibernated, nil).Once()
+				m.EXPECT().DescribePostgresCluster(mock.Anything, describe()).Return(hibernated, nil).Once()
 				m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
-				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(healthy, nil)
+				m.EXPECT().DescribePostgresCluster(mock.Anything, describe()).Return(healthy, nil)
 			},
 			wantErr:   syscall.ECONNREFUSED,
 			wantAttrs: attribute.NewSet(metrics.AttrPool.Bool(true), metrics.AttrSuccess.Bool(false), metrics.AttrErrorType.String(metrics.WaitErrorTimeout), sized),
@@ -915,7 +918,7 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 		"reactivated - clusters service rpc failed": {
 			dialFn: alwaysRefused,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(hibernated, nil).Once()
+				m.EXPECT().DescribePostgresCluster(mock.Anything, describe()).Return(hibernated, nil).Once()
 				m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(nil, errRPC).Once()
 			},
 			wantErr: syscall.ECONNREFUSED,
@@ -938,9 +941,9 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 		tests[name] = testCase{
 			dialFn: refusedThenOK,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(cluster, nil).Once()
+				m.EXPECT().DescribePostgresCluster(mock.Anything, describe()).Return(cluster, nil).Once()
 				m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
-				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(healthy, nil).Once()
+				m.EXPECT().DescribePostgresCluster(mock.Anything, describe()).Return(healthy, nil).Once()
 			},
 			wantAttrs: attribute.NewSet(attrs...),
 		}
@@ -961,7 +964,9 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 		setupMocks: func(m *protomocks.ClustersServiceClient) {
 			m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(unsized, nil).Once()
 			m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
-			m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(healthy, nil).Once()
+			// The post-wake status poll is shared between callers, so it runs
+			// on the coalescer's context rather than this caller's
+			m.EXPECT().DescribePostgresCluster(mock.Anything, describe()).Return(healthy, nil).Once()
 		},
 		wantAttrs: attribute.NewSet(metrics.AttrPool.Bool(true), metrics.AttrSuccess.Bool(true)),
 	}
@@ -974,7 +979,7 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 		tests["reactivated - "+name+" during update"] = testCase{
 			dialFn: alwaysRefused,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(hibernated, nil).Once()
+				m.EXPECT().DescribePostgresCluster(mock.Anything, describe()).Return(hibernated, nil).Once()
 				m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(nil, err).Once()
 			},
 			wantErr: syscall.ECONNREFUSED,
@@ -988,9 +993,9 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 		tests["reactivated - "+name+" during describe"] = testCase{
 			dialFn: alwaysRefused,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(hibernated, nil).Once()
+				m.EXPECT().DescribePostgresCluster(mock.Anything, describe()).Return(hibernated, nil).Once()
 				m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
-				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(nil, err).Once()
+				m.EXPECT().DescribePostgresCluster(mock.Anything, describe()).Return(nil, err).Once()
 			},
 			wantErr: syscall.ECONNREFUSED,
 			wantAttrs: attribute.NewSet(
@@ -1046,6 +1051,58 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 			require.True(t, dp.Attributes.Equals(&tc.wantAttrs), "got attributes %v", dp.Attributes.ToSlice())
 		})
 	}
+}
+
+// TestClusterDialer_ConcurrentDialsShareStatusPoll checks that connections
+// held for the same cluster share one status poll rather than each polling
+// the clusters service on their own.
+func TestClusterDialer_ConcurrentDialsShareStatusPoll(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		start := time.Now()
+
+		var mu sync.Mutex
+		describes := 0
+		svc := pollingStatusService{describe: func() (*clustersv1.DescribePostgresClusterResponse, error) {
+			mu.Lock()
+			describes++
+			mu.Unlock()
+			return &clustersv1.DescribePostgresClusterResponse{Status: &clustersv1.ClusterStatus{
+				StatusType:         clustersv1.ClusterStatus_STATUS_TYPE_HEALTHY,
+				InstanceCount:      1,
+				InstanceReadyCount: 1,
+			}}, nil
+		}}
+
+		// The target refuses connections for the first 250ms, so every dial
+		// fails, looks the cluster up, and is held until it becomes reachable
+		d := NewClusterDialer(ClusterDialerConfiguration{
+			StatusCheckInterval: 100 * time.Millisecond,
+			ReactivateTimeout:   50 * time.Second,
+		}, svc, WithDialer(func(context.Context, string, string) (net.Conn, error) {
+			if time.Since(start) < 250*time.Millisecond {
+				return nil, syscall.ECONNREFUSED
+			}
+			return &net.TCPConn{}, nil
+		}))
+
+		const dials = 10
+		errs := make([]error, dials)
+		var wg sync.WaitGroup
+		for i := range dials {
+			wg.Go(func() {
+				_, errs[i] = d.Dial(context.Background(), "tcp", &Branch{ID: "test-branch", Address: "test-branch-address"})
+			})
+		}
+		wg.Wait()
+
+		for i, err := range errs {
+			require.NoError(t, err, "dial %d", i)
+		}
+		// Each dial describes the cluster once on its own to decide whether to
+		// hold, then all of them share a single poll that sees the cluster
+		// available on its first tick
+		require.Equal(t, dials+1, describes, "held connections should share one status poll")
+	})
 }
 
 type mockDialer struct {

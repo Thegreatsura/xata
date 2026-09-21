@@ -49,15 +49,18 @@ func TestStatusPollingBackoffAndTCPReadiness(t *testing.T) {
 			}
 			return &clustersv1.DescribePostgresClusterResponse{Status: &clustersv1.ClusterStatus{StatusType: state}}, nil
 		}}
-		d := &ClusterDialer{statusCheckInterval: 100 * time.Millisecond, reactivateTimeout: 50 * time.Second, dialer: func(context.Context, string, string) (net.Conn, error) {
+		d := NewClusterDialer(ClusterDialerConfiguration{
+			StatusCheckInterval: 100 * time.Millisecond,
+			ReactivateTimeout:   50 * time.Second,
+		}, svc, WithDialer(func(context.Context, string, string) (net.Conn, error) {
 			dials = append(dials, time.Since(start))
 			if len(dials) == 1 {
 				time.Sleep(80 * time.Millisecond)
 				return nil, syscall.ECONNREFUSED
 			}
 			return &net.TCPConn{}, nil
-		}}
-		conn, err := d.waitUntilReachable(context.Background(), svc, "a", "tcp", "example:5432")
+		}))
+		conn, err := d.waitUntilReachable(context.Background(), "a", "tcp", "example:5432")
 		require.NoError(t, err)
 		require.NotNil(t, conn)
 		require.Len(t, polls, 55)
@@ -80,18 +83,24 @@ func TestStatusPollingBackoffCancellation(t *testing.T) {
 				calls++
 				return &clustersv1.DescribePostgresClusterResponse{Status: &clustersv1.ClusterStatus{StatusType: clustersv1.ClusterStatus_STATUS_TYPE_TRANSIENT}}, nil
 			}}
-			d := &ClusterDialer{statusCheckInterval: 100 * time.Millisecond, reactivateTimeout: 6250 * time.Millisecond}
+			d := NewClusterDialer(ClusterDialerConfiguration{
+				StatusCheckInterval: 100 * time.Millisecond,
+				ReactivateTimeout:   6250 * time.Millisecond,
+			}, svc)
 			if cancelWait {
 				d.reactivateTimeout = 50 * time.Second
 				go func() { time.Sleep(6250 * time.Millisecond); cancel() }()
 			}
-			_, err := d.waitUntilReachable(ctx, svc, "a", "tcp", "example:5432")
+			_, err := d.waitUntilReachable(ctx, "a", "tcp", "example:5432")
 			if cancelWait {
 				require.ErrorIs(t, err, context.Canceled)
 			} else {
 				require.ErrorContains(t, err, "timed out waiting for cluster")
 			}
 			require.Equal(t, 6250*time.Millisecond, time.Since(start))
+			// The waiter left before the shared poll goroutine exited; let it
+			// finish so its last increment of calls is visible here
+			synctest.Wait()
 			require.Equal(t, 56, calls)
 		})
 	}

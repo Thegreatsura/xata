@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	clustersv1 "xata/gen/proto/clusters/v1"
+	"xata/internal/coalesce"
 	"xata/services/gateway/metrics"
 )
 
@@ -39,6 +40,10 @@ type ClusterDialer struct {
 	reactivateFn        reactivateClusterFn
 	reactivateTimeout   time.Duration
 	statusCheckInterval time.Duration
+
+	// statusPoll shares one status poll among every caller waiting on the
+	// same cluster, keyed by cluster ID. See waitUntilAvailable.
+	statusPoll *coalesce.Coalescer[string, struct{}]
 }
 
 // reactivateClusterFn wakes a hibernated cluster and returns a live connection
@@ -88,6 +93,7 @@ func NewClusterDialer(cfg ClusterDialerConfiguration, clusters clustersService, 
 		reactivateTimeout:   cfg.ReactivateTimeout,
 		statusCheckInterval: cfg.StatusCheckInterval,
 	}
+	d.statusPoll = coalesce.New(d.waitUntilAvailable)
 
 	d.reactivateFn = func(ctx context.Context, svc clustersService, clusterID, network, address string, _ *clustersv1.DescribePostgresClusterResponse) (net.Conn, error) {
 		return d.reactivateCluster(ctx, svc, clusterID, network, address)
@@ -210,7 +216,7 @@ func (d *ClusterDialer) Dial(ctx context.Context, network string, branch *Branch
 		}
 
 		dialLogger.Info().Msg("cluster is unreachable but reported available, waiting...")
-		conn, err := d.waitUntilReachable(ctx, svc, branch.ID, network, branch.Address)
+		conn, err := d.waitUntilReachable(ctx, branch.ID, network, branch.Address)
 		if err != nil {
 			dialLogger.Error().Err(err).Msg("failed to wait for cluster to be available")
 			return nil, dialErr
@@ -279,62 +285,98 @@ func (d *ClusterDialer) reactivateCluster(ctx context.Context, svc clustersServi
 		return nil, fmt.Errorf("reactivating hibernated cluster %s: %w", clusterID, err)
 	}
 
-	return d.waitUntilReachable(ctx, svc, clusterID, network, address)
+	return d.waitUntilReachable(ctx, clusterID, network, address)
 }
 
 // waitUntilReachable waits until the cluster is reported available AND a TCP
-// connection to the dial target succeeds. The cluster status only reflects the
-// Postgres instances; the dial target may be a separate component (e.g. the
-// pooler Service) whose endpoints lag behind the cluster becoming healthy.
-// Returns the live connection on success so the caller doesn't have to redial.
-func (d *ClusterDialer) waitUntilReachable(ctx context.Context, svc clustersService, clusterID, network, address string) (net.Conn, error) {
+// connection to the dial target succeeds. The status wait is shared by every
+// caller waiting on the same cluster (see waitUntilAvailable); the dial is per
+// caller, since the resulting connection cannot be shared. The cluster status
+// only reflects the Postgres instances; the dial target may be a separate
+// component (e.g. the pooler Service) whose endpoints lag behind the cluster
+// becoming healthy. Returns the live connection on success so the caller
+// doesn't have to redial.
+func (d *ClusterDialer) waitUntilReachable(ctx context.Context, clusterID, network, address string) (net.Conn, error) {
 	logger := log.Ctx(ctx).With().Str("cluster", clusterID).Str("address", address).Logger()
-	reactivateTimeout := time.NewTimer(d.reactivateTimeout)
-	defer reactivateTimeout.Stop()
+
+	// The reactivate timeout is the wait context's deadline so that the shared
+	// status wait releases this caller on time, and cancels the shared poll if
+	// this was its last waiter.
+	waitCtx, cancel := context.WithTimeoutCause(ctx, d.reactivateTimeout, ErrReactivateTimeout)
+	defer cancel()
+
+	if _, err := d.statusPoll.Do(waitCtx, clusterID); err != nil {
+		return nil, d.waitErr(waitCtx, clusterID, err)
+	}
+
+	// Created before the first dial so retries keep the status-check cadence
+	// from the moment the cluster became available.
+	ticker := time.NewTicker(d.statusCheckInterval)
+	defer ticker.Stop()
+	for {
+		conn, err := d.dialer(ctx, network, address)
+		if err == nil {
+			return conn, nil
+		}
+		if !shouldAttemptReactivation(err) {
+			return nil, fmt.Errorf("dialing %s: %w", address, err)
+		}
+		logger.Debug().Err(err).Msgf("cluster ready but target not yet reachable, next check: %s", d.statusCheckInterval)
+
+		select {
+		case <-waitCtx.Done():
+			return nil, d.waitErr(waitCtx, clusterID, waitCtx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+// waitErr maps a wait context error back to ErrReactivateTimeout when the
+// reactivate timeout is what ended the wait, so callers and metrics can tell
+// a timeout from the client giving up.
+func (d *ClusterDialer) waitErr(waitCtx context.Context, clusterID string, err error) error {
+	if errors.Is(context.Cause(waitCtx), ErrReactivateTimeout) {
+		return fmt.Errorf("%w: cluster %s after %s", ErrReactivateTimeout, clusterID, d.reactivateTimeout)
+	}
+	return err
+}
+
+// waitUntilAvailable polls the clusters service until the cluster reports an
+// available instance. It runs through d.statusPoll, so concurrent callers
+// waiting on the same cluster share one poll: ctx carries the first caller's
+// logger and trace span, is cancelled when the last caller gives up, and
+// has no deadline of its own. A Describe error ends the poll for every
+// caller.
+func (d *ClusterDialer) waitUntilAvailable(ctx context.Context, clusterID string) (struct{}, error) {
+	logger := log.Ctx(ctx).With().Str("cluster", clusterID).Logger()
 	waitStarted := time.Now()
 	statusInterval := d.statusCheckInterval
 	statusChecker := time.NewTicker(statusInterval)
 	defer statusChecker.Stop()
 
-	clusterReady := false
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-reactivateTimeout.C:
-			return nil, fmt.Errorf("%w: cluster %s after %s", ErrReactivateTimeout, clusterID, d.reactivateTimeout)
+			return struct{}{}, ctx.Err()
 		case <-statusChecker.C:
-			if !clusterReady {
-				cluster, err := svc.DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
-					Id: clusterID,
-				})
-				if err != nil {
-					return nil, fmt.Errorf("checking cluster status: %w", err)
-				}
-				if !d.isClusterAvailable(cluster.Status) {
-					next := statusPollInterval(d.statusCheckInterval, time.Since(waitStarted))
-					if next != statusInterval {
-						statusInterval = next
-						statusChecker.Reset(statusInterval)
-					}
-					logger.Debug().Msgf("waiting for cluster to be available, current status: %s, next check: %s", cluster.Status.StatusType, statusInterval)
-					continue
-				}
-				clusterReady = true
-				if statusInterval != d.statusCheckInterval {
-					statusChecker.Reset(d.statusCheckInterval)
-				}
-			}
-
-			conn, err := d.dialer(ctx, network, address)
-			if err == nil {
-				return conn, nil
-			}
-			if !shouldAttemptReactivation(err) {
-				return nil, fmt.Errorf("dialing %s: %w", address, err)
-			}
-			logger.Debug().Err(err).Msgf("cluster ready but target not yet reachable, next check: %s", d.statusCheckInterval)
 		}
+
+		cluster, err := d.clustersService.DescribePostgresCluster(ctx, &clustersv1.DescribePostgresClusterRequest{
+			Id: clusterID,
+		})
+		if err != nil {
+			return struct{}{}, fmt.Errorf("checking cluster status: %w", err)
+		}
+		if d.isClusterAvailable(cluster.Status) {
+			return struct{}{}, nil
+		}
+
+		next := statusPollInterval(d.statusCheckInterval, time.Since(waitStarted))
+		if next != statusInterval {
+			statusInterval = next
+			statusChecker.Reset(statusInterval)
+		}
+		logger.Debug().Msgf("waiting for cluster to be available, current status: %s, next check: %s", cluster.Status.StatusType, statusInterval)
 	}
 }
 
