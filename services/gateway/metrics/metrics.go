@@ -102,13 +102,18 @@ func (m *GatewayMetrics) RecordRequest(ctx context.Context, protocol string, suc
 }
 
 // RecordClusterReactivation records the duration and outcome of a reactivation.
-// A nil receiver is a no-op so a dialer can run without metrics.
-func (m *GatewayMetrics) RecordClusterReactivation(ctx context.Context, duration time.Duration, pool bool, success bool, errorType string) {
+// instanceSize is the size of the reactivated cluster and is omitted from the
+// attributes when empty. A nil receiver is a no-op so a dialer can run without
+// metrics.
+func (m *GatewayMetrics) RecordClusterReactivation(ctx context.Context, duration time.Duration, pool bool, instanceSize string, success bool, errorType string) {
 	if m == nil {
 		return
 	}
-	attrs := make([]attribute.KeyValue, 0, 3)
+	attrs := make([]attribute.KeyValue, 0, 4)
 	attrs = append(attrs, AttrSuccess.Bool(success), AttrPool.Bool(pool))
+	if instanceSize != "" {
+		attrs = append(attrs, AttrInstanceSize.String(instanceSize))
+	}
 	if !success && errorType != "" {
 		attrs = append(attrs, AttrErrorType.String(errorType))
 	}

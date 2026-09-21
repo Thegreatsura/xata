@@ -14,6 +14,11 @@ const (
 	AttrDirection = attribute.Key("direction")
 
 	AttrPool = attribute.Key("pool")
+	// AttrInstanceSize is the vCPU request and memory of the cluster being
+	// reactivated, formatted by the caller as "<vcpu>/<memory>GB" (e.g.
+	// "500m/1GB", "2/8GB"). Instance sizes come from a small catalog, so the
+	// cardinality stays bounded.
+	AttrInstanceSize = attribute.Key("instance_size")
 )
 
 // Copy directions for xata.gateway.bytes_forwarded. These are distinct from

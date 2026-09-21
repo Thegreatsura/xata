@@ -41,7 +41,10 @@ type ClusterDialer struct {
 	statusCheckInterval time.Duration
 }
 
-type reactivateClusterFn func(ctx context.Context, svc clustersService, clusterID, network, address string, pool bool) (net.Conn, error)
+// reactivateClusterFn wakes a hibernated cluster and returns a live connection
+// to it. cluster is the description that classified it as hibernated, so an
+// instrumented implementation can label the sample without another lookup.
+type reactivateClusterFn func(ctx context.Context, svc clustersService, clusterID, network, address string, cluster *clustersv1.DescribePostgresClusterResponse) (net.Conn, error)
 
 type dialerFn func(ctx context.Context, network, address string) (net.Conn, error)
 
@@ -86,7 +89,7 @@ func NewClusterDialer(cfg ClusterDialerConfiguration, clusters clustersService, 
 		statusCheckInterval: cfg.StatusCheckInterval,
 	}
 
-	d.reactivateFn = func(ctx context.Context, svc clustersService, clusterID, network, address string, _ bool) (net.Conn, error) {
+	d.reactivateFn = func(ctx context.Context, svc clustersService, clusterID, network, address string, _ *clustersv1.DescribePostgresClusterResponse) (net.Conn, error) {
 		return d.reactivateCluster(ctx, svc, clusterID, network, address)
 	}
 
@@ -100,13 +103,26 @@ func NewClusterDialer(cfg ClusterDialerConfiguration, clusters clustersService, 
 func WithInstrumentation(gwMetrics *metrics.GatewayMetrics) ClusterDialerOption {
 	return func(d *ClusterDialer) {
 		reactivate := d.reactivateCluster
-		d.reactivateFn = func(ctx context.Context, svc clustersService, clusterID, network, address string, pool bool) (net.Conn, error) {
+		d.reactivateFn = func(ctx context.Context, svc clustersService, clusterID, network, address string, cluster *clustersv1.DescribePostgresClusterResponse) (net.Conn, error) {
 			startTime := time.Now()
 			conn, err := reactivate(ctx, svc, clusterID, network, address)
-			gwMetrics.RecordClusterReactivation(ctx, time.Since(startTime), pool, err == nil, waitErrorType(err))
+			gwMetrics.RecordClusterReactivation(ctx, time.Since(startTime), cluster.GetUsesWakeupPool(), instanceSize(cluster.GetConfiguration()), err == nil, waitErrorType(err))
 			return conn, err
 		}
 	}
+}
+
+// instanceSize formats the cluster's vCPU request and memory as a single
+// metric label, e.g. "500m/1GB" or "2/8GB". The clusters service only reports
+// the resource values, not the instance type name they were derived from, so
+// this is the closest the gateway can get to the size a user picked. Returns
+// "" when the configuration carries neither value.
+func instanceSize(cfg *clustersv1.ClusterConfiguration) string {
+	vcpu, memory := cfg.GetVcpuRequest(), cfg.GetMemory()
+	if vcpu == "" && memory == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/%sGB", vcpu, memory)
 }
 
 func WithDialer(dialer dialerFn) ClusterDialerOption {
@@ -147,7 +163,7 @@ func (d *ClusterDialer) Dial(ctx context.Context, network string, branch *Branch
 	case d.isClusterHibernated(cluster.Status) && d.isScaleToZeroEnabled(cluster.Configuration):
 		dialLogger.Info().Msg("cluster is hibernated, reactivating...")
 
-		conn, err := d.reactivateFn(ctx, svc, branch.ID, network, branch.Address, cluster.GetUsesWakeupPool())
+		conn, err := d.reactivateFn(ctx, svc, branch.ID, network, branch.Address, cluster)
 		if err != nil {
 			dialLogger.Error().Err(err).Msg("failed to reactivate cluster")
 			return nil, dialErr

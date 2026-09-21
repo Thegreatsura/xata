@@ -817,8 +817,9 @@ func TestClusterDialer_Dial(t *testing.T) {
 	}
 }
 
-// TestClusterDialer_ReactivationMetrics checks pool labels and outcomes for
-// reactivation attempts. Connections that only wait do not record a sample.
+// TestClusterDialer_ReactivationMetrics checks pool and instance size labels
+// and outcomes for reactivation attempts. Connections that only wait do not
+// record a sample.
 func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -832,8 +833,11 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 		},
 		Configuration: &clustersv1.ClusterConfiguration{
 			ScaleToZero: &clustersv1.ScaleToZero{Enabled: true},
+			VcpuRequest: "500m",
+			Memory:      "1",
 		},
 	}
+	sized := metrics.AttrInstanceSize.String("500m/1GB")
 	healthy := &clustersv1.DescribePostgresClusterResponse{
 		Status: &clustersv1.ClusterStatus{
 			Status:             apiv1.PhaseHealthy,
@@ -880,7 +884,8 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 			},
 			wantAttrs: attribute.NewSet(
 				metrics.AttrPool.Bool(true),
-				metrics.AttrSuccess.Bool(true)),
+				metrics.AttrSuccess.Bool(true),
+				sized),
 		},
 		"waited - wake already in flight": {
 			dialFn: refusedThenOK,
@@ -897,7 +902,7 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(healthy, nil)
 			},
 			wantErr:   syscall.ECONNREFUSED,
-			wantAttrs: attribute.NewSet(metrics.AttrPool.Bool(true), metrics.AttrSuccess.Bool(false), metrics.AttrErrorType.String(metrics.WaitErrorTimeout)),
+			wantAttrs: attribute.NewSet(metrics.AttrPool.Bool(true), metrics.AttrSuccess.Bool(false), metrics.AttrErrorType.String(metrics.WaitErrorTimeout), sized),
 		},
 		"reactivated - clusters service rpc failed": {
 			dialFn: alwaysRefused,
@@ -909,7 +914,8 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 			wantAttrs: attribute.NewSet(
 				metrics.AttrPool.Bool(true),
 				metrics.AttrSuccess.Bool(false),
-				metrics.AttrErrorType.String(metrics.WaitErrorRPC)),
+				metrics.AttrErrorType.String(metrics.WaitErrorRPC),
+				sized),
 		},
 	}
 
@@ -919,7 +925,7 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 			Status:         hibernated.Status,
 			UsesWakeupPool: pool,
 		}
-		attrs := []attribute.KeyValue{metrics.AttrSuccess.Bool(true), metrics.AttrPool.Bool(false)}
+		attrs := []attribute.KeyValue{metrics.AttrSuccess.Bool(true), metrics.AttrPool.Bool(false), sized}
 		tests[name] = testCase{
 			dialFn: refusedThenOK,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
@@ -929,6 +935,26 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 			},
 			wantAttrs: attribute.NewSet(attrs...),
 		}
+	}
+
+	// A configuration without resource values (e.g. an older clusters
+	// service) records the sample without an instance size label rather
+	// than an empty one.
+	unsized := &clustersv1.DescribePostgresClusterResponse{
+		UsesWakeupPool: new(true),
+		Status:         hibernated.Status,
+		Configuration: &clustersv1.ClusterConfiguration{
+			ScaleToZero: &clustersv1.ScaleToZero{Enabled: true},
+		},
+	}
+	tests["reactivated - unknown instance size"] = testCase{
+		dialFn: refusedThenOK,
+		setupMocks: func(m *protomocks.ClustersServiceClient) {
+			m.EXPECT().DescribePostgresCluster(ctx, describe).Return(unsized, nil).Once()
+			m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
+			m.EXPECT().DescribePostgresCluster(ctx, describe).Return(healthy, nil).Once()
+		},
+		wantAttrs: attribute.NewSet(metrics.AttrPool.Bool(true), metrics.AttrSuccess.Bool(true)),
 	}
 
 	for name, cause := range map[string]error{
@@ -946,7 +972,8 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 			wantAttrs: attribute.NewSet(
 				metrics.AttrPool.Bool(true),
 				metrics.AttrSuccess.Bool(false),
-				metrics.AttrErrorType.String(metrics.WaitErrorCanceled)),
+				metrics.AttrErrorType.String(metrics.WaitErrorCanceled),
+				sized),
 		}
 		tests["reactivated - "+name+" during describe"] = testCase{
 			dialFn: alwaysRefused,
@@ -959,7 +986,8 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 			wantAttrs: attribute.NewSet(
 				metrics.AttrPool.Bool(true),
 				metrics.AttrSuccess.Bool(false),
-				metrics.AttrErrorType.String(metrics.WaitErrorCanceled)),
+				metrics.AttrErrorType.String(metrics.WaitErrorCanceled),
+				sized),
 		}
 	}
 

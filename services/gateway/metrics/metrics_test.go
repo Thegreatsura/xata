@@ -185,11 +185,12 @@ func TestRecordRequest(t *testing.T) {
 
 func TestRecordClusterReactivation(t *testing.T) {
 	tests := map[string]struct {
-		duration  time.Duration
-		pool      bool
-		success   bool
-		errorType string
-		want      attribute.Set
+		duration     time.Duration
+		pool         bool
+		instanceSize string
+		success      bool
+		errorType    string
+		want         attribute.Set
 	}{
 		"pooled success": {
 			duration: 3 * time.Second,
@@ -225,13 +226,29 @@ func TestRecordClusterReactivation(t *testing.T) {
 			errorType: WaitErrorDial,
 			want:      attribute.NewSet(AttrPool.Bool(true), AttrSuccess.Bool(true)),
 		},
+		"instance size labels success": {
+			duration:     2 * time.Second,
+			pool:         true,
+			instanceSize: "2/8GB",
+			success:      true,
+			want: attribute.NewSet(AttrPool.Bool(true), AttrSuccess.Bool(true),
+				AttrInstanceSize.String("2/8GB")),
+		},
+		"instance size labels failure": {
+			duration:     50 * time.Second,
+			instanceSize: "500m/1GB",
+			success:      false,
+			errorType:    WaitErrorTimeout,
+			want: attribute.NewSet(AttrPool.Bool(false), AttrSuccess.Bool(false),
+				AttrInstanceSize.String("500m/1GB"), AttrErrorType.String(WaitErrorTimeout)),
+		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			m, reader := newTestMetrics(t)
 
-			m.RecordClusterReactivation(context.Background(), tc.duration, tc.pool, tc.success, tc.errorType)
+			m.RecordClusterReactivation(context.Background(), tc.duration, tc.pool, tc.instanceSize, tc.success, tc.errorType)
 
 			metrics := collectMetrics(t, reader)
 			got := metrics["xata.gateway.cluster.reactivation_duration_seconds"]
@@ -250,6 +267,6 @@ func TestRecordClusterReactivation(t *testing.T) {
 func TestRecordClusterReactivationNilReceiver(t *testing.T) {
 	var m *GatewayMetrics
 	require.NotPanics(t, func() {
-		m.RecordClusterReactivation(context.Background(), time.Second, false, true, "")
+		m.RecordClusterReactivation(context.Background(), time.Second, false, "", true, "")
 	})
 }
