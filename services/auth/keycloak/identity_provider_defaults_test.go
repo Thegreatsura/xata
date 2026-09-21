@@ -59,3 +59,40 @@ func TestUpsertIdentityProviderBindsTheBrokerFlows(t *testing.T) {
 	require.Equal(t, FirstBrokerLoginFlow, got.FirstBrokerLoginFlowAlias)
 	require.Equal(t, PostBrokerLoginFlow, got.PostBrokerLoginFlowAlias)
 }
+
+func TestBindBrokerFlows(t *testing.T) {
+	tests := map[string]struct {
+		idp       IdentityProvider
+		wantFirst string
+		wantPost  string
+	}{
+		"binds both when unset, so a provider read back from Keycloak cannot be written out blank": {
+			idp:       IdentityProvider{Alias: "sso-acme-acme-com"},
+			wantFirst: FirstBrokerLoginFlow,
+			wantPost:  PostBrokerLoginFlow,
+		},
+		"binds the one that is missing without touching the other": {
+			idp:       IdentityProvider{Alias: "sso-acme-acme-com", FirstBrokerLoginFlowAlias: "custom"},
+			wantFirst: "custom",
+			wantPost:  PostBrokerLoginFlow,
+		},
+		"leaves a deliberate choice alone": {
+			idp: IdentityProvider{
+				Alias:                     "sso-acme-acme-com",
+				FirstBrokerLoginFlowAlias: "custom first",
+				PostBrokerLoginFlowAlias:  "custom post",
+			},
+			wantFirst: "custom first",
+			wantPost:  "custom post",
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := tt.idp.bindBrokerFlows()
+
+			require.Equal(t, tt.wantFirst, got.FirstBrokerLoginFlowAlias)
+			require.Equal(t, tt.wantPost, got.PostBrokerLoginFlowAlias)
+		})
+	}
+}

@@ -38,6 +38,19 @@ type IdentityProvider struct {
 	Config                    map[string]string `json:"config,omitempty"`
 }
 
+// bindBrokerFlows fills the flows a write must never omit. Keycloak reads a
+// blank or absent alias as "clear the binding", and omitempty makes an unset one
+// absent, so a provider read back and written out again would lose them.
+func (idp IdentityProvider) bindBrokerFlows() IdentityProvider {
+	if idp.FirstBrokerLoginFlowAlias == "" {
+		idp.FirstBrokerLoginFlowAlias = FirstBrokerLoginFlow
+	}
+	if idp.PostBrokerLoginFlowAlias == "" {
+		idp.PostBrokerLoginFlowAlias = PostBrokerLoginFlow
+	}
+	return idp
+}
+
 func (idp IdentityProvider) Issuer() string { return idp.Config["issuer"] }
 
 func (idp IdentityProvider) ClientID() string { return idp.Config["clientId"] }
@@ -188,13 +201,7 @@ func (r *restKC) ImportIdentityProviderConfig(ctx context.Context, realm, fromUR
 // UpsertIdentityProvider creates the provider, or replaces it on 409. Keycloak
 // has no upsert.
 func (r *restKC) UpsertIdentityProvider(ctx context.Context, realm string, idp IdentityProvider) error {
-	// Backfills providers created before NewIdentityProvider set the flows.
-	if idp.FirstBrokerLoginFlowAlias == "" {
-		idp.FirstBrokerLoginFlowAlias = FirstBrokerLoginFlow
-	}
-	if idp.PostBrokerLoginFlowAlias == "" {
-		idp.PostBrokerLoginFlowAlias = PostBrokerLoginFlow
-	}
+	idp = idp.bindBrokerFlows()
 
 	instancesURL, err := r.buildRealmURL(realm, "identity-provider", "instances")
 	if err != nil {
