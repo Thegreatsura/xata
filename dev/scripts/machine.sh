@@ -103,6 +103,8 @@ security_group="$(aws ec2 create-security-group \
     --tag-specifications "ResourceType=security-group,Tags=[{Key=Name,Value=$machine_name},{Key=Owner,Value=$owner}]" \
     --query GroupId \
     --output text)"
+# A failed launch would otherwise leave the security group behind.
+trap 'aws ec2 delete-security-group --region "$region" --group-id "$security_group" >/dev/null 2>&1 || true' ERR
 
 # Launch machine and bootstrap tailscale for access
 user_data="$(printf '#!/bin/bash\ncurl -fsSL https://tailscale.com/install.sh | sh\ntailscale up --ssh --hostname %q\n' "$machine_name")"
@@ -118,6 +120,7 @@ instance="$(aws ec2 run-instances \
     --query 'Instances[0].InstanceId' \
     --output text)"
 
+trap - ERR
 echo "Launched $instance as $machine_name" >&2
 
 while true; do
