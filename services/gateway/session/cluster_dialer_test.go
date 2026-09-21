@@ -847,13 +847,20 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 		},
 		Configuration: &clustersv1.ClusterConfiguration{},
 	}
-	reactivate := &clustersv1.UpdatePostgresClusterRequest{
-		Id: "test-branch",
-		UpdateConfiguration: &clustersv1.UpdateClusterConfiguration{
-			Hibernate: new(false),
-		},
+
+	// Build fresh RPC messages in each test rather than sharing across
+	// parallel subtests
+	reactivate := func() *clustersv1.UpdatePostgresClusterRequest {
+		return &clustersv1.UpdatePostgresClusterRequest{
+			Id: "test-branch",
+			UpdateConfiguration: &clustersv1.UpdateClusterConfiguration{
+				Hibernate: new(false),
+			},
+		}
 	}
-	describe := &clustersv1.DescribePostgresClusterRequest{Id: "test-branch"}
+	describe := func() *clustersv1.DescribePostgresClusterRequest {
+		return &clustersv1.DescribePostgresClusterRequest{Id: "test-branch"}
+	}
 
 	refusedThenOK := func(ctx context.Context, i uint, network, address string) (net.Conn, error) {
 		if i == 1 {
@@ -878,28 +885,29 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 		"reactivated - this connection triggered the wake": {
 			dialFn: refusedThenOK,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(hibernated, nil).Once()
-				m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
-				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(healthy, nil).Once()
+				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(hibernated, nil).Once()
+				m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
+				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(healthy, nil).Once()
 			},
 			wantAttrs: attribute.NewSet(
 				metrics.AttrPool.Bool(true),
 				metrics.AttrSuccess.Bool(true),
-				sized),
+				sized,
+			),
 		},
 		"waited - wake already in flight": {
 			dialFn: refusedThenOK,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(healthy, nil).Twice()
+				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(healthy, nil).Twice()
 			},
 			wantNoMetric: true,
 		},
 		"reactivated - timed out": {
 			dialFn: alwaysRefused,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(hibernated, nil).Once()
-				m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
-				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(healthy, nil)
+				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(hibernated, nil).Once()
+				m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
+				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(healthy, nil)
 			},
 			wantErr:   syscall.ECONNREFUSED,
 			wantAttrs: attribute.NewSet(metrics.AttrPool.Bool(true), metrics.AttrSuccess.Bool(false), metrics.AttrErrorType.String(metrics.WaitErrorTimeout), sized),
@@ -907,15 +915,16 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 		"reactivated - clusters service rpc failed": {
 			dialFn: alwaysRefused,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(hibernated, nil).Once()
-				m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(nil, errRPC).Once()
+				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(hibernated, nil).Once()
+				m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(nil, errRPC).Once()
 			},
 			wantErr: syscall.ECONNREFUSED,
 			wantAttrs: attribute.NewSet(
 				metrics.AttrPool.Bool(true),
 				metrics.AttrSuccess.Bool(false),
 				metrics.AttrErrorType.String(metrics.WaitErrorRPC),
-				sized),
+				sized,
+			),
 		},
 	}
 
@@ -929,9 +938,9 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 		tests[name] = testCase{
 			dialFn: refusedThenOK,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(cluster, nil).Once()
-				m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
-				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(healthy, nil).Once()
+				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(cluster, nil).Once()
+				m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
+				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(healthy, nil).Once()
 			},
 			wantAttrs: attribute.NewSet(attrs...),
 		}
@@ -950,9 +959,9 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 	tests["reactivated - unknown instance size"] = testCase{
 		dialFn: refusedThenOK,
 		setupMocks: func(m *protomocks.ClustersServiceClient) {
-			m.EXPECT().DescribePostgresCluster(ctx, describe).Return(unsized, nil).Once()
-			m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
-			m.EXPECT().DescribePostgresCluster(ctx, describe).Return(healthy, nil).Once()
+			m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(unsized, nil).Once()
+			m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
+			m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(healthy, nil).Once()
 		},
 		wantAttrs: attribute.NewSet(metrics.AttrPool.Bool(true), metrics.AttrSuccess.Bool(true)),
 	}
@@ -965,29 +974,31 @@ func TestClusterDialer_ReactivationMetrics(t *testing.T) {
 		tests["reactivated - "+name+" during update"] = testCase{
 			dialFn: alwaysRefused,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(hibernated, nil).Once()
-				m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(nil, err).Once()
+				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(hibernated, nil).Once()
+				m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(nil, err).Once()
 			},
 			wantErr: syscall.ECONNREFUSED,
 			wantAttrs: attribute.NewSet(
 				metrics.AttrPool.Bool(true),
 				metrics.AttrSuccess.Bool(false),
 				metrics.AttrErrorType.String(metrics.WaitErrorCanceled),
-				sized),
+				sized,
+			),
 		}
 		tests["reactivated - "+name+" during describe"] = testCase{
 			dialFn: alwaysRefused,
 			setupMocks: func(m *protomocks.ClustersServiceClient) {
-				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(hibernated, nil).Once()
-				m.EXPECT().UpdatePostgresCluster(ctx, reactivate).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
-				m.EXPECT().DescribePostgresCluster(ctx, describe).Return(nil, err).Once()
+				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(hibernated, nil).Once()
+				m.EXPECT().UpdatePostgresCluster(ctx, reactivate()).Return(&clustersv1.UpdatePostgresClusterResponse{}, nil).Once()
+				m.EXPECT().DescribePostgresCluster(ctx, describe()).Return(nil, err).Once()
 			},
 			wantErr: syscall.ECONNREFUSED,
 			wantAttrs: attribute.NewSet(
 				metrics.AttrPool.Bool(true),
 				metrics.AttrSuccess.Bool(false),
 				metrics.AttrErrorType.String(metrics.WaitErrorCanceled),
-				sized),
+				sized,
+			),
 		}
 	}
 
