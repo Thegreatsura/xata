@@ -2,6 +2,25 @@
 
 set -euo pipefail
 
+# The Mac App Store build keeps its CLI inside the app bundle and puts nothing on PATH, so people reach it through a shell alias, which a script never sees.
+if ! tailscale_bin="$(command -v tailscale)"; then
+    tailscale_bin=/Applications/Tailscale.app/Contents/MacOS/Tailscale
+    if [[ ! -x "$tailscale_bin" ]]; then
+        echo "Could not find the tailscale command, install the CLI or symlink it onto your PATH" >&2
+        exit 1
+    fi
+fi
+
+# Resolved above, so this shadows the command without recursing into itself.
+tailscale() {
+    "$tailscale_bin" "$@"
+}
+
+# Apple's sandbox rules cost the App Store and TestFlight builds the ssh subcommand, which reaching the machine goes through. Only the standalone build reports macsys, so anything else on a Mac is the sandboxed one.
+if [[ "$(uname -s)" == Darwin && "$(tailscale version --json | jq -r '.osVariant // ""')" != macsys ]]; then
+    echo "Warning: this looks like the App Store or TestFlight build of Tailscale, which has no 'tailscale ssh' and cannot reach the machine. Install the standalone build from https://pkgs.tailscale.com/stable/#macos instead." >&2
+fi
+
 mode="${1:-create}"
 instance_type="${INSTANCE_TYPE:-t4g.xlarge}"
 owner="$(tailscale whois --json "$(tailscale ip | head -n1)" | jq -r .UserProfile.LoginName)"
@@ -11,6 +30,12 @@ if [[ "$owner" != *@xata.io ]]; then
     exit 1
 fi
 region="${REGION:-eu-central-1}"
+
+# The environment hands us an SSO profile rather than keys, so an expired login only shows up on the first AWS call, as a botocore message with no hint of what to do about it. The login has to run inside the same environment, whose AWS config names a session your own may not have.
+if ! aws sts get-caller-identity --region "$region" >/dev/null 2>&1; then
+    echo "Your AWS SSO session has expired, run: pulumi env run -i xata/default/account-sandbox -- aws sso login" >&2
+    exit 1
+fi
 
 case "$mode" in
     create | start | stop | destroy) ;;
