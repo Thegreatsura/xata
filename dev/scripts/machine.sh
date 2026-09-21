@@ -5,6 +5,11 @@ set -euo pipefail
 mode="${1:-create}"
 instance_type="${INSTANCE_TYPE:-t4g.xlarge}"
 owner="$(tailscale whois --json "$(tailscale ip | head -n1)" | jq -r .UserProfile.LoginName)"
+# Machines are found by this login, so on another tailnet none is found and create launches one owned by that account.
+if [[ "$owner" != *@xata.io ]]; then
+    echo "Tailscale is signed in as $owner, switch to your xata.io account first: tailscale switch <you>@xata.io" >&2
+    exit 1
+fi
 region="${REGION:-eu-central-1}"
 
 case "$mode" in
