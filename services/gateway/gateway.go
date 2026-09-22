@@ -124,6 +124,7 @@ func (g *GatewayService) Run(ctx context.Context, o *o11y.O) error {
 		},
 		clustersv1.NewClustersServiceClient(clustersConn),
 		session.WithInstrumentation(gwMetrics),
+		session.WithTracing(tracer),
 	)
 
 	// The incoming ctx is only cancelled on a shutdown signal, unlike the

@@ -10,6 +10,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -18,6 +20,8 @@ import (
 	"xata/internal/coalesce"
 	"xata/services/gateway/metrics"
 )
+
+const instrumentationName = "xata/services/gateway/session"
 
 // ErrBranchHibernated is returned when the branch is manually hibernated
 // (scale-to-zero disabled) and cannot be auto-reactivated.
@@ -40,6 +44,7 @@ type ClusterDialer struct {
 	reactivateFn        reactivateClusterFn
 	reactivateTimeout   time.Duration
 	statusCheckInterval time.Duration
+	tracer              trace.Tracer
 
 	// statusPoll shares one status poll among every caller waiting on the
 	// same cluster, keyed by cluster ID. See waitUntilAvailable.
@@ -92,8 +97,8 @@ func NewClusterDialer(cfg ClusterDialerConfiguration, clusters clustersService, 
 		clustersService:     clusters,
 		reactivateTimeout:   cfg.ReactivateTimeout,
 		statusCheckInterval: cfg.StatusCheckInterval,
+		tracer:              noop.NewTracerProvider().Tracer(instrumentationName),
 	}
-	d.statusPoll = coalesce.New(d.waitUntilAvailable)
 
 	d.reactivateFn = func(ctx context.Context, svc clustersService, clusterID, network, address string, _ *clustersv1.DescribePostgresClusterResponse) (net.Conn, error) {
 		return d.reactivateCluster(ctx, svc, clusterID, network, address)
@@ -103,7 +108,22 @@ func NewClusterDialer(cfg ClusterDialerConfiguration, clusters clustersService, 
 		opt(d)
 	}
 
+	// statusPoll is a shared poll for every caller waiting on the same cluster.
+	// It runs waitUntilAvailable, which polls the clusters service until the
+	// cluster reports an available instance.
+	d.statusPoll = coalesce.New(
+		d.waitUntilAvailable,
+		coalesce.WithTracer(d.tracer, "cluster_status_poll"),
+	)
+
 	return d
+}
+
+// WithTracing configures the tracer used to instrument the dialer.
+func WithTracing(tracer trace.Tracer) ClusterDialerOption {
+	return func(d *ClusterDialer) {
+		d.tracer = tracer
+	}
 }
 
 func WithInstrumentation(gwMetrics *metrics.GatewayMetrics) ClusterDialerOption {
@@ -343,11 +363,14 @@ func (d *ClusterDialer) waitErr(waitCtx context.Context, clusterID string, err e
 
 // waitUntilAvailable polls the clusters service until the cluster reports an
 // available instance. It runs through d.statusPoll, so concurrent callers
-// waiting on the same cluster share one poll: ctx carries the first caller's
-// logger and trace span, is cancelled when the last caller gives up, and
-// has no deadline of its own. A Describe error ends the poll for every
-// caller.
+// waiting on the same cluster share one poll: ctx carries the poll's own
+// span and the first caller's logger, is cancelled when the last caller
+// gives up, and has no deadline of its own. A Describe error ends the poll
+// for every caller.
 func (d *ClusterDialer) waitUntilAvailable(ctx context.Context, clusterID string) (struct{}, error) {
+	// Label whichever span the poll runs under with the branch it is for
+	trace.SpanFromContext(ctx).SetAttributes(metrics.AttrBranchID.String(clusterID))
+
 	logger := log.Ctx(ctx).With().Str("cluster", clusterID).Logger()
 	waitStarted := time.Now()
 	statusInterval := d.statusCheckInterval

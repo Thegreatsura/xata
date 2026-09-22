@@ -3,11 +3,15 @@ package coalesce_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 	"testing"
 	"testing/synctest"
 
 	"github.com/stretchr/testify/require"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 
 	"xata/internal/coalesce"
 )
@@ -235,4 +239,79 @@ func TestDo_DistinctKeysDoNotCoalesce(t *testing.T) {
 		require.Equal(t, "a", valA)
 		require.Equal(t, "b", valB)
 	})
+}
+
+func TestDo_FlightSpanIsRootAndLinkedWithWaiters(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Record spans in memory. They are exported synchronously as they end
+		exporter := tracetest.NewInMemoryExporter()
+		provider := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
+		t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
+		tracer := provider.Tracer("test")
+
+		fake := &fakeFn{}
+		c := coalesce.New(fake.fn, coalesce.WithTracer(tracer, "flight"))
+
+		// Each waiter calls Do under a span of its own
+		starterCtx, starterSpan := tracer.Start(context.Background(), "starter")
+		starterCtx, cancelStarter := context.WithCancel(starterCtx)
+		defer cancelStarter()
+		joinerCtx, joinerSpan := tracer.Start(context.Background(), "joiner")
+
+		// The starter starts the flight, then the joiner joins it
+		var errStarter, errJoiner error
+		go func() { _, errStarter = c.Do(starterCtx, "k") }()
+		synctest.Wait()
+		go func() { _, errJoiner = c.Do(joinerCtx, "k") }()
+		synctest.Wait()
+		require.Len(t, fake.calls, 1, "both waiters should share one flight")
+
+		// The starter gives up while the flight is still running
+		cancelStarter()
+		synctest.Wait()
+		require.ErrorIs(t, errStarter, context.Canceled)
+		starterSpan.End()
+
+		// The flight finishes for the joiner
+		fake.calls[0].release <- result{val: "v"}
+		synctest.Wait()
+		require.NoError(t, errJoiner)
+		joinerSpan.End()
+
+		spans := exporter.GetSpans()
+		starter := spanNamed(t, spans, "starter")
+		joiner := spanNamed(t, spans, "joiner")
+		flight := spanNamed(t, spans, "flight")
+
+		// The flight is the root of its own trace, not a child of the starter
+		require.False(t, flight.Parent.IsValid(), "the flight's span should have no parent")
+		require.NotEqual(t, starter.SpanContext.TraceID(), flight.SpanContext.TraceID(),
+			"the flight should not be part of the starter's trace")
+
+		// Each waiter links to the flight, including the one that gave up
+		require.Equal(t, []trace.SpanContext{flight.SpanContext}, linkTargets(starter))
+		require.Equal(t, []trace.SpanContext{flight.SpanContext}, linkTargets(joiner))
+
+		// The flight links back to both waiters
+		require.ElementsMatch(t,
+			[]trace.SpanContext{starter.SpanContext, joiner.SpanContext},
+			linkTargets(flight))
+	})
+}
+
+// spanNamed returns the recorded span called name.
+func spanNamed(t *testing.T, spans tracetest.SpanStubs, name string) tracetest.SpanStub {
+	t.Helper()
+	i := slices.IndexFunc(spans, func(span tracetest.SpanStub) bool { return span.Name == name })
+	require.NotEqual(t, -1, i, "no span named %q was recorded", name)
+	return spans[i]
+}
+
+// linkTargets returns the span contexts that span links to.
+func linkTargets(span tracetest.SpanStub) []trace.SpanContext {
+	targets := make([]trace.SpanContext, len(span.Links))
+	for i, link := range span.Links {
+		targets[i] = link.SpanContext
+	}
+	return targets
 }
