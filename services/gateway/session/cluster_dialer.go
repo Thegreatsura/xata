@@ -18,6 +18,7 @@ import (
 
 	clustersv1 "xata/gen/proto/clusters/v1"
 	"xata/internal/coalesce"
+	"xata/internal/o11y"
 	"xata/services/gateway/metrics"
 )
 
@@ -316,7 +317,7 @@ func (d *ClusterDialer) reactivateCluster(ctx context.Context, svc clustersServi
 // component (e.g. the pooler Service) whose endpoints lag behind the cluster
 // becoming healthy. Returns the live connection on success so the caller
 // doesn't have to redial.
-func (d *ClusterDialer) waitUntilReachable(ctx context.Context, clusterID, network, address string) (net.Conn, error) {
+func (d *ClusterDialer) waitUntilReachable(ctx context.Context, clusterID, network, address string) (conn net.Conn, err error) {
 	logger := log.Ctx(ctx).With().Str("cluster", clusterID).Str("address", address).Logger()
 
 	// The reactivate timeout is the wait context's deadline so that the shared
@@ -325,16 +326,22 @@ func (d *ClusterDialer) waitUntilReachable(ctx context.Context, clusterID, netwo
 	waitCtx, cancel := context.WithTimeoutCause(ctx, d.reactivateTimeout, ErrReactivateTimeout)
 	defer cancel()
 
-	if _, err := d.statusPoll.Do(waitCtx, clusterID); err != nil {
+	if _, err = d.statusPoll.Do(waitCtx, clusterID); err != nil {
 		return nil, d.waitErr(waitCtx, clusterID, err)
 	}
+
+	// Start a span for the wait until target is reachable
+	ctx, span := d.tracer.Start(ctx, "target_reachable_wait", trace.WithAttributes(
+		metrics.AttrBranchID.String(clusterID),
+	))
+	defer o11y.CloseSpan(span, &err)
 
 	// Created before the first dial so retries keep the status-check cadence
 	// from the moment the cluster became available.
 	ticker := time.NewTicker(d.statusCheckInterval)
 	defer ticker.Stop()
 	for {
-		conn, err := d.dialer(ctx, network, address)
+		conn, err = d.dialer(ctx, network, address)
 		if err == nil {
 			return conn, nil
 		}
