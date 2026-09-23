@@ -7,9 +7,10 @@
 // as long as anyone still wants the answer.
 //
 // The operation runs under a span of its own, rooted in a new trace rather
-// than parented to whichever caller happened to start it. Every caller's
-// active span and the operation's span link to each other, so a caller that
-// only waited still records what it was waiting on, and the operation
+// than parented to whichever caller happened to start it. Each caller's wait
+// is a child span of the caller's own, bounding just the time that caller
+// spent waiting, and it and the operation's span link to each other: the
+// caller's trace shows what it waited on and for how long, and the operation
 // records who waited on it. See WithTracer.
 package coalesce
 
@@ -19,11 +20,19 @@ import (
 
 	"xata/internal/o11y"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 )
 
-const instrumentationName = "xata/internal/coalesce"
+const (
+	instrumentationName = "xata/internal/coalesce"
+	waitSpanSuffix      = "_wait"
+)
+
+// AttrStarted marks a waiter's span with whether it started the flight (true)
+// or joined one already in progress (false).
+var AttrStarted = attribute.Key("coalesce.started")
 
 // Coalescer runs fn at most once per key at any given time.
 type Coalescer[K comparable, V any] struct {
@@ -53,7 +62,9 @@ type flight[V any] struct {
 type Option func(*config)
 
 // WithTracer records each flight as a span called spanName, which should
-// describe what fn does. Without it the Coalescer traces nothing.
+// describe what fn does, and each caller's wait as a child span of the
+// caller's own, called spanName with "_join" appended. Without it the
+// Coalescer traces nothing.
 func WithTracer(tracer trace.Tracer, spanName string) Option {
 	return func(cfg *config) {
 		cfg.tracer = tracer
@@ -86,22 +97,33 @@ func New[K comparable, V any](fn func(ctx context.Context, key K) (V, error), op
 // Do returns the result of fn for key, joining an in-flight call if one
 // exists. It returns ctx.Err() if ctx is done before the result is ready.
 // Leaving does not stop fn unless this was the last waiter.
-func (c *Coalescer[K, V]) Do(ctx context.Context, key K) (V, error) {
+func (c *Coalescer[K, V]) Do(ctx context.Context, key K) (val V, err error) {
 	c.mu.Lock()
 	f, ok := c.flights[key]
-	if !ok || f.ctx.Err() != nil {
-		// No flight, or the existing one was cancelled by its last waiter
-		// and hasn't unregistered yet. Start fresh rather than join it.
+	startNew := !ok || f.ctx.Err() != nil
+
+	// No flight, or the existing one was cancelled by its last waiter and
+	// hasn't unregistered yet. Start fresh rather than join it.
+	if startNew {
 		f = c.start(ctx, key)
 	}
 	f.numWaiters++
 	c.mu.Unlock()
 
-	// Link the waiter's current span and the flight's span to each other; the
-	// flight is shared, and it outlives any one waiter. The waiter's trace
-	// then shows what it waited on, and the flight's trace shows who waited.
-	if span := trace.SpanFromContext(ctx); span.IsRecording() {
-		span.AddLink(trace.Link{SpanContext: f.span.SpanContext()})
+	// Record the wait as a span under the caller's, linked both ways with the
+	// flight's span
+	parent := trace.SpanFromContext(ctx)
+	if parent.IsRecording() {
+		_, span := c.tracer.Start(
+			ctx,
+			c.spanName+waitSpanSuffix,
+			trace.WithLinks(trace.Link{
+				SpanContext: f.span.SpanContext(),
+			}),
+			trace.WithAttributes(AttrStarted.Bool(startNew)),
+		)
+		defer o11y.CloseSpan(span, &err)
+
 		f.span.AddLink(trace.Link{SpanContext: span.SpanContext()})
 	}
 

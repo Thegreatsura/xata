@@ -7,8 +7,10 @@ import (
 	"sync"
 	"testing"
 	"testing/synctest"
+	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
@@ -272,7 +274,9 @@ func TestDo_FlightSpanIsRootAndLinkedWithWaiters(t *testing.T) {
 		require.ErrorIs(t, errStarter, context.Canceled)
 		starterSpan.End()
 
-		// The flight finishes for the joiner
+		// The flight finishes for the joiner some time later. The sleep advances
+		// the bubble's fake clock so the spans' end times are different
+		time.Sleep(time.Second)
 		fake.calls[0].release <- result{val: "v"}
 		synctest.Wait()
 		require.NoError(t, errJoiner)
@@ -288,14 +292,33 @@ func TestDo_FlightSpanIsRootAndLinkedWithWaiters(t *testing.T) {
 		require.NotEqual(t, starter.SpanContext.TraceID(), flight.SpanContext.TraceID(),
 			"the flight should not be part of the starter's trace")
 
-		// Each waiter links to the flight, including the one that gave up
-		require.Equal(t, []trace.SpanContext{flight.SpanContext}, linkTargets(starter))
-		require.Equal(t, []trace.SpanContext{flight.SpanContext}, linkTargets(joiner))
+		// Each waiter's wait is a child span of its own, in its own trace
+		starterJoin := childNamed(t, spans, "flight_wait", starter)
+		joinerJoin := childNamed(t, spans, "flight_wait", joiner)
+		require.Equal(t, starter.SpanContext.TraceID(), starterJoin.SpanContext.TraceID())
+		require.Equal(t, joiner.SpanContext.TraceID(), joinerJoin.SpanContext.TraceID())
 
-		// The flight links back to both waiters
+		// The wait span records whether the waiter started the flight
+		require.Contains(t, starterJoin.Attributes, coalesce.AttrStarted.Bool(true))
+		require.Contains(t, joinerJoin.Attributes, coalesce.AttrStarted.Bool(false))
+
+		// Each wait span links to the flight, including the one that gave up
+		require.Equal(t, []trace.SpanContext{flight.SpanContext}, linkTargets(starterJoin))
+		require.Equal(t, []trace.SpanContext{flight.SpanContext}, linkTargets(joinerJoin))
+
+		// The flight links back to both wait spans
 		require.ElementsMatch(t,
-			[]trace.SpanContext{starter.SpanContext, joiner.SpanContext},
+			[]trace.SpanContext{starterJoin.SpanContext, joinerJoin.SpanContext},
 			linkTargets(flight))
+
+		// The starter's wait ended in error when it gave up, before the flight
+		// finished; the joiner's wait ended cleanly with the flight
+		require.Equal(t, codes.Error, starterJoin.Status.Code)
+		require.True(t, starterJoin.EndTime.Before(flight.EndTime),
+			"the starter's wait should end before the flight it gave up on")
+		require.Equal(t, codes.Unset, joinerJoin.Status.Code)
+		require.False(t, joinerJoin.EndTime.Before(flight.EndTime),
+			"the joiner's wait should last until the flight finishes")
 	})
 }
 
@@ -304,6 +327,16 @@ func spanNamed(t *testing.T, spans tracetest.SpanStubs, name string) tracetest.S
 	t.Helper()
 	i := slices.IndexFunc(spans, func(span tracetest.SpanStub) bool { return span.Name == name })
 	require.NotEqual(t, -1, i, "no span named %q was recorded", name)
+	return spans[i]
+}
+
+// childNamed returns the recorded span called name whose parent is parent.
+func childNamed(t *testing.T, spans tracetest.SpanStubs, name string, parent tracetest.SpanStub) tracetest.SpanStub {
+	t.Helper()
+	i := slices.IndexFunc(spans, func(span tracetest.SpanStub) bool {
+		return span.Name == name && span.Parent.SpanID() == parent.SpanContext.SpanID()
+	})
+	require.NotEqual(t, -1, i, "no span named %q with parent %q was recorded", name, parent.Name)
 	return spans[i]
 }
 
