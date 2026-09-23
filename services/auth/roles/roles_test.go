@@ -87,6 +87,11 @@ func TestMembers(t *testing.T) {
 			holders:    map[string][]string{adminID: {testUserID, "who-left"}},
 			want:       map[string]Role{testUserID: Admin},
 		},
+		"a member in several reserved groups holds the most privileged": {
+			orgMembers: []string{testUserID, otherID},
+			holders:    map[string][]string{adminID: {testUserID}, editorID: {testUserID, otherID}, viewerID: {otherID}},
+			want:       map[string]Role{testUserID: Admin, otherID: Editor},
+		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -120,7 +125,7 @@ func TestSetMember(t *testing.T) {
 		holders    map[string][]string
 		target     string
 		role       Role
-		caller     string
+		caller     Caller
 		viewer     bool
 		expect     func(*keycloakMocks.KeyCloak)
 		wantErr    error
@@ -128,7 +133,7 @@ func TestSetMember(t *testing.T) {
 		"an Admin may change a member's role": {
 			orgMembers: []string{testUserID, otherID},
 			holders:    map[string][]string{adminID: {testUserID}},
-			target:     otherID, role: Editor, caller: testUserID,
+			target:     otherID, role: Editor, caller: Caller{UserID: testUserID},
 			expect: func(kc *keycloakMocks.KeyCloak) {
 				kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, editorID, otherID).Return(nil).Once()
 				kc.EXPECT().RemoveGroupMember(mock.Anything, apitest.TestRealm, testOrgID, adminID, otherID).Return(nil).Once()
@@ -138,13 +143,13 @@ func TestSetMember(t *testing.T) {
 		"Viewer is refused without the viewer role": {
 			orgMembers: []string{testUserID, otherID},
 			holders:    map[string][]string{adminID: {testUserID}},
-			target:     otherID, role: Viewer, caller: testUserID,
+			target:     otherID, role: Viewer, caller: Caller{UserID: testUserID},
 			wantErr: ErrRoleNotGrantable{Role: "viewer"},
 		},
 		"Viewer is granted with the viewer role": {
 			orgMembers: []string{testUserID, otherID},
 			holders:    map[string][]string{adminID: {testUserID}},
-			target:     otherID, role: Viewer, caller: testUserID, viewer: true,
+			target:     otherID, role: Viewer, caller: Caller{UserID: testUserID}, viewer: true,
 			expect: func(kc *keycloakMocks.KeyCloak) {
 				kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, viewerID, otherID).Return(nil).Once()
 				kc.EXPECT().RemoveGroupMember(mock.Anything, apitest.TestRealm, testOrgID, adminID, otherID).Return(nil).Once()
@@ -154,25 +159,41 @@ func TestSetMember(t *testing.T) {
 		"a non-Admin may not": {
 			orgMembers: []string{testUserID, otherID},
 			holders:    map[string][]string{adminID: {otherID}},
-			target:     otherID, role: Viewer, caller: testUserID,
+			target:     otherID, role: Viewer, caller: Caller{UserID: testUserID},
 			wantErr: ErrNotAdmin{},
 		},
-		"an organization API key carries no identity and is never an Admin": {
+		"a caller with no identity is not an Admin": {
 			orgMembers: []string{testUserID, otherID},
 			holders:    map[string][]string{adminID: {testUserID}},
-			target:     otherID, role: Viewer, caller: "",
+			target:     otherID, role: Viewer, caller: Caller{},
 			wantErr: ErrNotAdmin{},
+		},
+		"an organization key acts with the access an Admin has": {
+			orgMembers: []string{testUserID, otherID},
+			holders:    map[string][]string{adminID: {testUserID, otherID}},
+			target:     otherID, role: Editor, caller: Caller{OrganizationKey: true},
+			expect: func(kc *keycloakMocks.KeyCloak) {
+				kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, editorID, otherID).Return(nil).Once()
+				kc.EXPECT().RemoveGroupMember(mock.Anything, apitest.TestRealm, testOrgID, adminID, otherID).Return(nil).Once()
+				kc.EXPECT().RemoveGroupMember(mock.Anything, apitest.TestRealm, testOrgID, viewerID, otherID).Return(nil).Once()
+			},
+		},
+		"an organization key cannot demote the last Admin": {
+			orgMembers: []string{testUserID, otherID},
+			holders:    map[string][]string{adminID: {testUserID}},
+			target:     testUserID, role: Editor, caller: Caller{OrganizationKey: true},
+			wantErr: ErrLastAdmin{},
 		},
 		"the last Admin cannot be demoted": {
 			orgMembers: []string{testUserID, otherID},
 			holders:    map[string][]string{adminID: {testUserID}},
-			target:     testUserID, role: Editor, caller: testUserID,
+			target:     testUserID, role: Editor, caller: Caller{UserID: testUserID},
 			wantErr: ErrLastAdmin{},
 		},
 		"an Admin may be demoted while another remains": {
 			orgMembers: []string{testUserID, otherID},
 			holders:    map[string][]string{adminID: {testUserID, otherID}},
-			target:     otherID, role: Editor, caller: testUserID,
+			target:     otherID, role: Editor, caller: Caller{UserID: testUserID},
 			expect: func(kc *keycloakMocks.KeyCloak) {
 				kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, editorID, otherID).Return(nil).Once()
 				kc.EXPECT().RemoveGroupMember(mock.Anything, apitest.TestRealm, testOrgID, adminID, otherID).Return(nil).Once()
@@ -182,13 +203,13 @@ func TestSetMember(t *testing.T) {
 		"a user outside the organization cannot be given a role": {
 			orgMembers: []string{testUserID},
 			holders:    map[string][]string{adminID: {testUserID}},
-			target:     "stranger", role: Viewer, caller: testUserID,
+			target:     "stranger", role: Viewer, caller: Caller{UserID: testUserID},
 			wantErr: ErrUserNotOrganizationMember{UserID: "stranger"},
 		},
 		"an unknown role is refused": {
 			orgMembers: []string{testUserID, otherID},
 			holders:    map[string][]string{adminID: {testUserID}},
-			target:     otherID, role: "superuser", caller: testUserID,
+			target:     otherID, role: "superuser", caller: Caller{UserID: testUserID},
 			wantErr: ErrUnknownRole{Role: "superuser"},
 		},
 	}
@@ -276,8 +297,8 @@ func TestSetMemberKeepsAnAdmin(t *testing.T) {
 
 			errs := make([]error, 2)
 			var wg sync.WaitGroup
-			wg.Go(func() { errs[0] = s.SetMember(ctx, testOrgID, otherID, Editor, testUserID) })
-			wg.Go(func() { errs[1] = s.SetMember(ctx, testOrgID, testUserID, Editor, otherID) })
+			wg.Go(func() { errs[0] = s.SetMember(ctx, testOrgID, otherID, Editor, Caller{UserID: testUserID}) })
+			wg.Go(func() { errs[1] = s.SetMember(ctx, testOrgID, testUserID, Editor, Caller{UserID: otherID}) })
 			wg.Wait()
 
 			require.Equal(t, tt.wantAdmin, len(holders[adminID]) > 0)

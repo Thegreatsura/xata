@@ -90,10 +90,12 @@ func roleOfGroup(name string) (Role, bool) {
 type Roles interface {
 	// Members returns the role held by every member of the organization.
 	Members(ctx context.Context, organizationID string, unassigned Role) (map[string]Role, error)
+	// List returns the organization's members and the role each holds.
+	List(ctx context.Context, organizationID string, unassigned Role) ([]keycloak.OrganizationMember, map[string]Role, error)
 	// IsAdmin reports whether the user holds Admin.
 	IsAdmin(ctx context.Context, organizationID, userID string, unassigned Role) (bool, error)
 	// SetMember replaces the role of one member.
-	SetMember(ctx context.Context, organizationID, userID string, role Role, callerID string) error
+	SetMember(ctx context.Context, organizationID, userID string, role Role, caller Caller) error
 	// AddAdmins creates any missing reserved group and grants Admin to each user.
 	AddAdmins(ctx context.Context, organizationID string, userIDs ...string) error
 	// Audit reads an organization's role state without writing.
@@ -139,6 +141,13 @@ type Audit struct {
 	DuplicateRoles []Role
 	Admins         int
 	Unassigned     []string
+}
+
+// Caller is who is changing a role: a member, identified by UserID, or an organization
+// key, which holds no role of its own and acts with the access an Admin has.
+type Caller struct {
+	UserID          string
+	OrganizationKey bool
 }
 
 type holding struct {
@@ -188,20 +197,34 @@ func (s *rolesService) read(ctx context.Context, organizationID string) (snapsho
 }
 
 func (s *rolesService) Members(ctx context.Context, organizationID string, unassigned Role) (map[string]Role, error) {
+	_, byUser, err := s.List(ctx, organizationID, unassigned)
+	return byUser, err
+}
+
+func (s *rolesService) List(ctx context.Context, organizationID string, unassigned Role) ([]keycloak.OrganizationMember, map[string]Role, error) {
 	snap, err := s.read(ctx, organizationID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	byUser := make(map[string]Role, len(snap.members))
 	for _, m := range snap.members {
 		byUser[m.ID] = unassigned
 	}
+	// A member in several reserved groups holds the most privileged, as IsAdmin decides.
+	held := make(map[string]int, len(snap.members))
 	for _, h := range snap.holdings {
 		for _, id := range h.userIDs {
-			byUser[id] = h.role
+			if r, ok := held[id]; !ok || rank(h.role) < r {
+				held[id] = rank(h.role)
+				byUser[id] = h.role
+			}
 		}
 	}
-	return byUser, nil
+	return snap.members, byUser, nil
+}
+
+func rank(r Role) int {
+	return slices.IndexFunc(All, func(d Definition) bool { return d.Role == r })
 }
 
 func (s *rolesService) Audit(ctx context.Context, organizationID string) (Audit, error) {
@@ -283,7 +306,7 @@ func (s *rolesService) holds(ctx context.Context, organizationID string, groups 
 	return false, nil
 }
 
-func (s *rolesService) SetMember(ctx context.Context, organizationID, userID string, role Role, callerID string) error {
+func (s *rolesService) SetMember(ctx context.Context, organizationID, userID string, role Role, caller Caller) error {
 	if !role.Valid() {
 		return ErrUnknownRole{Role: string(role)}
 	}
@@ -294,7 +317,7 @@ func (s *rolesService) SetMember(ctx context.Context, organizationID, userID str
 	}
 
 	// Authorize first, so a caller who may not manage roles learns nothing.
-	if current[callerID] != Admin {
+	if !caller.OrganizationKey && current[caller.UserID] != Admin {
 		return ErrNotAdmin{}
 	}
 	if _, member := current[userID]; !member {
