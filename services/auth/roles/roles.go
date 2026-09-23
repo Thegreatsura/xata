@@ -63,11 +63,13 @@ func roleOfGroup(name string) (Role, bool) {
 }
 
 // Roles enforces the Xata role rules on top of Keycloak organization groups.
+//
+// The unassigned parameter is what a member in no reserved group counts as: Admin while roles are hidden.
 type Roles interface {
 	// Members returns the role held by every member of the organization.
-	Members(ctx context.Context, organizationID string) (map[string]Role, error)
+	Members(ctx context.Context, organizationID string, unassigned Role) (map[string]Role, error)
 	// IsAdmin reports whether the user holds Admin.
-	IsAdmin(ctx context.Context, organizationID, userID string) (bool, error)
+	IsAdmin(ctx context.Context, organizationID, userID string, unassigned Role) (bool, error)
 	// SetMember replaces the role of one member.
 	SetMember(ctx context.Context, organizationID, userID string, role Role, callerID string) error
 	// AddAdmins creates any missing reserved group and grants Admin to each user.
@@ -75,7 +77,7 @@ type Roles interface {
 	// Audit reads an organization's role state without writing.
 	Audit(ctx context.Context, organizationID string) (Audit, error)
 	// CheckOrganizationMemberRemovable refuses to strand an organization with no Admin.
-	CheckOrganizationMemberRemovable(ctx context.Context, organizationID, userID string) error
+	CheckOrganizationMemberRemovable(ctx context.Context, organizationID, userID string, unassigned Role) error
 	// RemoveMemberFromAllRoles clears a member's role when they leave.
 	RemoveMemberFromAllRoles(ctx context.Context, organizationID, userID string) error
 	// SetInvitation records the role an invitee receives on joining.
@@ -150,14 +152,14 @@ func (s *rolesService) read(ctx context.Context, organizationID string) (snapsho
 	return snap, nil
 }
 
-func (s *rolesService) Members(ctx context.Context, organizationID string) (map[string]Role, error) {
+func (s *rolesService) Members(ctx context.Context, organizationID string, unassigned Role) (map[string]Role, error) {
 	snap, err := s.read(ctx, organizationID)
 	if err != nil {
 		return nil, err
 	}
 	byUser := make(map[string]Role, len(snap.members))
 	for _, m := range snap.members {
-		byUser[m.ID] = Unassigned
+		byUser[m.ID] = unassigned
 	}
 	for _, h := range snap.holdings {
 		for _, id := range h.userIDs {
@@ -203,7 +205,7 @@ func (s *rolesService) Audit(ctx context.Context, organizationID string) (Audit,
 	return audit, nil
 }
 
-func (s *rolesService) IsAdmin(ctx context.Context, organizationID, userID string) (bool, error) {
+func (s *rolesService) IsAdmin(ctx context.Context, organizationID, userID string, unassigned Role) (bool, error) {
 	if userID == "" {
 		return false, nil
 	}
@@ -211,15 +213,33 @@ func (s *rolesService) IsAdmin(ctx context.Context, organizationID, userID strin
 	if err != nil {
 		return false, fmt.Errorf("list groups: %w", err)
 	}
+	admin, err := s.holds(ctx, organizationID, groups, Admin, userID)
+	if admin || err != nil || unassigned != Admin {
+		return admin, err
+	}
+	// The user counts as Admin unless a lesser reserved group holds them.
+	for _, d := range All[1:] {
+		held, err := s.holds(ctx, organizationID, groups, d.Role, userID)
+		if err != nil {
+			return false, err
+		}
+		if held {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func (s *rolesService) holds(ctx context.Context, organizationID string, groups []keycloak.Group, role Role, userID string) (bool, error) {
 	for _, g := range groups {
-		if role, ok := roleOfGroup(g.Name); !ok || role != Admin {
+		if found, ok := roleOfGroup(g.Name); !ok || found != role {
 			continue
 		}
-		admins, err := s.kcRest.ListGroupMembers(ctx, s.realm, organizationID, g.ID)
+		holders, err := s.kcRest.ListGroupMembers(ctx, s.realm, organizationID, g.ID)
 		if err != nil {
 			return false, fmt.Errorf("list role members: %w", err)
 		}
-		for _, m := range admins {
+		for _, m := range holders {
 			if m.ID == userID {
 				return true, nil
 			}
@@ -233,7 +253,7 @@ func (s *rolesService) SetMember(ctx context.Context, organizationID, userID str
 		return ErrUnknownRole{Role: string(role)}
 	}
 
-	current, err := s.Members(ctx, organizationID)
+	current, err := s.Members(ctx, organizationID, Unassigned)
 	if err != nil {
 		return err
 	}
@@ -291,8 +311,8 @@ func (s *rolesService) AddAdmins(ctx context.Context, organizationID string, use
 	return errors.Join(errs...)
 }
 
-func (s *rolesService) CheckOrganizationMemberRemovable(ctx context.Context, organizationID, userID string) error {
-	current, err := s.Members(ctx, organizationID)
+func (s *rolesService) CheckOrganizationMemberRemovable(ctx context.Context, organizationID, userID string, unassigned Role) error {
+	current, err := s.Members(ctx, organizationID, unassigned)
 	if err != nil {
 		return err
 	}
