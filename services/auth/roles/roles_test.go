@@ -1,16 +1,20 @@
 package roles
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"xata/internal/apitest"
 	"xata/services/auth/keycloak"
 	keycloakMocks "xata/services/auth/keycloak/mocks"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -178,6 +182,87 @@ func TestSetMember(t *testing.T) {
 				return
 			}
 			require.NoError(t, got)
+		})
+	}
+}
+
+// TestSetMemberKeepsAnAdmin demotes the only two Admins by each other at once. Neither request writes
+// until both have read, so both pass the last-Admin check before either changes anything.
+func TestSetMemberKeepsAnAdmin(t *testing.T) {
+	errKeycloak := errors.New("keycloak unavailable")
+	tests := map[string]struct {
+		restoreErr  error
+		wantAdmin   bool
+		wantErr     error
+		wantAlerted bool
+	}{
+		"one demotion is refused and an Admin remains": {
+			wantAdmin: true,
+			wantErr:   ErrLastAdmin{},
+		},
+		"a failed restore is logged for alerting": {
+			restoreErr:  errKeycloak,
+			wantErr:     errKeycloak,
+			wantAlerted: true,
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			var (
+				mu       sync.Mutex
+				holders  = map[string][]string{adminID: {testUserID, otherID}}
+				arrived  = 0
+				bothRead = make(chan struct{})
+				logs     bytes.Buffer
+			)
+			kc := keycloakMocks.NewKeyCloak(t)
+			kc.EXPECT().ListMembers(mock.Anything, apitest.TestRealm, testOrgID).Return(members(testUserID, otherID), nil)
+			kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(reservedGroups(), nil)
+			kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, mock.Anything).
+				RunAndReturn(func(_ context.Context, _, _, group string) ([]keycloak.OrganizationMember, error) {
+					mu.Lock()
+					defer mu.Unlock()
+					return members(holders[group]...), nil
+				})
+			kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, mock.Anything, mock.Anything).
+				RunAndReturn(func(_ context.Context, _, _, group, user string) error {
+					mu.Lock()
+					if arrived++; arrived == 2 {
+						close(bothRead)
+					}
+					mu.Unlock()
+					<-bothRead
+
+					mu.Lock()
+					defer mu.Unlock()
+					if group == adminID && tt.restoreErr != nil {
+						return tt.restoreErr
+					}
+					if !slices.Contains(holders[group], user) {
+						holders[group] = append(holders[group], user)
+					}
+					return nil
+				})
+			kc.EXPECT().RemoveGroupMember(mock.Anything, apitest.TestRealm, testOrgID, mock.Anything, mock.Anything).
+				RunAndReturn(func(_ context.Context, _, _, group, user string) error {
+					mu.Lock()
+					defer mu.Unlock()
+					holders[group] = slices.DeleteFunc(holders[group], func(held string) bool { return held == user })
+					return nil
+				}).Maybe()
+			s := NewRoles(apitest.TestRealm, kc)
+			ctx := zerolog.New(zerolog.SyncWriter(&logs)).WithContext(context.Background())
+
+			errs := make([]error, 2)
+			var wg sync.WaitGroup
+			wg.Go(func() { errs[0] = s.SetMember(ctx, testOrgID, otherID, Editor, testUserID) })
+			wg.Go(func() { errs[1] = s.SetMember(ctx, testOrgID, testUserID, Editor, otherID) })
+			wg.Wait()
+
+			require.Equal(t, tt.wantAdmin, len(holders[adminID]) > 0)
+			got := errors.Join(errs...)
+			require.ErrorIs(t, got, tt.wantErr)
+			require.Equal(t, tt.wantAlerted, strings.Contains(logs.String(), `"roles_last_admin_restore_failed":true`))
 		})
 	}
 }

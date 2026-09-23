@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"xata/services/auth/keycloak"
+
+	"github.com/rs/zerolog/log"
 )
 
 // Role is the identifier used on the wire.
@@ -291,7 +293,37 @@ func (s *rolesService) SetMember(ctx context.Context, organizationID, userID str
 			return fmt.Errorf("clear role %s: %w", other, err)
 		}
 	}
-	return nil
+	if role == Admin || current[userID] != Admin {
+		return nil
+	}
+	err = s.keepAnAdmin(ctx, organizationID, groups, userID, target)
+	if err != nil && !errors.Is(err, ErrLastAdmin{}) {
+		log.Ctx(ctx).Err(err).Str("org_id", organizationID).Bool("roles_last_admin_restore_failed", true).
+			Msgf("restore an Admin for organization [%s]", organizationID)
+	}
+	return err
+}
+
+// keepAnAdmin restores Admin to a member just demoted from it when a concurrent demotion left no Admin.
+func (s *rolesService) keepAnAdmin(ctx context.Context, organizationID string, groups []keycloak.Group, userID, demotedTo string) error {
+	after, err := s.Members(ctx, organizationID, Unassigned)
+	if err != nil {
+		return err
+	}
+	if countRole(after, Admin) > 0 {
+		return nil
+	}
+	admin, err := s.groupFor(ctx, organizationID, groups, Admin)
+	if err != nil {
+		return err
+	}
+	if err := s.kcRest.AddGroupMember(ctx, s.realm, organizationID, admin, userID); err != nil {
+		return fmt.Errorf("restore role %s: %w", Admin, err)
+	}
+	if err := s.kcRest.RemoveGroupMember(ctx, s.realm, organizationID, demotedTo, userID); err != nil {
+		return fmt.Errorf("undo role change: %w", err)
+	}
+	return ErrLastAdmin{}
 }
 
 func (s *rolesService) AddAdmins(ctx context.Context, organizationID string, userIDs ...string) error {
