@@ -134,7 +134,6 @@ func (e OrganizationMarketplaceProvider) Valid() bool {
 const (
 	Admin  OrganizationRoleName = "admin"
 	Editor OrganizationRoleName = "editor"
-	Viewer OrganizationRoleName = "viewer"
 )
 
 // Valid indicates whether the value is a known member of the OrganizationRoleName enum.
@@ -143,8 +142,6 @@ func (e OrganizationRoleName) Valid() bool {
 	case Admin:
 		return true
 	case Editor:
-		return true
-	case Viewer:
 		return true
 	default:
 		return false

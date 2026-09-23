@@ -62,6 +62,11 @@ var (
 		Name:           "organizationRoles",
 		DefaultEnabled: false,
 	}
+	// OrganizationViewerRole lets Viewer be granted and reported; without it a Viewer is reported as Editor.
+	OrganizationViewerRole = openfeature.FeatureFlag{
+		Name:           "organizationViewerRole",
+		DefaultEnabled: false,
+	}
 
 	// EnterpriseSSO gates per-organization federated single sign-on.
 	EnterpriseSSO = openfeature.FeatureFlag{

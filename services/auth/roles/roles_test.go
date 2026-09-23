@@ -45,7 +45,7 @@ func members(ids ...string) []keycloak.OrganizationMember {
 }
 
 // holders maps a reserved group id to the members Keycloak reports for it.
-func newService(t *testing.T, orgMembers []string, holders map[string][]string, extra func(*keycloakMocks.KeyCloak)) Roles {
+func newService(t *testing.T, orgMembers []string, holders map[string][]string, extra func(*keycloakMocks.KeyCloak), opts ...Option) Roles {
 	t.Helper()
 	kc := keycloakMocks.NewKeyCloak(t)
 	kc.EXPECT().ListMembers(mock.Anything, apitest.TestRealm, testOrgID).
@@ -59,7 +59,11 @@ func newService(t *testing.T, orgMembers []string, holders map[string][]string, 
 	if extra != nil {
 		extra(kc)
 	}
-	return NewRoles(apitest.TestRealm, kc)
+	return NewRoles(apitest.TestRealm, kc, opts...)
+}
+
+func viewerGrantable(enabled bool) Option {
+	return WithViewer(func(context.Context) bool { return enabled })
 }
 
 func TestMembers(t *testing.T) {
@@ -117,13 +121,30 @@ func TestSetMember(t *testing.T) {
 		target     string
 		role       Role
 		caller     string
+		viewer     bool
 		expect     func(*keycloakMocks.KeyCloak)
 		wantErr    error
 	}{
 		"an Admin may change a member's role": {
 			orgMembers: []string{testUserID, otherID},
 			holders:    map[string][]string{adminID: {testUserID}},
+			target:     otherID, role: Editor, caller: testUserID,
+			expect: func(kc *keycloakMocks.KeyCloak) {
+				kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, editorID, otherID).Return(nil).Once()
+				kc.EXPECT().RemoveGroupMember(mock.Anything, apitest.TestRealm, testOrgID, adminID, otherID).Return(nil).Once()
+				kc.EXPECT().RemoveGroupMember(mock.Anything, apitest.TestRealm, testOrgID, viewerID, otherID).Return(nil).Once()
+			},
+		},
+		"Viewer is refused without the viewer role": {
+			orgMembers: []string{testUserID, otherID},
+			holders:    map[string][]string{adminID: {testUserID}},
 			target:     otherID, role: Viewer, caller: testUserID,
+			wantErr: ErrRoleNotGrantable{Role: "viewer"},
+		},
+		"Viewer is granted with the viewer role": {
+			orgMembers: []string{testUserID, otherID},
+			holders:    map[string][]string{adminID: {testUserID}},
+			target:     otherID, role: Viewer, caller: testUserID, viewer: true,
 			expect: func(kc *keycloakMocks.KeyCloak) {
 				kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, viewerID, otherID).Return(nil).Once()
 				kc.EXPECT().RemoveGroupMember(mock.Anything, apitest.TestRealm, testOrgID, adminID, otherID).Return(nil).Once()
@@ -173,7 +194,7 @@ func TestSetMember(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			s := newService(t, tt.orgMembers, tt.holders, tt.expect)
+			s := newService(t, tt.orgMembers, tt.holders, tt.expect, viewerGrantable(tt.viewer))
 
 			got := s.SetMember(context.Background(), testOrgID, tt.target, tt.role, tt.caller)
 
@@ -525,12 +546,49 @@ func expectInvitationsUpdate(t *testing.T, kc *keycloakMocks.KeyCloak, current, 
 		}).Once()
 }
 
+func TestOffered(t *testing.T) {
+	tests := map[string]struct {
+		viewer bool
+		want   []Role
+	}{
+		"without the viewer role": {want: []Role{Admin, Editor}},
+		"with the viewer role":    {viewer: true, want: []Role{Admin, Editor, Viewer}},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			var got []Role
+			for _, d := range Offered(tt.viewer) {
+				got = append(got, d.Role)
+			}
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestReported(t *testing.T) {
+	tests := map[string]struct {
+		role   Role
+		viewer bool
+		want   Role
+	}{
+		"a Viewer is reported as Editor without the viewer role": {role: Viewer, want: Editor},
+		"a Viewer is reported as Viewer with the viewer role":    {role: Viewer, viewer: true, want: Viewer},
+		"other roles are reported as held":                       {role: Admin, want: Admin},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			require.Equal(t, tt.want, tt.role.Reported(tt.viewer))
+		})
+	}
+}
+
 func TestSetInvitation(t *testing.T) {
 	errKeycloak := errors.New("keycloak unavailable")
 	tests := map[string]struct {
 		groups  []keycloak.Group
 		email   string
 		role    Role
+		viewer  bool
 		current []string
 		want    []string
 		expect  func(*keycloakMocks.KeyCloak)
@@ -545,9 +603,21 @@ func TestSetInvitation(t *testing.T) {
 		"replaces the entry already recorded for the address": {
 			groups:  reservedGroups(),
 			email:   "invitee@example.com",
-			role:    Viewer,
+			role:    Editor,
 			current: []string{"other@example.com=admin", "INVITEE@example.com=admin"},
-			want:    []string{"other@example.com=admin", "invitee@example.com=viewer"},
+			want:    []string{"other@example.com=admin", "invitee@example.com=editor"},
+		},
+		"Viewer is refused without the viewer role": {
+			email:   "invitee@example.com",
+			role:    Viewer,
+			wantErr: ErrRoleNotGrantable{Role: "viewer"},
+		},
+		"Viewer is recorded with the viewer role": {
+			groups: reservedGroups(),
+			email:  "invitee@example.com",
+			role:   Viewer,
+			viewer: true,
+			want:   []string{"invitee@example.com=viewer"},
 		},
 		"creates the missing reserved groups first": {
 			email: "invitee@example.com",
@@ -591,7 +661,7 @@ func TestSetInvitation(t *testing.T) {
 				tt.expect(kc)
 			}
 
-			got := NewRoles(apitest.TestRealm, kc).SetInvitation(context.Background(), testOrgID, tt.email, tt.role)
+			got := NewRoles(apitest.TestRealm, kc, viewerGrantable(tt.viewer)).SetInvitation(context.Background(), testOrgID, tt.email, tt.role)
 
 			if tt.wantErr != nil {
 				require.ErrorIs(t, got, tt.wantErr)

@@ -28,6 +28,9 @@ func CheckInvitation(email string, role Role) error {
 }
 
 func (s *rolesService) SetInvitation(ctx context.Context, organizationID, email string, role Role) error {
+	if err := CheckGrantable(role, s.viewer(ctx)); err != nil {
+		return err
+	}
 	if err := CheckInvitation(email, role); err != nil {
 		return err
 	}

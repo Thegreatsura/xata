@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"xata/services/auth/keycloak"
@@ -23,9 +24,9 @@ const (
 )
 
 // Unassigned is what a member holds until a role is granted them. It is the least
-// of the roles on purpose: a membership the backfill missed, or one created while
-// nothing was watching, costs its holder access rather than handing it to them.
-const Unassigned = Viewer
+// of the offered roles on purpose: a membership the backfill missed, or one created
+// while nothing was watching, costs its holder access rather than handing it to them.
+const Unassigned = Editor
 
 // Definition describes a role for the API.
 type Definition struct {
@@ -52,6 +53,25 @@ func (r Role) groupName() string {
 
 func (r Role) Valid() bool {
 	return r.groupName() != ""
+}
+
+// Grantable reports whether the role can be granted. Viewer keeps its reserved group
+// but is granted only where the viewer role is enabled.
+func (r Role) Grantable(viewer bool) bool {
+	return r.Valid() && (viewer || r != Viewer)
+}
+
+// Reported is the role shown for a holder of r: without the viewer role, a Viewer can do what an Editor can.
+func (r Role) Reported(viewer bool) Role {
+	if r == Viewer && !viewer {
+		return Editor
+	}
+	return r
+}
+
+// Offered lists the grantable roles, from most to least privileged.
+func Offered(viewer bool) []Definition {
+	return slices.DeleteFunc(slices.Clone(All), func(d Definition) bool { return !d.Role.Grantable(viewer) })
 }
 
 // Case-insensitive, so a group differing only in case cannot shadow a reserved one.
@@ -93,10 +113,23 @@ type Roles interface {
 type rolesService struct {
 	realm  string
 	kcRest keycloak.KeyCloak
+	viewer func(context.Context) bool
 }
 
-func NewRoles(realm string, kcRest keycloak.KeyCloak) Roles {
-	return &rolesService{realm: realm, kcRest: kcRest}
+// Option configures the service NewRoles returns.
+type Option func(*rolesService)
+
+// WithViewer decides per request whether Viewer may be granted; without it Viewer never is.
+func WithViewer(enabled func(context.Context) bool) Option {
+	return func(s *rolesService) { s.viewer = enabled }
+}
+
+func NewRoles(realm string, kcRest keycloak.KeyCloak, opts ...Option) Roles {
+	s := &rolesService{realm: realm, kcRest: kcRest, viewer: func(context.Context) bool { return false }}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // Audit describes an organization's reserved groups and who holds them.
@@ -267,6 +300,9 @@ func (s *rolesService) SetMember(ctx context.Context, organizationID, userID str
 	if _, member := current[userID]; !member {
 		return ErrUserNotOrganizationMember{UserID: userID}
 	}
+	if !role.Grantable(s.viewer(ctx)) {
+		return ErrRoleNotGrantable{Role: string(role)}
+	}
 	if role != Admin && current[userID] == Admin && countRole(current, Admin) <= 1 {
 		return ErrLastAdmin{}
 	}
@@ -428,4 +464,15 @@ func countRole(byUser map[string]Role, role Role) int {
 		}
 	}
 	return n
+}
+
+// CheckGrantable refuses a role that is unknown or not granted yet.
+func CheckGrantable(role Role, viewer bool) error {
+	if !role.Valid() {
+		return ErrUnknownRole{Role: string(role)}
+	}
+	if !role.Grantable(viewer) {
+		return ErrRoleNotGrantable{Role: string(role)}
+	}
+	return nil
 }

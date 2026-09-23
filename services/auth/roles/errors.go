@@ -17,6 +17,18 @@ func (e ErrUnknownRole) StatusCode() int {
 	return http.StatusBadRequest
 }
 
+type ErrRoleNotGrantable struct {
+	Role string
+}
+
+func (e ErrRoleNotGrantable) Error() string {
+	return fmt.Sprintf("the %q role is not available yet", e.Role)
+}
+
+func (e ErrRoleNotGrantable) StatusCode() int {
+	return http.StatusBadRequest
+}
+
 type ErrEmailTooLong struct{}
 
 func (e ErrEmailTooLong) Error() string {
