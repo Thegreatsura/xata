@@ -1754,6 +1754,7 @@ paths:
                           enum:
                             - aws
                             - gcp
+                            - azure
                             - custom
                         organizationId:
                           description: Organization that owns this region, if set the region is only available to this organization

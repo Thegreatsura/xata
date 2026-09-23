@@ -2702,6 +2702,7 @@
                             "enum": [
                               "aws",
                               "gcp",
+                              "azure",
                               "custom"
                             ]
                           },
