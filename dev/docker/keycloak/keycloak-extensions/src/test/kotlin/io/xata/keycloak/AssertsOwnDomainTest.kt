@@ -27,8 +27,10 @@ class AssertsOwnDomainTest {
     private fun bound(
         alias: String,
         domain: String?,
+        organizationId: String? = null,
     ) = IdentityProviderModel().apply {
         this.alias = alias
+        this.organizationId = organizationId
         config =
             mutableMapOf<String, String>().also {
                 if (domain != null) it[OrganizationModel.ORGANIZATION_DOMAIN_ATTRIBUTE] = domain
@@ -64,6 +66,13 @@ class AssertsOwnDomainTest {
         // github and google are bound to no domain and are not this check's business.
         val got = session(bound("google", null))
         assertTrue(DomainSso.assertsOwnDomain(got, "google", "anyone@anywhere.example"))
+    }
+
+    @Test
+    fun `refuses an organization provider whose domain was taken away`() {
+        val got = session(bound("sso-acme-acme-com", null, organizationId = "acme"))
+        assertFalse(DomainSso.assertsOwnDomain(got, "sso-acme-acme-com", "someone@acme.com"))
+        assertFalse(DomainSso.assertsOwnDomain(got, "sso-acme-acme-com", "victim@other.example"))
     }
 
     @Test

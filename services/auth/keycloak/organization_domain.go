@@ -132,8 +132,8 @@ func (r *restKC) SetSSOPendingDomains(ctx context.Context, realm, organizationID
 	return nil
 }
 
-// ListSSOOrganizations returns every organization holding a verified domain.
-// There is no server-side filter for that, so it walks the realm.
+// ListSSOOrganizations returns every organization holding a domain, verified or
+// revoked. There is no server-side filter for that, so it walks the realm.
 // briefRepresentation=false is required, not merely nicer: the brief form
 // carries domains but drops attributes, and the recheck needs both.
 func (r *restKC) ListSSOOrganizations(ctx context.Context, realm string) ([]SSOOrganization, error) {
@@ -170,7 +170,7 @@ func (r *restKC) ListSSOOrganizations(ctx context.Context, realm string) ([]SSOO
 			if _, deleted := FirstAttr(org.Attributes, OrganizationDeletedAtKey); deleted {
 				continue
 			}
-			if !hasVerifiedDomain(org.Domains) {
+			if len(org.Domains) == 0 {
 				continue
 			}
 			missingSince, _ := FirstAttr(org.Attributes, OrganizationSSODomainsMissingSinceKey)
@@ -185,13 +185,4 @@ func (r *restKC) ListSSOOrganizations(ctx context.Context, realm string) ([]SSOO
 	}
 
 	return result, nil
-}
-
-func hasVerifiedDomain(domains []Domain) bool {
-	for _, d := range domains {
-		if d.Verified {
-			return true
-		}
-	}
-	return false
 }

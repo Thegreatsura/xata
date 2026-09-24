@@ -76,7 +76,8 @@ object DomainSso {
     /**
      * Whether [alias] is entitled to assert [email]. Keycloak's trustEmail does not check this and
      * first broker login links on the result, so without it one organization's provider could
-     * claim another's account. A provider bound to no domain is shared and not covered.
+     * claim another's account. A provider linked to no organization is shared and not covered; one
+     * linked to an organization but bound to no domain asserts nothing.
      */
     fun assertsOwnDomain(
         session: KeycloakSession,
@@ -85,7 +86,7 @@ object DomainSso {
     ): Boolean {
         if (alias == null) return true
         val idp = session.identityProviders().getByAlias(alias) ?: return true
-        val bound = idp.config[OrganizationModel.ORGANIZATION_DOMAIN_ATTRIBUTE] ?: return true
+        val bound = idp.config[OrganizationModel.ORGANIZATION_DOMAIN_ATTRIBUTE] ?: return idp.organizationId == null
 
         val domain = Organizations.getEmailDomain(email)?.lowercase() ?: return false
         if (bound != ANY_DOMAIN) return Organizations.isSameDomain(domain, bound)

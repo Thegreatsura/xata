@@ -1428,7 +1428,7 @@
       "put": {
         "operationId": "updateOrganizationSSOProvider",
         "summary": "Update an identity provider's credentials",
-        "description": "Replaces the provider's credentials, and for `oidc` re-discovers its endpoints from the issuer. The domain it\nserves and whether it is enforced are carried across unchanged, so rotating a client secret does not quietly\nturn enforcement off.\n",
+        "description": "Replaces the provider's credentials, and for `oidc` re-discovers its endpoints from the issuer. The domain it\nserves and whether it is enforced are carried across unchanged, so rotating a client secret does not quietly\nturn enforcement off. A provider whose domain stopped being verified is refused until the domain verifies again.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -1460,6 +1460,9 @@
             "$ref": "#/components/responses/AuthError"
           },
           "404": {
+            "$ref": "#/components/responses/SimpleError"
+          },
+          "409": {
             "$ref": "#/components/responses/SimpleError"
           },
           "5XX": {

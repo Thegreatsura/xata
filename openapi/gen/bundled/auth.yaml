@@ -859,7 +859,7 @@ paths:
       description: |
         Replaces the provider's credentials, and for `oidc` re-discovers its endpoints from the issuer. The domain it
         serves and whether it is enforced are carried across unchanged, so rotating a client secret does not quietly
-        turn enforcement off.
+        turn enforcement off. A provider whose domain stopped being verified is refused until the domain verifies again.
       requestBody:
         required: true
         content:
@@ -880,6 +880,8 @@ paths:
         '403':
           $ref: '#/components/responses/AuthError'
         '404':
+          $ref: '#/components/responses/SimpleError'
+        '409':
           $ref: '#/components/responses/SimpleError'
         5XX:
           description: Unexpected Error
