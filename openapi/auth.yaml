@@ -657,8 +657,7 @@ paths:
       description: |
         Lists the organization's identity providers and the email domains claimed for them. An organization signs in
         through one provider per verified domain, so both are collections. Client secrets are write-only and are never
-        returned. An organization that has not set anything up yet responds 200 with empty lists, so 404 means only
-        that the feature is unavailable.
+        returned. An organization that has not set anything up yet responds 200 with empty lists.
       responses:
         '200':
           description: SSO configuration for the organization
@@ -669,9 +668,11 @@ paths:
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/SimpleError'
+          description: 'Single sign-on is not enabled for the organization, or the caller is not an Admin'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         5XX:
           description: Unexpected Error
       security:
@@ -679,8 +680,6 @@ paths:
             - 'org:read'
       tags:
         - Organizations
-      x-excluded: true
-      x-internal: true
       x-operation-kind: read
   '/organizations/{organizationID}/sso/domains':
     parameters:
@@ -711,11 +710,17 @@ paths:
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/SimpleError'
+          description: 'Single sign-on is not enabled for the organization, or the caller is not an Admin'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         '409':
-          $ref: '#/components/responses/SimpleError'
+          description: The domain is already registered to another organization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         5XX:
           description: Unexpected Error
       security:
@@ -723,8 +728,6 @@ paths:
             - 'org:write'
       tags:
         - Organizations
-      x-excluded: true
-      x-internal: true
       x-operation-kind: write
   '/organizations/{organizationID}/sso/domains/{domain}':
     parameters:
@@ -743,11 +746,17 @@ paths:
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/SimpleError'
+          description: 'Single sign-on is not enabled for the organization, or the caller is not an Admin'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         '409':
-          $ref: '#/components/responses/SimpleError'
+          description: An identity provider is still connected to the domain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         5XX:
           description: Unexpected Error
       security:
@@ -755,8 +764,6 @@ paths:
             - 'org:write'
       tags:
         - Organizations
-      x-excluded: true
-      x-internal: true
       x-operation-kind: destructive
   '/organizations/{organizationID}/sso/domains/{domain}/verify':
     parameters:
@@ -779,11 +786,23 @@ paths:
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
-          $ref: '#/components/responses/AuthError'
+          description: 'Single sign-on is not enabled for the organization, or the caller is not an Admin'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         '404':
-          $ref: '#/components/responses/SimpleError'
+          description: The organization has not claimed the domain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         '409':
-          $ref: '#/components/responses/SimpleError'
+          description: Another organization verified the domain first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         5XX:
           description: Unexpected Error
       security:
@@ -791,8 +810,6 @@ paths:
             - 'org:write'
       tags:
         - Organizations
-      x-excluded: true
-      x-internal: true
       x-operation-kind: write
   '/organizations/{organizationID}/sso/providers':
     parameters:
@@ -823,11 +840,17 @@ paths:
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
-          $ref: '#/components/responses/AuthError'
-        '404':
-          $ref: '#/components/responses/SimpleError'
+          description: 'Single sign-on is not enabled for the organization, or the caller is not an Admin'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         '409':
-          $ref: '#/components/responses/SimpleError'
+          description: 'The domain is not verified, or already has an identity provider'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         5XX:
           description: Unexpected Error
       security:
@@ -835,8 +858,6 @@ paths:
             - 'org:write'
       tags:
         - Organizations
-      x-excluded: true
-      x-internal: true
       x-operation-kind: write
   '/organizations/{organizationID}/sso/providers/{providerAlias}':
     parameters:
@@ -867,11 +888,23 @@ paths:
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
-          $ref: '#/components/responses/AuthError'
+          description: 'Single sign-on is not enabled for the organization, or the caller is not an Admin'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         '404':
-          $ref: '#/components/responses/SimpleError'
+          description: The identity provider does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         '409':
-          $ref: '#/components/responses/SimpleError'
+          description: The identity provider has no verified domain; verify the domain again first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         5XX:
           description: Unexpected Error
       security:
@@ -879,8 +912,6 @@ paths:
             - 'org:write'
       tags:
         - Organizations
-      x-excluded: true
-      x-internal: true
       x-operation-kind: write
     delete:
       operationId: deleteOrganizationSSOProvider
@@ -894,7 +925,11 @@ paths:
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
-          $ref: '#/components/responses/AuthError'
+          description: 'Single sign-on is not enabled for the organization, or the caller is not an Admin'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         5XX:
           description: Unexpected Error
       security:
@@ -902,8 +937,6 @@ paths:
             - 'org:write'
       tags:
         - Organizations
-      x-excluded: true
-      x-internal: true
       x-operation-kind: destructive
   '/organizations/{organizationID}/sso/providers/{providerAlias}/enforcement':
     parameters:
@@ -931,11 +964,23 @@ paths:
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
-          $ref: '#/components/responses/AuthError'
+          description: 'Single sign-on is not enabled for the organization, or the caller is not an Admin'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         '404':
-          $ref: '#/components/responses/SimpleError'
+          description: The identity provider does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         '409':
-          $ref: '#/components/responses/SimpleError'
+          description: The domain of the identity provider is not verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
         5XX:
           description: Unexpected Error
       security:
@@ -943,8 +988,6 @@ paths:
             - 'org:write'
       tags:
         - Organizations
-      x-excluded: true
-      x-internal: true
       x-operation-kind: write
   '/organizations/{organizationID}/billing/checkout-session':
     parameters:
@@ -1319,6 +1362,18 @@ components:
         $ref: '#/components/schemas/UserID'
       description: Unique identifier for a specific user account
   schemas:
+    AuthErrorResponse:
+      description: Error response
+      type: object
+      properties:
+        id:
+          description: Error identifier for tracking and debugging
+          type: string
+        message:
+          description: Human-readable error message explaining the issue
+          type: string
+      required:
+        - message
     User:
       description: 'User information including email, full name, and profile image'
       type: object

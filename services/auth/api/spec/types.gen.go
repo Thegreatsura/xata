@@ -276,6 +276,15 @@ type APIKeyPreview struct {
 	Scopes   []string `json:"scopes"`
 }
 
+// AuthErrorResponse Error response
+type AuthErrorResponse struct {
+	// Id Error identifier for tracking and debugging
+	Id *string `json:"id,omitempty"`
+
+	// Message Human-readable error message explaining the issue
+	Message string `json:"message"`
+}
+
 // BillingCheckoutSessionResponse defines model for BillingCheckoutSessionResponse.
 type BillingCheckoutSessionResponse struct {
 	// Url Stripe checkout session URL
