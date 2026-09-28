@@ -306,23 +306,23 @@ func TestObjectStoreSpec(t *testing.T) {
 			},
 		},
 		{
-			name:             "local mode with MinIO - bucket C",
+			name:             "local mode with RustFS - bucket C",
 			cloudProvider:    "aws",
 			backupsBucket:    "s3://dev-bucket/backups",
-			backupsEndpoint:  "http://minio.local:9000",
+			backupsEndpoint:  "http://rustfs.local:9000",
 			regionSecretName: "barman-dummy-secret",
 			regionSecretKey:  "dummy",
 			retention:        "7d",
 			credentials: resources.BackupCredentials{
-				SecretName:         "minio-eu",
-				AccessKeyIDKey:     "rootUser",
-				SecretAccessKeyKey: "rootPassword",
+				SecretName:         "rustfs-eu",
+				AccessKeyIDKey:     "accessKey",
+				SecretAccessKeyKey: "secretKey",
 			},
 			want: barmanPluginApi.ObjectStoreSpec{
 				RetentionPolicy: "7d",
 				Configuration: apiv1.BarmanObjectStoreConfiguration{
 					DestinationPath: "s3://dev-bucket/backups",
-					EndpointURL:     "http://minio.local:9000",
+					EndpointURL:     "http://rustfs.local:9000",
 					BarmanCredentials: apiv1.BarmanCredentials{
 						AWS: &apiv1.S3Credentials{
 							RegionReference: &apiv1.SecretKeySelector{
@@ -330,12 +330,12 @@ func TestObjectStoreSpec(t *testing.T) {
 								Key:  "dummy",
 							},
 							AccessKeyIDReference: &apiv1.SecretKeySelector{
-								Name: "minio-eu",
-								Key:  "rootUser",
+								Name: "rustfs-eu",
+								Key:  "accessKey",
 							},
 							SecretAccessKeyReference: &apiv1.SecretKeySelector{
-								Name: "minio-eu",
-								Key:  "rootPassword",
+								Name: "rustfs-eu",
+								Key:  "secretKey",
 							},
 							InheritFromIAMRole: false,
 						},
@@ -364,23 +364,23 @@ func TestObjectStoreSpec(t *testing.T) {
 			},
 		},
 		{
-			name:             "local mode with MinIO - bucket D",
+			name:             "local mode with RustFS - bucket D",
 			cloudProvider:    "aws",
 			backupsBucket:    "s3://test-bucket/test/path",
-			backupsEndpoint:  "http://minio-test.cluster.local:9000",
+			backupsEndpoint:  "http://rustfs-test.cluster.local:9000",
 			regionSecretName: "barman-dummy-secret",
 			regionSecretKey:  "dummy",
 			retention:        "14d",
 			credentials: resources.BackupCredentials{
-				SecretName:         "minio-eu",
-				AccessKeyIDKey:     "rootUser",
-				SecretAccessKeyKey: "rootPassword",
+				SecretName:         "rustfs-eu",
+				AccessKeyIDKey:     "accessKey",
+				SecretAccessKeyKey: "secretKey",
 			},
 			want: barmanPluginApi.ObjectStoreSpec{
 				RetentionPolicy: "14d",
 				Configuration: apiv1.BarmanObjectStoreConfiguration{
 					DestinationPath: "s3://test-bucket/test/path",
-					EndpointURL:     "http://minio-test.cluster.local:9000",
+					EndpointURL:     "http://rustfs-test.cluster.local:9000",
 					BarmanCredentials: apiv1.BarmanCredentials{
 						AWS: &apiv1.S3Credentials{
 							RegionReference: &apiv1.SecretKeySelector{
@@ -388,12 +388,12 @@ func TestObjectStoreSpec(t *testing.T) {
 								Key:  "dummy",
 							},
 							AccessKeyIDReference: &apiv1.SecretKeySelector{
-								Name: "minio-eu",
-								Key:  "rootUser",
+								Name: "rustfs-eu",
+								Key:  "accessKey",
 							},
 							SecretAccessKeyReference: &apiv1.SecretKeySelector{
-								Name: "minio-eu",
-								Key:  "rootPassword",
+								Name: "rustfs-eu",
+								Key:  "secretKey",
 							},
 							InheritFromIAMRole: false,
 						},
@@ -422,7 +422,7 @@ func TestObjectStoreSpec(t *testing.T) {
 			},
 		},
 		{
-			// Custom (non-MinIO) credentials secret: guards against the
+			// Custom (non-RustFS) credentials secret: guards against the
 			// credentials being re-hardcoded. Sample values only.
 			name:             "S3-compatible endpoint with custom credentials secret",
 			backupsBucket:    "s3://example-backups",
@@ -537,20 +537,20 @@ func TestObjectStoreSpec(t *testing.T) {
 			name:             "S3-compatible endpoint override wins when cloud=gcp",
 			cloudProvider:    "gcp",
 			backupsBucket:    "s3://dev-bucket/backups",
-			backupsEndpoint:  "http://minio.local:9000",
+			backupsEndpoint:  "http://rustfs.local:9000",
 			regionSecretName: "barman-dummy-secret",
 			regionSecretKey:  "dummy",
 			retention:        "7d",
 			credentials: resources.BackupCredentials{
-				SecretName:         "minio-eu",
-				AccessKeyIDKey:     "rootUser",
-				SecretAccessKeyKey: "rootPassword",
+				SecretName:         "rustfs-eu",
+				AccessKeyIDKey:     "accessKey",
+				SecretAccessKeyKey: "secretKey",
 			},
 			want: barmanPluginApi.ObjectStoreSpec{
 				RetentionPolicy: "7d",
 				Configuration: apiv1.BarmanObjectStoreConfiguration{
 					DestinationPath: "s3://dev-bucket/backups",
-					EndpointURL:     "http://minio.local:9000",
+					EndpointURL:     "http://rustfs.local:9000",
 					BarmanCredentials: apiv1.BarmanCredentials{
 						AWS: &apiv1.S3Credentials{
 							InheritFromIAMRole: false,
@@ -559,12 +559,12 @@ func TestObjectStoreSpec(t *testing.T) {
 								Key:  "dummy",
 							},
 							AccessKeyIDReference: &apiv1.SecretKeySelector{
-								Name: "minio-eu",
-								Key:  "rootUser",
+								Name: "rustfs-eu",
+								Key:  "accessKey",
 							},
 							SecretAccessKeyReference: &apiv1.SecretKeySelector{
-								Name: "minio-eu",
-								Key:  "rootPassword",
+								Name: "rustfs-eu",
+								Key:  "secretKey",
 							},
 						},
 					},

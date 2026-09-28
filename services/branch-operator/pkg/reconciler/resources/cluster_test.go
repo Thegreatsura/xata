@@ -488,7 +488,7 @@ func TestClusterSpec(t *testing.T) {
 					WithTarget(apiv1.BackupTargetStandby)),
 		},
 		{
-			name: "pgbackrest backup with minio endpoint",
+			name: "pgbackrest backup with rustfs endpoint",
 			cfgModifier: func(cfg *resources.ClusterConfig) {
 				cfg.BackupsAWSRoleARN = "arn:aws:iam::123456789012:role/cell-1-cnpg-backups"
 				cfg.BackupSpec = &v1alpha1.BackupSpec{
@@ -496,7 +496,7 @@ func TestClusterSpec(t *testing.T) {
 					PgBackRest: &v1alpha1.PgBackRestSpec{
 						Bucket:              "test-bucket",
 						Region:              "us-east-1",
-						Endpoint:            "http://minio.local:9000",
+						Endpoint:            "http://rustfs.local:9000",
 						InheritFromIAMRole:  true,
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
@@ -520,15 +520,15 @@ func TestClusterSpec(t *testing.T) {
 							WithS3(apiv1ac.PgBackRestS3().
 								WithBucket("test-bucket").
 								WithRegion("us-east-1").
-								WithEndpoint("http://minio.local:9000").
+								WithEndpoint("http://rustfs.local:9000").
 								WithInheritFromIAMRole(false).
 								WithAccessKeyID(machineryapi.SecretKeySelector{
-									Name: "minio-eu",
-									Key:  "rootUser",
+									Name: "rustfs-eu",
+									Key:  "accessKey",
 								}).
 								WithSecretAccessKey(machineryapi.SecretKeySelector{
-									Name: "minio-eu",
-									Key:  "rootPassword",
+									Name: "rustfs-eu",
+									Key:  "secretKey",
 								}))).
 						WithOptions(apiv1ac.PgBackRestOptions().
 							WithCompressType("lz4").
@@ -1056,9 +1056,9 @@ func baseClusterConfig() resources.ClusterConfig {
 		},
 		Image: testImage,
 		BackupCredentials: resources.BackupCredentials{
-			SecretName:         "minio-eu",
-			AccessKeyIDKey:     "rootUser",
-			SecretAccessKeyKey: "rootPassword",
+			SecretName:         "rustfs-eu",
+			AccessKeyIDKey:     "accessKey",
+			SecretAccessKeyKey: "secretKey",
 		},
 	}
 }

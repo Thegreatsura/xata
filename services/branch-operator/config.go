@@ -13,10 +13,10 @@ type Config struct {
 	BackupsAWSRoleARN string `env:"XATA_BACKUPS_AWS_ROLE_ARN" env-description:"shared IRSA role used by pgbackrest backup and restore workloads in the clusters namespace"`
 	// When BackupsEndpoint is set (non-AWS S3-compatible store), backups
 	// authenticate with static credentials from this Secret instead of an IAM
-	// role. Defaults match the local-dev MinIO secret.
-	BackupsCredentialsSecretName         string                     `env:"XATA_BACKUPS_CREDENTIALS_SECRET_NAME" env-default:"minio-eu" env-description:"Secret (in the clusters namespace) holding static S3 credentials, used when XATA_BACKUPS_ENDPOINT is set"`
-	BackupsCredentialsAccessKeyIDKey     string                     `env:"XATA_BACKUPS_CREDENTIALS_ACCESS_KEY_ID_KEY" env-default:"rootUser" env-description:"key in the credentials Secret holding the access key ID"`
-	BackupsCredentialsSecretAccessKeyKey string                     `env:"XATA_BACKUPS_CREDENTIALS_SECRET_ACCESS_KEY_KEY" env-default:"rootPassword" env-description:"key in the credentials Secret holding the secret access key"`
+	// role. Defaults match the local-dev RustFS secret.
+	BackupsCredentialsSecretName         string                     `env:"XATA_BACKUPS_CREDENTIALS_SECRET_NAME" env-default:"rustfs-eu" env-description:"Secret (in the clusters namespace) holding static S3 credentials, used when XATA_BACKUPS_ENDPOINT is set"`
+	BackupsCredentialsAccessKeyIDKey     string                     `env:"XATA_BACKUPS_CREDENTIALS_ACCESS_KEY_ID_KEY" env-default:"accessKey" env-description:"key in the credentials Secret holding the access key ID"`
+	BackupsCredentialsSecretAccessKeyKey string                     `env:"XATA_BACKUPS_CREDENTIALS_SECRET_ACCESS_KEY_KEY" env-default:"secretKey" env-description:"key in the credentials Secret holding the secret access key"`
 	CloudProvider                        string                     `env:"XATA_CLOUD_PROVIDER" env-default:"aws" env-description:"cloud provider for per-Branch identity and backup credentials: aws or gcp"`
 	BarmanRegionSecretName               string                     `env:"XATA_BARMAN_REGION_SECRET_NAME" env-default:"barman-dummy-secret" env-description:"chart-managed secret referenced as the barman AWS region"`
 	BarmanRegionSecretKey                string                     `env:"XATA_BARMAN_REGION_SECRET_KEY" env-default:"dummy" env-description:"key in the chart-managed barman AWS region secret"`

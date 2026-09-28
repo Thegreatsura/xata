@@ -311,7 +311,7 @@ func (b *BranchBuilder) WithStorageQoSClass(useStorageQoSClasses bool, storageQo
 // provider: gcs for gcp (bucket + GCP service account, Workload Identity
 // auth), azure for azure (storage account + container, managed identity
 // auth), s3 otherwise. Only applies when the backup method is pgbackrest. A
-// non-empty s3 endpoint targets a non-AWS S3-compatible store (MinIO,
+// non-empty s3 endpoint targets a non-AWS S3-compatible store (RustFS,
 // Cloudflare R2), which makes the operator authenticate with static
 // credentials instead of an IAM role. credentialsSecretName pins the Secret
 // holding those credentials to the branch, so later cell-wide credential

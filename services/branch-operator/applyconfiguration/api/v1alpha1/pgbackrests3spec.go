@@ -14,7 +14,7 @@ type PgBackRestS3SpecApplyConfiguration struct {
 	// Region is the S3 region.
 	Region *string `json:"region,omitempty"`
 	// Endpoint overrides S3 endpoint discovery. Required for non-AWS
-	// S3-compatible storage (e.g. Cloudflare R2, or MinIO for local dev). When
+	// S3-compatible storage (e.g. Cloudflare R2, or RustFS for local dev). When
 	// set, static credentials from the operator-configured credentials Secret
 	// are used instead of an IAM role.
 	Endpoint *string `json:"endpoint,omitempty"`

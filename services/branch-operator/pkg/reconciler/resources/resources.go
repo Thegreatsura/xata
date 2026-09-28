@@ -114,7 +114,7 @@ func PoolerServiceSpec(poolerName string) v1.ServiceSpec {
 
 // BackupCredentials references the Secret holding static S3 credentials. It is
 // used when backing up to a non-AWS, S3-compatible endpoint (Cloudflare R2 in
-// production, or MinIO for local development), where there is no IAM role to
+// production, or RustFS for local development), where there is no IAM role to
 // inherit. The Secret is managed outside this operator (e.g. SOPS in infra-new).
 type BackupCredentials struct {
 	SecretName         string
@@ -126,7 +126,7 @@ type BackupCredentials struct {
 // It configures cloud-provider object storage for CNPG backup retention.
 //
 // When backupsEndpoint is set the spec uses the AWS-S3 path with static
-// credentials from the configured Secret (Cloudflare R2 in production, MinIO
+// credentials from the configured Secret (Cloudflare R2 in production, RustFS
 // for local dev) and cloudProvider is ignored. Otherwise cloudProvider
 // selects the credential shape: "gcp" wires barman to GKE workload identity
 // federation; "aws" wires barman to inherit the pod's IAM role.
@@ -176,9 +176,9 @@ func ObjectStoreSpec(
 	}
 
 	// A custom endpoint means a non-AWS, S3-compatible store (e.g. Cloudflare R2
-	// or MinIO for local dev). There's no IAM role to inherit, so switch to
+	// or RustFS for local dev). There's no IAM role to inherit, so switch to
 	// static credentials from the configured Secret. The region reference is
-	// kept: R2 expects a region ("auto") and MinIO ignores it.
+	// kept: R2 expects a region ("auto") and RustFS ignores it.
 	if backupsEndpoint != "" {
 		spec.Configuration.EndpointURL = backupsEndpoint
 		awsCredentials.InheritFromIAMRole = false

@@ -39,35 +39,10 @@ def install_snapshots_and_hostpath():
 
 KUSTOMIZE_FLAGS = ['--enable-helm', '--load-restrictor', 'LoadRestrictionsNone']
 
-def create_minio_resource():
-    # Create secrets for MinIO
-    k8s_yaml(secret_from_dict("minio-eu", namespace = "xata-clusters", inputs = {
-        'rootUser': 'miniouser',
-        'rootPassword': 'miniopass',
-    }))
-
-    # Add MinIO Helm resource (https://artifacthub.io/packages/helm/minio)
-    helm_repo('minio', 'https://charts.min.io', labels='repos')
-    helm_resource(
-        name='minio-eu',
-        chart='minio/minio',
-        namespace='xata-clusters',
-        resource_deps=['minio'],
-        flags=[
-            # Load secret values from created secret
-            '--set=existingSecret=minio-eu',
-            '--set=service.type=LoadBalancer',
-            '--set=mode=standalone',
-            '--set=persistence.enabled=false',
-            '--set=replicas=1',
-            '--set=consoleService.type=LoadBalancer',
-            '--set=resources.requests.memory=256Mi',
-            # Add buckets
-            '--set=buckets[0].name=backups,buckets[0].policy=public',
-        ],
-        labels='infra'
-    )
-    k8s_resource(workload='minio-eu', port_forwards=9001, labels='infra')
+def create_rustfs_resource():
+    # RustFS, an S3-compatible store for backups and billing events (https://rustfs.com)
+    k8s_yaml('dev/rustfs.yaml')
+    k8s_resource(workload='rustfs-eu', objects=['rustfs-eu:secret'], port_forwards=9001, labels='infra')
 
 def create_resources():
     install_snapshots_and_hostpath()
@@ -129,7 +104,7 @@ def create_resources():
 
     # Services
     k8s_resource(workload='auth', resource_deps=['bootstrap-db', 'auth-keycloak', 'import-keycloak-realm'], labels='services')
-    k8s_resource(workload='clusters', resource_deps=['minio-eu'], port_forwards=5002, labels='services')
+    k8s_resource(workload='clusters', resource_deps=['rustfs-eu'], port_forwards=5002, labels='services')
     k8s_resource(workload='gateway', port_forwards=[7654, 8443], labels='services')
     k8s_resource(workload='projects', resource_deps=['bootstrap-db'], port_forwards='5003:5002', labels='services')
     k8s_resource(workload='branch-operator', labels='services')
@@ -202,7 +177,7 @@ def create_resources():
     k8s_resource(workload='cert-manager', labels='infra')
     k8s_resource(workload='cert-manager-cainjector', labels='infra')
     k8s_resource(workload='cert-manager-webhook', labels='infra')
-    create_minio_resource()
+    create_rustfs_resource()
 
     # CNPG
     k8s_resource(workload='cnpg-controller-manager', labels=['infra', 'cnpg'])
@@ -222,7 +197,6 @@ def create_resources():
 ## Tilt up service selection
 
 load('ext://secret', 'secret_create_generic', 'secret_from_dict')
-load('ext://helm_resource', 'helm_resource', 'helm_repo')
 
 config.define_string_list("to-run", args=True)
 cfg = config.parse()
@@ -246,7 +220,7 @@ groups_by_label = {
         'cert-manager',
         'cert-manager-cainjector',
         'cert-manager-webhook',
-        'minio-eu',
+        'rustfs-eu',
         'install-snapshots-and-hostpath'
     ],
     'networking': [

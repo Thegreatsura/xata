@@ -23,7 +23,7 @@ type Config struct {
 	CloudProvider               string            `env:"XATA_CLOUD_PROVIDER" env-default:"aws" env-description:"cloud provider for this cell, selects the pgbackrest backend: aws, gcp, or azure"`
 	PgBackRestBucket            string            `env:"XATA_PGBACKREST_BUCKET" env-default:"" env-description:"bucket for pgbackrest backups (S3 or GCS)"`
 	PgBackRestRegion            string            `env:"XATA_BACKUPS_REGION" env-default:"" env-description:"S3 region for pgbackrest backups (aws only)"`
-	PgBackRestEndpoint          string            `env:"XATA_PGBACKREST_ENDPOINT" env-default:"" env-description:"S3 endpoint for pgbackrest backups; set for a non-AWS S3-compatible store such as MinIO (local dev) or Cloudflare R2"`
+	PgBackRestEndpoint          string            `env:"XATA_PGBACKREST_ENDPOINT" env-default:"" env-description:"S3 endpoint for pgbackrest backups; set for a non-AWS S3-compatible store such as RustFS (local dev) or Cloudflare R2"`
 	PgBackRestCredentialsSecret string            `env:"XATA_PGBACKREST_CREDENTIALS_SECRET" env-default:"" env-description:"Secret with static S3 credentials for pgbackrest, stamped on new branches; empty uses the branch-operator's configured default"`
 	PgBackRestGCSServiceAccount string            `env:"XATA_PGBACKREST_GCS_SERVICE_ACCOUNT" env-default:"" env-description:"GCP service account email for pgbackrest GCS backups via Workload Identity (gcp only)"`
 	PgBackRestAzureAccount      string            `env:"XATA_PGBACKREST_AZURE_STORAGE_ACCOUNT" env-default:"" env-description:"Azure storage account for pgbackrest backups via managed identity (azure only)"`

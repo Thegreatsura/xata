@@ -147,7 +147,7 @@ type ClusterConfig struct {
 	BackupsAWSRoleARN string
 	// BackupCredentials references the Secret holding static S3 credentials,
 	// used for pgbackrest when targeting a non-AWS S3-compatible endpoint
-	// (Cloudflare R2, or MinIO for local dev). Mirrors the barman ObjectStore.
+	// (Cloudflare R2, or RustFS for local dev). Mirrors the barman ObjectStore.
 	BackupCredentials BackupCredentials
 }
 
@@ -526,7 +526,7 @@ func legacyS3Spec(pgb *v1alpha1.PgBackRestSpec) *v1alpha1.PgBackRestS3Spec {
 }
 
 // pgbackrestS3 builds the S3 apply configuration. When Endpoint is set, the
-// store is a non-AWS S3-compatible endpoint (Cloudflare R2, or MinIO for local
+// store is a non-AWS S3-compatible endpoint (Cloudflare R2, or RustFS for local
 // dev) with no IAM role to inherit, so it switches to static credentials from
 // the configured Secret.
 func pgbackrestS3(

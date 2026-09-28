@@ -10,4 +10,4 @@ config:
     pgbackrest:
       bucket: "backups"
       region: "us-east-1"
-      endpoint: "http://minio-eu.xata-clusters:9000"
+      endpoint: "http://rustfs-eu.xata-clusters:9000"

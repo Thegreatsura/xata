@@ -153,7 +153,7 @@ patches:
         path: /spec/template/spec/containers/0/env/-
         value:
           name: XATA_BACKUPS_ENDPOINT
-          value: "http://minio-eu:9000"
+          value: "http://rustfs-eu:9000"
 
   - target:
       kind: HelmRelease
