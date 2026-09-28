@@ -1219,3 +1219,46 @@ func TestQueryResultRawRowsWireCompatible(t *testing.T) {
 		})
 	}
 }
+
+type fieldOnlyRows struct {
+	pgx.Rows
+	fields []pgconn.FieldDescription
+}
+
+func (r *fieldOnlyRows) Close()                                       {}
+func (r *fieldOnlyRows) Next() bool                                   { return false }
+func (r *fieldOnlyRows) Err() error                                   { return nil }
+func (r *fieldOnlyRows) CommandTag() pgconn.CommandTag                { return pgconn.NewCommandTag("SELECT 0") }
+func (r *fieldOnlyRows) FieldDescriptions() []pgconn.FieldDescription { return r.fields }
+
+func TestProcessRowsFieldDefinitions(t *testing.T) {
+	tests := map[string]struct {
+		field pgconn.FieldDescription
+		want  string
+	}{
+		"system column": {
+			field: pgconn.FieldDescription{Name: "ctid", TableOID: 16384, TableAttributeNumber: 0xFFFF, DataTypeOID: 27, DataTypeSize: 6, TypeModifier: -1},
+			want:  `{"name":"ctid","tableID":16384,"columnID":-1,"dataTypeID":27,"dataTypeSize":6,"dataTypeModifier":-1,"format":"text"}`,
+		},
+		"OIDs above int32": {
+			field: pgconn.FieldDescription{Name: "status", TableOID: 2147483648, TableAttributeNumber: 3, DataTypeOID: 3000000000, DataTypeSize: 4, TypeModifier: -1},
+			want:  `{"name":"status","tableID":2147483648,"columnID":3,"dataTypeID":3000000000,"dataTypeSize":4,"dataTypeModifier":-1,"format":"text"}`,
+		},
+		"computed variable-length column": {
+			field: pgconn.FieldDescription{Name: "label", DataTypeOID: 25, DataTypeSize: -1, TypeModifier: -1},
+			want:  `{"name":"label","tableID":0,"columnID":0,"dataTypeID":25,"dataTypeSize":-1,"dataTypeModifier":-1,"format":"text"}`,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			result, err := processRows(&fieldOnlyRows{fields: []pgconn.FieldDescription{tc.field}}, queryOptions{})
+			require.NoError(t, err)
+			require.Len(t, result.Fields, 1)
+
+			got, err := json.Marshal(result.Fields[0])
+			require.NoError(t, err)
+			require.JSONEq(t, tc.want, string(got))
+		})
+	}
+}

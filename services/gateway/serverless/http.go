@@ -418,7 +418,7 @@ func processRows(rows pgx.Rows, opts queryOptions) (*spec.QueryResult, error) {
 		fieldDefs[i] = spec.FieldDefinition{
 			Name:             f.Name,
 			TableID:          f.TableOID,
-			ColumnID:         uint16(f.TableAttributeNumber),
+			ColumnID:         int16(f.TableAttributeNumber),
 			DataTypeID:       f.DataTypeOID,
 			DataTypeSize:     f.DataTypeSize,
 			DataTypeModifier: f.TypeModifier,

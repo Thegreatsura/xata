@@ -171,8 +171,8 @@ type ErrorResponse struct {
 
 // FieldDefinition PostgreSQL column metadata from the row description message.
 type FieldDefinition struct {
-	// ColumnID Attribute number of the column within the table.
-	ColumnID uint16 `json:"columnID"`
+	// ColumnID Attribute number of the column within the table (0 if not a table column, negative for system columns).
+	ColumnID int16 `json:"columnID"`
 
 	// DataTypeID OID of the column data type.
 	DataTypeID uint32 `json:"dataTypeID"`
