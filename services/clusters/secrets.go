@@ -5,8 +5,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
 
+	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -27,19 +27,16 @@ const (
 	PgBackRestRestorePassphraseKey = "restore-cipher-passphrase"
 )
 
-// createAppSecret creates the kubernetes.io/basic-auth Secret holding the
-// xata role credentials for a new branch, with a freshly generated password.
-// If the secret already exists (a retried CreatePostgresCluster call, or a
-// leftover from a failed attempt), its data is preserved — a password is
-// never overwritten — and nil is returned so the caller does not clean it up
-// on failure. The branch-operator adopts the secret (Branch ownership) on the
+// createAppSecret creates the kubernetes.io/basic-auth Secret holding the xata
+// role credentials for a new branch. The caller supplies the password: freshly
+// generated for a cluster that will be bootstrapped from scratch, or copied
+// from the pool cluster's CNPG secret when adopting a cluster from a pool. If
+// the secret already exists (a retried CreatePostgresCluster call, or a
+// leftover from a failed attempt), its data is preserved — a password is never
+// overwritten — and nil is returned so the caller does not clean it up on
+// failure. The branch-operator adopts the secret (Branch ownership) on the
 // first reconcile.
-func (c *ClustersService) createAppSecret(ctx context.Context, name string, req *clustersv1.CreatePostgresClusterRequest) (*corev1.Secret, error) {
-	pw, err := passwords.Generate()
-	if err != nil {
-		return nil, fmt.Errorf("generate password: %w", err)
-	}
-
+func (c *ClustersService) createAppSecret(ctx context.Context, name string, req *clustersv1.CreatePostgresClusterRequest, password string) (*corev1.Secret, error) {
 	secret := &corev1.Secret{
 		Name:      name,
 		Namespace: c.config.ClustersNamespace,
@@ -53,7 +50,7 @@ func (c *ClustersService) createAppSecret(ctx context.Context, name string, req 
 		Type: corev1.SecretTypeBasicAuth,
 		Data: map[string][]byte{
 			corev1.BasicAuthUsernameKey: []byte("xata"),
-			corev1.BasicAuthPasswordKey: []byte(pw),
+			corev1.BasicAuthPasswordKey: []byte(password),
 		},
 	}
 
@@ -64,6 +61,42 @@ func (c *ClustersService) createAppSecret(ctx context.Context, name string, req 
 		return nil, k8sErrorToGRPCError(err)
 	}
 	return secret, nil
+}
+
+// appPasswordForNewBranch returns the xata role password for a cluster. If the
+// provided cluster is nil it generates a new password.
+func (c *ClustersService) appPasswordForNewBranch(ctx context.Context, cluster *apiv1.Cluster) (string, error) {
+	if cluster == nil {
+		return passwords.Generate()
+	}
+
+	return c.poolClusterAppPassword(ctx, cluster)
+}
+
+// poolClusterAppPassword returns the xata role password of a Cluster
+func (c *ClustersService) poolClusterAppPassword(ctx context.Context, cluster *apiv1.Cluster) (string, error) {
+	secretName := cluster.Name + apiv1.ApplicationUserSecretSuffix
+	secret := &corev1.Secret{}
+
+	// Get the secret for the cluster's application user password
+	err := c.kubeClient.Get(ctx, client.ObjectKey{
+		Name:      secretName,
+		Namespace: c.config.ClustersNamespace,
+	}, secret)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return "", status.Errorf(codes.FailedPrecondition, "pool cluster %s has no app secret %s", cluster.Name, secretName)
+		}
+		return "", k8sErrorToGRPCError(err)
+	}
+
+	// Take the password from the secret
+	password := secret.Data[corev1.BasicAuthPasswordKey]
+	if len(password) == 0 {
+		return "", status.Errorf(codes.FailedPrecondition, "pool cluster app secret %s has no password", secretName)
+	}
+
+	return string(password), nil
 }
 
 // createPgBackRestSecret creates the cipher Secret for a new

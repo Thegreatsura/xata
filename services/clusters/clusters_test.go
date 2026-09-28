@@ -444,6 +444,7 @@ func TestCreatePostgresCluster(t *testing.T) {
 			extraObjects: []client.Object{
 				poolForTest("default-storage-class", testImage, "2", "3996Mi"),
 				poolClusterForTest(),
+				poolClusterAppSecretForTest("pool-password"),
 			},
 			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
 				r.UsePool = new(true)
@@ -459,6 +460,7 @@ func TestCreatePostgresCluster(t *testing.T) {
 			extraObjects: []client.Object{
 				poolForTest("default-storage-class", testImage, "2", "3996Mi"),
 				poolClusterForTest(),
+				poolClusterAppSecretForTest("pool-password"),
 			},
 			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
 				r.UsePool = new(true)
@@ -539,6 +541,7 @@ func TestCreatePostgresCluster(t *testing.T) {
 			extraObjects: []client.Object{
 				poolForTest("xatastor", testImage, "2", "3996Mi"),
 				poolClusterForTest(),
+				poolClusterAppSecretForTest("pool-password"),
 			},
 			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
 				r.UseXatastor = new(true)
@@ -956,11 +959,12 @@ func TestCreatePostgresClusterAppSecret(t *testing.T) {
 		require.Len(t, string(secret.Data[corev1.BasicAuthPasswordKey]), 64)
 	})
 
-	t.Run("use_pool adoption - branch secret still created", func(t *testing.T) {
+	t.Run("use_pool adoption - branch secret copies the pool cluster password", func(t *testing.T) {
 		svc, k8sClient := setupTestClustersService(t,
 			withExistingObjects(
 				poolForTest("default-storage-class", testImage, "2", "3996Mi"),
 				poolClusterForTest(),
+				poolClusterAppSecretForTest("pool-password"),
 			))
 		req, _, _, _, _ := exampleRequestsAndBranches()
 		req.UsePool = new(true)
@@ -972,11 +976,18 @@ func TestCreatePostgresClusterAppSecret(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, new("pool-cluster-1"), branch.Spec.ClusterSpec.Name)
 
-		// The branch gets its own <id>-app secret; CNPG's managed role
-		// reconciliation syncs its password onto the adopted cluster.
+		// The branch gets its own <id>-app secret seeded with the password
+		// the pool cluster already has, so the managed-role sync on adoption
+		// changes nothing. Only username and password are copied.
 		secret := &corev1.Secret{}
 		require.NoError(t, k8sClient.Get(ctx, appSecretKey(req.GetId()+"-app"), secret))
-		require.NotEmpty(t, secret.Data[corev1.BasicAuthPasswordKey])
+		require.Equal(t, corev1.SecretTypeBasicAuth, secret.Type)
+		require.Equal(t, "true", secret.Labels["cnpg.io/reload"])
+		require.Equal(t, req.GetId(), secret.Labels[LabelBranchID])
+		require.Equal(t, map[string][]byte{
+			corev1.BasicAuthUsernameKey: []byte("xata"),
+			corev1.BasicAuthPasswordKey: []byte("pool-password"),
+		}, secret.Data)
 	})
 
 	t.Run("child branch - fresh secret created", func(t *testing.T) {
@@ -995,6 +1006,26 @@ func TestCreatePostgresClusterAppSecret(t *testing.T) {
 		secret := &corev1.Secret{}
 		require.NoError(t, k8sClient.Get(ctx, appSecretKey(req.GetId()+"-app"), secret))
 		require.NotEmpty(t, secret.Data[corev1.BasicAuthPasswordKey])
+	})
+
+	t.Run("use_pool adoption - pool secret missing fails the request", func(t *testing.T) {
+		svc, k8sClient := setupTestClustersService(t,
+			withExistingObjects(
+				poolForTest("default-storage-class", testImage, "2", "3996Mi"),
+				poolClusterForTest(),
+			))
+		req, _, _, _, _ := exampleRequestsAndBranches()
+		req.UsePool = new(true)
+
+		_, err := svc.CreatePostgresCluster(ctx, req)
+		require.Error(t, err)
+		require.Equal(t, codes.FailedPrecondition, status.Code(err))
+
+		// Neither the branch secret nor the Branch is created
+		err = k8sClient.Get(ctx, appSecretKey(req.GetId()+"-app"), &corev1.Secret{})
+		require.True(t, errors.IsNotFound(err))
+		_, err = getBranchFromK8s(ctx, k8sClient, req.GetId())
+		require.True(t, errors.IsNotFound(err))
 	})
 
 	t.Run("pre-existing secret - data preserved", func(t *testing.T) {
@@ -3134,6 +3165,26 @@ func poolClusterForTest() *apiv1.Cluster {
 		Status: apiv1.ClusterStatus{
 			Phase:          apiv1.PhaseHealthy,
 			ReadyInstances: 1,
+		},
+	}
+}
+
+// poolClusterAppSecretForTest returns the CNPG-generated app secret of the
+// pool cluster from poolClusterForTest. It carries the extra keys CNPG writes
+// so tests can check that only the password is copied to the branch secret.
+func poolClusterAppSecretForTest(password string) *corev1.Secret {
+	return &corev1.Secret{
+		Name:      "pool-cluster-1-app",
+		Namespace: "xata-clusters",
+		Labels: map[string]string{
+			"cnpg.io/cluster": "pool-cluster-1",
+		},
+		Type: corev1.SecretTypeBasicAuth,
+		Data: map[string][]byte{
+			corev1.BasicAuthUsernameKey: []byte("xata"),
+			corev1.BasicAuthPasswordKey: []byte(password),
+			"dbname":                    []byte("xata"),
+			"uri":                       []byte("postgresql://xata:" + password + "@pool-cluster-1-rw.xata-clusters:5432/xata"),
 		},
 	}
 }

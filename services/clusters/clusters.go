@@ -283,6 +283,7 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 	// branch. Child branches do not use clusters from the create pool - their
 	// clusters are created via XVol cloning and then waking up a cluster using a
 	// WakeupRequest.
+	var poolCluster *apiv1.Cluster
 	if req.GetUsePool() && parent == nil {
 		if err := c.waitForClusterCache(ctx); err != nil {
 			return nil, fmt.Errorf("wait for cluster cache: %w", err)
@@ -302,7 +303,8 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 			Str("storageSize", storageSize).
 			Msg("looking for pool cluster")
 
-		poolName, poolCluster, err := findPoolCluster(ctx, c.kubeClient, c.clusterReader, c.config.ClustersNamespace,
+		var poolName string
+		poolName, poolCluster, err = findPoolCluster(ctx, c.kubeClient, c.clusterReader, c.config.ClustersNamespace,
 			storageClass, image, cpuReq, memReq, storageSize,
 		)
 		if err != nil {
@@ -325,14 +327,20 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 	}
 
 	// Provision the <branchID>-app secret holding the xata role credentials
-	// before the Branch, so the operator never generates the password and
-	// never observes a Branch without its secret. For clusters adopted from
-	// a pool, CNPG's managed role reconciliation syncs this password onto
-	// the adopted cluster.
-	createdSecret, err := c.createAppSecret(ctx, req.GetId()+"-app", req)
+	// before the Branch so that credentials for the branch are always available
+	// and don't depend on the operator reconciling the branch. Re-use the
+	// password that a pool cluster already uses so that there is no password
+	// change when the operator adopts the branch.
+	appPassword, err := c.appPasswordForNewBranch(ctx, poolCluster)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get app password: %w", err)
 	}
+
+	createdSecret, err := c.createAppSecret(ctx, req.GetId()+"-app", req, appPassword)
+	if err != nil {
+		return nil, fmt.Errorf("create app secret: %w", err)
+	}
+
 	createdPgBackRestSecret, err := c.createPgBackRestSecret(ctx, branch, c.config.PgBackRestEncryptionEnabled)
 	if err != nil {
 		// The Branch does not exist yet, so it cannot own the app Secret.
