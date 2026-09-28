@@ -136,14 +136,16 @@ security_group="$(aws ec2 create-security-group \
 # A failed launch would otherwise leave the security group behind.
 trap 'aws ec2 delete-security-group --region "$region" --group-id "$security_group" >/dev/null 2>&1 || true' ERR
 
-# Launch machine and bootstrap tailscale for access
+# Launch machine and bootstrap tailscale for access. A pod inside kind is three
+# hops from IMDS, so the profile is unreachable at the default hop limit.
 user_data="$(printf '#!/bin/bash\ncurl -fsSL https://tailscale.com/install.sh | sh\ntailscale up --ssh --hostname %q\n' "$machine_name")"
 instance="$(aws ec2 run-instances \
     --region "$region" \
     --image-id "$ami" \
     --instance-type "$instance_type" \
     --security-group-ids "$security_group" \
-    --metadata-options HttpTokens=required \
+    --metadata-options HttpTokens=required,HttpPutResponseHopLimit=3 \
+    --iam-instance-profile Name=DevMachineInstanceProfile \
     --block-device-mappings 'DeviceName=/dev/sda1,Ebs={VolumeSize=100,VolumeType=gp3,Encrypted=true,DeleteOnTermination=true}' \
     --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$machine_name},{Key=Owner,Value=$owner}]" \
     --user-data "$user_data" \
