@@ -16,10 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	rolePasswordSyncInterval = 100 * time.Millisecond
-	rolePasswordSyncTimeout  = 30 * time.Second
-)
+const rolePasswordSyncInterval = 100 * time.Millisecond
 
 // setUserPasswordSecret updates the Cluster resource to set the user password
 // secret for the 'xata' role to the secret associated with the given Branch
@@ -34,7 +31,13 @@ func (r *WakeupReconciler) setUserPasswordSecret(ctx context.Context, branch *v1
 
 // waitForRolePasswordSync polls the Cluster's status until it reports that the
 // 'xata' role is using a password derived from the current version of the
-// Branch's user password secret
+// Branch's user password secret.
+//
+// The wait is best-effort; the Branch reconciler re-applies the same
+// configuration after adoption, so the password sync will eventually occur. If
+// the password sync has not landed within r.PasswordSyncTimeout (which can
+// happen when the cloned volume needs a long WAL redo), the wakeup proceeds
+// anyway.
 func (r *WakeupReconciler) waitForRolePasswordSync(
 	ctx context.Context,
 	log logr.Logger,
@@ -52,13 +55,22 @@ func (r *WakeupReconciler) waitForRolePasswordSync(
 	}
 
 	// Poll the Cluster's status until it reports that the 'xata' user role is
-	// using the password from the current version of the Branch secret
-	return wait.PollUntilContextTimeout(ctx, rolePasswordSyncInterval, rolePasswordSyncTimeout, true,
+	// using the password from the current version of the Branch secret, or until
+	// the timeout passes. The timeout is a condition result rather than a poll
+	// deadline so that it ends the wait successfully, while a cancelled reconcile
+	// context still ends it with an error.
+	deadline := time.Now().Add(r.PasswordSyncTimeout)
+	return wait.PollUntilContextCancel(ctx, rolePasswordSyncInterval, true,
 		func(ctx context.Context) (bool, error) {
 			if err := r.Get(ctx, client.ObjectKeyFromObject(cluster), cluster); err != nil {
 				return false, err
 			}
 			if clusterUsesCredsFromSecretVersion(cluster, shared.XataRoleName, secret.ResourceVersion) {
+				return true, nil
+			}
+			if time.Now().After(deadline) {
+				log.Info("timed out waiting for cluster to sync user password secret, proceeding anyway",
+					"cluster", cluster.Name, "secret", secret.Name, "timeout", r.PasswordSyncTimeout)
 				return true, nil
 			}
 			log.Info("waiting for cluster to sync user password secret", "cluster", cluster.Name, "secret", secret.Name)

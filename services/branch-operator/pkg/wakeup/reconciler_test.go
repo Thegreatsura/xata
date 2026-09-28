@@ -178,6 +178,71 @@ func TestWakeupReconciler(t *testing.T) {
 		})
 	})
 
+	t.Run("assigns the cluster when the password sync does not complete within the timeout", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		poolName := "pool-" + randomString(10)
+		clusterName := "cluster-" + randomString(10)
+		branchName := "branch-" + randomString(10)
+		wrName := "wur-" + randomString(10)
+
+		// Create a ClusterPool
+		pool := &poolv1alpha1.ClusterPool{
+			Name:      poolName,
+			Namespace: TestNamespace,
+			Spec: poolv1alpha1.ClusterPoolSpec{
+				Clusters: 1,
+				ClusterSpec: apiv1.ClusterSpec{
+					Instances: 1,
+				},
+			},
+		}
+		require.NoError(t, k8sClient.Create(ctx, pool))
+
+		// Create a healthy CNPG Cluster with 1 ready instance, owned by the pool
+		cluster, err := setupPoolCluster(ctx, pool, clusterName, TestNamespace, 1)
+		require.NoError(t, err)
+
+		// Create a Branch with pool annotation and no cluster name
+		branch, err := createBranch(ctx, branchName, map[string]string{
+			v1alpha1.WakeupPoolAnnotation:     poolName,
+			v1alpha1.AwaitingWakeupAnnotation: "true",
+		})
+		require.NoError(t, err)
+
+		// Create the app secret but never stamp the Cluster's password status, so
+		// the reconciler's wait for the role password to sync runs to its timeout
+		// as it would during a long WAL redo on the cloned volume
+		_, err = createAppSecret(ctx, branch, cluster.Namespace)
+		require.NoError(t, err)
+
+		// Create a WakeupRequest
+		wr, err := createWakeupRequest(ctx, wrName, branch.Name)
+		require.NoError(t, err)
+
+		// Expect the WakeupRequest to complete successfully despite the sync
+		// never landing
+		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionTrue, v1alpha1.WakeupSucceededReason)
+
+		// Expect the Branch to have a cluster name assigned and no longer be
+		// awaiting wakeup
+		requireEventuallyTrue(t, func() bool {
+			br := &v1alpha1.Branch{}
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(branch), br); err != nil {
+				return false
+			}
+
+			return br.Spec.ClusterSpec.Name != nil && !br.IsAwaitingWakeup()
+		})
+
+		// Expect the Cluster's spec to still have the 'xata' managed role
+		// configured, so CNPG syncs the password once Postgres accepts connections
+		c := &apiv1.Cluster{}
+		require.NoError(t, k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), c))
+		require.True(t, clusterHasXataRole(c))
+	})
+
 	t.Run("skips password sync and assigns the cluster when PasswordSync is Skip", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()

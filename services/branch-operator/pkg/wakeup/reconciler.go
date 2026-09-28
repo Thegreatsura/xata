@@ -43,6 +43,7 @@ type WakeupReconciler struct {
 	CSINodePort             int
 	WakeupRequestTTL        time.Duration
 	WakeupRPCTimeout        time.Duration
+	PasswordSyncTimeout     time.Duration
 	MaxConcurrentReconciles int
 }
 

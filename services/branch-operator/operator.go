@@ -187,6 +187,7 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 			CSINodePort:             s.config.CSINodePort,
 			WakeupRequestTTL:        s.config.WakeupRequestTTL,
 			WakeupRPCTimeout:        s.config.WakeupRPCTimeout,
+			PasswordSyncTimeout:     s.config.WakeupPasswordSyncTimeout,
 			MaxConcurrentReconciles: s.config.WakeupMaxConcurrent,
 		}
 		if err := wakeupReconciler.SetupWithManager(ctx, mgr); err != nil {

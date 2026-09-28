@@ -92,13 +92,14 @@ func TestMain(m *testing.M) {
 			Namespaces: []string{TestNamespace},
 			ReconcilerSetup: func(ctx context.Context, mgr ctrl.Manager) error {
 				r := &wakeup.WakeupReconciler{
-					Client:           mgr.GetClient(),
-					Scheme:           mgr.GetScheme(),
-					Recorder:         mgr.GetEventRecorder(wakeup.ReconcilerName),
-					CSINodeNamespace: TestNamespace,
-					WakeupRequestTTL: 1 * time.Second,
-					WakeupRPCTimeout: 10 * time.Second,
-					CSINodePort:      csiNodePort,
+					Client:              mgr.GetClient(),
+					Scheme:              mgr.GetScheme(),
+					Recorder:            mgr.GetEventRecorder(wakeup.ReconcilerName),
+					CSINodeNamespace:    TestNamespace,
+					WakeupRequestTTL:    1 * time.Second,
+					WakeupRPCTimeout:    10 * time.Second,
+					PasswordSyncTimeout: 1 * time.Second,
+					CSINodePort:         csiNodePort,
 				}
 				return r.SetupWithManager(ctx, mgr)
 			},
@@ -231,17 +232,13 @@ func setupPoolCluster(ctx context.Context, pool *poolv1alpha1.ClusterPool, name,
 	return cluster, nil
 }
 
-// seedPasswordSync simulates the state that the wakeup reconciler waits for in
-// waitForRolePasswordSync. In production the "<branch>-app" secret is created by
-// the branch reconciler and the Cluster's managed role password status is set by
-// CNPG; neither runs in this test environment. It creates the app secret (as the
-// branch reconciler would) and stamps the Cluster's password status for the
-// "xata" role with the secret's resource version (as CNPG would), so that the
-// wait succeeds on its first poll.
-func seedPasswordSync(ctx context.Context, branch *v1alpha1.Branch, cluster *apiv1.Cluster) error {
+// createAppSecret creates the "<branch>-app" secret holding the xata role
+// credentials for the branch. In production the clusters service creates it
+// before the Branch; it does not run in this test environment.
+func createAppSecret(ctx context.Context, branch *v1alpha1.Branch, namespace string) (*corev1.Secret, error) {
 	secret := &corev1.Secret{
 		Name:      branch.Name + "-app",
-		Namespace: cluster.Namespace,
+		Namespace: namespace,
 		Type:      corev1.SecretTypeBasicAuth,
 		Data: map[string][]byte{
 			corev1.BasicAuthUsernameKey: []byte("xata"),
@@ -249,12 +246,22 @@ func seedPasswordSync(ctx context.Context, branch *v1alpha1.Branch, cluster *api
 		},
 	}
 	if err := k8sClient.Create(ctx, secret); err != nil {
+		return nil, err
+	}
+	return secret, nil
+}
+
+// seedPasswordSync simulates the state that the wakeup reconciler waits for in
+// waitForRolePasswordSync. It creates the app secret and stamps the Cluster's
+// password status for the "xata" role with the secret's resource version (as
+// CNPG would once it applies the role password; CNPG does not run in this test
+// environment), so that the wait succeeds on its first poll.
+func seedPasswordSync(ctx context.Context, branch *v1alpha1.Branch, cluster *apiv1.Cluster) error {
+	secret, err := createAppSecret(ctx, branch, cluster.Namespace)
+	if err != nil {
 		return err
 	}
 
-	// Stamp the Cluster's managed role password status to point at the secret's
-	// current resource version, mirroring what CNPG does once it applies the
-	// role password.
 	cluster.Status.ManagedRolesStatus.PasswordStatus = map[string]apiv1.PasswordState{
 		"xata": {SecretResourceVersion: secret.ResourceVersion},
 	}
