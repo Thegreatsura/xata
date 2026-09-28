@@ -183,6 +183,19 @@ func TestRecordRequest(t *testing.T) {
 	}
 }
 
+func TestRequestDurationBuckets(t *testing.T) {
+	m, reader := newTestMetrics(t)
+
+	m.RecordRequest(context.Background(), ProtocolHTTP, true, 5*time.Second)
+
+	metrics := collectMetrics(t, reader)
+	got := metrics["xata.gateway.request_duration_seconds"]
+	hist, ok := got.Data.(metricdata.Histogram[float64])
+	require.True(t, ok)
+	require.Len(t, hist.DataPoints, 1)
+	require.Equal(t, requestDurationBuckets, hist.DataPoints[0].Bounds)
+}
+
 func TestRecordClusterReactivation(t *testing.T) {
 	tests := map[string]struct {
 		duration     time.Duration

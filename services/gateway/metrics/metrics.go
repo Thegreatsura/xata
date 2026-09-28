@@ -8,6 +8,10 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+var requestDurationBuckets = []float64{
+	0.1, 0.25, 0.5, 1, 1.5, 2, 2.5, 3, 4, 4.5, 5, 6, 10, 20, 30, 60,
+}
+
 // clusterReactivationBuckets are in seconds. Waking a hibernated cluster takes
 // seconds to tens of seconds, and the gateway gives up after the reactivate
 // timeout (50s by default), so the default OTel boundaries (0, 5, 10, 25, ...
@@ -58,7 +62,8 @@ func New(meter metric.Meter) (*GatewayMetrics, error) {
 
 	m.requestDuration, err = meter.Float64Histogram("xata.gateway.request_duration_seconds",
 		metric.WithUnit("s"),
-		metric.WithDescription("duration of individual requests"))
+		metric.WithDescription("duration of individual requests"),
+		metric.WithExplicitBucketBoundaries(requestDurationBuckets...))
 	if err != nil {
 		return nil, err
 	}
