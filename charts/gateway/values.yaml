@@ -32,10 +32,9 @@ terminationGracePeriodSeconds: 3600
 resources:
   limits:
     cpu: 8000m
-    memory: 300Mi
   requests:
     cpu: 4000m
-    memory: 300Mi
+    memory: 512Mi
 
 secret:
   name: gateway-secret
