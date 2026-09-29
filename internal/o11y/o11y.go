@@ -135,6 +135,10 @@ func New(ctx context.Context, config *Config, opts ...Option) System {
 
 		otelLogger := monitoringLogger.With().Str("module", "otel").Logger()
 		otel.SetLogger(zerologr.New(&otelLogger))
+		// SDK export failures reach this handler after the exporter stops retrying.
+		otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+			otelLogger.Error().Err(err).Msg("OpenTelemetry SDK error")
+		}))
 		grpczerolog.GrpcLogSetZeroLogger(grpczerolog.NewGrpcZeroLogger(otelLogger))
 
 		otel.SetTracerProvider(tracing.Provider(ctx, &otelLogger, "xata", "global"))

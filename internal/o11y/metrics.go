@@ -21,7 +21,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
-	"google.golang.org/grpc"
 
 	"xata/internal/idgen"
 	"xata/internal/o11y/version"
@@ -69,14 +68,8 @@ func initMetrics(
 		return nil
 	}
 
-	metricsLogger := logger.With().Str("component", "metrics").Logger()
-
 	metricsExporter, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithTemporalitySelector(deltaSelector),
-		otlpmetricgrpc.WithDialOption(
-			grpc.WithUnaryInterceptor(GRPCLoggingUnaryClientInterceptor(&metricsLogger)),
-			grpc.WithStreamInterceptor(GRPCLoggingStreamClientInterceptor(&metricsLogger)),
-		),
 	)
 	if err != nil {
 		return nil
@@ -173,7 +166,9 @@ func (m *metrics) collect(ctx context.Context) {
 	}()
 
 	for i := 0; i < len(list) && ctx.Err() == nil; i++ {
-		_ = list[i].CollectAndExport(ctx, m.out)
+		if err := list[i].CollectAndExport(ctx, m.out); err != nil {
+			m.logger.Error().Err(err).Str("component", "metrics").Msg("failed to collect or export metrics")
+		}
 	}
 }
 

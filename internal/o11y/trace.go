@@ -31,14 +31,7 @@ func initTracing(
 	logger *zerolog.Logger,
 	res *resource.Resource,
 ) *tracing {
-	traceLogger := logger.With().Str("component", "trace").Logger()
-
-	traceExporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithDialOption(
-			grpc.WithUnaryInterceptor(GRPCLoggingUnaryClientInterceptor(&traceLogger)),
-			grpc.WithStreamInterceptor(GRPCLoggingStreamClientInterceptor(&traceLogger)),
-		),
-	)
+	traceExporter, err := otlptracegrpc.New(ctx)
 	if err != nil {
 		logger.Fatal().AnErr("error", err).Msg("failed to create trace exporter")
 		return nil
