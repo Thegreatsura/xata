@@ -100,18 +100,21 @@ func (r *restKC) GetSSOPendingDomains(ctx context.Context, realm, organizationID
 	if err != nil {
 		return nil, fmt.Errorf("get organization: %w", err)
 	}
+	return ssoPendingDomains(organization), nil
+}
 
+func ssoPendingDomains(organization KeycloakOrganization) []string {
 	raw, ok := FirstAttr(organization.Attributes, OrganizationSSOPendingDomainsKey)
 	if !ok {
-		return nil, nil
+		return nil
 	}
 
 	var domains []string
 	if err := json.Unmarshal([]byte(raw), &domains); err != nil {
 		// An unreadable marker costs a re-claim; erroring would wedge every read.
-		return nil, nil
+		return nil
 	}
-	return domains, nil
+	return domains
 }
 
 // SetSSOPendingDomains replaces the set. Empty clears the attribute rather
@@ -132,13 +135,12 @@ func (r *restKC) SetSSOPendingDomains(ctx context.Context, realm, organizationID
 	return nil
 }
 
-func (r *restKC) GetSSODomainsMissingSince(ctx context.Context, realm, organizationID string) (string, error) {
+func (r *restKC) GetSSOOrganization(ctx context.Context, realm, organizationID string) (SSOOrganization, error) {
 	organization, err := r.searchOrganization(ctx, realm, organizationID)
 	if err != nil {
-		return "", fmt.Errorf("get organization: %w", err)
+		return SSOOrganization{}, fmt.Errorf("get organization: %w", err)
 	}
-	missingSince, _ := FirstAttr(organization.Attributes, OrganizationSSODomainsMissingSinceKey)
-	return missingSince, nil
+	return toSSOOrganization(organization), nil
 }
 
 // ListSSOOrganizations returns every organization holding a domain, verified or
@@ -182,16 +184,21 @@ func (r *restKC) ListSSOOrganizations(ctx context.Context, realm string) ([]SSOO
 			if len(org.Domains) == 0 {
 				continue
 			}
-			missingSince, _ := FirstAttr(org.Attributes, OrganizationSSODomainsMissingSinceKey)
-			result = append(result, SSOOrganization{
-				Alias:               org.Alias,
-				Domains:             org.Domains,
-				DomainsMissingSince: missingSince,
-			})
+			result = append(result, toSSOOrganization(org))
 		}
 
 		fetched = len(organizations)
 	}
 
 	return result, nil
+}
+
+func toSSOOrganization(organization KeycloakOrganization) SSOOrganization {
+	missingSince, _ := FirstAttr(organization.Attributes, OrganizationSSODomainsMissingSinceKey)
+	return SSOOrganization{
+		Alias:               organization.Alias,
+		Domains:             organization.Domains,
+		PendingDomains:      ssoPendingDomains(organization),
+		DomainsMissingSince: missingSince,
+	}
 }

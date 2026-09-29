@@ -178,5 +178,6 @@ func (s OrganizationStatus) EffectiveState() OrganizationState {
 type SSOOrganization struct {
 	Alias               string
 	Domains             []Domain
+	PendingDomains      []string
 	DomainsMissingSince string
 }
