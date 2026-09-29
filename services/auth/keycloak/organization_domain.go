@@ -132,6 +132,15 @@ func (r *restKC) SetSSOPendingDomains(ctx context.Context, realm, organizationID
 	return nil
 }
 
+func (r *restKC) GetSSODomainsMissingSince(ctx context.Context, realm, organizationID string) (string, error) {
+	organization, err := r.searchOrganization(ctx, realm, organizationID)
+	if err != nil {
+		return "", fmt.Errorf("get organization: %w", err)
+	}
+	missingSince, _ := FirstAttr(organization.Attributes, OrganizationSSODomainsMissingSinceKey)
+	return missingSince, nil
+}
+
 // ListSSOOrganizations returns every organization holding a domain, verified or
 // revoked. There is no server-side filter for that, so it walks the realm.
 // briefRepresentation=false is required, not merely nicer: the brief form

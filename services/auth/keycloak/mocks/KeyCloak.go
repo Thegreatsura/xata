@@ -777,6 +777,64 @@ func (_c *KeyCloak_GetOrganizationDomains_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// GetSSODomainsMissingSince provides a mock function with given fields: ctx, realm, organizationID
+func (_m *KeyCloak) GetSSODomainsMissingSince(ctx context.Context, realm string, organizationID string) (string, error) {
+	ret := _m.Called(ctx, realm, organizationID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSSODomainsMissingSince")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (string, error)); ok {
+		return rf(ctx, realm, organizationID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) string); ok {
+		r0 = rf(ctx, realm, organizationID)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, realm, organizationID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// KeyCloak_GetSSODomainsMissingSince_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSSODomainsMissingSince'
+type KeyCloak_GetSSODomainsMissingSince_Call struct {
+	*mock.Call
+}
+
+// GetSSODomainsMissingSince is a helper method to define mock.On call
+//   - ctx context.Context
+//   - realm string
+//   - organizationID string
+func (_e *KeyCloak_Expecter) GetSSODomainsMissingSince(ctx interface{}, realm interface{}, organizationID interface{}) *KeyCloak_GetSSODomainsMissingSince_Call {
+	return &KeyCloak_GetSSODomainsMissingSince_Call{Call: _e.mock.On("GetSSODomainsMissingSince", ctx, realm, organizationID)}
+}
+
+func (_c *KeyCloak_GetSSODomainsMissingSince_Call) Run(run func(ctx context.Context, realm string, organizationID string)) *KeyCloak_GetSSODomainsMissingSince_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *KeyCloak_GetSSODomainsMissingSince_Call) Return(_a0 string, _a1 error) *KeyCloak_GetSSODomainsMissingSince_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *KeyCloak_GetSSODomainsMissingSince_Call) RunAndReturn(run func(context.Context, string, string) (string, error)) *KeyCloak_GetSSODomainsMissingSince_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSSOPendingDomains provides a mock function with given fields: ctx, realm, organizationID
 func (_m *KeyCloak) GetSSOPendingDomains(ctx context.Context, realm string, organizationID string) ([]string, error) {
 	ret := _m.Called(ctx, realm, organizationID)

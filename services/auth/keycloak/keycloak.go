@@ -88,6 +88,8 @@ type KeyCloak interface {
 	SetOrganizationDomains(ctx context.Context, realm, organizationID string, domains []Domain) error
 	// OrganizationsForDomain returns the aliases of every organization holding the domain.
 	OrganizationsForDomain(ctx context.Context, realm, domain string) ([]string, error)
+	// GetSSODomainsMissingSince returns the recheck's raw missing-record stamps.
+	GetSSODomainsMissingSince(ctx context.Context, realm, organizationID string) (string, error)
 	// ListSSOOrganizations returns every organization holding a domain, verified or revoked.
 	ListSSOOrganizations(ctx context.Context, realm string) ([]SSOOrganization, error)
 }

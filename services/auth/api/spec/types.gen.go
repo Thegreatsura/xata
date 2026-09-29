@@ -617,10 +617,16 @@ type OrganizationSSODomain struct {
 	// Domain The claimed email domain
 	Domain string `json:"domain"`
 
+	// MissingSince When the daily recheck first found the record missing from a verified domain.
+	MissingSince *time.Time `json:"missing_since,omitempty"`
+
 	// ProviderAlias The alias an identity provider on this domain will be given. Derived from the organization and the domain, so it is known before the provider exists, which is what lets a client show the redirect URI to register with the provider up front.
 	ProviderAlias string `json:"provider_alias"`
 
-	// Verification The DNS record that proves control of the domain. Absent once the domain is verified.
+	// RevokesAt When the domain stops being verified if the record is still missing.
+	RevokesAt *time.Time `json:"revokes_at,omitempty"`
+
+	// Verification The DNS record that proves control of the domain. It must stay published while the domain is verified.
 	Verification *OrganizationSSODomainVerification `json:"verification,omitempty"`
 
 	// Verified Whether control of the domain has been proven through DNS
