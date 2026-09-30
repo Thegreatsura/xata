@@ -89,7 +89,6 @@ type Customer struct {
 	PaymentProviderID    string
 	AutoCollection       bool
 	Subscriptions        []Subscription
-	Credits              []Credit
 	DefaultPaymentMethod *PaymentMethod
 	// HasValidPaymentMethod indicates Stripe has a supported default payment method. Use CanCollectPayment for collection decisions because marketplace billing does not require one.
 	HasValidPaymentMethod bool
@@ -111,7 +110,13 @@ func (c *Customer) CanCollectPayment() bool {
 		(method == CollectionMethodStripePaymentMethod && c.HasValidPaymentMethod)
 }
 
-func (c *Customer) CurrentActiveCredit() float64 {
+// CustomerWithCredits contains explicitly loaded credits, separate from customer hydration.
+type CustomerWithCredits struct {
+	*Customer
+	Credits []Credit
+}
+
+func (c *CustomerWithCredits) CurrentActiveCredit() float64 {
 	var credit float64
 	for _, credits := range c.Credits {
 		if !credits.IsExpired() && credits.Amount > 0 {
@@ -122,7 +127,7 @@ func (c *Customer) CurrentActiveCredit() float64 {
 	return credit
 }
 
-func (c *Customer) TotalLifetimeCredits() float64 {
+func (c *CustomerWithCredits) TotalLifetimeCredits() float64 {
 	var total float64
 	for _, credit := range c.Credits {
 		total += credit.MaximumInitialBalance
@@ -130,7 +135,7 @@ func (c *Customer) TotalLifetimeCredits() float64 {
 	return total
 }
 
-func (c *Customer) ActiveCredits(now time.Time) []Credit {
+func (c *CustomerWithCredits) ActiveCredits(now time.Time) []Credit {
 	if c == nil {
 		return nil
 	}
@@ -144,7 +149,7 @@ func (c *Customer) ActiveCredits(now time.Time) []Credit {
 	return active
 }
 
-func (c *Customer) TotalActiveCredits(now time.Time) float64 {
+func (c *CustomerWithCredits) TotalActiveCredits(now time.Time) float64 {
 	if c == nil {
 		return 0
 	}
@@ -158,7 +163,7 @@ func (c *Customer) TotalActiveCredits(now time.Time) float64 {
 	return total
 }
 
-func (c *Customer) LastExpiry() *time.Time {
+func (c *CustomerWithCredits) LastExpiry() *time.Time {
 	if c == nil {
 		return nil
 	}
@@ -170,7 +175,7 @@ func (c *Customer) LastExpiry() *time.Time {
 	return last
 }
 
-func (c *Customer) LastExpiryWithBalance() *time.Time {
+func (c *CustomerWithCredits) LastExpiryWithBalance() *time.Time {
 	if c == nil {
 		return nil
 	}
@@ -184,7 +189,7 @@ func (c *Customer) LastExpiryWithBalance() *time.Time {
 	return last
 }
 
-func (c *Customer) LastActiveCreditExpiry(now time.Time) *time.Time {
+func (c *CustomerWithCredits) LastActiveCreditExpiry(now time.Time) *time.Time {
 	if c == nil {
 		return nil
 	}
@@ -397,23 +402,23 @@ type StripePaymentMethodCard struct {
 type Client interface {
 	// CreateCustomer creates a new customer in the billing system
 	CreateCustomer(ctx context.Context, opts CreateCustomerOptions) (CreateCustomerResult, error)
-	// FetchOrbCustomer retrieves a customer using its Orb internal customer ID.
-	FetchOrbCustomer(ctx context.Context, customerID string) (*Customer, error)
-	// FetchCustomerByExternalID retrieves a customer record by the external customer ID.
-	FetchCustomerByExternalID(ctx context.Context, externalCustomerID string) (*Customer, error)
-	// FetchCustomerByStripeCustomerID retrieves a customer using its Stripe customer ID.
-	FetchCustomerByStripeCustomerID(ctx context.Context, stripeCustomerID string) (*Customer, error)
+	// FetchCustomerWithCreditsByOrbID retrieves a customer using its Orb internal customer ID.
+	FetchCustomerWithCreditsByOrbID(ctx context.Context, customerID string) (*CustomerWithCredits, error)
+	// FetchCustomerByOrbID retrieves a customer without loading credits.
+	FetchCustomerByOrbID(ctx context.Context, customerID string) (*Customer, error)
+	// LoadCustomerCredits loads credits without refetching or mutating the customer.
+	LoadCustomerCredits(ctx context.Context, customer *Customer) (*CustomerWithCredits, error)
+	// FetchCustomerWithCredits retrieves a customer by organization ID with default payment method details and credits.
+	FetchCustomerWithCredits(ctx context.Context, organizationID string) (*CustomerWithCredits, error)
 	// ConfigureOrbCustomerForBankTransfers configures an Orb customer and subscription for manual collection through Stripe.
 	ConfigureOrbCustomerForBankTransfers(ctx context.Context, opts OrbBankTransferOptions) error
-	// FetchBillingCustomerWithDefaultPaymentMethod retrieves a customer with their default payment method details.
-	FetchBillingCustomerWithDefaultPaymentMethod(ctx context.Context, externalCustomerID string) (*Customer, error)
-	UpdateOrbCustomerEmail(ctx context.Context, externalCustomerID, email string) (*Customer, error)
+	UpdateOrbCustomerEmail(ctx context.Context, organizationID, email string) (*CustomerWithCredits, error)
 	ListInvoices(ctx context.Context, externalCustomerID string, opts InvoiceListOptions) (*InvoicesPage, error)
 	// FetchUpcomingInvoice fetches the next invoice for the customer's active subscription.
 	// Customers are expected to have at most one active subscription.
 	FetchUpcomingInvoice(ctx context.Context, externalCustomerID string) (*UpcomingInvoice, error)
-	// ListCustomersCreatedAfter retrieves customer records created at or after the given time.
-	ListCustomersCreatedAfter(ctx context.Context, createdAfter time.Time) ([]*Customer, error)
+	// ListCustomersWithCreditsCreatedAfter retrieves customer records created at or after the given time.
+	ListCustomersWithCreditsCreatedAfter(ctx context.Context, createdAfter time.Time) ([]*CustomerWithCredits, error)
 	// FetchStripeCustomer retrieves a Stripe customer by their Stripe customer ID.
 	FetchStripeCustomer(ctx context.Context, stripeCustomerID string) (*StripeCustomer, error)
 	// FindExistingStripeCustomerForBankTransfers returns a safe existing Stripe customer ID without writes.
@@ -461,15 +466,19 @@ func (n *NoopBilling) CreateCustomer(ctx context.Context, opts CreateCustomerOpt
 	return CreateCustomerResult{}, nil
 }
 
-func (n *NoopBilling) FetchOrbCustomer(ctx context.Context, customerID string) (*Customer, error) {
+func (n *NoopBilling) FetchCustomerWithCreditsByOrbID(ctx context.Context, customerID string) (*CustomerWithCredits, error) {
 	return nil, nil
 }
 
-func (n *NoopBilling) FetchCustomerByExternalID(_ context.Context, _ string) (*Customer, error) {
+func (n *NoopBilling) FetchCustomerByOrbID(ctx context.Context, customerID string) (*Customer, error) {
 	return nil, nil
 }
 
-func (n *NoopBilling) FetchCustomerByStripeCustomerID(_ context.Context, _ string) (*Customer, error) {
+func (n *NoopBilling) LoadCustomerCredits(_ context.Context, _ *Customer) (*CustomerWithCredits, error) {
+	return nil, nil
+}
+
+func (n *NoopBilling) FetchCustomerWithCredits(_ context.Context, _ string) (*CustomerWithCredits, error) {
 	return nil, nil
 }
 
@@ -477,11 +486,7 @@ func (n *NoopBilling) ConfigureOrbCustomerForBankTransfers(_ context.Context, _ 
 	return nil
 }
 
-func (n *NoopBilling) FetchBillingCustomerWithDefaultPaymentMethod(_ context.Context, _ string) (*Customer, error) {
-	return nil, nil
-}
-
-func (n *NoopBilling) UpdateOrbCustomerEmail(_ context.Context, _, _ string) (*Customer, error) {
+func (n *NoopBilling) UpdateOrbCustomerEmail(_ context.Context, _, _ string) (*CustomerWithCredits, error) {
 	return nil, nil
 }
 
@@ -493,7 +498,7 @@ func (n *NoopBilling) FetchUpcomingInvoice(_ context.Context, _ string) (*Upcomi
 	return nil, nil
 }
 
-func (n *NoopBilling) ListCustomersCreatedAfter(_ context.Context, _ time.Time) ([]*Customer, error) {
+func (n *NoopBilling) ListCustomersWithCreditsCreatedAfter(_ context.Context, _ time.Time) ([]*CustomerWithCredits, error) {
 	return nil, nil
 }
 

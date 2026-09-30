@@ -125,21 +125,21 @@ func TestCustomerCreditCalculations(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		customer                  *Customer
+		customer                  *CustomerWithCredits
 		wantActive                []Credit
 		wantTotalActive           float64
 		wantLastExpiry            *time.Time
 		wantLastExpiryWithBalance *time.Time
 	}{
 		"calculates credit details": {
-			customer:                  &Customer{Credits: credits},
+			customer:                  &CustomerWithCredits{Credits: credits},
 			wantActive:                []Credit{credits[0], credits[1]},
 			wantTotalActive:           15,
 			wantLastExpiry:            &lastExpiry,
 			wantLastExpiryWithBalance: &lastExpiryWithBalance,
 		},
 		"empty credits": {
-			customer:   &Customer{},
+			customer:   &CustomerWithCredits{},
 			wantActive: []Credit{},
 		},
 		"nil customer": {},
@@ -161,18 +161,18 @@ func TestLastActiveCreditExpiry(t *testing.T) {
 	laterExpiry := now.Add(2 * time.Hour)
 
 	tests := map[string]struct {
-		customer *Customer
+		customer *CustomerWithCredits
 		want     *time.Time
 	}{
 		"returns latest active expiry": {
-			customer: &Customer{Credits: []Credit{
+			customer: &CustomerWithCredits{Credits: []Credit{
 				{Amount: 10, Status: CreditStatusActive, EffectiveDate: now.Add(-time.Hour), ExpiryDate: earlierExpiry},
 				{Amount: 20, Status: CreditStatusActive, EffectiveDate: now, ExpiryDate: laterExpiry},
 			}},
 			want: &laterExpiry,
 		},
 		"ignores credits that are not strictly active": {
-			customer: &Customer{Credits: []Credit{
+			customer: &CustomerWithCredits{Credits: []Credit{
 				{Amount: 10, Status: CreditStatusPendingPayment, ExpiryDate: laterExpiry},
 				{Amount: 0, Status: CreditStatusActive, ExpiryDate: laterExpiry},
 				{Amount: 10, Status: CreditStatusActive, EffectiveDate: now.Add(time.Hour), ExpiryDate: laterExpiry},
@@ -180,7 +180,7 @@ func TestLastActiveCreditExpiry(t *testing.T) {
 			}},
 		},
 		"ignores active credit without expiry": {
-			customer: &Customer{Credits: []Credit{{Amount: 10, Status: CreditStatusActive}}},
+			customer: &CustomerWithCredits{Credits: []Credit{{Amount: 10, Status: CreditStatusActive}}},
 		},
 		"nil customer": {},
 	}
@@ -224,7 +224,7 @@ func TestTotalLifetimeCredits(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			customer := &Customer{Credits: tc.credits}
+			customer := &CustomerWithCredits{Credits: tc.credits}
 			got := customer.TotalLifetimeCredits()
 			require.Equal(t, tc.want, got)
 		})
