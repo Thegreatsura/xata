@@ -6,6 +6,8 @@ import (
 	"time"
 
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/events"
@@ -15,8 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"xata/internal/o11y"
 	poolv1alpha1 "xata/proto/clusterpool-operator/api/v1alpha1"
 	"xata/services/branch-operator/api/v1alpha1"
+	"xata/services/branch-operator/pkg/wakeup/tracing"
 )
 
 const (
@@ -37,6 +41,7 @@ const (
 // WakeupReconciler reconciles a WakeupRequest object
 type WakeupReconciler struct {
 	client.Client
+	Tracer                  trace.Tracer
 	Scheme                  *runtime.Scheme
 	Recorder                events.EventRecorder
 	CSINodeNamespace        string
@@ -50,15 +55,30 @@ type WakeupReconciler struct {
 // Reconcile handles reconciliation for WakeupRequest resources
 func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := ctrl.Log.WithName(ReconcilerName)
+	start := time.Now()
+
+	// Start a new root span for each reconcile
+	ctx, span := r.tracer().Start(ctx,
+		tracing.SpanReconcile,
+		trace.WithAttributes(tracing.AttrWakeupRequest.String(req.Name)))
+	defer span.End()
+
+	// Add the span's trace and span IDs to the logger so that log lines can be
+	// correlated with the trace
+	log = tracing.WithSpanIDs(log, span)
 
 	log.Info("reconciling WakeupRequest", "namespacedName", req.NamespacedName)
-	start := time.Now()
 
 	// Fetch the WakeupRequest resource
 	wr := &v1alpha1.WakeupRequest{}
 	if err := r.Get(ctx, req.NamespacedName, wr); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+	span.SetAttributes(
+		tracing.AttrBranch.String(wr.Spec.BranchName),
+		tracing.AttrXVol.String(wr.Spec.XVolName),
+		tracing.AttrPasswordSync.String(string(wr.Spec.PasswordSync)),
+	)
 
 	// Don't reconcile if the WakeupRequest is being deleted
 	if !wr.DeletionTimestamp.IsZero() {
@@ -95,6 +115,7 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// then log the outcome and duration
 	var err error
 	defer func() {
+		o11y.RecordSpanResult(span, err)
 		r.recordFailureEvent(wr, err)
 		r.setStatusConditionFromError(ctx, wr, err)
 		r.setLastErrorStatus(ctx, wr, err)
@@ -163,6 +184,7 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		log.Error(err, "taking cluster from pool", "poolName", poolName)
 		return ctrl.Result{}, ignoreTerminal(err)
 	}
+	span.SetAttributes(tracing.AttrCluster.String(cluster.Name))
 
 	// At this point we have taken a Cluster from the pool; if any subsequent
 	// step fails we would have an orphaned Cluster. Ensure that if any error
@@ -206,11 +228,13 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// Wait for the 'xata' user password secret to be synced to the Cluster
 	if wr.Spec.PasswordSync == v1alpha1.PasswordSyncModeWait {
-		err = r.waitForRolePasswordSync(ctx, log, branch.Name, cluster)
+		var outcome string
+		outcome, err = r.waitForRolePasswordSync(ctx, log, branch.Name, cluster)
 		if err != nil {
 			log.Error(err, "waiting for Cluster password secrets", "clusterName", cluster.Name)
 			return ctrl.Result{}, ignoreTerminal(err)
 		}
+		span.SetAttributes(tracing.AttrPasswordSyncOutcome.String(outcome))
 	}
 
 	// Annotate the PV with the name of the XVol used to wake it up
@@ -281,4 +305,12 @@ func setupIndexers(ctx context.Context, mgr ctrl.Manager) error {
 			return []string{owner.Name}
 		},
 	)
+}
+
+// tracer returns the configured Tracer, or a noop Tracer when none is set
+func (r *WakeupReconciler) tracer() trace.Tracer {
+	if r.Tracer == nil {
+		return noop.NewTracerProvider().Tracer(ReconcilerName)
+	}
+	return r.Tracer
 }

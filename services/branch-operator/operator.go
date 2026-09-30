@@ -43,8 +43,9 @@ var _ service.Service = (*BranchOperatorService)(nil)
 var _ service.RunnerService = (*BranchOperatorService)(nil)
 
 type BranchOperatorService struct {
-	config  Config
-	manager ctrl.Manager
+	config           Config
+	manager          ctrl.Manager
+	wakeupReconciler *wakeup.WakeupReconciler
 }
 
 // NewBranchOperatorService creates a new instance of the Branch operator service.
@@ -193,6 +194,7 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 		if err := wakeupReconciler.SetupWithManager(ctx, mgr); err != nil {
 			return err
 		}
+		s.wakeupReconciler = wakeupReconciler
 	}
 
 	s.manager = mgr
@@ -248,6 +250,11 @@ func (s *BranchOperatorService) Run(ctx context.Context, o *o11y.O) error {
 	// Set up controller-runtime logger
 	ctrlLogger := logger.With().Str("module", "controller-runtime").Logger()
 	ctrl.SetLogger(zerologr.New(&ctrlLogger))
+
+	// Attach the tracer to the wakeup reconciler
+	if s.wakeupReconciler != nil {
+		s.wakeupReconciler.Tracer = o.Tracer(wakeup.ReconcilerName)
+	}
 
 	logger.Info().Msg("branch-operator starting")
 

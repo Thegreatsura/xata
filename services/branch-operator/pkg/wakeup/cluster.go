@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"time"
 
+	"xata/internal/o11y"
 	"xata/services/branch-operator/api/v1alpha1"
 	"xata/services/branch-operator/pkg/shared"
+	"xata/services/branch-operator/pkg/wakeup/tracing"
 
 	"github.com/go-logr/logr"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	apiv1ac "github.com/xataio/xata-cnpg/pkg/client/applyconfiguration/api/v1"
+	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,15 +46,23 @@ func (r *WakeupReconciler) waitForRolePasswordSync(
 	log logr.Logger,
 	branchName string,
 	cluster *apiv1.Cluster,
-) error {
+) (outcome string, err error) {
+	// Start a span for the password sync wait operation
+	ctx, span := r.tracer().Start(ctx, tracing.SpanPasswordSyncWait,
+		trace.WithAttributes(
+			tracing.AttrBranch.String(branchName),
+			tracing.AttrCluster.String(cluster.Name),
+		))
+	defer o11y.CloseSpan(span, &err)
+
 	// Get the branch password secret for the 'xata' user
 	secret := &corev1.Secret{}
-	err := r.Get(ctx, client.ObjectKey{
+	err = r.Get(ctx, client.ObjectKey{
 		Name:      branchName + "-app",
 		Namespace: cluster.Namespace,
 	}, secret)
 	if err != nil {
-		return fmt.Errorf("get branch secret %q: %w", branchName+"-app", err)
+		return "", fmt.Errorf("get branch secret %q: %w", branchName+"-app", err)
 	}
 
 	// Poll the Cluster's status until it reports that the 'xata' user role is
@@ -59,8 +70,9 @@ func (r *WakeupReconciler) waitForRolePasswordSync(
 	// the timeout passes. The timeout is a condition result rather than a poll
 	// deadline so that it ends the wait successfully, while a cancelled reconcile
 	// context still ends it with an error.
+	outcome = tracing.PasswordSyncOutcomeSynced
 	deadline := time.Now().Add(r.PasswordSyncTimeout)
-	return wait.PollUntilContextCancel(ctx, rolePasswordSyncInterval, true,
+	err = wait.PollUntilContextCancel(ctx, rolePasswordSyncInterval, true,
 		func(ctx context.Context) (bool, error) {
 			if err := r.Get(ctx, client.ObjectKeyFromObject(cluster), cluster); err != nil {
 				return false, err
@@ -71,11 +83,18 @@ func (r *WakeupReconciler) waitForRolePasswordSync(
 			if time.Now().After(deadline) {
 				log.Info("timed out waiting for cluster to sync user password secret, proceeding anyway",
 					"cluster", cluster.Name, "secret", secret.Name, "timeout", r.PasswordSyncTimeout)
+				outcome = tracing.PasswordSyncOutcomeTimedOut
 				return true, nil
 			}
 			log.Info("waiting for cluster to sync user password secret", "cluster", cluster.Name, "secret", secret.Name)
 			return false, nil
 		})
+	if err != nil {
+		return "", err
+	}
+
+	span.SetAttributes(tracing.AttrPasswordSyncOutcome.String(outcome))
+	return outcome, nil
 }
 
 // clusterUsesCredsFromSecretVersion checks if the given Cluster's status
