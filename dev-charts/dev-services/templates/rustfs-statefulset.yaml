@@ -1,0 +1,116 @@
+{{- if .Values.rustfs.enabled }}
+{{- $name := .Values.rustfs.name }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ $name }}
+  annotations:
+    kube-linter.io/ignore-all: "dev only"
+spec:
+  serviceName: {{ $name }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+    spec:
+      # The image runs as the rustfs user; fsGroup makes the volume writable to it.
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: rustfs
+          image: "{{ .Values.rustfs.image.repository }}:{{ .Values.rustfs.image.tag }}"
+          env:
+            - name: RUSTFS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $name }}
+                  key: accessKey
+            - name: RUSTFS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $name }}
+                  key: secretKey
+            - name: RUSTFS_CONSOLE_ENABLE
+              value: "false"
+          ports:
+            - name: s3
+              containerPort: 9000
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          {{- with .Values.rustfs.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: s3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: s3
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+        {{- if .Values.rustfs.buckets }}
+        # A sidecar rather than a Job, so the buckets come back after the
+        # volume is replaced without an immutable Job to delete first.
+        - name: buckets
+          image: "{{ .Values.rustfs.image.repository }}:{{ .Values.rustfs.image.tag }}"
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              s3() { curl -fs --aws-sigv4 aws:amz:us-east-1:s3 --user "$ACCESS_KEY:$SECRET_KEY" "$@"; }
+              until s3 -o /dev/null http://127.0.0.1:9000/; do sleep 2; done
+              for bucket in {{ range .Values.rustfs.buckets }}{{ . | quote }} {{ end }}; do
+                s3 -o /dev/null --head "http://127.0.0.1:9000/$bucket" || s3 -S -X PUT "http://127.0.0.1:9000/$bucket"
+              done
+              touch /tmp/ready
+              exec sleep infinity
+          env:
+            - name: ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $name }}
+                  key: accessKey
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $name }}
+                  key: secretKey
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 32Mi
+          readinessProbe:
+            exec:
+              command: [test, -f, /tmp/ready]
+            periodSeconds: 2
+        {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.rustfs.storage.size }}
+{{- end }}

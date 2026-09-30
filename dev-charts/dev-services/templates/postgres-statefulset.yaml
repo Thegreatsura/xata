@@ -1,0 +1,119 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: postgres
+  annotations:
+    kube-linter.io/ignore-all: "dev only"
+spec:
+  serviceName: postgres
+  selector:
+    matchLabels:
+      app: postgres
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      {{- if .Values.postgres.tls.enabled }}
+      initContainers:
+        - name: tls-cert
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          command:
+            - /bin/sh
+            - -c
+            # Postgres refuses a key that is group or world readable, or that it does not own.
+            - |
+              set -e
+              openssl req -new -x509 -nodes \
+                -days 3650 -subj "/CN=postgres" \
+                -keyout /tls/server.key -out /tls/server.crt
+              chmod 600 /tls/server.key
+              chown 999:999 /tls/server.key /tls/server.crt
+          volumeMounts:
+            - mountPath: /tls
+              name: tls
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          {{- if .Values.postgres.tls.enabled }}
+          args:
+            - postgres
+            - -c
+            - ssl=on
+            - -c
+            - ssl_cert_file=/tls/server.crt
+            - -c
+            - ssl_key_file=/tls/server.key
+          {{- end }}
+          volumeMounts:
+            - mountPath: /data
+              name: data
+            {{- if .Values.postgres.tls.enabled }}
+            - mountPath: /tls
+              name: tls
+            {{- end }}
+          env:
+            - name: PGDATA
+              value: /data/pgdata
+            - name: POSTGRES_DB
+              value: postgres
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: xata-secrets
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: xata-secrets
+                  key: password
+          {{- with .Values.postgres.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+      {{- if .Values.postgres.tls.enabled }}
+      volumes:
+        - name: tls
+          emptyDir: {}
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.postgres.storage.size }}
+{{- end }}

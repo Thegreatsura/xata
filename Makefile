@@ -13,7 +13,7 @@ GIT_COMMIT_SHORT := $(shell git rev-parse --short=7 HEAD)
 SOURCE_URL := $(or $(GITHUB_SERVER_URL),https://github.com)/$(or $(GITHUB_REPOSITORY),xataio/maki)
 WORKFLOW_FILES := $(wildcard .github/workflows/* oss/.github/workflows/*)
 BAKE_OVERRIDES := docker-bake.override.hcl $(wildcard oss/docker-bake.override.hcl)
-CHART_DIRS ?= charts $(wildcard saas-charts)
+CHART_DIRS ?= charts $(wildcard saas-charts) dev-charts
 GIT_TOKEN ?=
 export SOURCE_URL GIT_TOKEN
 
@@ -47,6 +47,7 @@ lint: lint-openapi lint-go lint-buf lint-opa lint-keycloak-extensions lint-chart
 .PHONY: lint-charts
 lint-charts: ## Lint Helm charts
 	@cd charts && $(MAKE) lint
+	@cd dev-charts && $(MAKE) lint
 
 .PHONY: lint-kube
 lint-kube: ## Lint Kubernetes manifests
