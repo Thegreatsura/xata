@@ -29,7 +29,7 @@ config:
     wakeupPasswordSyncTimeout: 30s
     # Worker counts for the operator's controllers
     branchMaxConcurrent: 1
-    wakeupMaxConcurrent: 16
+    wakeupMaxConcurrent: 128
 
 resources:
   limits:
