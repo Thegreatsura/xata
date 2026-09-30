@@ -26,7 +26,7 @@ config:
       value: dummy
     xatastor:
       enabled: true
-    wakeupPasswordSyncTimeout: 30s
+    wakeupPasswordSyncTimeout: 5m
     # Worker counts for the operator's controllers
     branchMaxConcurrent: 1
     wakeupMaxConcurrent: 128
