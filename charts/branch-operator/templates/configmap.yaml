@@ -17,3 +17,4 @@ data:
   XATA_XATASTOR_ENABLED: {{ .Values.config.branchOperator.xatastor.enabled | quote }}
   XATA_BRANCH_MAX_CONCURRENT: {{ .Values.config.branchOperator.branchMaxConcurrent | quote }}
   XATA_WAKEUP_MAX_CONCURRENT: {{ .Values.config.branchOperator.wakeupMaxConcurrent | quote }}
+  XATA_WAKEUP_PASSWORD_SYNC_TIMEOUT: {{ .Values.config.branchOperator.wakeupPasswordSyncTimeout | quote }}
