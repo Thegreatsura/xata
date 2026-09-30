@@ -115,6 +115,8 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// then log the outcome and duration
 	var err error
 	defer func() {
+		ctx := context.WithoutCancel(ctx)
+
 		o11y.RecordSpanResult(span, err)
 		r.recordFailureEvent(wr, err)
 		r.setStatusConditionFromError(ctx, wr, err)
@@ -192,7 +194,7 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// Cluster that was taken from the pool.
 	defer func() {
 		if err != nil {
-			r.Delete(ctx, cluster)
+			r.Delete(context.WithoutCancel(ctx), cluster)
 		}
 	}()
 
