@@ -9,7 +9,7 @@ components:
 resources:
   - ../../base/xata
   - ../../base/otel
-  - postgres
+  - dev-services
   - auth
   - api-gateway
   - gateway

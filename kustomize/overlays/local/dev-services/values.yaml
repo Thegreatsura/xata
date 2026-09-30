@@ -1,0 +1,7 @@
+postgres:
+  # Services in this overlay connect with sslmode=disable.
+  tls:
+    enabled: false
+
+mailpit:
+  enabled: false
