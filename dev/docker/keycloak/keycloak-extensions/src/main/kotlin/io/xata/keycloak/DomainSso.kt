@@ -20,6 +20,9 @@ import org.keycloak.organization.utils.Organizations
 object DomainSso {
     private val LOGGER: Logger = Logger.getLogger(DomainSso::class.java)
 
+    /** Mirrors keycloak.OrganizationIdentityProviderAlias in the auth service. */
+    const val ORGANIZATION_PROVIDER_PREFIX = "sso-"
+
     /** What to tell somebody whose address belongs to [required], and what to do instead. */
     fun useYourProvider(
         required: IdentityProviderModel,
@@ -76,8 +79,8 @@ object DomainSso {
     /**
      * Whether [alias] is entitled to assert [email]. Keycloak's trustEmail does not check this and
      * first broker login links on the result, so without it one organization's provider could
-     * claim another's account. A provider linked to no organization is shared and not covered; one
-     * linked to an organization but bound to no domain asserts nothing.
+     * claim another's account. A shared provider such as github or google is not covered; an
+     * organization's provider bound to no domain asserts nothing, linked or not.
      */
     fun assertsOwnDomain(
         session: KeycloakSession,
@@ -86,7 +89,7 @@ object DomainSso {
     ): Boolean {
         if (alias == null) return true
         val idp = session.identityProviders().getByAlias(alias) ?: return true
-        val bound = idp.config[OrganizationModel.ORGANIZATION_DOMAIN_ATTRIBUTE] ?: return idp.organizationId == null
+        val bound = idp.config[OrganizationModel.ORGANIZATION_DOMAIN_ATTRIBUTE] ?: return isShared(idp)
 
         val domain = Organizations.getEmailDomain(email)?.lowercase() ?: return false
         if (bound != ANY_DOMAIN) return Organizations.isSameDomain(domain, bound)
@@ -94,6 +97,9 @@ object DomainSso {
         val organization = organizationFor(session, domain) ?: return false
         return organization.identityProviders.anyMatch { it.alias == alias }
     }
+
+    private fun isShared(idp: IdentityProviderModel): Boolean =
+        idp.organizationId == null && !idp.alias.startsWith(ORGANIZATION_PROVIDER_PREFIX)
 
     private fun organizationFor(
         session: KeycloakSession,

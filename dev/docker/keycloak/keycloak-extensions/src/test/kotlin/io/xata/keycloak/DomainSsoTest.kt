@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
 class DomainSsoTest {
     private fun broker(vararg config: Pair<String, String>) =
         IdentityProviderModel().apply {
-            alias = "google-sso-acme"
+            alias = "sso-acme-acme-com"
             this.config = mutableMapOf(EMAIL_MATCH.key to "true", *config)
         }
 

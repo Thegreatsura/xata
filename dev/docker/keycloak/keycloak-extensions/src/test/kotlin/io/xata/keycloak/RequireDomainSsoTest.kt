@@ -30,7 +30,7 @@ import kotlin.test.assertNull
 class RequireDomainSsoTest {
     private val ssoBroker =
         IdentityProviderModel().apply {
-            alias = "google-sso-acme"
+            alias = "sso-acme-acme-com"
             displayName = "Acme SSO"
             isEnabled = true
             config = mutableMapOf(EMAIL_MATCH.key to "true", ORGANIZATION_DOMAIN_ATTRIBUTE to "acme.com")
@@ -62,18 +62,18 @@ class RequireDomainSsoTest {
         @Test
         fun `holds a login on an SSO domain that has not been through the provider`() {
             val got = DomainSso.mismatchedBroker(session(), "alexis@acme.com", null)
-            assertEquals("google-sso-acme", got?.alias)
+            assertEquals("sso-acme-acme-com", got?.alias)
         }
 
         @Test
         fun `lets a login that came back from the required provider through`() {
-            assertNull(DomainSso.mismatchedBroker(session(), "alexis@acme.com", "google-sso-acme"))
+            assertNull(DomainSso.mismatchedBroker(session(), "alexis@acme.com", "sso-acme-acme-com"))
         }
 
         @Test
         fun `holds a login that came back from a different provider`() {
             val got = DomainSso.mismatchedBroker(session(), "alexis@acme.com", "google")
-            assertEquals("google-sso-acme", got?.alias)
+            assertEquals("sso-acme-acme-com", got?.alias)
         }
 
         @Test
@@ -105,7 +105,7 @@ class RequireDomainSsoTest {
         @Test
         fun `matches the domain case-insensitively`() {
             val got = DomainSso.mismatchedBroker(session(), "Alexis@ACME.com", null)
-            assertEquals("google-sso-acme", got?.alias)
+            assertEquals("sso-acme-acme-com", got?.alias)
         }
     }
 

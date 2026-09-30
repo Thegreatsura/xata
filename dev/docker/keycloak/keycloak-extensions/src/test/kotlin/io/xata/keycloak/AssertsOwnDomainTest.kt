@@ -64,8 +64,9 @@ class AssertsOwnDomainTest {
     @Test
     fun `leaves a shared provider alone`() {
         // github and google are bound to no domain and are not this check's business.
-        val got = session(bound("google", null))
+        val got = session(bound("google", null), bound("github", null))
         assertTrue(DomainSso.assertsOwnDomain(got, "google", "anyone@anywhere.example"))
+        assertTrue(DomainSso.assertsOwnDomain(got, "github", "anyone@anywhere.example"))
     }
 
     @Test
@@ -73,6 +74,13 @@ class AssertsOwnDomainTest {
         val got = session(bound("sso-acme-acme-com", null, organizationId = "acme"))
         assertFalse(DomainSso.assertsOwnDomain(got, "sso-acme-acme-com", "someone@acme.com"))
         assertFalse(DomainSso.assertsOwnDomain(got, "sso-acme-acme-com", "victim@other.example"))
+    }
+
+    @Test
+    fun `refuses an organization provider no longer linked to any organization`() {
+        val got = session(bound("sso-acme-acme-com", null))
+        assertFalse(DomainSso.assertsOwnDomain(got, "sso-acme-acme-com", "someone@acme.com"))
+        assertFalse(DomainSso.assertsOwnDomain(got, "sso-acme-acme-com", "someone@other.example"))
     }
 
     @Test
