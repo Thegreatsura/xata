@@ -18,8 +18,8 @@ type Config struct {
 
 	AuthConfig config.AuthConfig
 
-	// HMAC secret for API key quick lookups
-	HMACSecret string `env:"API_KEY_HMAC_SECRET" env-required:"true" env-description:"Secret used for HMAC-SHA256 of API keys for fast lookups"`
+	// Rotating this breaks every API key and every SSO domain verification record.
+	HMACSecret string `env:"AUTH_HMAC_SECRET" env-required:"true" env-description:"Secret for HMAC-SHA256 derivations: API key hashes and SSO domain verification records. Rotating it breaks user-facing functionality: every API key stops working and every SSO domain has to be verified again."`
 }
 
 func (c *Config) ConnectionString() string {

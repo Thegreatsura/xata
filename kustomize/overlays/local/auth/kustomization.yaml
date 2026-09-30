@@ -19,7 +19,7 @@ helmGlobals:
 
 resources:
   - keycloak
-  - api-key-hmac-secret.yaml
+  - auth-hmac-secret.yaml
   - orb-secret.yaml
   - posthog-secret.yaml
   - stripe-secret.yaml

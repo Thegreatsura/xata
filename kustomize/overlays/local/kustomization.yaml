@@ -205,16 +205,16 @@ patches:
                       secretKeyRef:
                         name: auth-keycloak-initial-admin
                         key: password
-                  - name: API_KEY_HMAC_SECRET
+                  - name: AUTH_HMAC_SECRET
                     valueFrom:
                       secretKeyRef:
-                        name: auth-api-key-hmac
+                        name: auth-hmac
                         key: hmac-secret
                 envFrom:
                   - configMapRef:
                       name: keycloak-api-settings
                   - secretRef:
-                      name: auth-api-key-hmac
+                      name: auth-hmac
                 resources:
                   limits:
                     cpu: 200m

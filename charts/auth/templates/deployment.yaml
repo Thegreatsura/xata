@@ -33,14 +33,14 @@ spec:
               value: "{{ .Values.dependencies.projectsGrpcUrl }}"
             - name: POSTGRES_SSLMODE
               value: {{ .Values.postgres.sslmode }}
-            - name: API_KEY_HMAC_SECRET
+            - name: AUTH_HMAC_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: auth-api-key-hmac
+                  name: auth-hmac
                   key: hmac-secret
           envFrom:
             - secretRef:
-                name: auth-api-key-hmac
+                name: auth-hmac
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
@@ -95,10 +95,10 @@ spec:
                   key: password
             - name: OTEL_SERVICE_NAME
               value: "{{ .Values.observability.serviceName }}"
-            - name: API_KEY_HMAC_SECRET
+            - name: AUTH_HMAC_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: auth-api-key-hmac
+                  name: auth-hmac
                   key: hmac-secret
             - name: ORB_API_KEY
               valueFrom:
@@ -149,7 +149,7 @@ spec:
                   key: client-secret
           envFrom:
             - secretRef:
-                name: auth-api-key-hmac
+                name: auth-hmac
             - configMapRef:
                 name: keycloak-api-settings
             - configMapRef:

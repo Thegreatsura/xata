@@ -40,10 +40,10 @@ spec:
                 - sso_domain_recheck
                 - --grace={{ .Values.ssoDomainRecheck.grace }}
               env:
-                - name: API_KEY_HMAC_SECRET
+                - name: AUTH_HMAC_SECRET
                   valueFrom:
                     secretKeyRef:
-                      name: auth-api-key-hmac
+                      name: auth-hmac
                       key: hmac-secret
                 - name: KEYCLOAK_ADMIN_USERNAME
                   valueFrom:
