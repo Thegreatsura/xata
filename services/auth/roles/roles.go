@@ -12,6 +12,7 @@ import (
 	"xata/services/auth/keycloak"
 
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
 )
 
 // Role is the identifier used on the wire.
@@ -150,50 +151,60 @@ type Caller struct {
 	OrganizationKey bool
 }
 
-type holding struct {
+type roleGroup struct {
+	id      string
 	role    Role
-	userIDs []string
+	members []keycloak.OrganizationMember
 }
 
-type snapshot struct {
-	members  []keycloak.OrganizationMember
-	holdings []holding
+func reserved(groups []keycloak.Group) []roleGroup {
+	var roleGroups []roleGroup
+	for _, g := range groups {
+		if role, ok := roleOfGroup(g.Name); ok {
+			roleGroups = append(roleGroups, roleGroup{id: g.ID, role: role})
+		}
+	}
+	return roleGroups
 }
 
-func (s *rolesService) read(ctx context.Context, organizationID string) (snapshot, error) {
-	orgMembers, err := s.kcRest.ListMembers(ctx, s.realm, organizationID)
-	if err != nil {
-		return snapshot{}, fmt.Errorf("list organization members: %w", err)
-	}
-	current := make(map[string]struct{}, len(orgMembers))
-	for _, m := range orgMembers {
-		current[m.ID] = struct{}{}
-	}
-
+func (s *rolesService) read(ctx context.Context, organizationID string) (members []keycloak.OrganizationMember, roleGroups []roleGroup, err error) {
 	groups, err := s.kcRest.ListGroups(ctx, s.realm, organizationID)
 	if err != nil {
-		return snapshot{}, fmt.Errorf("list groups: %w", err)
+		return nil, nil, fmt.Errorf("list groups: %w", err)
 	}
-	snap := snapshot{members: orgMembers}
-	for _, g := range groups {
-		role, ok := roleOfGroup(g.Name)
-		if !ok {
-			continue
+	roleGroups = reserved(groups)
+
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.Go(func() (err error) {
+		if members, err = s.kcRest.ListMembers(egCtx, s.realm, organizationID); err != nil {
+			return fmt.Errorf("list organization members: %w", err)
 		}
-		members, err := s.kcRest.ListGroupMembers(ctx, s.realm, organizationID, g.ID)
-		if err != nil {
-			return snapshot{}, fmt.Errorf("list role members: %w", err)
-		}
-		h := holding{role: role}
-		for _, m := range members {
-			// Keycloak keeps membership after a user leaves the organization.
-			if _, ok := current[m.ID]; ok {
-				h.userIDs = append(h.userIDs, m.ID)
+		return nil
+	})
+	for i := range roleGroups {
+		eg.Go(func() (err error) {
+			if roleGroups[i].members, err = s.kcRest.ListGroupMembers(egCtx, s.realm, organizationID, roleGroups[i].id); err != nil {
+				return fmt.Errorf("list role members: %w", err)
 			}
-		}
-		snap.holdings = append(snap.holdings, h)
+			return nil
+		})
 	}
-	return snap, nil
+	if err := eg.Wait(); err != nil {
+		return nil, nil, err
+	}
+
+	current := make(map[string]struct{}, len(members))
+	for _, m := range members {
+		current[m.ID] = struct{}{}
+	}
+	for i := range roleGroups {
+		// Keycloak keeps membership after a user leaves the organization.
+		roleGroups[i].members = slices.DeleteFunc(roleGroups[i].members, func(m keycloak.OrganizationMember) bool {
+			_, ok := current[m.ID]
+			return !ok
+		})
+	}
+	return members, roleGroups, nil
 }
 
 func (s *rolesService) Members(ctx context.Context, organizationID string, unassigned Role) (map[string]Role, error) {
@@ -202,25 +213,29 @@ func (s *rolesService) Members(ctx context.Context, organizationID string, unass
 }
 
 func (s *rolesService) List(ctx context.Context, organizationID string, unassigned Role) ([]keycloak.OrganizationMember, map[string]Role, error) {
-	snap, err := s.read(ctx, organizationID)
+	members, roleGroups, err := s.read(ctx, organizationID)
 	if err != nil {
 		return nil, nil, err
 	}
-	byUser := make(map[string]Role, len(snap.members))
-	for _, m := range snap.members {
+	return members, rolesByUser(members, roleGroups, unassigned), nil
+}
+
+func rolesByUser(members []keycloak.OrganizationMember, roleGroups []roleGroup, unassigned Role) map[string]Role {
+	byUser := make(map[string]Role, len(members))
+	for _, m := range members {
 		byUser[m.ID] = unassigned
 	}
 	// A member in several reserved groups holds the most privileged, as IsAdmin decides.
-	held := make(map[string]int, len(snap.members))
-	for _, h := range snap.holdings {
-		for _, id := range h.userIDs {
-			if r, ok := held[id]; !ok || rank(h.role) < r {
-				held[id] = rank(h.role)
-				byUser[id] = h.role
+	held := make(map[string]int, len(members))
+	for _, g := range roleGroups {
+		for _, m := range g.members {
+			if r, ok := held[m.ID]; !ok || rank(g.role) < r {
+				held[m.ID] = rank(g.role)
+				byUser[m.ID] = g.role
 			}
 		}
 	}
-	return snap.members, byUser, nil
+	return byUser
 }
 
 func rank(r Role) int {
@@ -228,25 +243,25 @@ func rank(r Role) int {
 }
 
 func (s *rolesService) Audit(ctx context.Context, organizationID string) (Audit, error) {
-	snap, err := s.read(ctx, organizationID)
+	members, roleGroups, err := s.read(ctx, organizationID)
 	if err != nil {
 		return Audit{}, err
 	}
 
 	groupsOf := make(map[Role]int, len(All))
-	assigned := make(map[string]struct{}, len(snap.members))
+	assigned := make(map[string]struct{}, len(members))
 	admins := make(map[string]struct{})
-	for _, h := range snap.holdings {
-		groupsOf[h.role]++
-		for _, id := range h.userIDs {
-			assigned[id] = struct{}{}
-			if h.role == Admin {
-				admins[id] = struct{}{}
+	for _, g := range roleGroups {
+		groupsOf[g.role]++
+		for _, m := range g.members {
+			assigned[m.ID] = struct{}{}
+			if g.role == Admin {
+				admins[m.ID] = struct{}{}
 			}
 		}
 	}
 
-	audit := Audit{Members: len(snap.members), Admins: len(admins)}
+	audit := Audit{Members: len(members), Admins: len(admins)}
 	for _, d := range All {
 		switch n := groupsOf[d.Role]; {
 		case n == 0:
@@ -255,7 +270,7 @@ func (s *rolesService) Audit(ctx context.Context, organizationID string) (Audit,
 			audit.DuplicateRoles = append(audit.DuplicateRoles, d.Role)
 		}
 	}
-	for _, m := range snap.members {
+	for _, m := range members {
 		if _, ok := assigned[m.ID]; !ok {
 			audit.Unassigned = append(audit.Unassigned, m.ID)
 		}
@@ -311,10 +326,11 @@ func (s *rolesService) SetMember(ctx context.Context, organizationID, userID str
 		return ErrUnknownRole{Role: string(role)}
 	}
 
-	current, err := s.Members(ctx, organizationID, Unassigned)
+	members, roleGroups, err := s.read(ctx, organizationID)
 	if err != nil {
 		return err
 	}
+	current := rolesByUser(members, roleGroups, Unassigned)
 
 	// Authorize first, so a caller who may not manage roles learns nothing.
 	if !caller.OrganizationKey && current[caller.UserID] != Admin {
@@ -330,32 +346,26 @@ func (s *rolesService) SetMember(ctx context.Context, organizationID, userID str
 		return ErrLastAdmin{}
 	}
 
-	groups, err := s.kcRest.ListGroups(ctx, s.realm, organizationID)
-	if err != nil {
-		return fmt.Errorf("list groups: %w", err)
-	}
-
 	// Join first, so a failure part-way grants too much rather than nothing.
-	target, err := s.groupFor(ctx, organizationID, groups, role)
+	target, err := s.groupFor(ctx, organizationID, roleGroups, role)
 	if err != nil {
 		return err
 	}
 	if err := s.kcRest.AddGroupMember(ctx, s.realm, organizationID, target, userID); err != nil {
 		return fmt.Errorf("assign role %s: %w", role, err)
 	}
-	for _, g := range groups {
-		other, ok := roleOfGroup(g.Name)
-		if !ok || other == role {
+	for _, g := range roleGroups {
+		if g.role == role {
 			continue
 		}
-		if err := s.kcRest.RemoveGroupMember(ctx, s.realm, organizationID, g.ID, userID); err != nil {
-			return fmt.Errorf("clear role %s: %w", other, err)
+		if err := s.kcRest.RemoveGroupMember(ctx, s.realm, organizationID, g.id, userID); err != nil {
+			return fmt.Errorf("clear role %s: %w", g.role, err)
 		}
 	}
 	if role == Admin || current[userID] != Admin {
 		return nil
 	}
-	err = s.keepAnAdmin(ctx, organizationID, groups, userID, target)
+	err = s.keepAnAdmin(ctx, organizationID, roleGroups, userID, target)
 	if err != nil && !errors.Is(err, ErrLastAdmin{}) {
 		log.Ctx(ctx).Err(err).Str("org_id", organizationID).Bool("roles_last_admin_restore_failed", true).
 			Msgf("restore an Admin for organization [%s]", organizationID)
@@ -364,7 +374,7 @@ func (s *rolesService) SetMember(ctx context.Context, organizationID, userID str
 }
 
 // keepAnAdmin restores Admin to a member just demoted from it when a concurrent demotion left no Admin.
-func (s *rolesService) keepAnAdmin(ctx context.Context, organizationID string, groups []keycloak.Group, userID, demotedTo string) error {
+func (s *rolesService) keepAnAdmin(ctx context.Context, organizationID string, roleGroups []roleGroup, userID, demotedTo string) error {
 	after, err := s.Members(ctx, organizationID, Unassigned)
 	if err != nil {
 		return err
@@ -372,7 +382,7 @@ func (s *rolesService) keepAnAdmin(ctx context.Context, organizationID string, g
 	if countRole(after, Admin) > 0 {
 		return nil
 	}
-	admin, err := s.groupFor(ctx, organizationID, groups, Admin)
+	admin, err := s.groupFor(ctx, organizationID, roleGroups, Admin)
 	if err != nil {
 		return err
 	}
@@ -436,9 +446,10 @@ func (s *rolesService) ensureGroups(ctx context.Context, organizationID string) 
 	if err != nil {
 		return nil, fmt.Errorf("list groups: %w", err)
 	}
+	roleGroups := reserved(groups)
 	ids := make(map[Role]string, len(All))
 	for _, d := range All {
-		id, err := s.groupFor(ctx, organizationID, groups, d.Role)
+		id, err := s.groupFor(ctx, organizationID, roleGroups, d.Role)
 		if err != nil {
 			return nil, err
 		}
@@ -448,8 +459,8 @@ func (s *rolesService) ensureGroups(ctx context.Context, organizationID string) 
 }
 
 // groupFor returns the reserved group backing a role, creating it if absent.
-func (s *rolesService) groupFor(ctx context.Context, organizationID string, groups []keycloak.Group, role Role) (string, error) {
-	if id, ok := findRoleGroup(groups, role); ok {
+func (s *rolesService) groupFor(ctx context.Context, organizationID string, roleGroups []roleGroup, role Role) (string, error) {
+	if id, ok := findRoleGroup(roleGroups, role); ok {
 		return id, nil
 	}
 	created, err := s.kcRest.CreateGroup(ctx, s.realm, organizationID, role.groupName())
@@ -464,16 +475,16 @@ func (s *rolesService) groupFor(ctx context.Context, organizationID string, grou
 	if listErr != nil {
 		return "", fmt.Errorf("list groups: %w", listErr)
 	}
-	if id, ok := findRoleGroup(current, role); ok {
+	if id, ok := findRoleGroup(reserved(current), role); ok {
 		return id, nil
 	}
 	return "", fmt.Errorf("create role %s: %w", role, err)
 }
 
-func findRoleGroup(groups []keycloak.Group, role Role) (string, bool) {
-	for _, g := range groups {
-		if found, ok := roleOfGroup(g.Name); ok && found == role {
-			return g.ID, true
+func findRoleGroup(roleGroups []roleGroup, role Role) (string, bool) {
+	for _, g := range roleGroups {
+		if g.role == role {
+			return g.id, true
 		}
 	}
 	return "", false

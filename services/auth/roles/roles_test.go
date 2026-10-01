@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"xata/internal/apitest"
 	"xata/services/auth/keycloak"
@@ -119,6 +120,37 @@ func TestMembersReportsEveryListedMember(t *testing.T) {
 	require.Equal(t, Unassigned, got[ids[count-1]])
 }
 
+func TestMembersReadsConcurrently(t *testing.T) {
+	var started sync.WaitGroup
+	started.Add(len(reservedGroups()) + 1)
+	allStarted := make(chan struct{})
+	go func() { started.Wait(); close(allStarted) }()
+	await := func() error {
+		started.Done()
+		select {
+		case <-allStarted:
+			return nil
+		case <-time.After(5 * time.Second):
+			return errors.New("reads ran one after another")
+		}
+	}
+	kc := keycloakMocks.NewKeyCloak(t)
+	kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(reservedGroups(), nil)
+	kc.EXPECT().ListMembers(mock.Anything, apitest.TestRealm, testOrgID).
+		RunAndReturn(func(context.Context, string, string) ([]keycloak.OrganizationMember, error) {
+			return members(testUserID), await()
+		})
+	kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, mock.Anything).
+		RunAndReturn(func(context.Context, string, string, string) ([]keycloak.OrganizationMember, error) {
+			return members(testUserID), await()
+		})
+
+	got, err := NewRoles(apitest.TestRealm, kc).Members(context.Background(), testOrgID, Unassigned)
+
+	require.NoError(t, err)
+	require.Equal(t, map[string]Role{testUserID: Admin}, got)
+}
+
 func TestSetMember(t *testing.T) {
 	tests := map[string]struct {
 		orgMembers []string
@@ -226,6 +258,20 @@ func TestSetMember(t *testing.T) {
 			require.NoError(t, got)
 		})
 	}
+}
+
+func TestSetMemberListsGroupsOnce(t *testing.T) {
+	kc := keycloakMocks.NewKeyCloak(t)
+	kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(reservedGroups(), nil).Once()
+	kc.EXPECT().ListMembers(mock.Anything, apitest.TestRealm, testOrgID).Return(members(testUserID, otherID), nil)
+	kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, adminID).Return(members(testUserID), nil)
+	kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, mock.Anything).Return(nil, nil)
+	kc.EXPECT().AddGroupMember(mock.Anything, apitest.TestRealm, testOrgID, editorID, otherID).Return(nil).Once()
+	kc.EXPECT().RemoveGroupMember(mock.Anything, apitest.TestRealm, testOrgID, mock.Anything, otherID).Return(nil).Twice()
+
+	err := NewRoles(apitest.TestRealm, kc).SetMember(context.Background(), testOrgID, otherID, Editor, Caller{UserID: testUserID})
+
+	require.NoError(t, err)
 }
 
 // TestSetMemberKeepsAnAdmin demotes the only two Admins by each other at once. Neither request writes

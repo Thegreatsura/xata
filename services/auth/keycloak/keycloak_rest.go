@@ -260,8 +260,9 @@ func (r *restKC) listAllMembers(ctx context.Context, listURL string, statusErr f
 	for page := range maxMemberPages {
 		first := page * memberPageSize
 		queryParams := map[string]string{
-			"first": fmt.Sprintf("%d", first),
-			"max":   fmt.Sprintf("%d", memberPageSize),
+			"first":               fmt.Sprintf("%d", first),
+			"max":                 fmt.Sprintf("%d", memberPageSize),
+			"briefRepresentation": "true",
 		}
 
 		resp, err := r.makeAuthenticatedRequest(ctx, "GET", listURL, queryParams, nil)

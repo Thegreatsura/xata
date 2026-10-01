@@ -120,6 +120,7 @@ func TestGroupOperations(t *testing.T) {
 		"list members maps user representations": {
 			admin: func(w http.ResponseWriter, req *http.Request) {
 				require.True(t, strings.HasSuffix(req.URL.Path, "/organizations/internal-1/groups/g1/members"))
+				require.Equal(t, "true", req.URL.Query().Get("briefRepresentation"))
 				_, _ = w.Write([]byte(`[{"id":"u1","email":"a@b.com","firstName":"Ada","lastName":"Byron"}]`))
 			},
 			run: func(t *testing.T, kc KeyCloak) {
