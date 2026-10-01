@@ -192,12 +192,14 @@ func NewOrganizationSSOConfiguredEvent(organizationID, providerType, domain stri
 	}
 }
 
-func NewOrganizationSSORemovedEvent(organizationID string) Event {
+func NewOrganizationSSORemovedEvent(organizationID, providerType, domain string) Event {
 	return Event{
 		Name:  "organization sso removed",
 		OrgID: organizationID,
 		Properties: map[string]any{
-			"organization": organizationID,
+			"organization":  organizationID,
+			"provider_type": providerType,
+			"domain":        domain,
 		},
 	}
 }

@@ -409,7 +409,7 @@ type BillingUpcomingInvoiceResponse struct {
 
 // ClaimOrganizationSSODomainRequest Request payload for claiming an email domain for SSO
 type ClaimOrganizationSSODomainRequest struct {
-	// Domain Bare email domain to claim, for example acme.com. Wildcards and public email providers are rejected.
+	// Domain Bare email domain to claim, for example acme.com.
 	Domain string `json:"domain"`
 }
 
@@ -662,10 +662,10 @@ type OrganizationSSOProvider struct {
 	// DisplayName Name members see for this provider when signing in.
 	DisplayName string `json:"display_name"`
 
-	// Domain The verified email domain this provider serves.
+	// Domain The verified email domain this provider serves. Empty while the domain is not verified.
 	Domain string `json:"domain"`
 
-	// Enforced Whether members on this domain are sent to this provider automatically, leaving no other way in. Registering a provider does not set this; it is enabled separately once a sign-in through it has worked.
+	// Enforced Whether members on this domain are sent to this provider automatically, leaving no other way in. Registering a provider does not set this; it is enabled separately.
 	Enforced bool `json:"enforced"`
 
 	// Issuer OIDC issuer URL, without the /.well-known suffix.

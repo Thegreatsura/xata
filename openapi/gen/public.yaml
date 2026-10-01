@@ -789,8 +789,7 @@ paths:
       summary: Release a claimed or verified domain
       description: |
         Drops a pending claim, or releases a verified domain so members on it sign in however they could before.
-        Refused with a 409 while a provider is still bound to the domain, since releasing it underneath one would
-        leave a provider nobody can reach; remove the provider first. Idempotent.
+        Refused with a 409 while the organization has a provider for the domain; remove the provider first. Idempotent.
       responses:
         '204':
           description: Domain released
@@ -825,8 +824,8 @@ paths:
       summary: Check the DNS record for a claimed domain
       description: |
         Looks up the challenge TXT record. Verification is a poll, not a command: a missing or stale record is reported
-        as `verified: false` on a 200 rather than as an error, so a client can retry while DNS propagates. Verifying
-        proves the organization controls the domain and nothing more; it does not change how anyone signs in.
+        as `verified: false` on a 200 rather than as an error, so a client can retry while DNS propagates. Verifying a
+        domain that lost its verification restores its provider, with enforcement off.
       responses:
         '200':
           description: Current state of the domain after checking DNS
@@ -870,9 +869,10 @@ paths:
       summary: Register an identity provider for a verified domain
       description: |
         Registers an identity provider for one verified domain. `google` needs only the credentials and pins the login
-        to that Google Workspace domain; `oidc` is the fallback for any other provider and discovers its endpoints from
-        the issuer's `/.well-known/openid-configuration`. The domain must already be verified, and registering does not
-        redirect anyone on its own: that is enabled separately.
+        to that Google Workspace domain; `microsoft` pins it to the Entra tenant in the issuer; `oidc` is the fallback
+        for any other provider and discovers its endpoints from the issuer's `/.well-known/openid-configuration`. The
+        domain must already be verified, and registering does not redirect anyone on its own: that is enabled
+        separately.
       requestBody:
         required: true
         content:
@@ -1039,7 +1039,7 @@ paths:
             - org:write
       tags:
         - Organizations
-      x-operation-kind: write
+      x-operation-kind: destructive
   /organizations/{organizationID}/billing/checkout-session:
     parameters:
       - $ref: '#/components/parameters/OrganizationIDParam'
@@ -4293,10 +4293,10 @@ components:
           description: Name members see for this provider when signing in.
           type: string
         domain:
-          description: The verified email domain this provider serves.
+          description: The verified email domain this provider serves. Empty while the domain is not verified.
           type: string
         enforced:
-          description: Whether members on this domain are sent to this provider automatically, leaving no other way in. Registering a provider does not set this; it is enabled separately once a sign-in through it has worked.
+          description: Whether members on this domain are sent to this provider automatically, leaving no other way in. Registering a provider does not set this; it is enabled separately.
           type: boolean
         issuer:
           description: OIDC issuer URL, without the /.well-known suffix.
@@ -4416,7 +4416,7 @@ components:
       type: object
       properties:
         domain:
-          description: Bare email domain to claim, for example acme.com. Wildcards and public email providers are rejected.
+          description: Bare email domain to claim, for example acme.com.
           type: string
       required:
         - domain
