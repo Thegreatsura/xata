@@ -38,7 +38,6 @@ spec:
               command: ["/server"]
               args:
                 - sso_domain_recheck
-                - --grace={{ .Values.ssoDomainRecheck.grace }}
               env:
                 - name: AUTH_HMAC_SECRET
                   valueFrom:
