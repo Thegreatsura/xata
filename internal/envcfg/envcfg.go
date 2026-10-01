@@ -106,8 +106,3 @@ func Read(cfgs ...any) error {
 func Describe(cfg any) (string, error) {
 	return cleanenv.GetDescription(cfg, nil)
 }
-
-func Getenv(key string) string {
-	initEnv()
-	return os.Getenv(key)
-}
