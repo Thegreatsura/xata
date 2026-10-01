@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	v1 "k8s.io/api/core/v1"
 
 	slotv1 "xata/gen/proto/slots/v1"
+	internalgrpc "xata/internal/grpc"
+	"xata/internal/o11y"
 )
 
 // wakeUp dials the SlotController gRPC service on the given CSI node pod and
@@ -19,7 +19,7 @@ func (r *WakeupReconciler) wakeUp(ctx context.Context, csiNodePod *v1.Pod, xvolN
 	addr := fmt.Sprintf("%s:%d", csiNodePod.Status.PodIP, r.CSINodePort)
 
 	// Connect to the SlotController service on the CSI node pod
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := internalgrpc.NewClient(o11y.Ctx(ctx), addr)
 	if err != nil {
 		return fmt.Errorf("dial CSI node pod %q at %s: %w", csiNodePod.Name, addr, err)
 	}

@@ -48,11 +48,12 @@ func (r *WakeupReconciler) waitForRolePasswordSync(
 	cluster *apiv1.Cluster,
 ) (outcome string, err error) {
 	// Start a span for the password sync wait operation
-	ctx, span := r.tracer().Start(ctx, tracing.SpanPasswordSyncWait,
-		trace.WithAttributes(
-			tracing.AttrBranch.String(branchName),
-			tracing.AttrCluster.String(cluster.Name),
-		))
+	ctx, span := tracing.Tracer(ctx).
+		Start(ctx, tracing.SpanPasswordSyncWait,
+			trace.WithAttributes(
+				tracing.AttrBranch.String(branchName),
+				tracing.AttrCluster.String(cluster.Name),
+			))
 	defer o11y.CloseSpan(span, &err)
 
 	// Get the branch password secret for the 'xata' user

@@ -3,12 +3,18 @@
 package tracing
 
 import (
+	"context"
+
 	"github.com/go-logr/logr"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"xata/internal/o11y"
 )
+
+// TracerName is the instrumentation scope name of the wakeup reconciler's
+// spans
+const TracerName = "wakeup-reconciler"
 
 // Span names
 const (
@@ -44,4 +50,9 @@ func WithSpanIDs(log logr.Logger, span trace.Span) logr.Logger {
 	traceKey, traceID := o11y.PlainIDStyle.TraceID(sc.TraceID())
 	spanKey, spanID := o11y.PlainIDStyle.SpanID(sc.SpanID())
 	return log.WithValues(traceKey, traceID, spanKey, spanID)
+}
+
+// Tracer returns the reconciler's Tracer from the o11y on the context
+func Tracer(ctx context.Context) trace.Tracer {
+	return o11y.Ctx(ctx).Tracer(TracerName)
 }

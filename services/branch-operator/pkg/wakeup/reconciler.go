@@ -7,7 +7,6 @@ import (
 
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	"go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/trace/noop"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/events"
@@ -41,7 +40,7 @@ const (
 // WakeupReconciler reconciles a WakeupRequest object
 type WakeupReconciler struct {
 	client.Client
-	Tracer                  trace.Tracer
+	O                       *o11y.O
 	Scheme                  *runtime.Scheme
 	Recorder                events.EventRecorder
 	CSINodeNamespace        string
@@ -54,12 +53,12 @@ type WakeupReconciler struct {
 
 // Reconcile handles reconciliation for WakeupRequest resources
 func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	ctx = r.O.WithContext(ctx)
 	log := ctrl.Log.WithName(ReconcilerName)
 	start := time.Now()
 
 	// Start a new root span for each reconcile
-	ctx, span := r.tracer().Start(ctx,
-		tracing.SpanReconcile,
+	ctx, span := tracing.Tracer(ctx).Start(ctx, tracing.SpanReconcile,
 		trace.WithAttributes(tracing.AttrWakeupRequest.String(req.Name)))
 	defer span.End()
 
@@ -307,12 +306,4 @@ func setupIndexers(ctx context.Context, mgr ctrl.Manager) error {
 			return []string{owner.Name}
 		},
 	)
-}
-
-// tracer returns the configured Tracer, or a noop Tracer when none is set
-func (r *WakeupReconciler) tracer() trace.Tracer {
-	if r.Tracer == nil {
-		return noop.NewTracerProvider().Tracer(ReconcilerName)
-	}
-	return r.Tracer
 }

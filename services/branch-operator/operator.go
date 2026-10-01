@@ -251,9 +251,9 @@ func (s *BranchOperatorService) Run(ctx context.Context, o *o11y.O) error {
 	ctrlLogger := logger.With().Str("module", "controller-runtime").Logger()
 	ctrl.SetLogger(zerologr.New(&ctrlLogger))
 
-	// Attach the tracer to the wakeup reconciler
+	// Setup the wakeup reconciler with observability
 	if s.wakeupReconciler != nil {
-		s.wakeupReconciler.Tracer = o.Tracer(wakeup.ReconcilerName)
+		s.wakeupReconciler.O = o
 	}
 
 	logger.Info().Msg("branch-operator starting")
