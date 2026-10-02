@@ -11,8 +11,10 @@ config:
     imageSecrets: ghcr-secret
     clustersTolerations: "xata.io/workload=dataplane:NoSchedule,kubernetes.io/arch=arm64:NoSchedule"
     cloudProvider: aws
-    # Shared IRSA role for pgBackRest backup and restore workloads.
-    # Leave empty on GCP and S3-compatible storage that uses static keys.
+    # IRSA role that limits the pgBackRest of each Branch to its own repo
+    # path. When set, the operator keeps a ServiceAccount and a web identity
+    # Secret per Branch. pgBackRest does not use them yet. Leave empty on GCP
+    # and S3-compatible storage that uses static keys.
     backupsAwsRoleArn: ""
     barmanRegionSecret:
       # Without this barman will create a role and bind it to our CNPG pods with

@@ -114,6 +114,9 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 		&corev1.Service{}: {
 			Namespaces: cacheNamespaces(s.config.ClustersNamespace),
 		},
+		&corev1.ServiceAccount{}: {
+			Namespaces: cacheNamespaces(s.config.ClustersNamespace),
+		},
 		&networkingv1.NetworkPolicy{}: {
 			Namespaces: cacheNamespaces(s.config.ClustersNamespace),
 		},

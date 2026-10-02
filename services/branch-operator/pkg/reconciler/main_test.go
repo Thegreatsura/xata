@@ -57,12 +57,14 @@ func TestMain(m *testing.M) {
 			Namespaces: []string{XataClustersNamespace},
 			ReconcilerSetup: func(ctx context.Context, mgr ctrl.Manager) error {
 				r := &reconciler.BranchReconciler{
-					Client:                 mgr.GetClient(),
-					Scheme:                 mgr.GetScheme(),
-					ClustersNamespace:      XataClustersNamespace,
-					BackupsBucket:          "s3://some-bucket",
-					BackupsEndpoint:        "",
-					CloudProvider:          "aws",
+					Client:            mgr.GetClient(),
+					Scheme:            mgr.GetScheme(),
+					ClustersNamespace: XataClustersNamespace,
+					BackupsBucket:     "s3://some-bucket",
+					BackupsEndpoint:   "",
+					CloudProvider:     "aws",
+					// Any value enables the per-Branch pgBackRest identity.
+					BackupsAWSRoleARN:      "arn:aws:iam::123456789012:role/test-cnpg-backups",
 					BarmanRegionSecretName: "barman-dummy-secret",
 					BarmanRegionSecretKey:  "dummy",
 					Tolerations:            nil,

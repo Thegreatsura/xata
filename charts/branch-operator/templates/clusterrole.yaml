@@ -67,6 +67,7 @@ rules:
   - ""
   resources:
   - secrets
+  - serviceaccounts
   - services
   verbs:
   - create
@@ -75,6 +76,12 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
 - apiGroups:
   - barmancloud.cnpg.io
   resources:

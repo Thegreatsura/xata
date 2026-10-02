@@ -27,6 +27,8 @@ import (
 // +kubebuilder:rbac:groups=xata.io,resources=xvols,verbs=get;list;watch;create;patch
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch,namespace=xata-clusters
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch,namespace=xata-clusters
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch,namespace=xata-clusters
+// +kubebuilder:rbac:groups="",resources=serviceaccounts/token,verbs=create,namespace=xata-clusters
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch,namespace=xata-clusters
 // +kubebuilder:rbac:groups=barmancloud.cnpg.io,resources=objectstores,verbs=get;list;watch;create;update;patch;delete,namespace=xata-clusters
 // +kubebuilder:rbac:groups=postgresql.cnpg.io,resources=scheduledbackups,verbs=get;list;watch;create;update;patch;delete,namespace=xata-clusters
@@ -218,10 +220,17 @@ func (r *BranchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	// Reconcile the pgBackRest ServiceAccount and token for the branch
+	tokenRefreshIn, err := r.reconcilePgBackRestIdentity(ctx, branch)
+	if err != nil {
+		log.Error(err, "reconciling pgbackrest identity")
+		return ctrl.Result{}, err
+	}
+
 	// Set the Branch Ready condition to True
 	setReadyCondition(branch, metav1.ConditionTrue, v1alpha1.ResourcesReadyReason)
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: tokenRefreshIn}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager
@@ -239,6 +248,7 @@ func (r *BranchReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manage
 		Owns(&networkingv1.NetworkPolicy{}, onGenerationChanged).
 		Owns(&v1.Service{}, onGenerationChanged).
 		Owns(&v1.Secret{}, onGenerationChanged).
+		Owns(&v1.ServiceAccount{}, onGenerationChanged).
 		Owns(&barmanPluginApi.ObjectStore{}, onGenerationChanged).
 		Owns(&apiv1.ScheduledBackup{}, onGenerationChanged).
 		Owns(&snapshotv1.VolumeSnapshot{}, onGenerationChanged).

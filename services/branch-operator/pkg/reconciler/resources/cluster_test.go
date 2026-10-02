@@ -490,7 +490,6 @@ func TestClusterSpec(t *testing.T) {
 		{
 			name: "pgbackrest backup with rustfs endpoint",
 			cfgModifier: func(cfg *resources.ClusterConfig) {
-				cfg.BackupsAWSRoleARN = "arn:aws:iam::123456789012:role/cell-1-cnpg-backups"
 				cfg.BackupSpec = &v1alpha1.BackupSpec{
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
@@ -1105,12 +1104,10 @@ func TestClusterSpecPgBackRestCipherReferences(t *testing.T) {
 	require.Equal(t, "restore-cipher-passphrase", restoreCipher.Passphrase.Key)
 }
 
-func TestClusterSpecAWSRoleAppliesToBackupAndRestore(t *testing.T) {
+func TestClusterSpecAWSS3DoesNotAnnotateClusterServiceAccount(t *testing.T) {
 	t.Parallel()
 
-	const roleARN = "arn:aws:iam::123456789012:role/cell-1-cnpg-backups"
 	cfg := baseClusterConfig()
-	cfg.BackupsAWSRoleARN = roleARN
 	cfg.BackupSpec = &v1alpha1.BackupSpec{
 		Method: v1alpha1.BackupMethodPgBackRest,
 		PgBackRest: &v1alpha1.PgBackRestSpec{
@@ -1127,27 +1124,15 @@ func TestClusterSpecAWSRoleAppliesToBackupAndRestore(t *testing.T) {
 	}
 
 	spec := resources.ClusterSpec(testBranchName, testBranchName, cfg)
-	require.Equal(t, roleARN, spec.ServiceAccountTemplate.Metadata.Annotations["eks.amazonaws.com/role-arn"])
+	require.Nil(t, spec.ServiceAccountTemplate)
 	require.Equal(t, new("auto"), spec.Backup.PgBackRest.Repository.S3.KeyType)
 	require.Equal(t, new("auto"), spec.ExternalClusters[0].PgBackRest.Repository.S3.KeyType)
 }
 
-func TestClusterSpecAWSIRSADoesNotApplyToBarman(t *testing.T) {
-	t.Parallel()
-
-	const roleARN = "arn:aws:iam::123456789012:role/cell-1-cnpg-backups"
-	cfg := baseClusterConfig()
-	cfg.BackupsAWSRoleARN = roleARN
-
-	spec := resources.ClusterSpec(testBranchName, testBranchName, cfg)
-	require.Nil(t, spec.ServiceAccountTemplate)
-}
-
-func TestClusterSpecAWSIRSADoesNotApplyToAzure(t *testing.T) {
+func TestClusterSpecAzureDoesNotAnnotateClusterServiceAccount(t *testing.T) {
 	t.Parallel()
 
 	cfg := baseClusterConfig()
-	cfg.BackupsAWSRoleARN = "arn:aws:iam::123456789012:role/cell-1-cnpg-backups"
 	cfg.BackupSpec = &v1alpha1.BackupSpec{
 		Method: v1alpha1.BackupMethodPgBackRest,
 		PgBackRest: &v1alpha1.PgBackRestSpec{
@@ -1406,4 +1391,54 @@ func TestExternalClustersPgBackRestRepoPath(t *testing.T) {
 	require.NotNil(t, ext[0].PgBackRest.Options)
 	require.NotNil(t, ext[0].PgBackRest.Options.RepoPath)
 	require.Equal(t, "source-cluster", *ext[0].PgBackRest.Options.RepoPath)
+}
+
+func TestUsesAWSIAM(t *testing.T) {
+	t.Parallel()
+
+	testcases := map[string]struct {
+		spec *v1alpha1.BackupSpec
+		want bool
+	}{
+		"no backup spec": {},
+		"barman": {
+			spec: &v1alpha1.BackupSpec{Method: v1alpha1.BackupMethodBarman},
+		},
+		"s3 with IAM": {
+			spec: &v1alpha1.BackupSpec{
+				Method:     v1alpha1.BackupMethodPgBackRest,
+				PgBackRest: &v1alpha1.PgBackRestSpec{S3: &v1alpha1.PgBackRestS3Spec{Bucket: "b", InheritFromIAMRole: true}},
+			},
+			want: true,
+		},
+		"legacy s3 fields with IAM": {
+			spec: &v1alpha1.BackupSpec{
+				Method:     v1alpha1.BackupMethodPgBackRest,
+				PgBackRest: &v1alpha1.PgBackRestSpec{Bucket: "b", InheritFromIAMRole: true},
+			},
+			want: true,
+		},
+		"s3-compatible endpoint": {
+			spec: &v1alpha1.BackupSpec{
+				Method: v1alpha1.BackupMethodPgBackRest,
+				PgBackRest: &v1alpha1.PgBackRestSpec{S3: &v1alpha1.PgBackRestS3Spec{
+					Bucket: "b", Endpoint: "http://rustfs:9000", InheritFromIAMRole: true,
+				}},
+			},
+		},
+		"gcs": {
+			spec: &v1alpha1.BackupSpec{
+				Method:     v1alpha1.BackupMethodPgBackRest,
+				PgBackRest: &v1alpha1.PgBackRestSpec{GCS: &v1alpha1.PgBackRestGCSSpec{Bucket: "b"}, InheritFromIAMRole: true},
+			},
+		},
+	}
+
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got := resources.UsesAWSIAM(tc.spec)
+			require.Equal(t, tc.want, got)
+		})
+	}
 }
