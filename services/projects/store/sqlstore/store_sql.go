@@ -310,11 +310,15 @@ func (s *sqlProjectStore) DeleteCell(ctx context.Context, cellID string) error {
 	return nil
 }
 
-func (s *sqlProjectStore) CreateProject(ctx context.Context, organizationID string, config *store.CreateProjectConfiguration) (*store.Project, error) {
-	if err := s.enforceProjectCreationLimits(ctx, organizationID, config.UsageTier); err != nil {
-		return nil, err
-	}
+// querier is satisfied by both *sql.DB and *sql.Tx, so the read/check helpers can
+// run either on the connection pool or inside a specific transaction.
+type querier interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
 
+func (s *sqlProjectStore) CreateProject(ctx context.Context, organizationID string, config *store.CreateProjectConfiguration) (*store.Project, error) {
 	if config.Name == "" {
 		return nil, store.ErrInvalidProjectName{Name: config.Name}
 	}
@@ -328,8 +332,31 @@ func (s *sqlProjectStore) CreateProject(ctx context.Context, organizationID stri
 		return nil, fmt.Errorf("marshal cidrs: %w", err)
 	}
 
+	// Run the limit checks and the insert in one transaction, guarded by an
+	// organization-scoped advisory lock. pg_advisory_xact_lock serializes
+	// concurrent creations for the same org and is released automatically when the
+	// transaction ends, so it holds exactly one pooled connection. Without this,
+	// overlapping requests all read the same "before" count, each concludes there
+	// is room, and all succeed -- letting the org exceed its project maximum and
+	// hourly creation limit.
+	tx, err := s.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// "org:" namespaces the key so it cannot collide with the per-project
+	// advisory lock space used elsewhere (hashtextextended of a project id).
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "org:"+organizationID); err != nil {
+		return nil, fmt.Errorf("acquire org lock: %w", err)
+	}
+
+	if err := s.enforceProjectCreationLimits(ctx, tx, organizationID, config.UsageTier); err != nil {
+		return nil, err
+	}
+
 	projectID := idgen.GenerateWithPrefix("prj")
-	res := s.sql.QueryRowContext(ctx,
+	res := tx.QueryRowContext(ctx,
 		`INSERT INTO projects (
 			id,
 			name,
@@ -381,6 +408,10 @@ func (s *sqlProjectStore) CreateProject(ctx context.Context, organizationID stri
 			return nil, store.ErrProjectAlreadyExists{Name: config.Name}
 		}
 		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit tx: %w", err)
 	}
 
 	if err := json.Unmarshal(cidrsRaw, &project.IPFiltering.CIDRs); err != nil {
@@ -1258,8 +1289,12 @@ func (s *sqlProjectStore) CountActiveOrgBranches(ctx context.Context, organizati
 }
 
 func (s *sqlProjectStore) CountActiveOrgProjects(ctx context.Context, organizationID string) (int64, error) {
+	return countActiveOrgProjects(ctx, s.sql, organizationID)
+}
+
+func countActiveOrgProjects(ctx context.Context, q querier, organizationID string) (int64, error) {
 	var count int64
-	err := s.sql.QueryRowContext(ctx,
+	err := q.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM projects WHERE organization_id = $1 AND status = $2`,
 		organizationID, StatusActive).Scan(&count)
 	if err != nil {
@@ -1282,8 +1317,12 @@ func (s *sqlProjectStore) CountBranchesCreatedInLastHour(ctx context.Context, or
 }
 
 func (s *sqlProjectStore) CountProjectsCreatedInLastHour(ctx context.Context, organizationID string) (int64, error) {
+	return countProjectsCreatedInLastHour(ctx, s.sql, organizationID)
+}
+
+func countProjectsCreatedInLastHour(ctx context.Context, q querier, organizationID string) (int64, error) {
 	var count int64
-	err := s.sql.QueryRowContext(ctx,
+	err := q.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM projects WHERE organization_id = $1 AND created_at > NOW() - INTERVAL '1 hour'`,
 		organizationID).Scan(&count)
 	if err != nil {
@@ -1383,19 +1422,23 @@ func durationMilliseconds(duration time.Duration) float64 {
 	return float64(duration) / float64(time.Millisecond)
 }
 
-func (s *sqlProjectStore) enforceProjectCreationLimits(ctx context.Context, organizationID, usageTier string) error {
+// enforceProjectCreationLimits checks the org's project-count and hourly-creation
+// limits using q. CreateProject passes the creating transaction so the checks and
+// the subsequent insert are atomic under the org advisory lock; other callers can
+// pass the pool.
+func (s *sqlProjectStore) enforceProjectCreationLimits(ctx context.Context, q querier, organizationID, usageTier string) error {
 	tier, _ := store.ParseUsageTier(usageTier)
 	var overrides map[store.LimitKey]any
 	// We don't allow overrides for T1 organizations
 	if tier != store.TierT1 {
 		var err error
-		overrides, err = s.GetOrgLimits(ctx, organizationID, "")
+		overrides, err = getOrgLimits(ctx, q, organizationID, "")
 		if err != nil {
 			return fmt.Errorf("get org limits: %w", err)
 		}
 	}
 	if maxProjects := store.ResolveIntLimit(overrides, store.LimitMaxProjects, store.TierDefaultInt(tier, store.LimitMaxProjects, 0)); maxProjects != 0 {
-		count, err := s.CountActiveOrgProjects(ctx, organizationID)
+		count, err := countActiveOrgProjects(ctx, q, organizationID)
 		if err != nil {
 			return fmt.Errorf("count active org projects: %w", err)
 		}
@@ -1404,7 +1447,7 @@ func (s *sqlProjectStore) enforceProjectCreationLimits(ctx context.Context, orga
 		}
 	}
 	if maxPerHour := store.ResolveIntLimit(overrides, store.LimitMaxProjectsPerHour, store.TierDefaultInt(tier, store.LimitMaxProjectsPerHour, 0)); maxPerHour != 0 {
-		count, err := s.CountProjectsCreatedInLastHour(ctx, organizationID)
+		count, err := countProjectsCreatedInLastHour(ctx, q, organizationID)
 		if err != nil {
 			return fmt.Errorf("count projects created in last hour: %w", err)
 		}
@@ -1712,7 +1755,11 @@ func decodeLimits[K ~string](raw []byte) (map[K]any, error) {
 // GetOrgLimits returns stored limit overrides for the given org and project, with
 // project-level overrides taking precedence over org-level overrides.
 func (s *sqlProjectStore) GetOrgLimits(ctx context.Context, orgID, projectID string) (map[store.LimitKey]any, error) {
-	rows, err := s.sql.QueryContext(ctx, `
+	return getOrgLimits(ctx, s.sql, orgID, projectID)
+}
+
+func getOrgLimits(ctx context.Context, q querier, orgID, projectID string) (map[store.LimitKey]any, error) {
+	rows, err := q.QueryContext(ctx, `
 		SELECT project_id, limits
 		FROM organization_limits
 		WHERE organization_id = $1 AND project_id IN ('', $2)

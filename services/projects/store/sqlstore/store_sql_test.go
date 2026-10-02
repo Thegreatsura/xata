@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1097,6 +1098,58 @@ func createProjectAndBranchesForLimitTest(t *testing.T, ctx context.Context, sql
 		err := sqlStore.DeleteProject(ctx, orgID, project.ID)
 		require.NoError(t, err)
 	}
+}
+
+// TestCreateProjectConcurrencyRespectsLimit verifies the organization project-count
+// limit holds when many creations race, i.e. the limit check and the insert are
+// atomic. Before the org-scoped advisory lock, concurrent requests all read the same
+// "before" count, each concluded there was room, and all succeeded -- overshooting
+// the configured maximum.
+func TestCreateProjectConcurrencyRespectsLimit(t *testing.T) {
+	ctx := context.Background()
+	sqlStore := setupSQLStore(ctx, t, maxDepth)
+
+	const orgID = "raceLimitOrg"
+	const maxProjects = 2
+	const concurrent = 10
+
+	require.NoError(t, sqlStore.SetOrgLimit(ctx, orgID, "", store.LimitMaxProjects, int64(maxProjects)))
+	// Keep the hourly limit out of the way so the test isolates the count limit.
+	require.NoError(t, sqlStore.SetOrgLimit(ctx, orgID, "", store.LimitMaxProjectsPerHour, int64(1000)))
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errs := make([]error, concurrent)
+	for i := range concurrent {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start // release all goroutines together to maximize the race
+			_, errs[i] = sqlStore.CreateProject(ctx, orgID, createProjectConfig(fmt.Sprintf("race-%d", i), nil))
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	var created, limited int
+	for _, err := range errs {
+		var limitErr store.ErrOrgProjectLimitExceeded
+		switch {
+		case err == nil:
+			created++
+		case errors.As(err, &limitErr):
+			limited++
+		default:
+			require.NoError(t, err) // unexpected failure
+		}
+	}
+
+	require.Equal(t, maxProjects, created, "exactly the limit should have been created")
+	require.Equal(t, concurrent-maxProjects, limited, "the rest should be rejected with the limit error")
+
+	count, err := sqlStore.CountActiveOrgProjects(ctx, orgID)
+	require.NoError(t, err)
+	require.Equal(t, int64(maxProjects), count, "stored project count must not exceed the limit")
 }
 
 func createProjectAndBranchesForDepthTest(t *testing.T, ctx context.Context, sqlStore *sqlProjectStore, orgID string, name string) (project *store.Project, depthBranch *store.Branch, cleanup func()) {
