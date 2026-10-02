@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+tools="$HOME/.local/share/maki-tools"
+mkdir -p "$tools/bin"
+export PATH="$tools/bin:$tools/go/bin:$HOME/go/bin:$PATH"
+scratch="$(mktemp -d)"
+trap 'rm -rf "$scratch"' EXIT
+
+echo "Installing missing system prerequisites"
+packages=()
+for package in ca-certificates curl jq make gcc libc6-dev; do
+    if ! dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -qx 'install ok installed'; then
+        packages+=("$package")
+    fi
+done
+if ((${#packages[@]})); then
+    sudo apt-get update -qq
+    sudo apt-get install -y "${packages[@]}"
+fi
+
+echo "Installing Go from go.mod"
+go_version="$(awk '$1 == "go" {print $2}' go.mod)"
+if [[ ! -x "$tools/go/bin/go" ]] || [[ "$("$tools/go/bin/go" version)" != "go version go${go_version} linux/amd64" ]]; then
+    archive="go${go_version}.linux-amd64.tar.gz"
+    checksum="$(curl -fsSL 'https://go.dev/dl/?mode=json&include=all' | jq -er --arg file "$archive" '.[] .files[] | select(.filename == $file) | .sha256')"
+    curl -fsSL "https://go.dev/dl/$archive" -o "$scratch/$archive"
+    echo "$checksum  $scratch/$archive" | sha256sum -c -
+    tar -xzf "$scratch/$archive" -C "$scratch"
+    rm -rf "$tools/go"
+    mv "$scratch/go" "$tools/go"
+fi
+go version
+
+echo "Installing host OpenAPI tools (versions from the Docker image)"
+# Node and npm are provided by the orb base image. Redocly supports Node >=22.12.
+node -e 'if (Number(process.versions.node.split(".")[0]) < 24) process.exit(1)'
+mapfile -t npm_packages < <(awk '/^RUN npm install -g / {for (i = 5; i <= NF; i++) print $i}' dev/docker/openapi-tools/Dockerfile)
+time npm install --prefix "$tools" --no-package-lock --no-audit --no-fund "${npm_packages[@]}"
+ln -sfn "$tools/node_modules/.bin/redocly" "$tools/bin/redocly"
+ln -sfn "$tools/node_modules/.bin/openapi-format" "$tools/bin/openapi-format"
+if [[ ! -x "$tools/bin/yq" ]] || [[ "$("$tools/bin/yq" --version)" != *'version v4.45.4' ]]; then
+    time GOBIN="$tools/bin" go install github.com/mikefarah/yq/v4@v4.45.4
+fi
+
+echo "Caching Go dependencies"
+time go mod download
+
+# Amp and supervised services start in fresh login shells, not this setup shell.
+marker='# maki orb toolchain'
+if ! grep -Fqx "$marker" "$HOME/.bash_profile" 2>/dev/null; then
+    cat >> "$HOME/.bash_profile" <<EOF
+
+$marker
+if [[ "\$PWD" == "$repo_root" || "\$PWD" == "$repo_root/"* ]]; then
+    export PATH="$tools/bin:$tools/go/bin:\$HOME/go/bin:\$PATH"
+fi
+EOF
+fi
+
+echo "Setup complete. Generate OpenAPI with: make -C openapi generate -o tools DOCKER_API_TOOLS="
+echo "Docker-backed integration tests and the Tilt stack require a working Docker daemon."

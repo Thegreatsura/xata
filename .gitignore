@@ -1,6 +1,7 @@
 .claude/**
 .cursor/
 .DS_Store
+.amp/portals/
 .tilt-build/
 kustomize/**/charts/
 charts/cell-observability/charts/
