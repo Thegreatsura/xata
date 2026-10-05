@@ -29,8 +29,15 @@ func (s *Service) ValidateMarketplaceRegion(ctx context.Context, params Marketpl
 	return validateRegionForMarketplace(params.Marketplace, *region)
 }
 
+// IsRegionAvailableForMarketplace reports whether a marketplace organization may
+// provision in the given region. Only the AWS marketplace restricts resources to
+// its own provider's regions (billing/compliance); every other marketplace — and
+// a non-marketplace org (empty string) — may use any region.
 func IsRegionAvailableForMarketplace(marketplace string, region store.Region) bool {
-	return marketplace == "" || marketplace == string(region.Provider)
+	if marketplace == string(store.ProviderAWS) {
+		return region.Provider == store.ProviderAWS
+	}
+	return true
 }
 
 func validateRegionForMarketplace(marketplace string, region store.Region) error {

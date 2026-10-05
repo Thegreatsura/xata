@@ -350,6 +350,21 @@ func (e ErrVercelResourceAlreadyExists) StatusCode() int {
 	return http.StatusConflict
 }
 
+// ErrVercelResourceBusy is returned when another provision holds the advisory
+// lock for a resource id (a concurrent same-key request is in flight). The caller
+// should retry, so it maps to 429 with Retry-After — mirrors ErrProjectBusy.
+type ErrVercelResourceBusy struct {
+	ResourceID string
+}
+
+func (e ErrVercelResourceBusy) Error() string {
+	return fmt.Sprintf("vercel resource [%s] is busy; retry later", e.ResourceID)
+}
+
+func (e ErrVercelResourceBusy) StatusCode() int {
+	return http.StatusTooManyRequests
+}
+
 // ErrVercelResourceProjectLinked is returned when a project already backs a
 // non-deleted resource (the partial unique index on xata_project_id).
 type ErrVercelResourceProjectLinked struct {

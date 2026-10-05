@@ -305,4 +305,71 @@ func TestSQLStoreVercelResources(t *testing.T) {
 		})
 		require.ErrorAs(t, err, &store.ErrVercelResourceNotActive{})
 	})
+
+	t.Run("create resource and branches persists the resource and all rows", func(t *testing.T) {
+		projectID := newProject(t, "vr-atomic-ok")
+		prodID := newBranch(t, projectID, "main")
+		devID := newBranch(t, projectID, "dev")
+
+		created, err := sqlStore.CreateVercelResourceAndBranches(ctx, org,
+			&store.VercelResource{ResourceID: "res_atomic", InstallationID: "icfg_1", ProductSlug: "postgres", XataProjectID: projectID, Name: "atomic"},
+			[]store.VercelResourceBranch{
+				{ResourceID: "res_atomic", Scope: store.VercelScopeProduction, XataBranchID: prodID},
+				{ResourceID: "res_atomic", Scope: store.VercelScopeDevelopment, XataBranchID: devID},
+			},
+		)
+		require.NoError(t, err)
+		require.Equal(t, "res_atomic", created.ResourceID)
+		require.Equal(t, store.VercelResourceActive, created.Status)
+
+		branches, err := sqlStore.ListVercelResourceBranches(ctx, "icfg_1", "res_atomic")
+		require.NoError(t, err)
+		require.Len(t, branches, 2)
+	})
+
+	t.Run("create resource and branches rolls back when a branch row is invalid", func(t *testing.T) {
+		projectID := newProject(t, "vr-atomic-rollback")
+		prodID := newBranch(t, projectID, "main")
+		// A branch from another project fails the active-branch-of-project check, so
+		// the whole transaction — including the resource row — must roll back.
+		otherProject := newProject(t, "vr-atomic-foreign")
+		foreignID := newBranch(t, otherProject, "main")
+
+		_, err := sqlStore.CreateVercelResourceAndBranches(ctx, org,
+			&store.VercelResource{ResourceID: "res_rollback", InstallationID: "icfg_1", ProductSlug: "postgres", XataProjectID: projectID, Name: "rollback"},
+			[]store.VercelResourceBranch{
+				{ResourceID: "res_rollback", Scope: store.VercelScopeProduction, XataBranchID: prodID},
+				{ResourceID: "res_rollback", Scope: store.VercelScopeDevelopment, XataBranchID: foreignID},
+			},
+		)
+		require.Error(t, err)
+
+		// Nothing was persisted: the resource does not exist, so a retry can
+		// re-provision cleanly rather than finding a half-written resource.
+		_, err = sqlStore.GetVercelResource(ctx, "icfg_1", "res_rollback")
+		require.ErrorAs(t, err, &store.ErrVercelResourceNotFound{})
+	})
+
+	t.Run("resource lock is non-blocking: contention returns busy, release frees it", func(t *testing.T) {
+		const resourceID = "res_lock"
+
+		release, err := sqlStore.TryAcquireVercelResourceLock(ctx, resourceID)
+		require.NoError(t, err)
+
+		// A second attempt while held fails fast with busy — it does not block
+		// (and therefore does not pin a connection while waiting).
+		_, err = sqlStore.TryAcquireVercelResourceLock(ctx, resourceID)
+		require.ErrorAs(t, err, &store.ErrVercelResourceBusy{})
+
+		// A different resource id is not contended.
+		otherRelease, err := sqlStore.TryAcquireVercelResourceLock(ctx, "res_lock_other")
+		require.NoError(t, err)
+		require.NoError(t, otherRelease())
+
+		// Once released, it can be acquired again.
+		require.NoError(t, release())
+		again, err := sqlStore.TryAcquireVercelResourceLock(ctx, resourceID)
+		require.NoError(t, err)
+		require.NoError(t, again())
+	})
 }

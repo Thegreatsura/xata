@@ -1031,6 +1031,67 @@ func (_c *ProjectsStore_CreateVercelResource_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// CreateVercelResourceAndBranches provides a mock function with given fields: ctx, organizationID, resource, branches
+func (_m *ProjectsStore) CreateVercelResourceAndBranches(ctx context.Context, organizationID string, resource *store.VercelResource, branches []store.VercelResourceBranch) (*store.VercelResource, error) {
+	ret := _m.Called(ctx, organizationID, resource, branches)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateVercelResourceAndBranches")
+	}
+
+	var r0 *store.VercelResource
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *store.VercelResource, []store.VercelResourceBranch) (*store.VercelResource, error)); ok {
+		return rf(ctx, organizationID, resource, branches)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, *store.VercelResource, []store.VercelResourceBranch) *store.VercelResource); ok {
+		r0 = rf(ctx, organizationID, resource, branches)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*store.VercelResource)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, *store.VercelResource, []store.VercelResourceBranch) error); ok {
+		r1 = rf(ctx, organizationID, resource, branches)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProjectsStore_CreateVercelResourceAndBranches_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateVercelResourceAndBranches'
+type ProjectsStore_CreateVercelResourceAndBranches_Call struct {
+	*mock.Call
+}
+
+// CreateVercelResourceAndBranches is a helper method to define mock.On call
+//   - ctx context.Context
+//   - organizationID string
+//   - resource *store.VercelResource
+//   - branches []store.VercelResourceBranch
+func (_e *ProjectsStore_Expecter) CreateVercelResourceAndBranches(ctx interface{}, organizationID interface{}, resource interface{}, branches interface{}) *ProjectsStore_CreateVercelResourceAndBranches_Call {
+	return &ProjectsStore_CreateVercelResourceAndBranches_Call{Call: _e.mock.On("CreateVercelResourceAndBranches", ctx, organizationID, resource, branches)}
+}
+
+func (_c *ProjectsStore_CreateVercelResourceAndBranches_Call) Run(run func(ctx context.Context, organizationID string, resource *store.VercelResource, branches []store.VercelResourceBranch)) *ProjectsStore_CreateVercelResourceAndBranches_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(*store.VercelResource), args[3].([]store.VercelResourceBranch))
+	})
+	return _c
+}
+
+func (_c *ProjectsStore_CreateVercelResourceAndBranches_Call) Return(_a0 *store.VercelResource, _a1 error) *ProjectsStore_CreateVercelResourceAndBranches_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *ProjectsStore_CreateVercelResourceAndBranches_Call) RunAndReturn(run func(context.Context, string, *store.VercelResource, []store.VercelResourceBranch) (*store.VercelResource, error)) *ProjectsStore_CreateVercelResourceAndBranches_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteBranch provides a mock function with given fields: ctx, organizationID, projectID, branchID, deprovisionFn
 func (_m *ProjectsStore) DeleteBranch(ctx context.Context, organizationID string, projectID string, branchID string, deprovisionFn func(*store.Branch) error) error {
 	ret := _m.Called(ctx, organizationID, projectID, branchID, deprovisionFn)
@@ -2845,6 +2906,65 @@ func (_c *ProjectsStore_TryAcquireProjectLock_Call) Return(release func() error,
 }
 
 func (_c *ProjectsStore_TryAcquireProjectLock_Call) RunAndReturn(run func(context.Context, string) (func() error, error)) *ProjectsStore_TryAcquireProjectLock_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TryAcquireVercelResourceLock provides a mock function with given fields: ctx, resourceID
+func (_m *ProjectsStore) TryAcquireVercelResourceLock(ctx context.Context, resourceID string) (func() error, error) {
+	ret := _m.Called(ctx, resourceID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TryAcquireVercelResourceLock")
+	}
+
+	var r0 func() error
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (func() error, error)); ok {
+		return rf(ctx, resourceID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) func() error); ok {
+		r0 = rf(ctx, resourceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(func() error)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, resourceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProjectsStore_TryAcquireVercelResourceLock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TryAcquireVercelResourceLock'
+type ProjectsStore_TryAcquireVercelResourceLock_Call struct {
+	*mock.Call
+}
+
+// TryAcquireVercelResourceLock is a helper method to define mock.On call
+//   - ctx context.Context
+//   - resourceID string
+func (_e *ProjectsStore_Expecter) TryAcquireVercelResourceLock(ctx interface{}, resourceID interface{}) *ProjectsStore_TryAcquireVercelResourceLock_Call {
+	return &ProjectsStore_TryAcquireVercelResourceLock_Call{Call: _e.mock.On("TryAcquireVercelResourceLock", ctx, resourceID)}
+}
+
+func (_c *ProjectsStore_TryAcquireVercelResourceLock_Call) Run(run func(ctx context.Context, resourceID string)) *ProjectsStore_TryAcquireVercelResourceLock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *ProjectsStore_TryAcquireVercelResourceLock_Call) Return(_a0 func() error, _a1 error) *ProjectsStore_TryAcquireVercelResourceLock_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *ProjectsStore_TryAcquireVercelResourceLock_Call) RunAndReturn(run func(context.Context, string) (func() error, error)) *ProjectsStore_TryAcquireVercelResourceLock_Call {
 	_c.Call.Return(run)
 	return _c
 }

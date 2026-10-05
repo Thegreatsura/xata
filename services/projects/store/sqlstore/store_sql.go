@@ -1348,23 +1348,49 @@ func (s *sqlProjectStore) TryAcquireProjectLock(ctx context.Context, projectID s
 }
 
 func (s *sqlProjectStore) acquireProjectLock(ctx context.Context, projectID string, try bool) (func() error, error) {
+	return s.acquireAdvisoryLock(ctx, advisoryLockSpec{
+		spanName:   "Project lock",
+		attrPrefix: "project",
+		id:         projectID,
+		lockKey:    projectID,
+		try:        try,
+		onBusy:     func() error { return store.ErrProjectBusy{ProjectID: projectID} },
+	})
+}
+
+// advisoryLockSpec configures acquireAdvisoryLock.
+type advisoryLockSpec struct {
+	spanName   string       // trace span name, e.g. "Project lock"
+	attrPrefix string       // attribute namespace, e.g. "project" → project.id, project.lock.*
+	id         string       // logical id for the <prefix>.id attribute
+	lockKey    string       // string hashed into the advisory lock id (may differ from id)
+	try        bool         // non-blocking (pg_try_advisory_lock) vs blocking
+	onBusy     func() error // returned on contention in try mode
+}
+
+// acquireAdvisoryLock takes a Postgres session advisory lock on a pinned
+// connection, tracing the mode, outcome, and acquire/hold durations so a request
+// stuck contending is visible. The returned closure releases the lock and returns
+// the connection to the pool. Shared by the project lock and the Vercel resource
+// lock so both are instrumented identically.
+func (s *sqlProjectStore) acquireAdvisoryLock(ctx context.Context, spec advisoryLockSpec) (func() error, error) {
 	mode := "blocking"
-	if try {
+	if spec.try {
 		mode = "try"
 	}
 
 	acquireStarted := time.Now()
-	_, span := o11y.Ctx(ctx).Tracer("xata.projects.store").Start(ctx, "Project lock",
+	_, span := o11y.Ctx(ctx).Tracer("xata.projects.store").Start(ctx, spec.spanName,
 		trace.WithAttributes(
-			attribute.String("project.id", projectID),
-			attribute.String("project.lock.mode", mode),
+			attribute.String(spec.attrPrefix+".id", spec.id),
+			attribute.String(spec.attrPrefix+".lock.mode", mode),
 		),
 	)
 
 	finishWithError := func(err error) (func() error, error) {
 		span.SetAttributes(
-			attribute.String("project.lock.outcome", "error"),
-			attribute.Float64("project.lock.acquire_duration_ms", durationMilliseconds(time.Since(acquireStarted))),
+			attribute.String(spec.attrPrefix+".lock.outcome", "error"),
+			attribute.Float64(spec.attrPrefix+".lock.acquire_duration_ms", durationMilliseconds(time.Since(acquireStarted))),
 		)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "")
@@ -1377,36 +1403,36 @@ func (s *sqlProjectStore) acquireProjectLock(ctx context.Context, projectID stri
 		return finishWithError(fmt.Errorf("get database connection: %w", err))
 	}
 
-	if try {
+	if spec.try {
 		var acquired bool
-		err = conn.QueryRowContext(ctx, `SELECT pg_try_advisory_lock(hashtextextended($1, 0))`, projectID).Scan(&acquired)
+		err = conn.QueryRowContext(ctx, `SELECT pg_try_advisory_lock(hashtextextended($1, 0))`, spec.lockKey).Scan(&acquired)
 		if err == nil && !acquired {
 			_ = conn.Close()
 			span.SetAttributes(
-				attribute.String("project.lock.outcome", "contended"),
-				attribute.Float64("project.lock.acquire_duration_ms", durationMilliseconds(time.Since(acquireStarted))),
+				attribute.String(spec.attrPrefix+".lock.outcome", "contended"),
+				attribute.Float64(spec.attrPrefix+".lock.acquire_duration_ms", durationMilliseconds(time.Since(acquireStarted))),
 			)
 			span.End()
-			return nil, store.ErrProjectBusy{ProjectID: projectID}
+			return nil, spec.onBusy()
 		}
 	} else {
-		_, err = conn.ExecContext(ctx, `SELECT pg_advisory_lock(hashtextextended($1, 0))`, projectID)
+		_, err = conn.ExecContext(ctx, `SELECT pg_advisory_lock(hashtextextended($1, 0))`, spec.lockKey)
 	}
 	if err != nil {
 		_ = conn.Close()
-		return finishWithError(fmt.Errorf("acquire project lock: %w", err))
+		return finishWithError(fmt.Errorf("acquire advisory lock: %w", err))
 	}
 
 	acquiredAt := time.Now()
 	span.SetAttributes(
-		attribute.String("project.lock.outcome", "acquired"),
-		attribute.Float64("project.lock.acquire_duration_ms", durationMilliseconds(acquiredAt.Sub(acquireStarted))),
+		attribute.String(spec.attrPrefix+".lock.outcome", "acquired"),
+		attribute.Float64(spec.attrPrefix+".lock.acquire_duration_ms", durationMilliseconds(acquiredAt.Sub(acquireStarted))),
 	)
 
 	release := func() error {
-		_, _ = conn.ExecContext(context.Background(), `SELECT pg_advisory_unlock(hashtextextended($1, 0))`, projectID)
+		_, _ = conn.ExecContext(context.Background(), `SELECT pg_advisory_unlock(hashtextextended($1, 0))`, spec.lockKey)
 		err := conn.Close()
-		span.SetAttributes(attribute.Float64("project.lock.hold_duration_ms", durationMilliseconds(time.Since(acquiredAt))))
+		span.SetAttributes(attribute.Float64(spec.attrPrefix+".lock.hold_duration_ms", durationMilliseconds(time.Since(acquiredAt))))
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "")
@@ -1988,6 +2014,12 @@ func (s *sqlProjectStore) CountUnsyncedOrganizationStatuses(ctx context.Context)
 }
 
 func (s *sqlProjectStore) CreateVercelResource(ctx context.Context, organizationID string, resource *store.VercelResource) (*store.VercelResource, error) {
+	return s.insertVercelResource(ctx, s.sql, organizationID, resource)
+}
+
+// insertVercelResource runs the resource insert against q (the DB or a Tx). See
+// CreateVercelResource for the validation contract.
+func (s *sqlProjectStore) insertVercelResource(ctx context.Context, q rowQueryer, organizationID string, resource *store.VercelResource) (*store.VercelResource, error) {
 	created := &store.VercelResource{
 		ResourceID:     resource.ResourceID,
 		InstallationID: resource.InstallationID,
@@ -2011,7 +2043,7 @@ func (s *sqlProjectStore) CreateVercelResource(ctx context.Context, organization
 	// another org's project or to a terminated one. A no-row result means the
 	// project is not an active project in the org; unique-constraint violations
 	// still surface below.
-	err = s.sql.QueryRowContext(ctx, `
+	err = q.QueryRowContext(ctx, `
 		INSERT INTO vercel_resources (
 			resource_id, installation_id, product_slug, billing_plan_id,
 			xata_project_id, name, metadata
@@ -2035,7 +2067,7 @@ func (s *sqlProjectStore) CreateVercelResource(ctx context.Context, organization
 		// reaches a PK conflict when it returns no row) or the project is not an
 		// active project in the org. Prefer the id conflict.
 		var exists bool
-		if e := s.sql.QueryRowContext(ctx,
+		if e := q.QueryRowContext(ctx,
 			`SELECT EXISTS (SELECT 1 FROM vercel_resources WHERE resource_id = $1)`, created.ResourceID,
 		).Scan(&exists); e != nil {
 			return nil, fmt.Errorf("check vercel resource existence: %w", e)
@@ -2132,13 +2164,20 @@ func classifyDeletion(prev sql.NullString, didUpdate bool, notFound, notActive e
 	}
 }
 
+// rowQueryer is the subset of *sql.DB / *sql.Tx used by the Vercel resource
+// inserts, so the same insert logic runs both standalone (on the DB) and inside a
+// transaction (on the Tx), for CreateVercelResourceAndBranches.
+type rowQueryer interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 // classifyAddBranchFailure explains why AddVercelResourceBranch inserted no row.
 // The insert requires an active resource whose project contains the branch, so a
 // missing/deleted resource is not-found, a deleting resource is not-active, and
 // an active resource means the branch is not one of its project's branches.
-func (s *sqlProjectStore) classifyAddBranchFailure(ctx context.Context, installationID, resourceID, xataBranchID string) error {
+func (s *sqlProjectStore) classifyAddBranchFailure(ctx context.Context, q rowQueryer, installationID, resourceID, xataBranchID string) error {
 	var status store.VercelResourceStatus
-	err := s.sql.QueryRowContext(ctx,
+	err := q.QueryRowContext(ctx,
 		`SELECT status FROM vercel_resources WHERE resource_id = $1 AND installation_id = $2`, resourceID, installationID,
 	).Scan(&status)
 	switch {
@@ -2159,6 +2198,12 @@ func (s *sqlProjectStore) classifyAddBranchFailure(ctx context.Context, installa
 }
 
 func (s *sqlProjectStore) AddVercelResourceBranch(ctx context.Context, installationID string, branch *store.VercelResourceBranch) (*store.VercelResourceBranch, error) {
+	return s.insertVercelResourceBranch(ctx, s.sql, installationID, branch)
+}
+
+// insertVercelResourceBranch runs the branch insert against q (the DB or a Tx).
+// See AddVercelResourceBranch for the validation contract.
+func (s *sqlProjectStore) insertVercelResourceBranch(ctx context.Context, q rowQueryer, installationID string, branch *store.VercelResourceBranch) (*store.VercelResourceBranch, error) {
 	created := &store.VercelResourceBranch{
 		ResourceID:   branch.ResourceID,
 		Scope:        branch.Scope,
@@ -2171,7 +2216,7 @@ func (s *sqlProjectStore) AddVercelResourceBranch(ctx context.Context, installat
 	// branch must also be an active branch of the resource's project, so a branch
 	// from a different project, a missing one, or an inactive one yields no row,
 	// which is then classified.
-	err := s.sql.QueryRowContext(ctx, `
+	err := q.QueryRowContext(ctx, `
 		WITH resource AS (
 			SELECT resource_id, xata_project_id
 			FROM vercel_resources
@@ -2193,12 +2238,51 @@ func (s *sqlProjectStore) AddVercelResourceBranch(ctx context.Context, installat
 		return nil, store.ErrVercelResourceXataBranchLinked{ResourceID: created.ResourceID, XataBranchID: created.XataBranchID}
 	}
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, s.classifyAddBranchFailure(ctx, installationID, created.ResourceID, created.XataBranchID)
+		return nil, s.classifyAddBranchFailure(ctx, q, installationID, created.ResourceID, created.XataBranchID)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("add vercel resource branch: %w", err)
 	}
 	return created, nil
+}
+
+// CreateVercelResourceAndBranches inserts the resource and all its branch rows in
+// one transaction: either all rows are persisted or none are. See the store
+// interface for why atomicity matters here.
+func (s *sqlProjectStore) CreateVercelResourceAndBranches(ctx context.Context, organizationID string, resource *store.VercelResource, branches []store.VercelResourceBranch) (*store.VercelResource, error) {
+	tx, err := s.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }() // no-op after Commit
+
+	created, err := s.insertVercelResource(ctx, tx, organizationID, resource)
+	if err != nil {
+		return nil, err
+	}
+	for i := range branches {
+		if _, err := s.insertVercelResourceBranch(ctx, tx, resource.InstallationID, &branches[i]); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit vercel resource and branches: %w", err)
+	}
+	return created, nil
+}
+
+// TryAcquireVercelResourceLock delegates to acquireAdvisoryLock with a namespaced
+// key (so it can't collide with project-id locks). See the store interface for
+// the contract.
+func (s *sqlProjectStore) TryAcquireVercelResourceLock(ctx context.Context, resourceID string) (func() error, error) {
+	return s.acquireAdvisoryLock(ctx, advisoryLockSpec{
+		spanName:   "Vercel resource lock",
+		attrPrefix: "vercel.resource",
+		id:         resourceID,
+		lockKey:    "vercel-resource:" + resourceID,
+		try:        true,
+		onBusy:     func() error { return store.ErrVercelResourceBusy{ResourceID: resourceID} },
+	})
 }
 
 func (s *sqlProjectStore) ListVercelResourceBranches(ctx context.Context, installationID, resourceID string) ([]store.VercelResourceBranch, error) {

@@ -712,6 +712,18 @@ type ProjectsStore interface {
 	// branches (including the production/main branch) are added separately via
 	// AddVercelResourceBranch. The input is not modified.
 	CreateVercelResource(ctx context.Context, organizationID string, resource *VercelResource) (*VercelResource, error)
+	// CreateVercelResourceAndBranches inserts a resource and all of its branch rows
+	// in one transaction, so a partial write can't leave a resource missing a scope
+	// (unrecoverable: a retry would find it, skip provisioning, and never rebuild
+	// the missing secret). Same validation as CreateVercelResource +
+	// AddVercelResourceBranch. Inputs are not modified; the stored row is returned.
+	CreateVercelResourceAndBranches(ctx context.Context, organizationID string, resource *VercelResource, branches []VercelResourceBranch) (*VercelResource, error)
+	// TryAcquireVercelResourceLock takes a NON-blocking advisory lock scoped to a
+	// resource id, serializing same-key provisions. On contention it returns
+	// ErrVercelResourceBusy (→ 429) rather than blocking, which would pin a pooled
+	// connection for the whole provision. The returned closure releases the lock
+	// and must be called (defer) even on error.
+	TryAcquireVercelResourceLock(ctx context.Context, resourceID string) (func() error, error)
 	// GetVercelResource returns active and deleting resources (deleted rows are
 	// treated as absent). Callers must inspect Status. Every method below is scoped
 	// by installationID and filters on it, so a resource owned by another
