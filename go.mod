@@ -39,7 +39,7 @@ require (
 	github.com/lestrrat-go/jwx/v3 v3.0.11
 	github.com/lib/pq v1.12.3
 	github.com/mattn/go-isatty v0.0.22
-	github.com/modelcontextprotocol/go-sdk v1.7.0
+	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/oapi-codegen/runtime v1.6.0
 	github.com/open-feature/go-sdk v1.17.2
 	github.com/open-policy-agent/opa v1.10.0
