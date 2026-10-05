@@ -57,15 +57,11 @@ func ToSpecOrganizationMembers(members []keycloak.OrganizationMember) []spec.Use
 func ToSpecOrganizationMembersWithRoles(members []keycloak.OrganizationMember, held map[string]roles.Role) []spec.OrganizationMember {
 	result := make([]spec.OrganizationMember, len(members))
 	for i, member := range members {
-		role := held[member.ID]
-		if role == "" {
-			role = roles.Unassigned
-		}
 		result[i] = spec.OrganizationMember{
 			Email: openapi_types.Email(member.Email),
 			Name:  member.Name,
 			Id:    member.ID,
-			Role:  spec.OrganizationRoleName(role),
+			Role:  spec.OrganizationRoleName(held[member.ID]),
 		}
 	}
 	return result

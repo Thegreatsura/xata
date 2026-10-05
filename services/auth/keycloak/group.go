@@ -152,6 +152,36 @@ func (r *restKC) ListGroupMembers(ctx context.Context, realm, organizationID, gr
 	})
 }
 
+func (r *restKC) ListMemberGroups(ctx context.Context, realm, organizationID, userID string) ([]Group, error) {
+	orgID, err := r.organizationInternalID(ctx, realm, organizationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get organization: %w", err)
+	}
+
+	listURL, err := r.buildRealmURL(realm, "organizations", orgID, "members", userID, "groups")
+	if err != nil {
+		return nil, fmt.Errorf("failed to join URL: %w", err)
+	}
+
+	resp, err := r.makeAuthenticatedRequest(ctx, http.MethodGet, listURL, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list member groups: %w", err)
+	}
+	// Keycloak answers 404 when the user is not a member of the organization.
+	if resp.StatusCode() == http.StatusNotFound {
+		return nil, ErrUserNotFound{ID: userID}
+	}
+	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK) {
+		return nil, fmt.Errorf("failed to list member groups: status code: %d", resp.StatusCode())
+	}
+
+	var groups []Group
+	if err := json.Unmarshal(resp.Body(), &groups); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal groups: %w", err)
+	}
+	return groups, nil
+}
+
 func (r *restKC) AddGroupMember(ctx context.Context, realm, organizationID, groupID, userID string) error {
 	orgID, err := r.organizationInternalID(ctx, realm, organizationID)
 	if err != nil {

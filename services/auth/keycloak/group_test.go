@@ -131,6 +131,39 @@ func TestGroupOperations(t *testing.T) {
 				assert.Equal(t, "Ada Byron", members[0].Name)
 			},
 		},
+		"list member groups reads the member's groups path": {
+			admin: func(w http.ResponseWriter, req *http.Request) {
+				require.Equal(t, http.MethodGet, req.Method)
+				require.Equal(t, "/admin/realms/test-realm/organizations/internal-1/members/u1/groups", req.URL.Path)
+				_, _ = w.Write([]byte(`[{"id":"g1","name":"Admin","path":"/Admin"}]`))
+			},
+			run: func(t *testing.T, kc KeyCloak) {
+				groups, err := kc.ListMemberGroups(context.Background(), "test-realm", "org-alias", "u1")
+				require.NoError(t, err)
+				require.Len(t, groups, 1)
+				assert.Equal(t, "g1", groups[0].ID)
+				assert.Equal(t, "Admin", groups[0].Name)
+			},
+		},
+		"list member groups maps 404 to ErrUserNotFound": {
+			admin: func(w http.ResponseWriter, req *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
+			},
+			run: func(t *testing.T, kc KeyCloak) {
+				_, err := kc.ListMemberGroups(context.Background(), "test-realm", "org-alias", "u1")
+				require.ErrorAs(t, err, &ErrUserNotFound{})
+			},
+		},
+		"list member groups fails on a server error": {
+			admin: func(w http.ResponseWriter, req *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+			},
+			run: func(t *testing.T, kc KeyCloak) {
+				_, err := kc.ListMemberGroups(context.Background(), "test-realm", "org-alias", "u1")
+				require.Error(t, err)
+				require.NotErrorAs(t, err, &ErrUserNotFound{})
+			},
+		},
 		"list asks for attributes": {
 			admin: func(w http.ResponseWriter, req *http.Request) {
 				require.Equal(t, "false", req.URL.Query().Get("briefRepresentation"))

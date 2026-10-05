@@ -71,12 +71,19 @@ func TestMembers(t *testing.T) {
 	tests := map[string]struct {
 		orgMembers []string
 		holders    map[string][]string
+		viewer     bool
 		want       map[string]Role
 	}{
 		"a member with no reserved group holds the least role": {
 			orgMembers: []string{testUserID},
 			holders:    map[string][]string{},
-			want:       map[string]Role{testUserID: Unassigned},
+			want:       map[string]Role{testUserID: Editor},
+		},
+		"with the viewer role, a member with no reserved group holds Viewer": {
+			orgMembers: []string{testUserID},
+			holders:    map[string][]string{},
+			viewer:     true,
+			want:       map[string]Role{testUserID: Viewer},
 		},
 		"each reserved group reports its role": {
 			orgMembers: []string{testUserID, otherID},
@@ -96,7 +103,7 @@ func TestMembers(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			got, err := newService(t, tt.orgMembers, tt.holders, nil).Members(context.Background(), testOrgID, Unassigned)
+			got, err := newService(t, tt.orgMembers, tt.holders, nil, viewerGrantable(tt.viewer)).Members(context.Background(), testOrgID)
 			require.NoError(t, err)
 			require.Equal(t, tt.want, got)
 		})
@@ -112,12 +119,12 @@ func TestMembersReportsEveryListedMember(t *testing.T) {
 
 	s := newService(t, ids, map[string][]string{adminID: ids[:1]}, nil)
 
-	got, err := s.Members(context.Background(), testOrgID, Unassigned)
+	got, err := s.Members(context.Background(), testOrgID)
 
 	require.NoError(t, err)
 	require.Len(t, got, count)
 	require.Equal(t, Admin, got[ids[0]])
-	require.Equal(t, Unassigned, got[ids[count-1]])
+	require.Equal(t, Editor, got[ids[count-1]])
 }
 
 func TestMembersReadsConcurrently(t *testing.T) {
@@ -145,7 +152,7 @@ func TestMembersReadsConcurrently(t *testing.T) {
 			return members(testUserID), await()
 		})
 
-	got, err := NewRoles(apitest.TestRealm, kc).Members(context.Background(), testOrgID, Unassigned)
+	got, err := NewRoles(apitest.TestRealm, kc).Members(context.Background(), testOrgID)
 
 	require.NoError(t, err)
 	require.Equal(t, map[string]Role{testUserID: Admin}, got)
@@ -358,92 +365,55 @@ func TestSetMemberKeepsAnAdmin(t *testing.T) {
 func TestIsAdmin(t *testing.T) {
 	errKeycloak := errors.New("keycloak unavailable")
 	tests := map[string]struct {
-		groups     []keycloak.Group
-		holders    map[string][]string
-		userID     string
-		unassigned Role
-		wantReads  []string
-		want       bool
-		wantErr    error
+		userID  string
+		groups  []keycloak.Group
+		readErr error
+		want    bool
+		wantErr error
 	}{
 		"an Admin is": {
-			groups:     reservedGroups(),
-			holders:    map[string][]string{adminID: {otherID, testUserID}},
-			userID:     testUserID,
-			unassigned: Unassigned,
-			wantReads:  []string{adminID},
-			want:       true,
+			userID: testUserID,
+			groups: []keycloak.Group{{ID: "g1", Name: "eng"}, {ID: adminID, Name: "Admin"}},
+			want:   true,
 		},
-		"a member outside the Admin group is not": {
-			groups:     reservedGroups(),
-			holders:    map[string][]string{adminID: {otherID}},
-			userID:     testUserID,
-			unassigned: Unassigned,
-			wantReads:  []string{adminID},
+		"an Admin group differing only in case counts": {
+			userID: testUserID,
+			groups: []keycloak.Group{{ID: adminID, Name: "admin"}},
+			want:   true,
 		},
-		"an organization without an Admin group has no Admin": {
-			groups:     reservedGroups()[1:],
-			userID:     testUserID,
-			unassigned: Unassigned,
+		"a subgroup named Admin does not count": {
+			userID: testUserID,
+			groups: []keycloak.Group{{ID: "g2", Name: "Admin", Path: "/Team/Admin"}, {ID: editorID, Name: "Editor", Path: "/Editor"}},
+		},
+		"a member in a lesser reserved group is not": {
+			userID: testUserID,
+			groups: []keycloak.Group{{ID: editorID, Name: "Editor"}},
+		},
+		"a member in no group is not": {
+			userID: testUserID,
+		},
+		"a user outside the organization is not": {
+			userID:  testUserID,
+			readErr: keycloak.ErrUserNotFound{ID: testUserID},
 		},
 		"an empty user id is never an Admin and reads nothing": {
-			userID:     "",
-			unassigned: Unassigned,
+			userID: "",
 		},
-		"an empty user id is never an Admin even when unassigned counts as Admin": {
-			userID:     "",
-			unassigned: Admin,
-		},
-		"counted as Admin, an Admin is found reading only the Admin group": {
-			groups:     reservedGroups(),
-			holders:    map[string][]string{adminID: {testUserID}, viewerID: {testUserID}},
-			userID:     testUserID,
-			unassigned: Admin,
-			wantReads:  []string{adminID},
-			want:       true,
-		},
-		"counted as Admin, an explicit Editor is refused after the Admin group": {
-			groups:     reservedGroups(),
-			holders:    map[string][]string{adminID: {otherID}, editorID: {testUserID}},
-			userID:     testUserID,
-			unassigned: Admin,
-			wantReads:  []string{adminID, editorID},
-		},
-		"counted as Admin, an explicit Viewer is refused after every other reserved group": {
-			groups:     reservedGroups(),
-			holders:    map[string][]string{viewerID: {testUserID}},
-			userID:     testUserID,
-			unassigned: Admin,
-			wantReads:  []string{adminID, editorID, viewerID},
-		},
-		"counted as Admin, a member only in a group outside the reserved ones passes": {
-			groups:     append(reservedGroups(), keycloak.Group{ID: "group-eng", Name: "eng"}),
-			holders:    map[string][]string{"group-eng": {testUserID}},
-			userID:     testUserID,
-			unassigned: Admin,
-			wantReads:  []string{adminID, editorID, viewerID},
-			want:       true,
-		},
-		"counted as Admin, a failed read is returned": {
-			groups:     reservedGroups(),
-			userID:     testUserID,
-			unassigned: Admin,
-			wantReads:  []string{adminID},
-			wantErr:    errKeycloak,
+		"a failed read is returned": {
+			userID:  testUserID,
+			readErr: errKeycloak,
+			wantErr: errKeycloak,
 		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			kc := keycloakMocks.NewKeyCloak(t)
 			if tt.userID != "" {
-				kc.EXPECT().ListGroups(mock.Anything, apitest.TestRealm, testOrgID).Return(tt.groups, nil).Once()
-			}
-			for _, id := range tt.wantReads {
-				kc.EXPECT().ListGroupMembers(mock.Anything, apitest.TestRealm, testOrgID, id).
-					Return(members(tt.holders[id]...), tt.wantErr).Once()
+				kc.EXPECT().ListMemberGroups(mock.Anything, apitest.TestRealm, testOrgID, tt.userID).
+					Return(tt.groups, tt.readErr).Once()
 			}
 
-			got, err := NewRoles(apitest.TestRealm, kc).IsAdmin(context.Background(), testOrgID, tt.userID, tt.unassigned)
+			got, err := NewRoles(apitest.TestRealm, kc).IsAdmin(context.Background(), testOrgID, tt.userID)
 
 			if tt.wantErr != nil {
 				require.ErrorIs(t, err, tt.wantErr)
@@ -451,16 +421,8 @@ func TestIsAdmin(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.want, got)
-			require.Len(t, kc.Calls, len(tt.wantReads)+boolToInt(tt.userID != ""))
 		})
 	}
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }
 
 func TestAddAdmins(t *testing.T) {
@@ -559,32 +521,25 @@ func TestAddAdminsConcurrentCreation(t *testing.T) {
 
 func TestCheckOrganizationMemberRemovable(t *testing.T) {
 	tests := map[string]struct {
-		holders    map[string][]string
-		userID     string
-		unassigned Role
-		wantErr    bool
+		holders map[string][]string
+		userID  string
+		wantErr bool
 	}{
 		"the last Admin cannot leave": {
-			holders: map[string][]string{adminID: {testUserID}}, userID: testUserID, unassigned: Unassigned, wantErr: true,
+			holders: map[string][]string{adminID: {testUserID}}, userID: testUserID, wantErr: true,
 		},
 		"an Admin may leave while another stays": {
-			holders: map[string][]string{adminID: {testUserID, otherID}}, userID: otherID, unassigned: Unassigned,
+			holders: map[string][]string{adminID: {testUserID, otherID}}, userID: otherID,
 		},
 		"a non-Admin may always leave": {
-			holders: map[string][]string{adminID: {testUserID}}, userID: otherID, unassigned: Unassigned,
-		},
-		"a member in no reserved group counted as Admin is the last Admin": {
-			holders: map[string][]string{viewerID: {otherID}}, userID: testUserID, unassigned: Admin, wantErr: true,
-		},
-		"an Admin may leave while a member counted as Admin stays": {
-			holders: map[string][]string{adminID: {otherID}}, userID: otherID, unassigned: Admin,
+			holders: map[string][]string{adminID: {testUserID}}, userID: otherID,
 		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			s := newService(t, []string{testUserID, otherID}, tt.holders, nil)
 
-			got := s.CheckOrganizationMemberRemovable(context.Background(), testOrgID, tt.userID, tt.unassigned)
+			got := s.CheckOrganizationMemberRemovable(context.Background(), testOrgID, tt.userID)
 
 			if tt.wantErr {
 				require.ErrorIs(t, got, ErrLastAdmin{})
@@ -628,6 +583,21 @@ func TestOffered(t *testing.T) {
 				got = append(got, d.Role)
 			}
 			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestUnassigned(t *testing.T) {
+	tests := map[string]struct {
+		viewer bool
+		want   Role
+	}{
+		"Editor without the viewer role": {want: Editor},
+		"Viewer with the viewer role":    {viewer: true, want: Viewer},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			require.Equal(t, tt.want, Unassigned(tt.viewer))
 		})
 	}
 }

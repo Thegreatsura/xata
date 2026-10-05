@@ -58,10 +58,6 @@ var (
 		Name:           "usePgBackRest",
 		DefaultEnabled: false,
 	}
-	OrganizationRoles = openfeature.FeatureFlag{
-		Name:           "organizationRoles",
-		DefaultEnabled: false,
-	}
 	// OrganizationViewerRole lets Viewer be granted and reported; without it a Viewer is reported as Editor.
 	OrganizationViewerRole = openfeature.FeatureFlag{
 		Name:           "organizationViewerRole",

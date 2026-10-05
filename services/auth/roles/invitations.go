@@ -16,10 +16,13 @@ const invitedRolesAttribute = "invitedRoles"
 // Keycloak stores each attribute value in an NVARCHAR(255) column.
 const maxInvitationLength = 255
 
-// CheckInvitation refuses a role that could not be recorded for the address.
-func CheckInvitation(email string, role Role) error {
+// CheckInvitation refuses a role that cannot be granted, or could not be recorded for the address.
+func CheckInvitation(email string, role Role, viewer bool) error {
 	if !role.Valid() {
 		return ErrUnknownRole{Role: string(role)}
+	}
+	if !role.Grantable(viewer) {
+		return ErrRoleNotGrantable{Role: string(role)}
 	}
 	if utf8.RuneCountInString(invitationEntry(NormalizeEmail(email), role)) > maxInvitationLength {
 		return ErrEmailTooLong{}
@@ -28,10 +31,7 @@ func CheckInvitation(email string, role Role) error {
 }
 
 func (s *rolesService) SetInvitation(ctx context.Context, organizationID, email string, role Role) error {
-	if err := CheckGrantable(role, s.viewer(ctx)); err != nil {
-		return err
-	}
-	if err := CheckInvitation(email, role); err != nil {
+	if err := CheckInvitation(email, role, s.viewer(ctx)); err != nil {
 		return err
 	}
 	email = NormalizeEmail(email)

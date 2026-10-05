@@ -1502,7 +1502,7 @@ components:
           type: string
           format: email
         role:
-          description: Role the user holds once they accept the invitation. Optional; when omitted, Editor applies once roles are enabled for the organization
+          description: Role the user holds once they accept the invitation. Optional; when omitted, the least privileged role offered applies
           $ref: '#/components/schemas/OrganizationRoleName'
       required:
         - email

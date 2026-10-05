@@ -62,6 +62,8 @@ type KeyCloak interface {
 	DeleteGroup(ctx context.Context, realm, organizationID, groupID string) error
 	// ListGroupMembers lists the members of an organization group.
 	ListGroupMembers(ctx context.Context, realm, organizationID, groupID string) ([]OrganizationMember, error)
+	// ListMemberGroups lists the organization groups one member belongs to.
+	ListMemberGroups(ctx context.Context, realm, organizationID, userID string) ([]Group, error)
 	// AddGroupMember adds an existing organization member to a group.
 	AddGroupMember(ctx context.Context, realm, organizationID, groupID, userID string) error
 	// RemoveGroupMember removes a member from an organization group.

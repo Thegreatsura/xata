@@ -24,11 +24,6 @@ const (
 	Viewer Role = "viewer"
 )
 
-// Unassigned is what a member holds until a role is granted them. It is the least
-// of the offered roles on purpose: a membership the backfill missed, or one created
-// while nothing was watching, costs its holder access rather than handing it to them.
-const Unassigned = Editor
-
 // Definition describes a role for the API.
 type Definition struct {
 	Role        Role
@@ -75,6 +70,14 @@ func Offered(viewer bool) []Definition {
 	return slices.DeleteFunc(slices.Clone(All), func(d Definition) bool { return !d.Role.Grantable(viewer) })
 }
 
+// Unassigned is what a member holds until a role is granted them. It is the least
+// of the offered roles on purpose: a membership the backfill missed, or one created
+// while nothing was watching, costs its holder access rather than handing it to them.
+func Unassigned(viewer bool) Role {
+	offered := Offered(viewer)
+	return offered[len(offered)-1].Role
+}
+
 // Case-insensitive, so a group differing only in case cannot shadow a reserved one.
 func roleOfGroup(name string) (Role, bool) {
 	for _, d := range All {
@@ -86,15 +89,13 @@ func roleOfGroup(name string) (Role, bool) {
 }
 
 // Roles enforces the Xata role rules on top of Keycloak organization groups.
-//
-// The unassigned parameter is what a member in no reserved group counts as: Admin while roles are hidden.
 type Roles interface {
 	// Members returns the role held by every member of the organization.
-	Members(ctx context.Context, organizationID string, unassigned Role) (map[string]Role, error)
+	Members(ctx context.Context, organizationID string) (map[string]Role, error)
 	// List returns the organization's members and the role each holds.
-	List(ctx context.Context, organizationID string, unassigned Role) ([]keycloak.OrganizationMember, map[string]Role, error)
+	List(ctx context.Context, organizationID string) ([]keycloak.OrganizationMember, map[string]Role, error)
 	// IsAdmin reports whether the user holds Admin.
-	IsAdmin(ctx context.Context, organizationID, userID string, unassigned Role) (bool, error)
+	IsAdmin(ctx context.Context, organizationID, userID string) (bool, error)
 	// SetMember replaces the role of one member.
 	SetMember(ctx context.Context, organizationID, userID string, role Role, caller Caller) error
 	// AddAdmins creates any missing reserved group and grants Admin to each user.
@@ -102,7 +103,7 @@ type Roles interface {
 	// Audit reads an organization's role state without writing.
 	Audit(ctx context.Context, organizationID string) (Audit, error)
 	// CheckOrganizationMemberRemovable refuses to strand an organization with no Admin.
-	CheckOrganizationMemberRemovable(ctx context.Context, organizationID, userID string, unassigned Role) error
+	CheckOrganizationMemberRemovable(ctx context.Context, organizationID, userID string) error
 	// RemoveMemberFromAllRoles clears a member's role when they leave.
 	RemoveMemberFromAllRoles(ctx context.Context, organizationID, userID string) error
 	// SetInvitation records the role an invitee receives on joining.
@@ -207,17 +208,17 @@ func (s *rolesService) read(ctx context.Context, organizationID string) (members
 	return members, roleGroups, nil
 }
 
-func (s *rolesService) Members(ctx context.Context, organizationID string, unassigned Role) (map[string]Role, error) {
-	_, byUser, err := s.List(ctx, organizationID, unassigned)
+func (s *rolesService) Members(ctx context.Context, organizationID string) (map[string]Role, error) {
+	_, byUser, err := s.List(ctx, organizationID)
 	return byUser, err
 }
 
-func (s *rolesService) List(ctx context.Context, organizationID string, unassigned Role) ([]keycloak.OrganizationMember, map[string]Role, error) {
+func (s *rolesService) List(ctx context.Context, organizationID string) ([]keycloak.OrganizationMember, map[string]Role, error) {
 	members, roleGroups, err := s.read(ctx, organizationID)
 	if err != nil {
 		return nil, nil, err
 	}
-	return members, rolesByUser(members, roleGroups, unassigned), nil
+	return members, rolesByUser(members, roleGroups, Unassigned(s.viewer(ctx))), nil
 }
 
 func rolesByUser(members []keycloak.OrganizationMember, roleGroups []roleGroup, unassigned Role) map[string]Role {
@@ -278,47 +279,22 @@ func (s *rolesService) Audit(ctx context.Context, organizationID string) (Audit,
 	return audit, nil
 }
 
-func (s *rolesService) IsAdmin(ctx context.Context, organizationID, userID string, unassigned Role) (bool, error) {
+func (s *rolesService) IsAdmin(ctx context.Context, organizationID, userID string) (bool, error) {
 	if userID == "" {
 		return false, nil
 	}
-	groups, err := s.kcRest.ListGroups(ctx, s.realm, organizationID)
+	groups, err := s.kcRest.ListMemberGroups(ctx, s.realm, organizationID, userID)
+	if errors.As(err, &keycloak.ErrUserNotFound{}) {
+		return false, nil
+	}
 	if err != nil {
-		return false, fmt.Errorf("list groups: %w", err)
+		return false, fmt.Errorf("list member groups: %w", err)
 	}
-	admin, err := s.holds(ctx, organizationID, groups, Admin, userID)
-	if admin || err != nil || unassigned != Admin {
-		return admin, err
-	}
-	// The user counts as Admin unless a lesser reserved group holds them.
-	for _, d := range All[1:] {
-		held, err := s.holds(ctx, organizationID, groups, d.Role, userID)
-		if err != nil {
-			return false, err
-		}
-		if held {
-			return false, nil
-		}
-	}
-	return true, nil
-}
-
-func (s *rolesService) holds(ctx context.Context, organizationID string, groups []keycloak.Group, role Role, userID string) (bool, error) {
-	for _, g := range groups {
-		if found, ok := roleOfGroup(g.Name); !ok || found != role {
-			continue
-		}
-		holders, err := s.kcRest.ListGroupMembers(ctx, s.realm, organizationID, g.ID)
-		if err != nil {
-			return false, fmt.Errorf("list role members: %w", err)
-		}
-		for _, m := range holders {
-			if m.ID == userID {
-				return true, nil
-			}
-		}
-	}
-	return false, nil
+	// Keycloak lists subgroups too, and only top-level groups hold a role.
+	return slices.ContainsFunc(groups, func(g keycloak.Group) bool {
+		role, ok := roleOfGroup(g.Name)
+		return ok && role == Admin && strings.Count(g.Path, "/") <= 1
+	}), nil
 }
 
 func (s *rolesService) SetMember(ctx context.Context, organizationID, userID string, role Role, caller Caller) error {
@@ -330,7 +306,8 @@ func (s *rolesService) SetMember(ctx context.Context, organizationID, userID str
 	if err != nil {
 		return err
 	}
-	current := rolesByUser(members, roleGroups, Unassigned)
+	viewer := s.viewer(ctx)
+	current := rolesByUser(members, roleGroups, Unassigned(viewer))
 
 	// Authorize first, so a caller who may not manage roles learns nothing.
 	if !caller.OrganizationKey && current[caller.UserID] != Admin {
@@ -339,7 +316,7 @@ func (s *rolesService) SetMember(ctx context.Context, organizationID, userID str
 	if _, member := current[userID]; !member {
 		return ErrUserNotOrganizationMember{UserID: userID}
 	}
-	if !role.Grantable(s.viewer(ctx)) {
+	if !role.Grantable(viewer) {
 		return ErrRoleNotGrantable{Role: string(role)}
 	}
 	if role != Admin && current[userID] == Admin && countRole(current, Admin) <= 1 {
@@ -375,7 +352,7 @@ func (s *rolesService) SetMember(ctx context.Context, organizationID, userID str
 
 // keepAnAdmin restores Admin to a member just demoted from it when a concurrent demotion left no Admin.
 func (s *rolesService) keepAnAdmin(ctx context.Context, organizationID string, roleGroups []roleGroup, userID, demotedTo string) error {
-	after, err := s.Members(ctx, organizationID, Unassigned)
+	after, err := s.Members(ctx, organizationID)
 	if err != nil {
 		return err
 	}
@@ -412,8 +389,8 @@ func (s *rolesService) AddAdmins(ctx context.Context, organizationID string, use
 	return errors.Join(errs...)
 }
 
-func (s *rolesService) CheckOrganizationMemberRemovable(ctx context.Context, organizationID, userID string, unassigned Role) error {
-	current, err := s.Members(ctx, organizationID, unassigned)
+func (s *rolesService) CheckOrganizationMemberRemovable(ctx context.Context, organizationID, userID string) error {
+	current, err := s.Members(ctx, organizationID)
 	if err != nil {
 		return err
 	}
@@ -498,15 +475,4 @@ func countRole(byUser map[string]Role, role Role) int {
 		}
 	}
 	return n
-}
-
-// CheckGrantable refuses a role that is unknown or not granted yet.
-func CheckGrantable(role Role, viewer bool) error {
-	if !role.Valid() {
-		return ErrUnknownRole{Role: string(role)}
-	}
-	if !role.Grantable(viewer) {
-		return ErrRoleNotGrantable{Role: string(role)}
-	}
-	return nil
 }
