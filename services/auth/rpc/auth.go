@@ -33,12 +33,20 @@ const githubIdentityProvider = "github"
 // Ensure AuthService implements GRPCService interface.
 var _ authv1.AuthServiceServer = (*AuthService)(nil)
 
+// ErrVercelKeysUnavailable signals that the verifier could not check the token
+// because its key source (Vercel's JWKS) is not loaded yet — a transient,
+// retryable condition rather than a bad token. A VercelTokenVerifier returns it
+// (wrapped) so ResolveVercelInstallation maps it to codes.FailedPrecondition
+// instead of Unauthenticated. It lives in OSS so the mapping needs no saas import.
+var ErrVercelKeysUnavailable = errors.New("vercel token verifier unavailable")
+
 // VercelTokenVerifier verifies a Vercel Partner API OIDC token (signature,
 // issuer, audience) and returns the installation id carried in its signed claims
 // (empty when the token is not installation-scoped). It is the seam that keeps
 // Vercel JWKS knowledge out of OSS: the saas layer satisfies it with the real
 // verifier via SetVercelVerifier. A nil verifier means the Vercel Marketplace
-// integration is not configured on this deployment.
+// integration is not configured on this deployment. A transient key-source
+// outage is reported as ErrVercelKeysUnavailable.
 type VercelTokenVerifier interface {
 	Verify(rawToken string) (installationID string, err error)
 }
@@ -277,6 +285,12 @@ func (a *AuthService) ResolveVercelInstallation(ctx context.Context, req *authv1
 
 	tokenInstallationID, err := a.vercelVerifier.Verify(req.GetToken())
 	if err != nil {
+		if errors.Is(err, ErrVercelKeysUnavailable) {
+			// FailedPrecondition, not Unavailable: the latter is retried by the
+			// shared client (storms auth during an outage) and collides with a
+			// genuinely-unreachable auth. This is a clean, non-retried signal.
+			return nil, status.Error(codes.FailedPrecondition, "vercel token verification temporarily unavailable")
+		}
 		return nil, status.Error(codes.Unauthenticated, "invalid vercel token")
 	}
 	// Installation scoping: the signed installation_id claim must match the

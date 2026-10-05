@@ -62,6 +62,12 @@ func TestResolveVercelInstallation(t *testing.T) {
 			installation: installationID,
 			wantCode:     codes.Unauthenticated,
 		},
+		"keys unavailable is failed precondition": {
+			verifier:     fakeVercelVerifier{err: ErrVercelKeysUnavailable},
+			token:        "tok",
+			installation: installationID,
+			wantCode:     codes.FailedPrecondition,
+		},
 		"token scoped to another installation is permission denied": {
 			verifier:     fakeVercelVerifier{installationID: "icfg_other"},
 			token:        "tok",
