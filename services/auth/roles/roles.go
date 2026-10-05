@@ -71,7 +71,7 @@ func Offered(viewer bool) []Definition {
 }
 
 // Unassigned is what a member holds until a role is granted them. It is the least
-// of the offered roles on purpose: a membership the backfill missed, or one created
+// of the offered roles on purpose: a membership that never got a role, or one created
 // while nothing was watching, costs its holder access rather than handing it to them.
 func Unassigned(viewer bool) Role {
 	offered := Offered(viewer)
