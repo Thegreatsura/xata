@@ -1421,9 +1421,11 @@ func TestUpdatePostgresCluster(t *testing.T) {
 			inputBranchFn: func(b *v1alpha1.Branch) {
 				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
-					Bucket:              "test-bucket",
-					Region:              "us-east-1",
-					InheritFromIAMRole:  true,
+					S3: &v1alpha1.PgBackRestS3Spec{
+						Bucket:             "test-bucket",
+						Region:             "us-east-1",
+						InheritFromIAMRole: true,
+					},
 					RetentionFullDays:   7,
 					CompressType:        DefaultPgBackRestCompressType,
 					ArchiveAsync:        DefaultPgBackRestArchiveAsync,
@@ -1442,9 +1444,11 @@ func TestUpdatePostgresCluster(t *testing.T) {
 				b.Spec.BackupSpec.Retention = "14d"
 				b.Spec.BackupSpec.ScheduledBackup.Schedule = "0 2 * * *"
 				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
-					Bucket:              "test-bucket",
-					Region:              "us-east-1",
-					InheritFromIAMRole:  true,
+					S3: &v1alpha1.PgBackRestS3Spec{
+						Bucket:             "test-bucket",
+						Region:             "us-east-1",
+						InheritFromIAMRole: true,
+					},
 					RetentionFullDays:   14,
 					CompressType:        DefaultPgBackRestCompressType,
 					ArchiveAsync:        DefaultPgBackRestArchiveAsync,

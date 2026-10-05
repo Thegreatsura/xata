@@ -106,13 +106,6 @@ spec:
                         - account
                         - container
                         type: object
-                      bucket:
-                        description: |-
-                          Bucket is the S3 bucket for backups and WAL archives.
-
-                          Deprecated: use s3.bucket. Honored as a fallback when neither s3 nor gcs
-                          is set.
-                        type: string
                       cipherPassphraseSecretRef:
                         description: |-
                           CipherPassphraseSecretRef references the passphrase for client-side
@@ -158,15 +151,6 @@ spec:
                         - lz4
                         - zst
                         type: string
-                      endpoint:
-                        description: |-
-                          Endpoint overrides S3 endpoint discovery. Required for non-AWS
-                          S3-compatible storage (e.g. Cloudflare R2, or RustFS for local
-                          dev). When set, static credentials from the operator-configured
-                          credentials Secret are used instead of an IAM role.
-
-                          Deprecated: use s3.endpoint.
-                        type: string
                       gcs:
                         description: GCS configures a Google Cloud Storage backend
                           (Workload Identity auth).
@@ -184,18 +168,6 @@ spec:
                         - bucket
                         - serviceAccountEmail
                         type: object
-                      inheritFromIAMRole:
-                        description: |-
-                          InheritFromIAMRole uses the pod's IAM role for S3 authentication.
-
-                          Deprecated: use s3.inheritFromIAMRole.
-                        type: boolean
-                      region:
-                        description: |-
-                          Region is the S3 region.
-
-                          Deprecated: use s3.region.
-                        type: string
                       repoPath:
                         description: RepoPath overrides the storage path prefix. Defaults
                           to /<clusterName>.
@@ -260,14 +232,9 @@ spec:
                     - message: s3, gcs, and azure are mutually exclusive
                       rule: '(has(self.s3) ? 1 : 0) + (has(self.gcs) ? 1 : 0) + (has(self.azure)
                         ? 1 : 0) <= 1'
-                    - message: gcs and azure cannot be combined with the deprecated
-                        top-level S3 fields
-                      rule: '!((has(self.gcs) || has(self.azure)) && (has(self.bucket)
-                        || has(self.region) || has(self.endpoint)))'
-                    - message: 'a pgbackrest backend is required: set s3, gcs, azure,
-                        or the deprecated top-level bucket and region'
-                      rule: has(self.s3) || has(self.gcs) || has(self.azure) || (has(self.bucket)
-                        && has(self.region))
+                    - message: 'a pgbackrest backend is required: set s3, gcs, or
+                        azure'
+                      rule: has(self.s3) || has(self.gcs) || has(self.azure)
                   retention:
                     default: 2d
                     description: |-

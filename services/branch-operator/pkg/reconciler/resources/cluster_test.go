@@ -397,9 +397,11 @@ func TestClusterSpec(t *testing.T) {
 				cfg.BackupSpec = &v1alpha1.BackupSpec{
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
-						Bucket:              "test-bucket",
-						Region:              "us-east-1",
-						InheritFromIAMRole:  true,
+						S3: &v1alpha1.PgBackRestS3Spec{
+							Bucket:             "test-bucket",
+							Region:             "us-east-1",
+							InheritFromIAMRole: true,
+						},
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
 						ArchiveAsync:        true,
@@ -445,9 +447,11 @@ func TestClusterSpec(t *testing.T) {
 				cfg.BackupSpec = &v1alpha1.BackupSpec{
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
-						Bucket:              "test-bucket",
-						Region:              "us-east-1",
-						InheritFromIAMRole:  true,
+						S3: &v1alpha1.PgBackRestS3Spec{
+							Bucket:             "test-bucket",
+							Region:             "us-east-1",
+							InheritFromIAMRole: true,
+						},
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
 						ArchiveAsync:        true,
@@ -494,10 +498,12 @@ func TestClusterSpec(t *testing.T) {
 				cfg.BackupSpec = &v1alpha1.BackupSpec{
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
-						Bucket:              "test-bucket",
-						Region:              "us-east-1",
-						Endpoint:            "http://rustfs.local:9000",
-						InheritFromIAMRole:  true,
+						S3: &v1alpha1.PgBackRestS3Spec{
+							Bucket:             "test-bucket",
+							Region:             "us-east-1",
+							Endpoint:           "http://rustfs.local:9000",
+							InheritFromIAMRole: true,
+						},
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
 						ArchiveAsync:        true,
@@ -551,10 +557,12 @@ func TestClusterSpec(t *testing.T) {
 				cfg.BackupSpec = &v1alpha1.BackupSpec{
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
-						Bucket:              "s3://example-backups",
-						Region:              "auto",
-						Endpoint:            "https://s3.example.com",
-						InheritFromIAMRole:  true,
+						S3: &v1alpha1.PgBackRestS3Spec{
+							Bucket:             "s3://example-backups",
+							Region:             "auto",
+							Endpoint:           "https://s3.example.com",
+							InheritFromIAMRole: true,
+						},
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
 						ArchiveAsync:        true,
@@ -678,9 +686,11 @@ func TestClusterSpec(t *testing.T) {
 				cfg.BackupSpec = &v1alpha1.BackupSpec{
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
-						Bucket:             "test-bucket",
-						Region:             "us-east-1",
-						InheritFromIAMRole: true,
+						S3: &v1alpha1.PgBackRestS3Spec{
+							Bucket:             "test-bucket",
+							Region:             "us-east-1",
+							InheritFromIAMRole: true,
+						},
 					},
 				}
 				cfg.RestoreSpec = &v1alpha1.RestoreSpec{
@@ -1141,9 +1151,6 @@ func TestClusterSpecAzureDoesNotAnnotateClusterServiceAccount(t *testing.T) {
 				Account:   "testaccount",
 				Container: "backups",
 			},
-			// The deprecated top-level field is what a hand-written Branch can
-			// still carry alongside an azure repository.
-			InheritFromIAMRole: true,
 		},
 	}
 
@@ -1380,9 +1387,11 @@ func TestExternalClustersPgBackRestRepoPath(t *testing.T) {
 		BackupSpec: &v1alpha1.BackupSpec{
 			Method: v1alpha1.BackupMethodPgBackRest,
 			PgBackRest: &v1alpha1.PgBackRestSpec{
-				Bucket:             "test-bucket",
-				Region:             "us-east-1",
-				InheritFromIAMRole: true,
+				S3: &v1alpha1.PgBackRestS3Spec{
+					Bucket:             "test-bucket",
+					Region:             "us-east-1",
+					InheritFromIAMRole: true,
+				},
 			},
 		},
 	})
@@ -1412,12 +1421,12 @@ func TestUsesAWSIAM(t *testing.T) {
 			},
 			want: true,
 		},
-		"legacy s3 fields with IAM": {
+		"no storage block": {
 			spec: &v1alpha1.BackupSpec{
 				Method:     v1alpha1.BackupMethodPgBackRest,
-				PgBackRest: &v1alpha1.PgBackRestSpec{Bucket: "b", InheritFromIAMRole: true},
+				PgBackRest: &v1alpha1.PgBackRestSpec{},
 			},
-			want: true,
+			want: false,
 		},
 		"s3-compatible endpoint": {
 			spec: &v1alpha1.BackupSpec{
@@ -1430,7 +1439,7 @@ func TestUsesAWSIAM(t *testing.T) {
 		"gcs": {
 			spec: &v1alpha1.BackupSpec{
 				Method:     v1alpha1.BackupMethodPgBackRest,
-				PgBackRest: &v1alpha1.PgBackRestSpec{GCS: &v1alpha1.PgBackRestGCSSpec{Bucket: "b"}, InheritFromIAMRole: true},
+				PgBackRest: &v1alpha1.PgBackRestSpec{GCS: &v1alpha1.PgBackRestGCSSpec{Bucket: "b"}},
 			},
 		},
 	}

@@ -293,23 +293,6 @@ func TestPgBackRestBackendValidation(t *testing.T) {
 		}, true)
 	})
 
-	t.Run("legacy bucket and region is accepted", func(t *testing.T) {
-		t.Parallel()
-		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
-			Bucket: "test-bucket",
-			Region: "us-east-1",
-		}, true)
-	})
-
-	t.Run("s3 sub-struct alongside legacy is accepted", func(t *testing.T) {
-		t.Parallel()
-		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
-			S3:     &v1alpha1.PgBackRestS3Spec{Bucket: "test-bucket", Region: "us-east-1"},
-			Bucket: "test-bucket",
-			Region: "us-east-1",
-		}, true)
-	})
-
 	t.Run("azure sub-struct only is accepted", func(t *testing.T) {
 		t.Parallel()
 		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
@@ -341,32 +324,9 @@ func TestPgBackRestBackendValidation(t *testing.T) {
 		}, false)
 	})
 
-	t.Run("gcs together with legacy is rejected", func(t *testing.T) {
-		t.Parallel()
-		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
-			GCS:    &v1alpha1.PgBackRestGCSSpec{Bucket: "test-bucket", ServiceAccountEmail: serviceAccount},
-			Bucket: "test-bucket",
-			Region: "us-east-1",
-		}, false)
-	})
-
-	t.Run("azure together with legacy is rejected", func(t *testing.T) {
-		t.Parallel()
-		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{
-			Azure:  &v1alpha1.PgBackRestAzureSpec{Account: "testaccount", Container: "backups"},
-			Bucket: "test-bucket",
-			Region: "us-east-1",
-		}, false)
-	})
-
 	t.Run("no backend is rejected", func(t *testing.T) {
 		t.Parallel()
 		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{}, false)
-	})
-
-	t.Run("legacy bucket without region is rejected", func(t *testing.T) {
-		t.Parallel()
-		requirePgBackRestValid(t, &v1alpha1.PgBackRestSpec{Bucket: "test-bucket"}, false)
 	})
 }
 

@@ -187,9 +187,11 @@ func (b *BranchBuilder) WithPgBackRest(bucket, region string) *BranchBuilder {
 	}
 	b.branch.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 	b.branch.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
-		Bucket:             bucket,
-		Region:             region,
-		InheritFromIAMRole: true,
+		S3: &v1alpha1.PgBackRestS3Spec{
+			Bucket:             bucket,
+			Region:             region,
+			InheritFromIAMRole: true,
+		},
 	}
 	return b
 }

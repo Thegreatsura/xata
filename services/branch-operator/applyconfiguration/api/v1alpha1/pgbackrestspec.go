@@ -12,10 +12,7 @@ import (
 // PgBackRestSpec defines pgbackrest-specific backup configuration.
 //
 // Exactly one storage backend must be specified via the s3, gcs, or azure
-// sub-struct. The deprecated top-level S3 fields (bucket/region/endpoint/
-// inheritFromIAMRole) remain honored as a fallback when no sub-struct is
-// set. Backend precedence in the operator is azure > gcs > s3 > legacy
-// top-level.
+// sub-struct.
 //
 // The following pgbackrest options are set internally with fixed defaults
 // and not exposed to users:
@@ -39,26 +36,6 @@ type PgBackRestSpecApplyConfiguration struct {
 	// repository encryption. When unset, pgbackrest does not encrypt the
 	// repository.
 	CipherPassphraseSecretRef *v1.SecretKeySelector `json:"cipherPassphraseSecretRef,omitempty"`
-	// Bucket is the S3 bucket for backups and WAL archives.
-	//
-	// Deprecated: use s3.bucket. Honored as a fallback when neither s3 nor gcs
-	// is set.
-	Bucket *string `json:"bucket,omitempty"`
-	// Region is the S3 region.
-	//
-	// Deprecated: use s3.region.
-	Region *string `json:"region,omitempty"`
-	// Endpoint overrides S3 endpoint discovery. Required for non-AWS
-	// S3-compatible storage (e.g. Cloudflare R2, or RustFS for local
-	// dev). When set, static credentials from the operator-configured
-	// credentials Secret are used instead of an IAM role.
-	//
-	// Deprecated: use s3.endpoint.
-	Endpoint *string `json:"endpoint,omitempty"`
-	// InheritFromIAMRole uses the pod's IAM role for S3 authentication.
-	//
-	// Deprecated: use s3.inheritFromIAMRole.
-	InheritFromIAMRole *bool `json:"inheritFromIAMRole,omitempty"`
 	// RetentionFullDays is the number of days to retain full backups.
 	RetentionFullDays *int `json:"retentionFullDays,omitempty"`
 	// CompressType sets the compression algorithm.
@@ -115,38 +92,6 @@ func (b *PgBackRestSpecApplyConfiguration) WithAzure(value *PgBackRestAzureSpecA
 // If called multiple times, the CipherPassphraseSecretRef field is set to the value of the last call.
 func (b *PgBackRestSpecApplyConfiguration) WithCipherPassphraseSecretRef(value v1.SecretKeySelector) *PgBackRestSpecApplyConfiguration {
 	b.CipherPassphraseSecretRef = &value
-	return b
-}
-
-// WithBucket sets the Bucket field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Bucket field is set to the value of the last call.
-func (b *PgBackRestSpecApplyConfiguration) WithBucket(value string) *PgBackRestSpecApplyConfiguration {
-	b.Bucket = &value
-	return b
-}
-
-// WithRegion sets the Region field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Region field is set to the value of the last call.
-func (b *PgBackRestSpecApplyConfiguration) WithRegion(value string) *PgBackRestSpecApplyConfiguration {
-	b.Region = &value
-	return b
-}
-
-// WithEndpoint sets the Endpoint field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Endpoint field is set to the value of the last call.
-func (b *PgBackRestSpecApplyConfiguration) WithEndpoint(value string) *PgBackRestSpecApplyConfiguration {
-	b.Endpoint = &value
-	return b
-}
-
-// WithInheritFromIAMRole sets the InheritFromIAMRole field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the InheritFromIAMRole field is set to the value of the last call.
-func (b *PgBackRestSpecApplyConfiguration) WithInheritFromIAMRole(value bool) *PgBackRestSpecApplyConfiguration {
-	b.InheritFromIAMRole = &value
 	return b
 }
 

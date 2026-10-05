@@ -491,7 +491,7 @@ func backupConfiguration(branchName string, cfg ClusterConfig) *apiv1ac.BackupCo
 }
 
 // pgbackrestRepository selects the pgbackrest storage backend. Precedence is
-// azure > gcs > s3 > the deprecated top-level S3 fields.
+// azure > gcs > s3.
 func pgbackrestRepository(
 	pgb *v1alpha1.PgBackRestSpec,
 	creds BackupCredentials,
@@ -505,8 +505,6 @@ func pgbackrestRepository(
 		repo = repo.WithGCS(pgbackrestGCS(pgb.GCS))
 	case pgb.S3 != nil:
 		repo = repo.WithS3(pgbackrestS3(pgb.S3, creds))
-	default:
-		repo = repo.WithS3(pgbackrestS3(legacyS3Spec(pgb), creds))
 	}
 
 	if cipherPassphraseSecretRef != nil {
@@ -519,16 +517,6 @@ func pgbackrestRepository(
 	}
 
 	return repo
-}
-
-// legacyS3Spec adapts the deprecated top-level S3 fields to a PgBackRestS3Spec.
-func legacyS3Spec(pgb *v1alpha1.PgBackRestSpec) *v1alpha1.PgBackRestS3Spec {
-	return &v1alpha1.PgBackRestS3Spec{
-		Bucket:             pgb.Bucket,
-		Region:             pgb.Region,
-		Endpoint:           pgb.Endpoint,
-		InheritFromIAMRole: pgb.InheritFromIAMRole,
-	}
 }
 
 // pgbackrestS3 builds the S3 apply configuration. When Endpoint is set, the
@@ -602,10 +590,7 @@ func UsesAWSIAM(b *v1alpha1.BackupSpec) bool {
 		return false
 	}
 	s3 := b.PgBackRest.S3
-	if s3 == nil {
-		s3 = legacyS3Spec(b.PgBackRest)
-	}
-	return s3.Endpoint == "" && s3.InheritFromIAMRole
+	return s3 != nil && s3.Endpoint == "" && s3.InheritFromIAMRole
 }
 
 // serviceAccountTemplate maps each cluster-specific Kubernetes ServiceAccount

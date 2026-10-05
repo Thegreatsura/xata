@@ -176,9 +176,11 @@ func TestObjectStoreReconciliation(t *testing.T) {
 			err := retryOnConflict(ctx, br, func(b *v1alpha1.Branch) {
 				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
-					Bucket:             "test-bucket",
-					Region:             "us-east-1",
-					InheritFromIAMRole: true,
+					S3: &v1alpha1.PgBackRestS3Spec{
+						Bucket:             "test-bucket",
+						Region:             "us-east-1",
+						InheritFromIAMRole: true,
+					},
 				}
 			})
 			require.NoError(t, err)

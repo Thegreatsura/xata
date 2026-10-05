@@ -431,10 +431,7 @@ type BackupSpec struct {
 // PgBackRestSpec defines pgbackrest-specific backup configuration.
 //
 // Exactly one storage backend must be specified via the s3, gcs, or azure
-// sub-struct. The deprecated top-level S3 fields (bucket/region/endpoint/
-// inheritFromIAMRole) remain honored as a fallback when no sub-struct is
-// set. Backend precedence in the operator is azure > gcs > s3 > legacy
-// top-level.
+// sub-struct.
 //
 // The following pgbackrest options are set internally with fixed defaults
 // and not exposed to users:
@@ -449,8 +446,7 @@ type BackupSpec struct {
 //   - processMax: computed from instance CPU resources
 //
 // +kubebuilder:validation:XValidation:rule="(has(self.s3) ? 1 : 0) + (has(self.gcs) ? 1 : 0) + (has(self.azure) ? 1 : 0) <= 1",message="s3, gcs, and azure are mutually exclusive"
-// +kubebuilder:validation:XValidation:rule="!((has(self.gcs) || has(self.azure)) && (has(self.bucket) || has(self.region) || has(self.endpoint)))",message="gcs and azure cannot be combined with the deprecated top-level S3 fields"
-// +kubebuilder:validation:XValidation:rule="has(self.s3) || has(self.gcs) || has(self.azure) || (has(self.bucket) && has(self.region))",message="a pgbackrest backend is required: set s3, gcs, azure, or the deprecated top-level bucket and region"
+// +kubebuilder:validation:XValidation:rule="has(self.s3) || has(self.gcs) || has(self.azure)",message="a pgbackrest backend is required: set s3, gcs, or azure"
 type PgBackRestSpec struct {
 	// S3 configures an S3-compatible storage backend.
 	// +optional
@@ -470,34 +466,6 @@ type PgBackRestSpec struct {
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="pgbackrest.cipherPassphraseSecretRef is immutable"
 	CipherPassphraseSecretRef *corev1.SecretKeySelector `json:"cipherPassphraseSecretRef,omitempty"`
-
-	// Bucket is the S3 bucket for backups and WAL archives.
-	//
-	// Deprecated: use s3.bucket. Honored as a fallback when neither s3 nor gcs
-	// is set.
-	// +optional
-	Bucket string `json:"bucket,omitempty"`
-
-	// Region is the S3 region.
-	//
-	// Deprecated: use s3.region.
-	// +optional
-	Region string `json:"region,omitempty"`
-
-	// Endpoint overrides S3 endpoint discovery. Required for non-AWS
-	// S3-compatible storage (e.g. Cloudflare R2, or RustFS for local
-	// dev). When set, static credentials from the operator-configured
-	// credentials Secret are used instead of an IAM role.
-	//
-	// Deprecated: use s3.endpoint.
-	// +optional
-	Endpoint string `json:"endpoint,omitempty"`
-
-	// InheritFromIAMRole uses the pod's IAM role for S3 authentication.
-	//
-	// Deprecated: use s3.inheritFromIAMRole.
-	// +optional
-	InheritFromIAMRole bool `json:"inheritFromIAMRole,omitempty"`
 
 	// RetentionFullDays is the number of days to retain full backups.
 	// +optional
@@ -564,8 +532,7 @@ type PgBackRestS3Spec struct {
 	// +optional
 	Endpoint string `json:"endpoint,omitempty"`
 
-	// TODO(Martin): Remove InheritFromIAMRole here and in the legacy
-	// PgBackRestSpec fields. Endpoint selects static keys. KeyType selects the
+	// TODO(Martin): Remove InheritFromIAMRole. Endpoint selects static keys. KeyType selects the
 	// IAM credential provider. xata-cnpg ignores InheritFromIAMRole. The
 	// operator uses it only to decide if KeyType applies.
 
