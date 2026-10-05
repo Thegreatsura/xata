@@ -98,30 +98,6 @@ func GRPCLoggingUnaryClientInterceptor(logger *zerolog.Logger) grpc.UnaryClientI
 	}
 }
 
-func GRPCLoggingStreamClientInterceptor(logger *zerolog.Logger) grpc.StreamClientInterceptor {
-	return func(ctx context.Context,
-		desc *grpc.StreamDesc,
-		cc *grpc.ClientConn,
-		method string,
-		streamer grpc.Streamer,
-		opts ...grpc.CallOption,
-	) (grpc.ClientStream, error) {
-		startTime := time.Now()
-		stream, err := streamer(ctx, desc, cc, method, opts...)
-		endTime := time.Now()
-
-		evt := grpcLogEvent(logger, err, logger.Debug)
-		if evt.Enabled() {
-			evt.
-				Str("grpc.target", cc.Target()).
-				Dur("duration", endTime.Sub(startTime)).
-				Msg("finished client streaming call")
-		}
-
-		return stream, err
-	}
-}
-
 // GRPCLoggingUnaryServerInterceptor returns a new unary server interceptors that logs the payloads of requests.
 func GRPCLoggingUnaryServerInterceptor(logger *zerolog.Logger, o *O) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {

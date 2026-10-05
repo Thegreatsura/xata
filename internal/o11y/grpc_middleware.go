@@ -61,31 +61,11 @@ func GRPCUnaryInterceptorLogs(logger *zerolog.Logger) grpc.DialOption {
 	)
 }
 
-// GRPCStreamInterceptorLogs returns a stream server interceptor to handle
-// logging.
-func GRPCStreamInterceptorLogs(logger *zerolog.Logger) grpc.DialOption {
-	return grpc.WithChainStreamInterceptor(
-		GRPCLoggingStreamClientInterceptor(logger),
-	)
-}
-
 // GRPCServerStatHandlers returns a list of dial options to setup the handling
 // of traces, metrics and propagators.
 func GRPCClientStatHandlers(o *O) []grpc.DialOption {
 	return []grpc.DialOption{
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler(
-			otelgrpc.WithTracerProvider(o),
-			otelgrpc.WithMeterProvider(o),
-			otelgrpc.WithPropagators(propagation.TraceContext{})),
-		),
-	}
-}
-
-// GRPCServerStatHandlers returns a list of server options to setup the handling
-// of traces, metrics and propagators.
-func GRPCServerStatHandlers(o *O) []grpc.ServerOption {
-	return []grpc.ServerOption{
-		grpc.StatsHandler(otelgrpc.NewServerHandler(
 			otelgrpc.WithTracerProvider(o),
 			otelgrpc.WithMeterProvider(o),
 			otelgrpc.WithPropagators(propagation.TraceContext{})),

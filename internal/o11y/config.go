@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-
-	"xata/internal/envcfg"
 )
 
 // Config for tracing
@@ -30,12 +28,6 @@ type Config struct {
 	LogLevel zerolog.Level `env:"XATA_LOG_LEVEL" env-default:"trace" env-description:"configure minimum application log level, valid values are trace, debug, info, warn, error, fatal, panic"`
 
 	LogTCPOut string `env:"XATA_LOG_OUT_TCP" env-default:"" env-description:"configure and enable tcp log output"`
-}
-
-// GetConfigFromEnv returns tracing config
-func GetConfigFromEnv() (config Config, err error) {
-	err = envcfg.Read(&config)
-	return
 }
 
 type idstyleConfig struct {

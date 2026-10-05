@@ -39,16 +39,8 @@ func init() {
 	zerologr.VerbosityFieldName = ""
 }
 
-// StdLogger returns a stdlib *log.Logger that routes all output through
-// zerolog at the given level. Use this when a third-party API requires a
-// *log.Logger (e.g. http.Server.ErrorLog) to avoid empty-level log entries
-// that result from zerolog's io.Writer path (which always emits at NoLevel).
-func StdLogger(logger *zerolog.Logger, level zerolog.Level) *stdlog.Logger {
-	return StdLoggerFunc(logger, func(string) zerolog.Level { return level })
-}
-
-// StdLoggerFunc is like StdLogger but derives the level from the message,
-// allowing callers to demote known-noisy messages without a separate writer type.
+// StdLoggerFunc returns a standard library logger that writes through zerolog.
+// The callback selects the level for each message.
 func StdLoggerFunc(logger *zerolog.Logger, levelFn func(msg string) zerolog.Level) *stdlog.Logger {
 	if logger == nil {
 		panic("o11y.StdLoggerFunc: logger must not be nil")

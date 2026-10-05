@@ -24,7 +24,6 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"xata/internal/api/clienthttpheaders"
-	"xata/internal/o11y/version"
 )
 
 type TraceIDStyle interface {
@@ -261,15 +260,6 @@ func RecoverMiddleware(stackTraceSize int) echo.MiddlewareFunc {
 			return next(c)
 		}
 	}
-}
-
-// LoggerWithServiceName adds serviceNamespace and serviceName fields to the logger.
-// Use LoggerWithServiceName in routing groups in order to add (or overwrite) the service name
-// fields in the logger established by a parent group middleware.
-func LoggerWithServiceName(serviceNamespace, serviceName string) echo.MiddlewareFunc {
-	return LoggerWithNewCtxMiddleware(func(c echo.Context, lctx zerolog.Context) zerolog.Context {
-		return logCtxWithServiceName(lctx, serviceNamespace, serviceName, version.Get())
-	})
 }
 
 // MetricsMiddleware adds metrics to an echo router or group. It relies on the

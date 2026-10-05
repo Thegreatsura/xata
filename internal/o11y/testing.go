@@ -37,9 +37,3 @@ func NewTestLogger(t zerolog.TestingLog) zerolog.Logger {
 
 	return NewLogger(zerolog.NewTestWriter(t), &Config{LogLevel: conf.LogLevel})
 }
-
-// NewTestServiceContext creates a new context with a new logger writing to t.
-func NewTestServiceContext(t testingLog, ctx context.Context) context.Context {
-	o := NewTestService(t)
-	return o.WithContext(ctx)
-}

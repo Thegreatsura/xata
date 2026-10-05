@@ -2,7 +2,6 @@ package o11y
 
 import (
 	"context"
-	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -67,41 +66,15 @@ type ctxKey struct{}
 
 var initGlobalOnce sync.Once
 
-type options struct {
-	logOutput io.Writer
-}
-
-type Option interface {
-	apply(opt *options)
-}
-
-type optionFunc func(opt *options)
-
-func (f optionFunc) apply(opt *options) { f(opt) }
-
-func WithLogOutput(out io.Writer) Option {
-	return optionFunc(func(opts *options) { opts.logOutput = out })
-}
-
 var defaultTextMapPropagator = propagation.NewCompositeTextMapPropagator(
 	propagation.TraceContext{},
 	propagation.Baggage{},
 )
 
-func New(ctx context.Context, config *Config, opts ...Option) System {
-	var options options
-	for _, o := range opts {
-		o.apply(&options)
-	}
-
-	var logCloser []io.WriteCloser
-	logsOut := options.logOutput
-
-	if logsOut == nil {
-		output := NewLogOutput(config.ConsoleJSON)
-		logCloser = append(logCloser, output)
-		logsOut = output
-	}
+func New(ctx context.Context, config *Config) System {
+	output := NewLogOutput(config.ConsoleJSON)
+	logCloser := []io.WriteCloser{output}
+	var logsOut io.Writer = output
 	if addr := config.LogTCPOut; addr != "" {
 		output, err := NewTCPLogOutput(addr)
 		if err != nil {
@@ -275,15 +248,6 @@ func Ctx(ctx context.Context) *O {
 		return o
 	}
 	return nil
-}
-
-func ForServiceFromContext(ctx context.Context, serviceNamespace, serviceName string) (O, error) {
-	o := Ctx(ctx)
-	if o == nil {
-		return O{}, errors.New("no monitoring configured")
-	}
-
-	return o.ForService(ctx, serviceNamespace, serviceName), nil
 }
 
 // Close stops collecting metrics for this service and exports what it recorded

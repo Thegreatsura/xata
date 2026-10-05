@@ -31,10 +31,6 @@ type instrumentRegistry struct {
 	fns         []func(context.Context, metric.Observer)
 }
 
-func (m *instrumentRegistry) IntCounterFn(name string, fn func() int, opts ...metric.Int64ObservableCounterOption) {
-	m.Int64CounterFn(name, func() int64 { return int64(fn()) }, opts...)
-}
-
 func (m *instrumentRegistry) Int64CounterFn(name string, fn func() int64, opts ...metric.Int64ObservableCounterOption) {
 	if m.err != nil {
 		return
@@ -73,10 +69,6 @@ func (m *instrumentRegistry) Int64GaugeFn(name string, fn func() int64, opts ...
 	})
 }
 
-func (m *instrumentRegistry) Uint64CounterFn(name string, fn func() uint64, opts ...metric.Int64ObservableCounterOption) {
-	m.Int64CounterFn(name, func() int64 { return int64(fn() & math.MaxInt64) }, opts...)
-}
-
 func (m *instrumentRegistry) Float64GaugeFn(name string, fn func() float64, opts ...metric.Float64ObservableGaugeOption) {
 	if m.err != nil {
 		return
@@ -106,24 +98,12 @@ type batchBuilder struct {
 	*instrumentRegistry
 }
 
-func (bb *batchBuilder) Int64CounterFrom(name string, v *int64, opts ...metric.Int64ObservableCounterOption) {
-	bb.Int64CounterFn(name, func() int64 { return *v }, opts...)
-}
-
-func (bb *batchBuilder) Uint64CounterFrom(name string, v *uint64, opts ...metric.Int64ObservableCounterOption) {
-	bb.Uint64CounterFn(name, func() uint64 { return *v }, opts...)
-}
-
 func (bb *batchBuilder) Uint32GaugeFrom(name string, v *uint32, opts ...metric.Int64ObservableGaugeOption) {
 	bb.Uint32GaugeFn(name, func() uint32 { return *v }, opts...)
 }
 
 func (bb *batchBuilder) Uint64GaugeFrom(name string, v *uint64, opts ...metric.Int64ObservableGaugeOption) {
 	bb.Uint64GaugeFn(name, func() uint64 { return *v }, opts...)
-}
-
-func (bb *batchBuilder) Int64GaugeFrom(name string, v *int64, opts ...metric.Int64ObservableGaugeOption) {
-	bb.Int64GaugeFn(name, func() int64 { return *v }, opts...)
 }
 
 func (bb *batchBuilder) Float64GaugeFrom(name string, v *float64, opts ...metric.Float64ObservableGaugeOption) {
