@@ -455,6 +455,65 @@ func (_c *Client_EnsureDefaultPaymentMethod_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// FetchCustomer provides a mock function with given fields: ctx, organizationID
+func (_m *Client) FetchCustomer(ctx context.Context, organizationID string) (*billing.Customer, error) {
+	ret := _m.Called(ctx, organizationID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FetchCustomer")
+	}
+
+	var r0 *billing.Customer
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*billing.Customer, error)); ok {
+		return rf(ctx, organizationID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *billing.Customer); ok {
+		r0 = rf(ctx, organizationID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*billing.Customer)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, organizationID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Client_FetchCustomer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FetchCustomer'
+type Client_FetchCustomer_Call struct {
+	*mock.Call
+}
+
+// FetchCustomer is a helper method to define mock.On call
+//   - ctx context.Context
+//   - organizationID string
+func (_e *Client_Expecter) FetchCustomer(ctx interface{}, organizationID interface{}) *Client_FetchCustomer_Call {
+	return &Client_FetchCustomer_Call{Call: _e.mock.On("FetchCustomer", ctx, organizationID)}
+}
+
+func (_c *Client_FetchCustomer_Call) Run(run func(ctx context.Context, organizationID string)) *Client_FetchCustomer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *Client_FetchCustomer_Call) Return(_a0 *billing.Customer, _a1 error) *Client_FetchCustomer_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Client_FetchCustomer_Call) RunAndReturn(run func(context.Context, string) (*billing.Customer, error)) *Client_FetchCustomer_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FetchCustomerByOrbID provides a mock function with given fields: ctx, customerID
 func (_m *Client) FetchCustomerByOrbID(ctx context.Context, customerID string) (*billing.Customer, error) {
 	ret := _m.Called(ctx, customerID)

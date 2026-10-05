@@ -408,6 +408,8 @@ type Client interface {
 	FetchCustomerByOrbID(ctx context.Context, customerID string) (*Customer, error)
 	// LoadCustomerCredits loads credits without refetching or mutating the customer.
 	LoadCustomerCredits(ctx context.Context, customer *Customer) (*CustomerWithCredits, error)
+	// FetchCustomer retrieves a customer by organization ID without loading credits.
+	FetchCustomer(ctx context.Context, organizationID string) (*Customer, error)
 	// FetchCustomerWithCredits retrieves a customer by organization ID with default payment method details and credits.
 	FetchCustomerWithCredits(ctx context.Context, organizationID string) (*CustomerWithCredits, error)
 	// ConfigureOrbCustomerForBankTransfers configures an Orb customer and subscription for manual collection through Stripe.
@@ -475,6 +477,10 @@ func (n *NoopBilling) FetchCustomerByOrbID(ctx context.Context, customerID strin
 }
 
 func (n *NoopBilling) LoadCustomerCredits(_ context.Context, _ *Customer) (*CustomerWithCredits, error) {
+	return nil, nil
+}
+
+func (n *NoopBilling) FetchCustomer(_ context.Context, _ string) (*Customer, error) {
 	return nil, nil
 }
 
