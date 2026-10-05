@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
+	"xata/internal/pgbackrest"
 	"xata/services/branch-operator/api/v1alpha1"
 )
 
@@ -125,7 +126,7 @@ func TestReconcilePgBackRestToken(t *testing.T) {
 				Annotations: tc.annotations,
 			}
 			if tc.annotations != nil {
-				secret.Data = map[string][]byte{PgBackRestTokenKey: []byte("old")}
+				secret.Data = map[string][]byte{pgbackrest.TokenKey: []byte("old")}
 			}
 
 			// The fake client writes to the objects it is given
@@ -164,7 +165,77 @@ func TestReconcilePgBackRestToken(t *testing.T) {
 
 			stored := &corev1.Secret{}
 			require.NoError(t, c.Get(ctx, client.ObjectKeyFromObject(secret), stored))
-			require.Equal(t, tc.wantToken, string(stored.Data[PgBackRestTokenKey]))
+			require.Equal(t, tc.wantToken, string(stored.Data[pgbackrest.TokenKey]))
+		})
+	}
+}
+
+func TestUsesPgBackRestBranchIdentity(t *testing.T) {
+	t.Parallel()
+
+	s3Backup := func(endpoint string, inheritFromIAMRole bool) *v1alpha1.BackupSpec {
+		return &v1alpha1.BackupSpec{
+			Method: v1alpha1.BackupMethodPgBackRest,
+			PgBackRest: &v1alpha1.PgBackRestSpec{
+				S3: &v1alpha1.PgBackRestS3Spec{
+					Bucket:             "some-bucket",
+					Region:             "us-east-1",
+					Endpoint:           endpoint,
+					InheritFromIAMRole: inheritFromIAMRole,
+				},
+			},
+		}
+	}
+
+	testcases := map[string]struct {
+		cloudProvider string
+		endpoint      string
+		roleARN       string
+		backup        *v1alpha1.BackupSpec
+		want          bool
+	}{
+		"AWS IAM backups with a role": {
+			cloudProvider: "aws",
+			roleARN:       "arn:aws:iam::123456789012:role/test-cnpg-backups",
+			backup:        s3Backup("", true),
+			want:          true,
+		},
+		"AWS IAM backups without a role": {
+			cloudProvider: "aws",
+			backup:        s3Backup("", true),
+			want:          true,
+		},
+		"GCP cell": {
+			cloudProvider: "gcp",
+			backup:        s3Backup("", true),
+		},
+		"cell with an S3-compatible endpoint": {
+			cloudProvider: "aws",
+			endpoint:      "https://rustfs.local",
+			backup:        s3Backup("", true),
+		},
+		"Branch with static keys": {
+			cloudProvider: "aws",
+			backup:        s3Backup("https://example.r2.cloudflarestorage.com", false),
+		},
+		"Branch without backups": {
+			cloudProvider: "aws",
+		},
+	}
+
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			r := &BranchReconciler{
+				CloudProvider:                tc.cloudProvider,
+				BackupsEndpoint:              tc.endpoint,
+				PgBackRestWebIdentityRoleARN: tc.roleARN,
+			}
+			branch := &v1alpha1.Branch{Spec: v1alpha1.BranchSpec{BackupSpec: tc.backup}}
+
+			got := r.usesPgBackRestBranchIdentity(branch)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

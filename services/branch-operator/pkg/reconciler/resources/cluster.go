@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 
+	"xata/internal/pgbackrest"
 	"xata/internal/postgresversions"
 	"xata/services/branch-operator/api/v1alpha1"
 	"xata/services/branch-operator/pkg/shared"
@@ -21,12 +22,10 @@ const (
 
 	// pgBackRestGCSKeyTypeAuto selects GKE Workload Identity for the GCS repo.
 	pgBackRestGCSKeyTypeAuto = "auto"
-	// pgBackRestAWSS3KeyType "auto" gets credentials for the node role from
-	// the instance metadata service.
-	//
-	// TODO(Martin): Change this to "web-id" with the branch-scoped role after
-	// the instance pods mount the web identity Secret of their Branch.
-	pgBackRestAWSS3KeyType = "auto"
+	// pgBackRestAWSS3KeyTypeAuto gets credentials for the node role from the
+	// instance metadata service. Branches use it unless they set
+	// s3.keyType=web-id.
+	pgBackRestAWSS3KeyTypeAuto = "auto"
 
 	// pgBackRestAzureKeyTypeAuto selects managed-identity auth for the Azure repo.
 	pgBackRestAzureKeyTypeAuto = "auto"
@@ -145,6 +144,10 @@ type ClusterConfig struct {
 	// used for pgbackrest when targeting a non-AWS S3-compatible endpoint
 	// (Cloudflare R2, or RustFS for local dev). Mirrors the barman ObjectStore.
 	BackupCredentials BackupCredentials
+	// PgBackRestWebIdentityRoleARN is the ARN of the IAM role that pgBackRest uses for
+	// Branches with s3.keyType=web-id. If it is set, each Cluster gets the web
+	// identity token volume and the AWS_ROLE_ARN environment variable.
+	PgBackRestWebIdentityRoleARN string
 }
 
 // ClusterSpec generates the CNPG Cluster spec apply configuration from the
@@ -258,6 +261,13 @@ func ClusterSpec(
 		WithExternalClusters(externalClusters...).
 		WithSmartShutdownTimeout(smartShutdownTimeout(cfg.SmartShutdownTimeout)).
 		WithServiceAccountTemplate(serviceAccountTemplate(cfg))
+
+	if cfg.PgBackRestWebIdentityRoleARN != "" {
+		volume, env := pgbackrest.WebIdentity(clusterName, cfg.PgBackRestWebIdentityRoleARN)
+		spec = spec.
+			WithProjectedVolumeTemplate(volume).
+			WithEnv(env...)
+	}
 
 	return spec
 }
@@ -533,8 +543,15 @@ func pgbackrestS3(
 		WithBucket(s3.Bucket).
 		WithRegion(s3.Region).
 		WithInheritFromIAMRole(s3.InheritFromIAMRole)
+	// TODO(Martin): Use only the endpoint to select IAM credentials. At this
+	// time, a Branch with inheritFromIAMRole=false and no endpoint ignores
+	// KeyType.
 	if s3.Endpoint == "" && s3.InheritFromIAMRole {
-		ac = ac.WithKeyType(pgBackRestAWSS3KeyType)
+		keyType := pgBackRestAWSS3KeyTypeAuto
+		if s3.KeyType != "" {
+			keyType = s3.KeyType
+		}
+		ac = ac.WithKeyType(keyType)
 	}
 
 	if s3.Endpoint != "" {

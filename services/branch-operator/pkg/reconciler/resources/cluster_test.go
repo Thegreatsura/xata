@@ -14,6 +14,7 @@ import (
 	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 	"k8s.io/utils/ptr"
 
+	"xata/internal/pgbackrest"
 	"xata/internal/postgresversions"
 	"xata/services/branch-operator/api/v1alpha1"
 	"xata/services/branch-operator/pkg/reconciler/resources"
@@ -1439,6 +1440,78 @@ func TestUsesAWSIAM(t *testing.T) {
 			t.Parallel()
 			got := resources.UsesAWSIAM(tc.spec)
 			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestClusterSpecPgBackRestWebIdentity(t *testing.T) {
+	t.Parallel()
+
+	const roleARN = "arn:aws:iam::123456789012:role/test-cnpg-backups"
+
+	testcases := map[string]struct {
+		roleARN     string
+		keyType     string
+		wantKeyType string
+		wantMount   bool
+	}{
+		"default keyType mounts the token but uses the node role": {
+			roleARN:     roleARN,
+			wantKeyType: "auto",
+			wantMount:   true,
+		},
+		"auto keyType mounts the token but uses the node role": {
+			roleARN:     roleARN,
+			keyType:     "auto",
+			wantKeyType: "auto",
+			wantMount:   true,
+		},
+		"web-id mounts and uses the token of the Branch": {
+			roleARN:     roleARN,
+			keyType:     pgbackrest.KeyTypeWebID,
+			wantKeyType: pgbackrest.KeyTypeWebID,
+			wantMount:   true,
+		},
+		"no role mounts nothing": {
+			keyType:     "auto",
+			wantKeyType: "auto",
+		},
+	}
+
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := baseClusterConfig()
+			cfg.PgBackRestWebIdentityRoleARN = tc.roleARN
+			cfg.BackupSpec = &v1alpha1.BackupSpec{
+				Method: v1alpha1.BackupMethodPgBackRest,
+				PgBackRest: &v1alpha1.PgBackRestSpec{
+					S3: &v1alpha1.PgBackRestS3Spec{
+						Bucket:             "backup-bucket",
+						Region:             "us-east-1",
+						InheritFromIAMRole: true,
+						KeyType:            tc.keyType,
+					},
+				},
+			}
+
+			got := resources.ClusterSpec(testBranchName, "cluster-1", cfg)
+			require.Equal(t, new(tc.wantKeyType), got.Backup.PgBackRest.Repository.S3.KeyType)
+			if !tc.wantMount {
+				require.Nil(t, got.ProjectedVolumeTemplate)
+				require.Empty(t, got.Env)
+				return
+			}
+
+			wantVolume, wantEnv := pgbackrest.WebIdentity("cluster-1", roleARN)
+			require.Equal(t, &wantVolume, got.ProjectedVolumeTemplate)
+			require.Equal(t, wantEnv, got.Env)
+			require.Equal(t, "cluster-1-pgbackrest-web-identity", got.ProjectedVolumeTemplate.Sources[0].Secret.Name)
+			require.Equal(t, []corev1.EnvVar{
+				{Name: "AWS_ROLE_ARN", Value: roleARN},
+				{Name: "AWS_WEB_IDENTITY_TOKEN_FILE", Value: "/projected/pgbackrest/token"},
+			}, got.Env)
 		})
 	}
 }

@@ -13,15 +13,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	"xata/internal/pgbackrest"
 	"xata/services/branch-operator/api/v1alpha1"
 	"xata/services/branch-operator/pkg/reconciler/resources"
 )
 
 //nolint:gosec // G101: annotation names, not credentials.
 const (
-	// PgBackRestTokenKey is the key in the web identity Secret that holds the
-	// token.
-	PgBackRestTokenKey = "token"
 	// PgBackRestTokenRequestAnnotation records the request that issued the
 	// token in the Secret. A different request, for example after a
 	// ServiceAccount is created again or the lifetime changes, gets a new
@@ -58,23 +56,6 @@ const (
 	pgBackRestTokenRetryDelay = 5 * time.Minute
 )
 
-// PgBackRestServiceAccountName is the ServiceAccount whose tokens give
-// pgBackRest access to the backups of the Branch. The IAM trust policy accepts
-// only ServiceAccounts with this suffix, so the CNPG ServiceAccounts, which
-// have the cluster name, cannot assume the role.
-func PgBackRestServiceAccountName(branchName string) string {
-	return branchName + "-pgbackrest"
-}
-
-// PgBackRestWebIdentitySecretName is the Secret that holds the web identity
-// token for the pgBackRest ServiceAccount of the Branch that uses the cluster.
-// The name comes from the cluster and not from the Branch: pool clusters are
-// created before a Branch claims them, and their pod spec cannot change
-// afterwards.
-func PgBackRestWebIdentitySecretName(clusterName string) string {
-	return clusterName + "-pgbackrest-web-identity"
-}
-
 // reconcilePgBackRestIdentity keeps a ServiceAccount for the Branch and a
 // token for it in a Secret named after the cluster of the Branch. It refreshes
 // the token before it expires and returns the time until the next refresh.
@@ -85,9 +66,9 @@ func PgBackRestWebIdentitySecretName(clusterName string) string {
 // is deleted. A token for the Branch never stays in the Secret of a cluster
 // the Branch no longer uses.
 //
-// TODO(Martin): nothing mounts the web identity Secret yet. pgBackRest
-// continues to get credentials from the node role until the instance pods
-// mount the Secret and use repo-s3-key-type=web-id with BackupsAWSRoleARN.
+// The operator keeps the identity for each Branch that can use it, also if the
+// Branch does not use it. Only Branches with s3.keyType=web-id use the token.
+// Thus, a Branch that changes to web-id has a token immediately.
 func (r *BranchReconciler) reconcilePgBackRestIdentity(
 	ctx context.Context,
 	branch *v1alpha1.Branch,
@@ -120,8 +101,7 @@ func (r *BranchReconciler) reconcilePgBackRestIdentity(
 // usesPgBackRestBranchIdentity reports whether the Branch needs a pgBackRest
 // ServiceAccount and token.
 func (r *BranchReconciler) usesPgBackRestBranchIdentity(branch *v1alpha1.Branch) bool {
-	return r.BackupsAWSRoleARN != "" &&
-		r.CloudProvider == "aws" &&
+	return r.CloudProvider == "aws" &&
 		r.BackupsEndpoint == "" &&
 		resources.UsesAWSIAM(branch.Spec.BackupSpec)
 }
@@ -131,7 +111,7 @@ func (r *BranchReconciler) reconcilePgBackRestServiceAccount(
 	branch *v1alpha1.Branch,
 ) (*corev1.ServiceAccount, error) {
 	sa := &corev1.ServiceAccount{
-		Name:      PgBackRestServiceAccountName(branch.Name),
+		Name:      pgbackrest.ServiceAccountName(branch.Name),
 		Namespace: r.ClustersNamespace,
 	}
 
@@ -159,7 +139,7 @@ func (r *BranchReconciler) reconcilePgBackRestToken(
 	sa *corev1.ServiceAccount,
 ) (time.Duration, error) {
 	secret := &corev1.Secret{
-		Name:      PgBackRestWebIdentitySecretName(cluster.Name),
+		Name:      pgbackrest.WebIdentitySecretName(cluster.Name),
 		Namespace: r.ClustersNamespace,
 	}
 
@@ -216,7 +196,7 @@ func (r *BranchReconciler) reconcilePgBackRestToken(
 		secret.Annotations[PgBackRestTokenRequestAnnotation] = request
 		secret.Annotations[PgBackRestTokenExpirationAnnotation] = tr.Status.ExpirationTimestamp.UTC().Format(time.RFC3339)
 		secret.Annotations[PgBackRestTokenRefreshAnnotation] = next.UTC().Format(time.RFC3339)
-		secret.Data = map[string][]byte{PgBackRestTokenKey: []byte(tr.Status.Token)}
+		secret.Data = map[string][]byte{pgbackrest.TokenKey: []byte(tr.Status.Token)}
 		return nil
 	})
 	if err != nil {
@@ -242,7 +222,7 @@ type pgBackRestToken struct {
 
 // currentPgBackRestToken reads the token state from the Secret annotations.
 func currentPgBackRestToken(secret *corev1.Secret, request string) pgBackRestToken {
-	if len(secret.Data[PgBackRestTokenKey]) == 0 ||
+	if len(secret.Data[pgbackrest.TokenKey]) == 0 ||
 		secret.Annotations[PgBackRestTokenRequestAnnotation] != request {
 		return pgBackRestToken{}
 	}

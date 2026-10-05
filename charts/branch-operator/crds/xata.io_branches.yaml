@@ -233,6 +233,15 @@ spec:
                             description: InheritFromIAMRole uses the pod's IAM role
                               for S3 authentication.
                             type: boolean
+                          keyType:
+                            description: |-
+                              KeyType selects how pgBackRest gets S3 credentials. "auto" uses the
+                              instance metadata service. "web-id" uses the web identity token of the
+                              Branch ServiceAccount. The default is "auto".
+                            enum:
+                            - auto
+                            - web-id
+                            type: string
                           region:
                             description: Region is the S3 region.
                             type: string

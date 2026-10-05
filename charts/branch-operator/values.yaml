@@ -11,11 +11,10 @@ config:
     imageSecrets: ghcr-secret
     clustersTolerations: "xata.io/workload=dataplane:NoSchedule,kubernetes.io/arch=arm64:NoSchedule"
     cloudProvider: aws
-    # IRSA role that limits the pgBackRest of each Branch to its own repo
-    # path. When set, the operator keeps a ServiceAccount and a web identity
-    # Secret per Branch. pgBackRest does not use them yet. Leave empty on GCP
-    # and S3-compatible storage that uses static keys.
-    backupsAwsRoleArn: ""
+    # ARN of the IAM role that pgBackRest uses for Branches with
+    # s3.keyType=web-id. If you set it, each Cluster gets the web identity
+    # token volume and the AWS_ROLE_ARN environment variable.
+    pgbackrestWebIdentityRoleARN: ""
     barmanRegionSecret:
       # Without this barman will create a role and bind it to our CNPG pods with
       # '*' permissions to all secrets in the namespace. This is a problem if

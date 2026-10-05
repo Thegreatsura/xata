@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"xata/internal/pgbackrest"
 	"xata/services/branch-operator/api/v1alpha1"
 	"xata/services/branch-operator/pkg/reconciler"
 
@@ -17,27 +18,27 @@ import (
 func TestPgBackRestIdentityReconciliation(t *testing.T) {
 	t.Parallel()
 
-	t.Run("service account and token are created for AWS IAM backups", func(t *testing.T) {
+	t.Run("service account and token are created for web-id backups", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		branch := NewBranchBuilder().WithPgBackRest("some-bucket", "us-east-1").Build()
+		branch := NewBranchBuilder().WithPgBackRestWebIdentity("some-bucket", "us-east-1").Build()
 
 		withBranch(ctx, t, branch, func(t *testing.T, br *v1alpha1.Branch) {
 			sa := corev1.ServiceAccount{}
 			requireEventuallyNoErr(t, func() error {
-				return getK8SObject(ctx, reconciler.PgBackRestServiceAccountName(br.Name), &sa)
+				return getK8SObject(ctx, pgbackrest.ServiceAccountName(br.Name), &sa)
 			})
 			require.Equal(t, br.Name+"-pgbackrest", sa.Name)
-			require.Equal(t, br.ClusterName()+"-pgbackrest-web-identity", reconciler.PgBackRestWebIdentitySecretName(br.ClusterName()))
+			require.Equal(t, br.ClusterName()+"-pgbackrest-web-identity", pgbackrest.WebIdentitySecretName(br.ClusterName()))
 			require.Len(t, sa.GetOwnerReferences(), 1)
 			require.Equal(t, br.Name, sa.GetOwnerReferences()[0].Name)
 
 			secret := corev1.Secret{}
 			requireEventuallyNoErr(t, func() error {
-				return getK8SObject(ctx, reconciler.PgBackRestWebIdentitySecretName(br.ClusterName()), &secret)
+				return getK8SObject(ctx, pgbackrest.WebIdentitySecretName(br.ClusterName()), &secret)
 			})
-			require.NotEmpty(t, secret.Data[reconciler.PgBackRestTokenKey])
+			require.NotEmpty(t, secret.Data[pgbackrest.TokenKey])
 			require.Contains(t, secret.Annotations[reconciler.PgBackRestTokenRequestAnnotation], "serviceAccount="+sa.Name+",")
 			require.Contains(t, secret.Annotations[reconciler.PgBackRestTokenRequestAnnotation], "audiences=[sts.amazonaws.com]")
 
@@ -49,21 +50,49 @@ func TestPgBackRestIdentityReconciliation(t *testing.T) {
 		})
 	})
 
-	t.Run("nothing is created without pgbackrest backups", func(t *testing.T) {
+	t.Run("node role Branches get and mount the identity but do not use it", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		// AWS IAM backups with the default keyType use the node role
+		branch := NewBranchBuilder().WithPgBackRest("some-bucket", "us-east-1").Build()
+
+		withBranch(ctx, t, branch, func(t *testing.T, br *v1alpha1.Branch) {
+			requireEventuallyNoErr(t, func() error {
+				return getK8SObject(ctx, pgbackrest.WebIdentitySecretName(br.ClusterName()), &corev1.Secret{})
+			})
+			require.NoError(t, getK8SObject(ctx, pgbackrest.ServiceAccountName(br.Name), &corev1.ServiceAccount{}))
+
+			cluster := apiv1.Cluster{}
+			require.NoError(t, getK8SObject(ctx, br.ClusterName(), &cluster))
+			wantVolume, wantEnv := pgbackrest.WebIdentity(br.ClusterName(), "arn:aws:iam::123456789012:role/test-cnpg-backups")
+			require.Equal(t, &wantVolume, cluster.Spec.ProjectedVolumeTemplate)
+			require.Equal(t, wantEnv, cluster.Spec.Env)
+			require.Equal(t, "auto", cluster.Spec.Backup.PgBackRest.Repository.S3.KeyType)
+		})
+	})
+
+	t.Run("no identity without pgbackrest backups, but the Cluster mounts it", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
 		branch := NewBranchBuilder().Build()
 
 		withBranch(ctx, t, branch, func(t *testing.T, br *v1alpha1.Branch) {
-			// The pgbackrest identity is reconciled before the Cluster
+			cluster := apiv1.Cluster{}
 			requireEventuallyNoErr(t, func() error {
-				return getK8SObject(ctx, br.ClusterName(), &apiv1.Cluster{})
+				return getK8SObject(ctx, br.ClusterName(), &cluster)
 			})
 
-			err := getK8SObject(ctx, reconciler.PgBackRestServiceAccountName(br.Name), &corev1.ServiceAccount{})
+			// The Cluster gets the web identity volume also without the
+			// Secret.
+			wantVolume, wantEnv := pgbackrest.WebIdentity(br.ClusterName(), "arn:aws:iam::123456789012:role/test-cnpg-backups")
+			require.Equal(t, &wantVolume, cluster.Spec.ProjectedVolumeTemplate)
+			require.Equal(t, wantEnv, cluster.Spec.Env)
+
+			err := getK8SObject(ctx, pgbackrest.ServiceAccountName(br.Name), &corev1.ServiceAccount{})
 			require.True(t, apierrors.IsNotFound(err))
-			err = getK8SObject(ctx, reconciler.PgBackRestWebIdentitySecretName(br.ClusterName()), &corev1.Secret{})
+			err = getK8SObject(ctx, pgbackrest.WebIdentitySecretName(br.ClusterName()), &corev1.Secret{})
 			require.True(t, apierrors.IsNotFound(err))
 		})
 	})
@@ -72,12 +101,12 @@ func TestPgBackRestIdentityReconciliation(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		branch := NewBranchBuilder().WithPgBackRest("some-bucket", "us-east-1").Build()
+		branch := NewBranchBuilder().WithPgBackRestWebIdentity("some-bucket", "us-east-1").Build()
 
 		withBranch(ctx, t, branch, func(t *testing.T, br *v1alpha1.Branch) {
 			secret := corev1.Secret{}
 			requireEventuallyNoErr(t, func() error {
-				return getK8SObject(ctx, reconciler.PgBackRestWebIdentitySecretName(br.ClusterName()), &secret)
+				return getK8SObject(ctx, pgbackrest.WebIdentitySecretName(br.ClusterName()), &secret)
 			})
 			cluster := apiv1.Cluster{}
 			require.NoError(t, getK8SObject(ctx, br.ClusterName(), &cluster))
@@ -99,7 +128,28 @@ func TestPgBackRestIdentityReconciliation(t *testing.T) {
 			requireEventuallyTrue(t, func() bool {
 				return apierrors.IsNotFound(getK8SObject(ctx, cluster.Name, &apiv1.Cluster{}))
 			})
-			require.NoError(t, getK8SObject(ctx, reconciler.PgBackRestServiceAccountName(br.Name), &corev1.ServiceAccount{}))
+			require.NoError(t, getK8SObject(ctx, pgbackrest.ServiceAccountName(br.Name), &corev1.ServiceAccount{}))
+		})
+	})
+	t.Run("Cluster mounts the web identity Secret", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		branch := NewBranchBuilder().WithPgBackRestWebIdentity("some-bucket", "us-east-1").Build()
+
+		withBranch(ctx, t, branch, func(t *testing.T, br *v1alpha1.Branch) {
+			cluster := apiv1.Cluster{}
+			requireEventuallyNoErr(t, func() error {
+				return getK8SObject(ctx, br.ClusterName(), &cluster)
+			})
+
+			wantVolume, wantEnv := pgbackrest.WebIdentity(br.ClusterName(), "arn:aws:iam::123456789012:role/test-cnpg-backups")
+			require.Equal(t, &wantVolume, cluster.Spec.ProjectedVolumeTemplate)
+			require.Equal(t, wantEnv, cluster.Spec.Env)
+
+			pgb := cluster.Spec.Backup.PgBackRest
+			require.Equal(t, pgbackrest.KeyTypeWebID, pgb.Repository.S3.KeyType)
+			require.Equal(t, "system:serviceaccount:"+XataClustersNamespace+":"+br.Name+"-pgbackrest", pgb.Options.RepoPath)
 		})
 	})
 }

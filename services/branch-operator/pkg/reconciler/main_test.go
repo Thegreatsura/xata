@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"xata/internal/envtestutil"
+	"xata/internal/pgbackrest"
 	"xata/services/branch-operator/api/v1alpha1"
 	"xata/services/branch-operator/pkg/reconciler"
 
@@ -63,13 +64,13 @@ func TestMain(m *testing.M) {
 					BackupsBucket:     "s3://some-bucket",
 					BackupsEndpoint:   "",
 					CloudProvider:     "aws",
-					// Any value enables the per-Branch pgBackRest identity.
-					BackupsAWSRoleARN:      "arn:aws:iam::123456789012:role/test-cnpg-backups",
-					BarmanRegionSecretName: "barman-dummy-secret",
-					BarmanRegionSecretKey:  "dummy",
-					Tolerations:            nil,
-					EnforceZone:            false,
-					ImagePullSecrets:       nil,
+					// Each Cluster gets the web identity volume and environment variables.
+					PgBackRestWebIdentityRoleARN: "arn:aws:iam::123456789012:role/test-cnpg-backups",
+					BarmanRegionSecretName:       "barman-dummy-secret",
+					BarmanRegionSecretKey:        "dummy",
+					Tolerations:                  nil,
+					EnforceZone:                  false,
+					ImagePullSecrets:             nil,
 				}
 				return r.SetupWithManager(ctx, mgr)
 			},
@@ -189,6 +190,25 @@ func (b *BranchBuilder) WithPgBackRest(bucket, region string) *BranchBuilder {
 		Bucket:             bucket,
 		Region:             region,
 		InheritFromIAMRole: true,
+	}
+	return b
+}
+
+// WithPgBackRestWebIdentity sets an S3 pgBackRest backend that gets
+// credentials with the web identity token of the Branch ServiceAccount.
+func (b *BranchBuilder) WithPgBackRestWebIdentity(bucket, region string) *BranchBuilder {
+	if b.branch.Spec.BackupSpec == nil {
+		b.branch.Spec.BackupSpec = &v1alpha1.BackupSpec{}
+	}
+	b.branch.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
+	b.branch.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
+		S3: &v1alpha1.PgBackRestS3Spec{
+			Bucket:             bucket,
+			Region:             region,
+			InheritFromIAMRole: true,
+			KeyType:            pgbackrest.KeyTypeWebID,
+		},
+		RepoPath: "system:serviceaccount:" + XataClustersNamespace + ":" + b.branch.Name + "-pgbackrest",
 	}
 	return b
 }

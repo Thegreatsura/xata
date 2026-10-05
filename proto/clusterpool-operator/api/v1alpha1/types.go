@@ -28,6 +28,13 @@ type ClusterPoolSpec struct {
 	// already running when the branch wakes up.
 	// +optional
 	PoolerSpec *PoolerSpec `json:"poolerSpec,omitempty"`
+
+	// PgBackRestWebIdentityRoleARN is the ARN of the IAM role that pgBackRest
+	// uses for Branches with s3.keyType=web-id. If it is set, each pool cluster
+	// gets the web identity token volume and the AWS_ROLE_ARN environment
+	// variable.
+	// +optional
+	PgBackRestWebIdentityRoleARN string `json:"pgbackrestWebIdentityRoleARN,omitempty"`
 }
 
 // PoolerSpec defines the desired state of a pre-provisioned PgBouncer Pooler

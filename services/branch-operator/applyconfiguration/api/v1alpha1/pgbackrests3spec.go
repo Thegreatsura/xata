@@ -26,6 +26,10 @@ type PgBackRestS3SpecApplyConfiguration struct {
 	// creation so existing branches keep their store's credentials when the
 	// cell-wide default changes.
 	CredentialsSecretName *string `json:"credentialsSecretName,omitempty"`
+	// KeyType selects how pgBackRest gets S3 credentials. "auto" uses the
+	// instance metadata service. "web-id" uses the web identity token of the
+	// Branch ServiceAccount. The default is "auto".
+	KeyType *string `json:"keyType,omitempty"`
 }
 
 // PgBackRestS3SpecApplyConfiguration constructs a declarative configuration of the PgBackRestS3Spec type for use with
@@ -71,5 +75,13 @@ func (b *PgBackRestS3SpecApplyConfiguration) WithInheritFromIAMRole(value bool) 
 // If called multiple times, the CredentialsSecretName field is set to the value of the last call.
 func (b *PgBackRestS3SpecApplyConfiguration) WithCredentialsSecretName(value string) *PgBackRestS3SpecApplyConfiguration {
 	b.CredentialsSecretName = &value
+	return b
+}
+
+// WithKeyType sets the KeyType field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the KeyType field is set to the value of the last call.
+func (b *PgBackRestS3SpecApplyConfiguration) WithKeyType(value string) *PgBackRestS3SpecApplyConfiguration {
+	b.KeyType = &value
 	return b
 }

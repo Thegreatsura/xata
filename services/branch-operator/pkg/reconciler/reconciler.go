@@ -49,7 +49,7 @@ type BranchReconciler struct {
 	ClustersNamespace                    string
 	BackupsBucket                        string
 	BackupsEndpoint                      string
-	BackupsAWSRoleARN                    string
+	PgBackRestWebIdentityRoleARN         string
 	BackupsCredentialsSecretName         string
 	BackupsCredentialsAccessKeyIDKey     string
 	BackupsCredentialsSecretAccessKeyKey string
