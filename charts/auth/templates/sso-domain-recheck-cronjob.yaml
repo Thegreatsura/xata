@@ -39,6 +39,8 @@ spec:
               args:
                 - sso_domain_recheck
               env:
+                - name: FRONTEND_URL
+                  value: {{ .Values.config.frontendURL | quote }}
                 - name: AUTH_HMAC_SECRET
                   valueFrom:
                     secretKeyRef:
@@ -54,9 +56,23 @@ spec:
                     secretKeyRef:
                       name: auth-keycloak-initial-admin
                       key: password
+                - name: CUSTOMER_IO_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: customerio
+                      key: CUSTOMER_IO_API_KEY
+                      optional: true
+                - name: CUSTOMER_IO_IS_PRODUCTION
+                  valueFrom:
+                    configMapKeyRef:
+                      name: customerio-config
+                      key: CUSTOMER_IO_IS_PRODUCTION
+                      optional: true
               envFrom:
                 - configMapRef:
                     name: keycloak-api-settings
+                - secretRef:
+                    name: posthog
               securityContext:
                 runAsNonRoot: true
                 runAsUser: 1000

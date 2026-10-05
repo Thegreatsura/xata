@@ -61,3 +61,23 @@ type BillingTrialExpiresSoonV3 struct {
 func (BillingTrialExpiresSoonV3) TriggerName() string {
 	return "billing_trial_expires_soon_v3"
 }
+
+type SSODomainVerificationMissingV1 struct {
+	Domain         string `json:"domain"`
+	RevokeDate     int64  `json:"revoke_date"`
+	SSOSettingsURL string `json:"sso_settings_url"`
+}
+
+func (SSODomainVerificationMissingV1) TriggerName() string {
+	return "sso_domain_verification_missing_v1"
+}
+
+type SSODomainRevokedV1 struct {
+	Domain         string `json:"domain"`
+	RevokedAt      int64  `json:"revoked_at"`
+	SSOSettingsURL string `json:"sso_settings_url"`
+}
+
+func (SSODomainRevokedV1) TriggerName() string {
+	return "sso_domain_revoked_v1"
+}
