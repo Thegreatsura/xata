@@ -38,6 +38,32 @@ paths:
         - Vercel Resources
       x-excluded: true
       x-operation-kind: read
+    delete:
+      operationId: deleteResource
+      summary: Delete a Vercel Marketplace resource
+      description: |
+        Deprovision a resource (its Xata project and branches) and mark the
+        tracking records deleting. Vercel calls this when a customer removes a
+        resource. Idempotent: a resource already being torn down is deprovisioned
+        again harmlessly; a resource that no longer exists returns 404.
+      parameters:
+        - $ref: '#/components/parameters/InstallationId'
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '204':
+          description: The resource is being deprovisioned.
+        '403':
+          $ref: '#/components/responses/ResourceError'
+        '404':
+          $ref: '#/components/responses/ResourceError'
+        '429':
+          $ref: '#/components/responses/ResourceError'
+        '500':
+          $ref: '#/components/responses/ResourceError'
+      tags:
+        - Vercel Resources
+      x-excluded: true
+      x-operation-kind: destructive
   /v1/installations/{installationId}/resources:
     post:
       operationId: provisionResource

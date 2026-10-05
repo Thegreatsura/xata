@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"xata/services/projects/cells"
+	"xata/services/projects/provisioner"
 
 	projectsv1 "xata/gen/proto/projects/v1"
 	"xata/services/projects/store"
@@ -22,8 +23,9 @@ type ProjectsService struct {
 	// fail to compile if the service does not implement all the methods
 	projectsv1.UnsafeProjectsServiceServer
 
-	store store.ProjectsStore
-	cells cells.Cells
+	store       store.ProjectsStore
+	cells       cells.Cells
+	provisioner provisioner.Provisioner
 
 	// nudger wakes the orgstatus worker after a desired-state write.
 	nudger Nudger
@@ -37,8 +39,9 @@ type Nudger interface {
 // NewProjectsService creates a new ProjectsService.
 func NewProjectsService(store store.ProjectsStore, cells cells.Cells) *ProjectsService {
 	return &ProjectsService{
-		store: store,
-		cells: cells,
+		store:       store,
+		cells:       cells,
+		provisioner: provisioner.NewBranchProvisioner(store, cells),
 	}
 }
 
@@ -158,34 +161,14 @@ func (p *ProjectsService) DeleteProjectsInOrg(ctx context.Context, req *projects
 	}
 
 	for _, project := range projects {
-		var projectErrors []string
-		branches, err := p.store.ListBranches(ctx, req.OrganizationId, project.ID)
+		deleted, err := p.provisioner.DeleteProject(ctx, req.OrganizationId, project.ID)
+		response.BranchesDeleted += int32(deleted)
 		if err != nil {
-			response.Errors = append(response.Errors, fmt.Sprintf("list branches for project %s: %v", project.ID, err))
+			response.Errors = append(response.Errors, err.Error())
 			continue
 		}
-
-		for _, branch := range branches {
-			err := p.store.DeleteBranch(ctx, req.OrganizationId, project.ID, branch.ID, func(b *store.Branch) error {
-				return cells.DeprovisionBranch(ctx, req.OrganizationId, p.cells, b)
-			})
-			if err != nil {
-				projectErrors = append(projectErrors, fmt.Sprintf("delete branch %s: %v", branch.ID, err))
-				continue
-			}
-			response.BranchesDeleted++
-			log.Ctx(ctx).Info().Msgf("Deleted branch [%s] in project [%s] for org [%s]", branch.ID, project.ID, req.OrganizationId)
-		}
-
-		if projectErrors == nil {
-			if err := p.store.DeleteProject(ctx, req.OrganizationId, project.ID); err != nil {
-				projectErrors = append(projectErrors, fmt.Sprintf("delete project %s: %v", project.ID, err))
-			} else {
-				response.ProjectsDeleted++
-				log.Ctx(ctx).Info().Msgf("Deleted project [%s] for org [%s]", project.ID, req.OrganizationId)
-			}
-		}
-		response.Errors = append(response.Errors, projectErrors...)
+		response.ProjectsDeleted++
+		log.Ctx(ctx).Info().Msgf("Deleted project [%s] (%d branches) for org [%s]", project.ID, deleted, req.OrganizationId)
 	}
 
 	// The organization keeps no branches once every project is gone, so the

@@ -395,6 +395,56 @@ func TestDeleteBranch(t *testing.T) {
 	}
 }
 
+func TestDeleteProject(t *testing.T) {
+	const org, proj = "org-1", "proj-1"
+	branches := []store.Branch{{ID: "b1"}, {ID: "b2"}}
+
+	t.Run("deprovisions all branches then the project", func(t *testing.T) {
+		st := storemocks.NewProjectsStore(t)
+		st.EXPECT().ListBranches(mock.Anything, org, proj).Return(branches, nil).Once()
+		st.EXPECT().DeleteBranch(mock.Anything, org, proj, "b1", mock.Anything).Return(nil).Once()
+		st.EXPECT().DeleteBranch(mock.Anything, org, proj, "b2", mock.Anything).Return(nil).Once()
+		st.EXPECT().DeleteProject(mock.Anything, org, proj).Return(nil).Once()
+
+		n, err := NewBranchProvisioner(st, cellsmock.NewCells(t)).DeleteProject(context.Background(), org, proj)
+		require.NoError(t, err)
+		require.Equal(t, 2, n)
+	})
+
+	t.Run("idempotent: already-gone branches and project are tolerated", func(t *testing.T) {
+		st := storemocks.NewProjectsStore(t)
+		st.EXPECT().ListBranches(mock.Anything, org, proj).Return([]store.Branch{{ID: "b1"}}, nil).Once()
+		st.EXPECT().DeleteBranch(mock.Anything, org, proj, "b1", mock.Anything).Return(store.ErrBranchNotFound{ID: "b1"}).Once()
+		st.EXPECT().DeleteProject(mock.Anything, org, proj).Return(store.ErrProjectNotFound{ID: proj}).Once()
+
+		n, err := NewBranchProvisioner(st, cellsmock.NewCells(t)).DeleteProject(context.Background(), org, proj)
+		require.NoError(t, err)
+		require.Equal(t, 0, n)
+	})
+
+	t.Run("a failing branch does not stop the others, and the project is left", func(t *testing.T) {
+		st := storemocks.NewProjectsStore(t)
+		st.EXPECT().ListBranches(mock.Anything, org, proj).Return(branches, nil).Once()
+		st.EXPECT().DeleteBranch(mock.Anything, org, proj, "b1", mock.Anything).Return(fmt.Errorf("cell down")).Once()
+		st.EXPECT().DeleteBranch(mock.Anything, org, proj, "b2", mock.Anything).Return(nil).Once()
+		// DeleteProject is not called: a branch failed, so the project is left for a retry.
+
+		n, err := NewBranchProvisioner(st, cellsmock.NewCells(t)).DeleteProject(context.Background(), org, proj)
+		require.ErrorContains(t, err, "delete branch b1")
+		require.Equal(t, 1, n)
+	})
+
+	t.Run("listing branches fails: nothing is deleted", func(t *testing.T) {
+		st := storemocks.NewProjectsStore(t)
+		st.EXPECT().ListBranches(mock.Anything, org, proj).Return(nil, fmt.Errorf("db down")).Once()
+		// No DeleteBranch/DeleteProject: without the branch list the cascade cannot proceed.
+
+		n, err := NewBranchProvisioner(st, cellsmock.NewCells(t)).DeleteProject(context.Background(), org, proj)
+		require.ErrorContains(t, err, "list branches for project proj-1")
+		require.Equal(t, 0, n)
+	})
+}
+
 func TestResolveOrgLimits(t *testing.T) {
 	t1Defaults := OrgLimits{
 		MaxProjects:            store.TierDefaultInt(store.TierT1, store.LimitMaxProjects, 0),

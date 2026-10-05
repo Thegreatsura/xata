@@ -339,6 +339,36 @@ func TestDeleteProjectsInOrg(t *testing.T) {
 			},
 			wantErrors: []string{"delete project proj-1: test error"},
 		},
+		// A branch that raced away between listing and delete is tolerated: it is not
+		// counted, no error is recorded, and the now-empty project is still deleted so
+		// the org can be marked cleaned instead of wedging on a retry.
+		"already-gone branch is tolerated and the project is still deleted": {
+			setupMock: func(mockStore *mocks.ProjectsStore, mockCells *cellsmock.Cells) {
+				mockStore.EXPECT().ListProjects(mock.Anything, orgID).Return([]store.Project{{ID: "proj-1"}}, nil)
+				mockStore.EXPECT().ListBranches(mock.Anything, orgID, "proj-1").Return([]store.Branch{
+					{ID: "branch-1", CellID: "cell-1", Region: "us-east-1"},
+				}, nil)
+				mockStore.EXPECT().DeleteBranch(mock.Anything, orgID, "proj-1", "branch-1", mock.Anything).
+					Return(store.ErrBranchNotFound{ID: "branch-1"})
+				mockStore.EXPECT().DeleteProject(mock.Anything, orgID, "proj-1").Return(nil)
+			},
+			wantProjectsDel: 1,
+			wantBranchesDel: 0,
+		},
+		// Several failing branches in one project collapse into a single joined error
+		// entry (not one per branch), and the project is left for a retry.
+		"multiple failing branches collapse into one joined error": {
+			setupMock: func(mockStore *mocks.ProjectsStore, mockCells *cellsmock.Cells) {
+				mockStore.EXPECT().ListProjects(mock.Anything, orgID).Return([]store.Project{{ID: "proj-1"}}, nil)
+				mockStore.EXPECT().ListBranches(mock.Anything, orgID, "proj-1").Return([]store.Branch{
+					{ID: "branch-1", CellID: "cell-1", Region: "us-east-1"},
+					{ID: "branch-2", CellID: "cell-1", Region: "us-east-1"},
+				}, nil)
+				mockStore.EXPECT().DeleteBranch(mock.Anything, orgID, "proj-1", "branch-1", mock.Anything).Return(errTest)
+				mockStore.EXPECT().DeleteBranch(mock.Anything, orgID, "proj-1", "branch-2", mock.Anything).Return(errTest)
+			},
+			wantErrors: []string{"delete branch branch-1: test error\ndelete branch branch-2: test error"},
+		},
 	}
 
 	for name, tt := range tests {

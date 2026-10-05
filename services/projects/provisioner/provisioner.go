@@ -2,6 +2,7 @@ package provisioner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	clustersv1 "xata/gen/proto/clusters/v1"
@@ -110,6 +111,7 @@ type ClusterServicePayload struct {
 type Provisioner interface {
 	CreateBranch(ctx context.Context, projectID, organizationID, name string, payload *ClusterServicePayload) (*store.Branch, error)
 	DeleteBranch(ctx context.Context, organizationID, projectID, branchID string) error
+	DeleteProject(ctx context.Context, organizationID, projectID string) (int, error)
 }
 
 type BranchProvisioner struct {
@@ -211,4 +213,37 @@ func (p *BranchProvisioner) DeleteBranch(ctx context.Context, organizationID, pr
 	return p.store.DeleteBranch(ctx, organizationID, projectID, branchID, func(branch *store.Branch) error {
 		return cells.DeprovisionBranch(ctx, organizationID, p.cells, branch)
 	})
+}
+
+// DeleteProject deprovisions every branch of a project and then the now-empty
+// project. Best-effort and idempotent: a branch that fails to tear down does not
+// stop the others, already-gone branches or project are tolerated, and the project
+// is deleted only once all branches are gone (else it is left for a retry). It
+// returns the number of branches deprovisioned and the joined branch/project
+// errors (nil when the project is fully gone).
+func (p *BranchProvisioner) DeleteProject(ctx context.Context, organizationID, projectID string) (int, error) {
+	branches, err := p.store.ListBranches(ctx, organizationID, projectID)
+	if err != nil {
+		return 0, fmt.Errorf("list branches for project %s: %w", projectID, err)
+	}
+	deleted := 0
+	var errs []error
+	for _, b := range branches {
+		if err := p.DeleteBranch(ctx, organizationID, projectID, b.ID); err != nil {
+			if _, ok := errors.AsType[store.ErrBranchNotFound](err); ok {
+				continue // raced with another delete; already gone
+			}
+			errs = append(errs, fmt.Errorf("delete branch %s: %w", b.ID, err))
+			continue
+		}
+		deleted++
+	}
+	if len(errs) == 0 {
+		if err := p.store.DeleteProject(ctx, organizationID, projectID); err != nil {
+			if _, ok := errors.AsType[store.ErrProjectNotFound](err); !ok {
+				errs = append(errs, fmt.Errorf("delete project %s: %w", projectID, err))
+			}
+		}
+	}
+	return deleted, errors.Join(errs...)
 }
