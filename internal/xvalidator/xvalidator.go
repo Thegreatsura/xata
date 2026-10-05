@@ -1,20 +1,14 @@
 package xvalidator
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
-	"time"
 	"unicode"
 )
 
-var validEmailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-
 var validDurationRegex = regexp.MustCompile(`^(\d+)(d|h|m|s|ms)$`)
-
-var validTimezoneRegex = regexp.MustCompile(`^[+-][01]\d:[0-5]\d$`)
 
 var errEmptyIdentifier = errors.New("empty")
 
@@ -25,19 +19,6 @@ func (e ErrorMaxLength) Error() string {
 }
 
 func (e ErrorMaxLength) StatusCode() int {
-	return http.StatusBadRequest
-}
-
-type ErrorInvalidName struct {
-	message string
-	name    string
-}
-
-func (e ErrorInvalidName) Error() string {
-	return fmt.Sprintf("name %s invalid: %s", e.name, e.message)
-}
-
-func (e ErrorInvalidName) StatusCode() int {
 	return http.StatusBadRequest
 }
 
@@ -78,33 +59,7 @@ func checkSpecial(i int, r rune) error {
 	return nil
 }
 
-// IsEmailValid checks if the email provided passes the required structure and length.
-func IsEmailValid(e string) bool {
-	return validEmailRegex.MatchString(e)
-}
-
 // IsDurationValid checks if the duration provided seems valid.
 func IsDurationValid(e string) bool {
 	return validDurationRegex.MatchString(e)
-}
-
-// IsTimezoneValid checks if the provided timezone seems valid.
-func IsTimezoneValid(e string) bool {
-	return validTimezoneRegex.MatchString(e)
-}
-
-func IsValidJSON(e string) bool {
-	return json.Valid([]byte(e))
-}
-
-func DurationValidator(e string) error {
-	if !IsDurationValid(e) {
-		return errors.New("invalid duration")
-	}
-	return nil
-}
-
-func DateRFC3339Validator(e string) error {
-	_, err := time.Parse(time.RFC3339, e)
-	return err
 }
