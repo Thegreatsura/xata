@@ -231,11 +231,11 @@ func (r *WakeupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if wr.Spec.PasswordSync == v1alpha1.PasswordSyncModeWait {
 		var outcome string
 		outcome, err = r.waitForRolePasswordSync(ctx, log, branch.Name, cluster)
+		span.SetAttributes(tracing.AttrPasswordSyncOutcome.String(outcome))
 		if err != nil {
 			log.Error(err, "waiting for Cluster password secrets", "clusterName", cluster.Name)
 			return ctrl.Result{}, ignoreTerminal(err)
 		}
-		span.SetAttributes(tracing.AttrPasswordSyncOutcome.String(outcome))
 	}
 
 	// Annotate the PV with the name of the XVol used to wake it up

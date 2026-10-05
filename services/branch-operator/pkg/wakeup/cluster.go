@@ -15,6 +15,7 @@ import (
 	apiv1ac "github.com/xataio/xata-cnpg/pkg/client/applyconfiguration/api/v1"
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -71,31 +72,42 @@ func (r *WakeupReconciler) waitForRolePasswordSync(
 	// the timeout passes. The timeout is a condition result rather than a poll
 	// deadline so that it ends the wait successfully, while a cancelled reconcile
 	// context still ends it with an error.
-	outcome = tracing.PasswordSyncOutcomeSynced
 	deadline := time.Now().Add(r.PasswordSyncTimeout)
 	err = wait.PollUntilContextCancel(ctx, rolePasswordSyncInterval, true,
 		func(ctx context.Context) (bool, error) {
 			if err := r.Get(ctx, client.ObjectKeyFromObject(cluster), cluster); err != nil {
 				return false, err
 			}
+
+			// Check if the cluster has synced the user password secret
 			if clusterUsesCredsFromSecretVersion(cluster, shared.XataRoleName, secret.ResourceVersion) {
+				outcome = tracing.PasswordSyncOutcomeSynced
 				return true, nil
 			}
+
+			// Check if the branch has been deleted mid-poll
+			branch := &v1alpha1.Branch{}
+			if err = r.Get(ctx, client.ObjectKey{Name: branchName}, branch); err != nil {
+				if errors.IsNotFound(err) {
+					log.Info("branch deleted while waiting for cluster to sync user password secret", "branchName", branchName)
+					outcome = tracing.PasswordSyncOutcomeBranchDeleted
+				}
+				return true, err
+			}
+
+			// Check if the timeout has passed; if so, log a warning and proceed anyway
 			if time.Now().After(deadline) {
 				log.Info("timed out waiting for cluster to sync user password secret, proceeding anyway",
 					"cluster", cluster.Name, "secret", secret.Name, "timeout", r.PasswordSyncTimeout)
 				outcome = tracing.PasswordSyncOutcomeTimedOut
 				return true, nil
 			}
+
 			log.Info("waiting for cluster to sync user password secret", "cluster", cluster.Name, "secret", secret.Name)
 			return false, nil
 		})
-	if err != nil {
-		return "", err
-	}
-
 	span.SetAttributes(tracing.AttrPasswordSyncOutcome.String(outcome))
-	return outcome, nil
+	return outcome, err
 }
 
 // clusterUsesCredsFromSecretVersion checks if the given Cluster's status

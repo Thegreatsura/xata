@@ -34,8 +34,9 @@ const (
 
 // Values for AttrPasswordSyncOutcome
 const (
-	PasswordSyncOutcomeSynced   = "synced"
-	PasswordSyncOutcomeTimedOut = "timed_out"
+	PasswordSyncOutcomeSynced        = "synced"
+	PasswordSyncOutcomeTimedOut      = "timed_out"
+	PasswordSyncOutcomeBranchDeleted = "branch_deleted"
 )
 
 // WithSpanIDs returns the logger with the span's trace and span IDs added as
