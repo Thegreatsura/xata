@@ -352,6 +352,20 @@ wal_buffers:
   docs_link: "https://www.postgresql.org/docs/current/runtime-config-wal.html#GUC-WAL-BUFFERS"
   restart_required: true
 
+wal_compression:
+  section: "WAL"
+  parameter_type: enum
+  description: "Compresses the full-page images written to WAL when full_page_writes is on or during a base backup, reducing WAL volume at the cost of some CPU."
+  default_value: "zstd"
+  values: ["off", "on", "pglz", "lz4", "zstd"]
+  postgres_minimum_version: 15
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-wal.html#GUC-WAL-COMPRESSION"
+  restart_required: false
+  recommendation: |
+    Compressing full-page images shrinks the WAL, which reduces write amplification, archiving/transfer cost, and replication bandwidth. `zstd` gives the best compression ratio for a small, usually worthwhile CPU cost and is a good default for most workloads.
+
+    `lz4` trades some ratio for lower CPU if your instance is CPU-bound. Set to `off` only if you are certain the extra CPU outweighs the WAL savings. `lz4` and `zstd` require PostgreSQL 15 or newer.
+
 max_wal_size:
   section: "WAL"
   parameter_type: bytes
@@ -391,6 +405,35 @@ checkpoint_timeout:
   max_value: "24h"
   docs_link: "https://www.postgresql.org/docs/current/runtime-config-wal.html#GUC-CHECKPOINT-TIMEOUT"
   restart_required: false
+
+# Replication
+wal_sender_timeout:
+  section: "Replication"
+  parameter_type: duration
+  description: "Terminate replication connections that are inactive for longer than this amount of time. Applies on the sending (primary) side."
+  default_value: "30s"
+  min_value: "0ms"
+  max_value: "20d"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-replication.html#GUC-WAL-SENDER-TIMEOUT"
+  restart_required: false
+  recommendation: |
+    This lets the primary detect a stalled or disconnected standby promptly and free up the walsender, rather than waiting on TCP timeouts that can take minutes. A lower value detects dead replicas faster; too low a value can drop healthy replicas on a slow or congested network.
+
+    30s is a good balance for most workloads. Set to 0ms to disable the timeout.
+
+wal_receiver_timeout:
+  section: "Replication"
+  parameter_type: duration
+  description: "Terminate replication connections that are inactive for longer than this amount of time. Applies on the receiving (standby) side."
+  default_value: "30s"
+  min_value: "0ms"
+  max_value: "20d"
+  docs_link: "https://www.postgresql.org/docs/current/runtime-config-replication.html#GUC-WAL-RECEIVER-TIMEOUT"
+  restart_required: false
+  recommendation: |
+    This lets a standby notice that its upstream has gone away and reconnect promptly, instead of waiting on TCP timeouts. A lower value reconnects faster after a failure; too low a value can trigger needless reconnects on a slow or congested network.
+
+    30s is a good balance for most workloads. Set to 0ms to disable the timeout.
 
 # Extensions
 

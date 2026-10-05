@@ -97,9 +97,19 @@ func TestVersionFiltering(t *testing.T) {
 		t.Error("PostgreSQL 14 should have fewer parameters than all parameters")
 	}
 
-	// PostgreSQL 14 and 15 should have the same number of parameters
-	if len(params15) != len(params14) {
-		t.Error("PostgreSQL 15 should have the same number of parameters as PostgreSQL 14 (since track_wal_io_timing no longer has version requirements)")
+	// PostgreSQL 15 should have exactly one more parameter than PostgreSQL 14:
+	// wal_compression, whose lz4/zstd values (and our zstd default) require 15+.
+	if len(params15) != len(params14)+1 {
+		t.Errorf("PostgreSQL 15 should have one more parameter than PostgreSQL 14 (wal_compression), got %d vs %d", len(params15), len(params14))
+	}
+
+	// wal_compression should be available in PostgreSQL 15+ but not 14
+	if _, exists := params14["wal_compression"]; exists {
+		t.Error("wal_compression should not be available in PostgreSQL 14")
+	}
+
+	if _, exists := params15["wal_compression"]; !exists {
+		t.Error("wal_compression should be available in PostgreSQL 15")
 	}
 
 	if len(params17) <= len(params15) {
