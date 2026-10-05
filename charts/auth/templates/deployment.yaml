@@ -147,6 +147,15 @@ spec:
                 secretKeyRef:
                   name: tackle-secret
                   key: client-secret
+            {{- if .Values.config.vercel.integrationId }}
+            - name: VERCEL_INTEGRATION_ID
+              value: {{ .Values.config.vercel.integrationId | quote }}
+            - name: VERCEL_TOKEN_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vercel-secret
+                  key: token-encryption-key
+            {{- end }}
           envFrom:
             - secretRef:
                 name: auth-hmac

@@ -31,6 +31,10 @@ httpRoute:
     - "^/organizations/([^/]+)/extensions"
     - "^/organizations/([^/]+)/githubapp(.*)"
     - "^/webhooks/github"
+    # Vercel Marketplace Partner API — resource paths (projects-owned). The
+    # installation record and plans catalog are served by auth; these do not
+    # overlap those routes.
+    - "^/v1/installations/[^/]+/resources(/.*)?$"
 
 postgres:
   host: postgres

@@ -21,6 +21,13 @@ observability:
 config:
   frontendURL: ""
   billingRequired: false
+  # Vercel Native Marketplace integration (auth side). Dormant unless
+  # integrationId is set — this mirrors the service gating (empty integration ID
+  # means auth mounts no Vercel routes). When set, a Secret named "vercel-secret"
+  # with key "token-encryption-key" must exist in the namespace (provided per-env
+  # via SOPS in infra-new).
+  vercel:
+    integrationId: ""
 
 httpRoute:
   hostname: localhost
@@ -43,6 +50,14 @@ httpRoute:
     - path: /marketplace
       type: PathPrefix
     - path: "^/organizations(/*)$|^/organizations/([^/]+)(/api-keys|/members.*|/roles.*|/invitations.*|/deletion-request|/membership-limits|/sso(/domains(/[^/]+(/verify)?)?|/providers(/[^/]+(/enforcement)?)?)?|/billing/(checkout-session|payment-method-session|customer|invoices(/upcoming)?))?$"
+      type: RegularExpression
+    # Vercel Marketplace Partner API — auth-owned paths only. The resource paths
+    # (^/v1/installations/[^/]+/resources(/.*)?$) belong to projects; these match
+    # the installation record itself and the plans catalog, and deliberately do
+    # not overlap the resources route.
+    - path: "^/v1/installations/[^/]+$"
+      type: RegularExpression
+    - path: "^/v1/products/[^/]+/plans$"
       type: RegularExpression
 
 resources:
