@@ -19,6 +19,8 @@ func MandatoryPostgresParameters(image string) map[string]string {
 
 		"pg_stat_statements.track_utility": "off",
 
+		"recovery_init_sync_method": "syncfs",
+
 		"xatautils.privileged_role": "xata",
 
 		"xatautils.privileged_extensions": privilegedExtensions(image),
