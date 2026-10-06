@@ -319,20 +319,19 @@ func GetUpdatedBy() string {
 }
 
 // GetMajorForVersion extracts and returns the major version from a version string
-// e.g., "17.5" -> "17"
+// as its leading digits, so that a pre-release shares the major of its release
+// e.g., "17.5" -> "17", "19beta3-trixie" -> "19"
 func GetMajorForVersion(version string) string {
-	if version == "" {
-		return ""
-	}
-
-	// Find the first dot to separate major from minor
-	before, _, ok := strings.Cut(version, ".")
-	if !ok {
-		// If no dot found, assume the entire string is the major version
+	end := strings.IndexFunc(version, func(r rune) bool { return r < '0' || r > '9' })
+	if end == -1 {
 		return version
 	}
-
-	return before
+	if end == 0 {
+		// No leading digits, fall back to the text before the first dot
+		before, _, _ := strings.Cut(version, ".")
+		return before
+	}
+	return version[:end]
 }
 
 // ParseImageVersion parses an image string. It checks it exists in the list of

@@ -347,10 +347,13 @@ func TestGetMajorForVersion(t *testing.T) {
 		{"17.6", "17"},
 		{"17.5", "17"},
 		{"18", "18"},
-		{"18rc1", "18rc1"},
+		{"18rc1", "18"},
+		{"19beta3-trixie", "19"},
 		{"16.4", "16"},
 		{"", ""},
-		{"17", "17"}, // no dot case
+		{"17", "17"},         // no dot case
+		{"latest", "latest"}, // no leading digits
+		{"v1.2", "v1"},       // no leading digits, text before the dot
 	}
 
 	for _, tc := range testCases {
