@@ -73,7 +73,7 @@ type MajorVersion struct {
 	// minors remain available behind the legacyPgVersions feature flag
 	ShowOnlyLatest bool `yaml:"show_only_latest,omitempty"`
 	// Hidden hides the whole major version by default; its minors remain
-	// available behind the per-major feature flag (see flags.PgMajorFlags).
+	// available behind the per-major feature flag (see flags.PgMajorFlag).
 	// Independent of ShowOnlyLatest: a major with both set needs the per-major
 	// flag for its latest minor, and legacyPgVersions on top for the rest.
 	Hidden bool `yaml:"hidden,omitempty"`
@@ -508,7 +508,7 @@ func sourceDisplayName(source string) string {
 
 // HiddenMajorImages returns the image names belonging to a major version marked
 // hidden, mapped to that major version. These images stay valid but require the
-// major version's feature flag (see flags.PgMajorFlags) to be listed or used.
+// major version's feature flag (see flags.PgMajorFlag) to be listed or used.
 func HiddenMajorImages() map[string]string {
 	hidden := make(map[string]string)
 

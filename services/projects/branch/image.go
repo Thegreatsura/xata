@@ -11,14 +11,10 @@ import (
 )
 
 // MajorVersionEnabled reports whether a PostgreSQL major version hidden by
-// default is available to the organization in ctx. A major marked hidden in
-// versions.yaml without a flag in flags.PgMajorFlags stays hidden for everyone.
+// default is available to the organization in ctx, through the flag of that
+// major (see flags.PgMajorFlag).
 func (s *Service) MajorVersionEnabled(ctx context.Context, major string) bool {
-	flag, ok := flags.PgMajorFlags[major]
-	if !ok {
-		return false
-	}
-	return s.feat.BoolValue(ctx, flag)
+	return s.feat.BoolValue(ctx, flags.PgMajorFlag(major))
 }
 
 // ValidateImage resolves an image for a new branch, rejecting images that are

@@ -6654,7 +6654,7 @@ func TestListImages(t *testing.T) {
 			organizationID: apitest.TestOrganization,
 			params:         spec.ListImagesParams{},
 			featureFlags: map[openfeature.FeatureFlag]bool{
-				flags.PgMajorFlags[hiddenMajorVersion]: true,
+				flags.PgMajorFlag(hiddenMajorVersion): true,
 			},
 			setupMocks: func(mockStore *mocks.ProjectsStore, mockImageProvider *postgresversionsmocks.ImageProvider) {
 				mockImageProvider.EXPECT().GetAllImageNames().Return([]string{
@@ -6745,7 +6745,7 @@ func TestValidateImageHiddenMinors(t *testing.T) {
 
 func TestValidateImageHiddenMajors(t *testing.T) {
 	hiddenImage, hiddenMajor := hiddenMajorPostgresImage(t)
-	majorFlag := flags.PgMajorFlags[hiddenMajor]
+	majorFlag := flags.PgMajorFlag(hiddenMajor)
 
 	t.Run("rejected on branch creation when flag is disabled", func(t *testing.T) {
 		s := branchsvc.New(nil, nil, openfeaturetest.NewClient(nil), nil, "", nil, postgresversionsmocks.NewImageProvider(t), nil)
@@ -6788,7 +6788,7 @@ func TestValidateImageHiddenMajors(t *testing.T) {
 // An older minor of a hidden major is gated by both flags independently
 func TestValidateImageHiddenMajorOldMinor(t *testing.T) {
 	_, hiddenMajor := hiddenMajorPostgresImage(t)
-	majorFlag := flags.PgMajorFlags[hiddenMajor]
+	majorFlag := flags.PgMajorFlag(hiddenMajor)
 
 	var image string
 	for _, img := range postgresversions.HiddenImageNames() {

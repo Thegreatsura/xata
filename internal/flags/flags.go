@@ -36,16 +36,6 @@ var (
 		Name:           "legacyPgVersions",
 		DefaultEnabled: false,
 	}
-	// PgMajor14 and PgMajor15 flag to enable PostgreSQL major versions that are
-	// hidden by default (see hidden in versions.yaml)
-	PgMajor14 = openfeature.FeatureFlag{
-		Name:           "pgMajor14",
-		DefaultEnabled: false,
-	}
-	PgMajor15 = openfeature.FeatureFlag{
-		Name:           "pgMajor15",
-		DefaultEnabled: false,
-	}
 	UseClusterPool = openfeature.FeatureFlag{
 		Name:           "useClusterPool",
 		DefaultEnabled: false,
@@ -72,10 +62,13 @@ var (
 	// WARNING: Feature Flags should have positive names. Avoid disabled suffix in future
 )
 
-// PgMajorFlags maps a PostgreSQL major version hidden by default to the feature
-// flag that makes it available to an organization. Every major marked hidden in
-// versions.yaml must have an entry here.
-var PgMajorFlags = map[string]openfeature.FeatureFlag{
-	"14": PgMajor14,
-	"15": PgMajor15,
+// PgMajorFlag returns the feature flag that enables a hidden PostgreSQL major
+// version (see hidden in versions.yaml) for an organization, e.g. "pgMajor14"
+// for major "14". If the OpenFeature provider has no flag with this name, it
+// evaluates to false and the major stays hidden.
+func PgMajorFlag(major string) openfeature.FeatureFlag {
+	return openfeature.FeatureFlag{
+		Name:           "pgMajor" + major,
+		DefaultEnabled: false,
+	}
 }

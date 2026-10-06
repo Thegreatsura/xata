@@ -272,12 +272,13 @@ func TestHiddenMajorImages(t *testing.T) {
 		}
 	}
 
-	// Guard the current default-visibility policy: PG 14 and 15 are hidden
+	// Guard the current default-visibility policy: PG 14 and 15 are hidden.
 	for _, source := range GetSources() {
 		for majorName, major := range source.MajorVersions {
-			wantHidden := majorName == "14" || majorName == "15"
-			require.Equal(t, wantHidden, major.Hidden,
-				"source %s major %s: hidden", source.Source, majorName)
+			if majorName == "14" || majorName == "15" {
+				require.True(t, major.Hidden,
+					"source %s major %s: hidden", source.Source, majorName)
+			}
 		}
 	}
 }

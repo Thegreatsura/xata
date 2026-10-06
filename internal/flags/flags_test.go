@@ -5,15 +5,17 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"xata/internal/postgresversions"
+	"xata/internal/openfeature"
 )
 
-// TestPgMajorFlagsCoverHiddenMajors guards against marking a major hidden in
-// versions.yaml without adding its flag: such a major would be hidden for every
-// organization, with no way to enable it.
-func TestPgMajorFlagsCoverHiddenMajors(t *testing.T) {
-	for image, major := range postgresversions.HiddenMajorImages() {
-		require.Contains(t, PgMajorFlags, major,
-			"major %s is hidden (image %s) but has no feature flag", major, image)
+// TestPgMajorFlag guards the flag names: the flags for existing hidden majors
+// are configured in the provider under these names.
+func TestPgMajorFlag(t *testing.T) {
+	for major, name := range map[string]string{
+		"14": "pgMajor14",
+		"15": "pgMajor15",
+		"19": "pgMajor19",
+	} {
+		require.Equal(t, openfeature.FeatureFlag{Name: name, DefaultEnabled: false}, PgMajorFlag(major))
 	}
 }
