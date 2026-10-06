@@ -13,8 +13,6 @@ import org.keycloak.models.IdentityProviderModel
 import org.keycloak.models.KeycloakSession
 import org.keycloak.models.OrganizationDomainModel
 import org.keycloak.models.OrganizationModel
-import org.keycloak.models.OrganizationModel.IdentityProviderRedirectMode.EMAIL_MATCH
-import org.keycloak.models.OrganizationModel.ORGANIZATION_DOMAIN_ATTRIBUTE
 import org.keycloak.models.UserModel
 import org.keycloak.models.utils.FormMessage
 import org.keycloak.organization.OrganizationProvider
@@ -33,7 +31,6 @@ class RequireDomainSsoTest {
             alias = "sso-acme-acme-com"
             displayName = "Acme SSO"
             isEnabled = true
-            config = mutableMapOf(EMAIL_MATCH.key to "true", ORGANIZATION_DOMAIN_ATTRIBUTE to "acme.com")
         }
 
     /** A session whose realm holds one organization owning acme.com and redirecting it to [broker]. */
@@ -45,7 +42,7 @@ class RequireDomainSsoTest {
         val organization =
             mockk<OrganizationModel> {
                 every { isEnabled } returns organizationEnabled
-                every { domains } answers { Stream.of(OrganizationDomainModel(domain, true)) }
+                every { domains } answers { Stream.of(OrganizationDomainModel(domain, true, broker?.alias, true)) }
                 every { identityProviders } answers { Stream.ofNullable(broker) }
             }
         val provider =

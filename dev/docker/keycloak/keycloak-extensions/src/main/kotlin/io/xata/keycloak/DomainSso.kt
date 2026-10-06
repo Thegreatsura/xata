@@ -4,9 +4,8 @@ import org.jboss.logging.Logger
 import org.keycloak.models.IdentityProviderModel
 import org.keycloak.models.KeycloakSession
 import org.keycloak.models.ModelValidationException
-import org.keycloak.models.OrganizationDomainModel.ANY_DOMAIN
+import org.keycloak.models.OrganizationDomainModel
 import org.keycloak.models.OrganizationModel
-import org.keycloak.models.OrganizationModel.IdentityProviderRedirectMode.EMAIL_MATCH
 import org.keycloak.organization.OrganizationProvider
 import org.keycloak.organization.utils.Organizations
 
@@ -41,9 +40,11 @@ object DomainSso {
 
         val organization = organizationFor(session, canonical) ?: return null
         val matching = Organizations.getMatchingDomain(canonical, organization) ?: return null
+        if (!matching.isAutoRedirect) return null
+        val alias = matching.identityProviderAlias ?: return null
 
         return organization.identityProviders
-            .filter { it.isEnabled && redirectsDomain(it, canonical, matching.name) }
+            .filter { it.isEnabled && it.alias == alias }
             .findFirst()
             .orElse(null)
     }
@@ -61,26 +62,11 @@ object DomainSso {
         return if (required.alias == currentAlias) null else required
     }
 
-    /** Whether [broker] takes [domain], which its organization holds as [organizationDomain]. */
-    fun redirectsDomain(
-        broker: IdentityProviderModel,
-        domain: String,
-        organizationDomain: String,
-    ): Boolean {
-        if (!EMAIL_MATCH.isSet(broker)) return false
-
-        val excluded = broker.config[OrganizationModel.ORGANIZATION_EXCLUDED_DOMAIN_ATTRIBUTE].orEmpty()
-        if (excluded.split(',').any { Organizations.isSameDomain(domain, it.trim()) }) return false
-
-        val brokerDomain = broker.config[OrganizationModel.ORGANIZATION_DOMAIN_ATTRIBUTE] ?: return false
-        return brokerDomain == ANY_DOMAIN || brokerDomain == organizationDomain
-    }
-
     /**
      * Whether [alias] is entitled to assert [email]. Keycloak's trustEmail does not check this and
      * first broker login links on the result, so without it one organization's provider could
      * claim another's account. A shared provider such as github or google is not covered; an
-     * organization's provider bound to no domain asserts nothing, linked or not.
+     * organization's provider that no domain routes to asserts nothing, linked or not.
      */
     fun assertsOwnDomain(
         session: KeycloakSession,
@@ -89,17 +75,28 @@ object DomainSso {
     ): Boolean {
         if (alias == null) return true
         val idp = session.identityProviders().getByAlias(alias) ?: return true
-        val bound = idp.config[OrganizationModel.ORGANIZATION_DOMAIN_ATTRIBUTE] ?: return isShared(idp)
+        if (isShared(idp)) return true
 
         val domain = Organizations.getEmailDomain(email)?.lowercase() ?: return false
-        if (bound != ANY_DOMAIN) return Organizations.isSameDomain(domain, bound)
+        return routedDomains(session, idp).any { Organizations.isSameDomain(domain, it) }
+    }
 
-        val organization = organizationFor(session, domain) ?: return false
-        return organization.identityProviders.anyMatch { it.alias == alias }
+    private fun routedDomains(
+        session: KeycloakSession,
+        idp: IdentityProviderModel,
+    ): List<OrganizationDomainModel> {
+        val organizationIds = idp.organizationIds.orEmpty()
+        if (organizationIds.isEmpty()) return emptyList()
+
+        val provider = session.getProvider(OrganizationProvider::class.java)
+        return organizationIds
+            .mapNotNull { provider.getById(it) }
+            .filter { it.isEnabled }
+            .flatMap { organization -> organization.domains.filter { it.identityProviderAlias == idp.alias }.toList() }
     }
 
     private fun isShared(idp: IdentityProviderModel): Boolean =
-        idp.organizationId == null && !idp.alias.startsWith(ORGANIZATION_PROVIDER_PREFIX)
+        idp.organizationIds.isNullOrEmpty() && !idp.alias.startsWith(ORGANIZATION_PROVIDER_PREFIX)
 
     private fun organizationFor(
         session: KeycloakSession,

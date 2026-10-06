@@ -12,35 +12,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Bodies captured from Keycloak 26.7.3. A mismatch here surfaces only as a 500
+// Bodies captured from Keycloak 26.8. A mismatch here surfaces only as a 500
 // in production.
 func TestSetOrganizationDomainsClassifiesRejections(t *testing.T) {
 	tests := map[string]struct {
-		body string
-		want error
+		status int
+		body   string
+		want   error
 	}{
-		"claimed by another organization, 26.7.3 wording": {
-			body: `{"errorMessage":"Domain acme.test is already linked to organization 123xyz in realm xata"}`,
-			want: ErrDomainAlreadyClaimed{},
+		"claimed by another organization": {
+			status: http.StatusBadRequest,
+			body:   `{"errorMessage":"Domain acme.test is already linked to organization 123xyz in realm xata"}`,
+			want:   ErrDomainAlreadyClaimed{},
 		},
-		"claimed by another organization, alternative wording": {
-			body: `{"errorMessage":"Domain acme.test is already linked to another organization in realm xata"}`,
-			want: ErrDomainAlreadyClaimed{},
+		"claimed by another organization at the same moment": {
+			status: http.StatusConflict,
+			body:   `{"error":"conflict","error_description":"Duplicate resource error"}`,
+			want:   ErrDomainAlreadyClaimed{},
 		},
-		"malformed domain, 26.7.3 wording": {
-			body: `{"errorMessage":"Invalid domain format: not a domain"}`,
-			want: ErrInvalidDomain{},
-		},
-		"malformed domain, alternative wording": {
-			body: `{"errorMessage":"The specified domain is invalid: not a domain"}`,
-			want: ErrInvalidDomain{},
+		"malformed domain": {
+			status: http.StatusBadRequest,
+			body:   `{"errorMessage":"Invalid domain format: not a domain"}`,
+			want:   ErrInvalidDomain{},
 		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			srv := orgAdminTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(http.StatusBadRequest)
+				w.WriteHeader(tt.status)
 				_, _ = w.Write([]byte(tt.body))
 			})
 			defer srv.Close()
@@ -57,9 +57,9 @@ func TestSetOrganizationDomainsRoundTripsRouting(t *testing.T) {
 		domain Domain
 		want   string
 	}{
-		"leaves unset routing out": {
+		"leaves an unset provider out": {
 			domain: Domain{Name: "acme.test", Verified: true},
-			want:   `{"name":"acme.test","verified":true}`,
+			want:   `{"name":"acme.test","verified":true,"autoRedirect":false}`,
 		},
 		"sends routing that is set": {
 			domain: Domain{Name: "acme.test", Verified: true, IdentityProviderAlias: "sso-acme", AutoRedirect: true},
@@ -165,7 +165,7 @@ func TestSetOrganizationDomainsKeepsOtherFields(t *testing.T) {
 			domains: []Domain{{Name: "acme.com", Verified: true}},
 			want: `{"id":"internal-1","name":"abc123","alias":"abc123","enabled":false,"description":"kept",` +
 				`"redirectUrl":"https://app.xata.io/organizations/abc123",` +
-				`"domains":[{"name":"acme.com","verified":true}],` +
+				`"domains":[{"name":"acme.com","verified":true,"autoRedirect":false}],` +
 				`"attributes":{"displayName":["Acme"],"billingStatus":["ok"]}}`,
 		},
 		"sends an empty list when every domain goes": {

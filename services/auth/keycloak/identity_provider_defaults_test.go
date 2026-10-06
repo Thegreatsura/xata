@@ -3,6 +3,7 @@ package keycloak
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"testing"
 
@@ -33,8 +34,7 @@ func TestNewIdentityProvider(t *testing.T) {
 		"is never a button on the login page; members arrive by the domain redirect, or by a kc_idp_hint link that ignores this": {
 			got: got.HideOnLogin, want: true,
 		},
-		"does not enforce": {got: got.RedirectsOnEmailMatch(), want: false},
-		"binds the domain": {got: got.OrganizationDomain(), want: "acme.com"},
+		"leaves routing to the organization domain":    {got: got.Config["kc.org.domain"], want: ""},
 		"names itself for the organization and domain": {got: got.Alias, want: "sso-acme-acme-com"},
 	}
 
@@ -93,6 +93,47 @@ func TestBindBrokerFlows(t *testing.T) {
 
 			require.Equal(t, tt.wantFirst, got.FirstBrokerLoginFlowAlias)
 			require.Equal(t, tt.wantPost, got.PostBrokerLoginFlowAlias)
+		})
+	}
+}
+
+func TestLinkIdentityProviderToOrganization(t *testing.T) {
+	const linkPath = "/admin/realms/xata/organizations/internal-1/identity-providers"
+
+	tests := map[string]struct {
+		linkStatus int
+		wantErr    bool
+	}{
+		"links a new provider":                 {linkStatus: http.StatusNoContent},
+		"treats an existing link as done":      {linkStatus: http.StatusConflict},
+		"fails when Keycloak refuses the link": {linkStatus: http.StatusBadRequest, wantErr: true},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			var gotBody string
+			srv := orgAdminTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+				// Any other request would override the UNMANAGED membership the POST creates the link with.
+				if req.Method != http.MethodPost || req.URL.Path != linkPath {
+					t.Errorf("unexpected request %s %s", req.Method, req.URL.Path)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				body, err := io.ReadAll(req.Body)
+				require.NoError(t, err)
+				gotBody = string(body)
+				w.WriteHeader(tt.linkStatus)
+			})
+			defer srv.Close()
+
+			err := newTestRestKC(srv.URL).LinkIdentityProviderToOrganization(context.Background(), "xata", "org-alias", "sso-acme-acme-com")
+
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.JSONEq(t, `"sso-acme-acme-com"`, gotBody)
 		})
 	}
 }

@@ -79,6 +79,8 @@ config:
       replyTo: "support@xata.io"
 
 realmImport:
+  # Disable for a server upgrade; re-enable only after the intended rollout is ready.
+  enabled: true
   ttlSecondsAfterFinished: 86400
   image: adorsys/keycloak-config-cli:6.5.1-26.5.5
   # Name of a ConfigMap providing realm.json. When set, the chart does not

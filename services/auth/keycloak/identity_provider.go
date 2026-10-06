@@ -9,13 +9,7 @@ import (
 	"strings"
 )
 
-// Config keys Keycloak defines in org.keycloak.models.OrganizationModel.
-const (
-	IdentityProviderOrganizationDomainKey       = "kc.org.domain"
-	IdentityProviderRedirectModeEmailMatchesKey = "kc.org.broker.redirect.mode.email-matches"
-
-	configTrue = "true"
-)
+const configTrue = "true"
 
 // Without them a provider runs Keycloak's built-in broker flows and skips xata-require-domain-sso.
 const (
@@ -109,7 +103,7 @@ func NewIdentityProvider(spec IdentityProviderSpec) IdentityProvider {
 	}
 	maps.Copy(config, spec.Extra)
 
-	idp := IdentityProvider{
+	return IdentityProvider{
 		Alias:       OrganizationIdentityProviderAlias(spec.OrganizationID, spec.Domain),
 		DisplayName: spec.DisplayName,
 		ProviderID:  spec.ProviderID,
@@ -122,34 +116,6 @@ func NewIdentityProvider(spec IdentityProviderSpec) IdentityProvider {
 		PostBrokerLoginFlowAlias:  PostBrokerLoginFlow,
 		Config:                    config,
 	}
-	idp.SetOrganizationDomain(spec.Domain)
-	return idp
-}
-
-func (idp IdentityProvider) OrganizationDomain() string {
-	return idp.Config[IdentityProviderOrganizationDomainKey]
-}
-
-func (idp *IdentityProvider) SetOrganizationDomain(domain string) {
-	if idp.Config == nil {
-		idp.Config = make(map[string]string)
-	}
-	idp.Config[IdentityProviderOrganizationDomainKey] = domain
-}
-
-func (idp *IdentityProvider) SetRedirectOnEmailMatch(redirect bool) {
-	if !redirect {
-		delete(idp.Config, IdentityProviderRedirectModeEmailMatchesKey)
-		return
-	}
-	if idp.Config == nil {
-		idp.Config = make(map[string]string)
-	}
-	idp.Config[IdentityProviderRedirectModeEmailMatchesKey] = configTrue
-}
-
-func (idp IdentityProvider) RedirectsOnEmailMatch() bool {
-	return idp.Config[IdentityProviderRedirectModeEmailMatchesKey] == configTrue
 }
 
 func (r *restKC) identityProviderURL(realm, alias string) (string, error) {

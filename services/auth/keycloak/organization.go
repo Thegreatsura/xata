@@ -62,10 +62,11 @@ const (
 )
 
 type Domain struct {
-	Name                  string `json:"name"`
-	Verified              bool   `json:"verified"`
+	Name     string `json:"name"`
+	Verified bool   `json:"verified"`
+	// Omitted when unset: Keycloak rejects an empty alias.
 	IdentityProviderAlias string `json:"identityProviderAlias,omitempty"`
-	AutoRedirect          bool   `json:"autoRedirect,omitempty"`
+	AutoRedirect          bool   `json:"autoRedirect"`
 }
 
 // MaxOrganizationMembers is the maximum number of users allowed in an organization

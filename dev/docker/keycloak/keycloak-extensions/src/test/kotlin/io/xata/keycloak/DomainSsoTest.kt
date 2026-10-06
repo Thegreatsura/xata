@@ -8,21 +8,18 @@ import org.junit.jupiter.api.Test
 import org.keycloak.models.IdentityProviderModel
 import org.keycloak.models.KeycloakSession
 import org.keycloak.models.ModelValidationException
-import org.keycloak.models.OrganizationDomainModel.ANY_DOMAIN
+import org.keycloak.models.OrganizationDomainModel
 import org.keycloak.models.OrganizationModel
-import org.keycloak.models.OrganizationModel.IdentityProviderRedirectMode.EMAIL_MATCH
-import org.keycloak.models.OrganizationModel.ORGANIZATION_DOMAIN_ATTRIBUTE
-import org.keycloak.models.OrganizationModel.ORGANIZATION_EXCLUDED_DOMAIN_ATTRIBUTE
 import org.keycloak.organization.OrganizationProvider
-import kotlin.test.assertFalse
+import java.util.stream.Stream
+import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 class DomainSsoTest {
-    private fun broker(vararg config: Pair<String, String>) =
+    private fun broker(enabled: Boolean = true) =
         IdentityProviderModel().apply {
             alias = "sso-acme-acme-com"
-            this.config = mutableMapOf(EMAIL_MATCH.key to "true", *config)
+            isEnabled = enabled
         }
 
     @Nested
@@ -83,58 +80,61 @@ class DomainSsoTest {
     }
 
     @Nested
-    inner class RedirectsDomainTest {
-        @Test
-        fun `takes the domain it is configured for`() {
-            val got = broker(ORGANIZATION_DOMAIN_ATTRIBUTE to "acme.com")
-            assertTrue(DomainSso.redirectsDomain(got, "acme.com", "acme.com"))
+    inner class RoutingTest {
+        private fun session(
+            routes: List<OrganizationDomainModel>,
+            linked: IdentityProviderModel = broker(),
+        ): KeycloakSession {
+            val organization =
+                mockk<OrganizationModel> {
+                    every { isEnabled } returns true
+                    every { domains } answers { routes.stream() }
+                    every { identityProviders } answers { Stream.of(linked) }
+                }
+            val provider =
+                mockk<OrganizationProvider> {
+                    every { isEnabled } returns true
+                    every { hasOrganizations() } returns true
+                    every { getByDomainName(any()) } returns organization
+                }
+            return mockk { every { getProvider(OrganizationProvider::class.java) } returns provider }
         }
 
+        private fun routed(
+            domain: String,
+            autoRedirect: Boolean = true,
+        ) = OrganizationDomainModel(domain, true, "sso-acme-acme-com", autoRedirect)
+
         @Test
-        fun `takes any domain of the organization`() {
-            val got = broker(ORGANIZATION_DOMAIN_ATTRIBUTE to ANY_DOMAIN)
-            assertTrue(DomainSso.redirectsDomain(got, "acme.com", "acme.com"))
+        fun `takes the domain routed to the provider`() {
+            val got = DomainSso.requiredBroker(session(listOf(routed("acme.com"))), "acme.com")
+            assertEquals("sso-acme-acme-com", got?.alias)
         }
 
         @Test
         fun `leaves another domain of the same organization alone`() {
-            val got = broker(ORGANIZATION_DOMAIN_ATTRIBUTE to "acme.com")
-            assertFalse(DomainSso.redirectsDomain(got, "acme.io", "acme.io"))
-        }
-
-        @Test
-        fun `leaves the domain alone when it is excluded`() {
-            val got =
-                broker(
-                    ORGANIZATION_DOMAIN_ATTRIBUTE to ANY_DOMAIN,
-                    ORGANIZATION_EXCLUDED_DOMAIN_ATTRIBUTE to "contractors.acme.com, partners.acme.com",
-                )
-            assertFalse(DomainSso.redirectsDomain(got, "contractors.acme.com", "acme.com"))
-            assertTrue(DomainSso.redirectsDomain(got, "acme.com", "acme.com"))
-        }
-
-        @Test
-        fun `leaves the domain alone when a wildcard excludes it`() {
-            val got =
-                broker(
-                    ORGANIZATION_DOMAIN_ATTRIBUTE to ANY_DOMAIN,
-                    ORGANIZATION_EXCLUDED_DOMAIN_ATTRIBUTE to "*.dev.acme.com",
-                )
-            assertFalse(DomainSso.redirectsDomain(got, "eu.dev.acme.com", "acme.com"))
+            val got = session(listOf(routed("acme.com"), OrganizationDomainModel("acme.io", true)))
+            assertNull(DomainSso.requiredBroker(got, "acme.io"))
         }
 
         @Test
         fun `leaves the domain alone when the provider does not redirect on a match`() {
-            val got =
-                IdentityProviderModel().apply {
-                    config = mutableMapOf(ORGANIZATION_DOMAIN_ATTRIBUTE to "acme.com")
-                }
-            assertFalse(DomainSso.redirectsDomain(got, "acme.com", "acme.com"))
+            val got = session(listOf(routed("acme.com", autoRedirect = false)))
+            assertNull(DomainSso.requiredBroker(got, "acme.com"))
         }
 
         @Test
-        fun `leaves the domain alone when the provider is not bound to one`() {
-            assertFalse(DomainSso.redirectsDomain(broker(), "acme.com", "acme.com"))
+        fun `leaves a subdomain alone when it is held without a provider`() {
+            val got = session(listOf(routed("*.acme.com"), OrganizationDomainModel("contractors.acme.com", true)))
+
+            assertNull(DomainSso.requiredBroker(got, "contractors.acme.com"))
+            assertEquals("sso-acme-acme-com", DomainSso.requiredBroker(got, "eng.acme.com")?.alias)
+        }
+
+        @Test
+        fun `leaves the domain alone when its provider is disabled`() {
+            val got = session(listOf(routed("acme.com")), linked = broker(enabled = false))
+            assertNull(DomainSso.requiredBroker(got, "acme.com"))
         }
     }
 }

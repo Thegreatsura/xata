@@ -49,7 +49,7 @@ class RequireDomainSso : IdentityProviderAuthenticator() {
 
         if (brokered != null && !DomainSso.assertsOwnDomain(context.session, brokered.identityProviderId, email)) {
             LOGGER.warnf(
-                "Identity provider '%s' asserted '%s', which is outside the domain it is bound to",
+                "Identity provider '%s' asserted '%s', which is outside every domain routed to it",
                 brokered.identityProviderId,
                 email,
             )

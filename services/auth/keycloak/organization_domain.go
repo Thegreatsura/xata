@@ -56,9 +56,7 @@ func (r *restKC) OrganizationsForDomain(ctx context.Context, realm, domain strin
 	return holders, nil
 }
 
-// SetOrganizationDomains replaces the whole set: Keycloak has no per-domain
-// endpoint. It rejects a domain another organization holds, and clears
-// kc.org.domain on any provider bound to one being removed.
+// SetOrganizationDomains replaces the whole set: Keycloak has no per-domain endpoint.
 func (r *restKC) SetOrganizationDomains(ctx context.Context, realm, organizationID string, domains []Domain) error {
 	organization, err := r.searchOrganization(ctx, realm, organizationID)
 	if err != nil {
@@ -76,16 +74,13 @@ func (r *restKC) SetOrganizationDomains(ctx context.Context, realm, organization
 	if err != nil {
 		return fmt.Errorf("set organization domains: %w", err)
 	}
-	// Keycloak returns 400 for both, so only the message separates them, and its
-	// wording has changed between releases. Match the part the phrasings share.
-	if resp.StatusCode() == http.StatusBadRequest {
-		body := strings.ToLower(resp.String())
-		switch {
-		case strings.Contains(body, "already linked to"):
-			return ErrDomainAlreadyClaimed{}
-		case strings.Contains(body, "invalid domain format"), strings.Contains(body, "domain is invalid"):
-			return ErrInvalidDomain{}
-		}
+	// A 409 is a claim that lost the race for the same domain.
+	badRequest := resp.StatusCode() == http.StatusBadRequest
+	switch {
+	case resp.StatusCode() == http.StatusConflict, badRequest && strings.Contains(resp.String(), "is already linked to organization"):
+		return ErrDomainAlreadyClaimed{}
+	case badRequest && strings.Contains(resp.String(), "Invalid domain format"):
+		return ErrInvalidDomain{}
 	}
 	if !r.isSuccessStatus(resp.StatusCode(), http.StatusOK, http.StatusNoContent) {
 		return fmt.Errorf("set organization domains for %s: unexpected status %d: %s", organizationID, resp.StatusCode(), resp.String())
