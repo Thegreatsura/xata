@@ -123,6 +123,19 @@ mcpClientCleanup:
       cpu: 50m
       memory: 64Mi
 
+billingReconciliation:
+  schedule: "0 * * * *"
+  timeZone: "Etc/UTC"
+  suspend: true
+  dryRun: true
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
 manualInvoiceReadyAlerts:
   schedule: "0 9 * * *"
   timeZone: "Europe/Berlin"

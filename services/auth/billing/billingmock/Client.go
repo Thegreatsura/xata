@@ -1318,6 +1318,65 @@ func (_c *Client_ListCustomersWithCreditsCreatedAfter_Call) RunAndReturn(run fun
 	return _c
 }
 
+// ListInvoiceSummaries provides a mock function with given fields: ctx, opts
+func (_m *Client) ListInvoiceSummaries(ctx context.Context, opts billing.InvoiceSummaryListOptions) ([]billing.InvoiceSummary, error) {
+	ret := _m.Called(ctx, opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListInvoiceSummaries")
+	}
+
+	var r0 []billing.InvoiceSummary
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, billing.InvoiceSummaryListOptions) ([]billing.InvoiceSummary, error)); ok {
+		return rf(ctx, opts)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, billing.InvoiceSummaryListOptions) []billing.InvoiceSummary); ok {
+		r0 = rf(ctx, opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]billing.InvoiceSummary)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, billing.InvoiceSummaryListOptions) error); ok {
+		r1 = rf(ctx, opts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Client_ListInvoiceSummaries_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListInvoiceSummaries'
+type Client_ListInvoiceSummaries_Call struct {
+	*mock.Call
+}
+
+// ListInvoiceSummaries is a helper method to define mock.On call
+//   - ctx context.Context
+//   - opts billing.InvoiceSummaryListOptions
+func (_e *Client_Expecter) ListInvoiceSummaries(ctx interface{}, opts interface{}) *Client_ListInvoiceSummaries_Call {
+	return &Client_ListInvoiceSummaries_Call{Call: _e.mock.On("ListInvoiceSummaries", ctx, opts)}
+}
+
+func (_c *Client_ListInvoiceSummaries_Call) Run(run func(ctx context.Context, opts billing.InvoiceSummaryListOptions)) *Client_ListInvoiceSummaries_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(billing.InvoiceSummaryListOptions))
+	})
+	return _c
+}
+
+func (_c *Client_ListInvoiceSummaries_Call) Return(_a0 []billing.InvoiceSummary, _a1 error) *Client_ListInvoiceSummaries_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Client_ListInvoiceSummaries_Call) RunAndReturn(run func(context.Context, billing.InvoiceSummaryListOptions) ([]billing.InvoiceSummary, error)) *Client_ListInvoiceSummaries_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListInvoices provides a mock function with given fields: ctx, externalCustomerID, opts
 func (_m *Client) ListInvoices(ctx context.Context, externalCustomerID string, opts billing.InvoiceListOptions) (*billing.InvoicesPage, error) {
 	ret := _m.Called(ctx, externalCustomerID, opts)

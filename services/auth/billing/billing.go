@@ -246,6 +246,21 @@ type InvoiceListOptions struct {
 	Statuses []InvoiceStatus
 }
 
+type InvoiceSummary struct {
+	ID                 string
+	CustomerExternalID string
+	Status             InvoiceStatus
+	IssuedAt           time.Time
+}
+
+type InvoiceSummaryListOptions struct {
+	ExternalCustomerID string
+	Limit              int
+	Status             InvoiceStatus
+	InvoiceDateGte     time.Time
+	InvoiceDateLte     time.Time
+}
+
 type MarkInvoicePaidOptions struct {
 	InvoiceID           string
 	PaymentReceivedDate time.Time
@@ -416,6 +431,8 @@ type Client interface {
 	ConfigureOrbCustomerForBankTransfers(ctx context.Context, opts OrbBankTransferOptions) error
 	UpdateOrbCustomerEmail(ctx context.Context, organizationID, email string) (*CustomerWithCredits, error)
 	ListInvoices(ctx context.Context, externalCustomerID string, opts InvoiceListOptions) (*InvoicesPage, error)
+	// ListInvoiceSummaries retrieves all matching summaries; opts.Limit controls page size, not total results.
+	ListInvoiceSummaries(ctx context.Context, opts InvoiceSummaryListOptions) ([]InvoiceSummary, error)
 	// FetchUpcomingInvoice fetches the next invoice for the customer's active subscription.
 	// Customers are expected to have at most one active subscription.
 	FetchUpcomingInvoice(ctx context.Context, externalCustomerID string) (*UpcomingInvoice, error)
@@ -497,6 +514,10 @@ func (n *NoopBilling) UpdateOrbCustomerEmail(_ context.Context, _, _ string) (*C
 }
 
 func (n *NoopBilling) ListInvoices(_ context.Context, _ string, _ InvoiceListOptions) (*InvoicesPage, error) {
+	return nil, nil
+}
+
+func (n *NoopBilling) ListInvoiceSummaries(_ context.Context, _ InvoiceSummaryListOptions) ([]InvoiceSummary, error) {
 	return nil, nil
 }
 
