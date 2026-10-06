@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	clustersv1 "xata/gen/proto/clusters/v1"
+	"xata/internal/pgbackrest"
 	"xata/services/branch-operator/api/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -316,8 +317,9 @@ func (b *BranchBuilder) WithStorageQoSClass(useStorageQoSClasses bool, storageQo
 // credentials instead of an IAM role. credentialsSecretName pins the Secret
 // holding those credentials to the branch, so later cell-wide credential
 // changes don't affect it; empty falls back to the operator-configured
-// Secret.
-func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, serviceAccount, credentialsSecretName, azureAccount, azureContainer string) *BranchBuilder {
+// Secret. On aws without an endpoint, s3 uses the web identity token of the
+// branch ServiceAccount in clustersNamespace.
+func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, serviceAccount, credentialsSecretName, azureAccount, azureContainer, clustersNamespace string) *BranchBuilder {
 	if b.branch.Spec.BackupSpec == nil || !b.branch.Spec.BackupSpec.IsPgBackRest() {
 		return b
 	}
@@ -333,17 +335,32 @@ func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, servi
 			Account:   azureAccount,
 			Container: azureContainer,
 		}
-	default:
-		b.branch.Spec.BackupSpec.PgBackRest.S3 = &v1alpha1.PgBackRestS3Spec{
-			Bucket:                bucket,
-			Region:                region,
-			Endpoint:              endpoint,
-			InheritFromIAMRole:    true,
-			CredentialsSecretName: credentialsSecretName,
+	case CloudProviderAWS:
+		b.branch.Spec.BackupSpec.PgBackRest.S3 = pgBackRestS3Spec(bucket, region, endpoint, credentialsSecretName)
+		// Without an endpoint, the branch operator keeps a ServiceAccount and a
+		// web identity token for each branch. Use them with the repo path that
+		// the IAM policy allows for the token. The values are set only on new
+		// branches, so existing branches keep their repository.
+		if endpoint == "" {
+			b.branch.Spec.BackupSpec.PgBackRest.S3.KeyType = pgbackrest.KeyTypeWebID
+			b.branch.Spec.BackupSpec.PgBackRest.RepoPath = pgbackrest.RepoPath(clustersNamespace, b.branch.Name)
 		}
+	default:
+		b.branch.Spec.BackupSpec.PgBackRest.S3 = pgBackRestS3Spec(bucket, region, endpoint, credentialsSecretName)
 	}
 
 	return b
+}
+
+// pgBackRestS3Spec returns the S3 backend of a new branch.
+func pgBackRestS3Spec(bucket, region, endpoint, credentialsSecretName string) *v1alpha1.PgBackRestS3Spec {
+	return &v1alpha1.PgBackRestS3Spec{
+		Bucket:                bucket,
+		Region:                region,
+		Endpoint:              endpoint,
+		InheritFromIAMRole:    true,
+		CredentialsSecretName: credentialsSecretName,
+	}
 }
 
 // WithXataUtilsPreloadLibrary ensures that the "xatautils" library is the

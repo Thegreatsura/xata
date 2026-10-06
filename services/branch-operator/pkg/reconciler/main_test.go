@@ -210,7 +210,7 @@ func (b *BranchBuilder) WithPgBackRestWebIdentity(bucket, region string) *Branch
 			InheritFromIAMRole: true,
 			KeyType:            pgbackrest.KeyTypeWebID,
 		},
-		RepoPath: "system:serviceaccount:" + XataClustersNamespace + ":" + b.branch.Name + "-pgbackrest",
+		RepoPath: pgbackrest.RepoPath(XataClustersNamespace, b.branch.Name),
 	}
 	return b
 }

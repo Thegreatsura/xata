@@ -30,6 +30,13 @@ func ServiceAccountName(branchName string) string {
 	return branchName + "-pgbackrest"
 }
 
+// RepoPath is the repo path of a Branch that uses the web identity token. The
+// IAM policy gives the token access only to the objects below its `sub` claim,
+// and IAM cannot take a part of a claim, so the repo path is the full claim.
+func RepoPath(namespace, branchName string) string {
+	return "system:serviceaccount:" + namespace + ":" + ServiceAccountName(branchName)
+}
+
 // WebIdentitySecretName is the Secret that holds the web identity token for the
 // pgBackRest ServiceAccount of the Branch that uses the cluster. The name comes
 // from the cluster and not from the Branch: pool clusters are created before a

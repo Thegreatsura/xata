@@ -267,7 +267,7 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		WithDefaultVolumeSnapshotClass(volumeSnapshotClass).
 		WithDefaultNodeSelector(c.config.ClustersNodeSelector).
 		WithPooler(c.config.EnablePooler).
-		WithPgBackRest(c.config.CloudProvider, c.config.PgBackRestBucket, c.config.PgBackRestRegion, c.config.PgBackRestEndpoint, c.config.PgBackRestGCSServiceAccount, c.config.PgBackRestCredentialsSecret, c.config.PgBackRestAzureAccount, c.config.PgBackRestAzureContainer).
+		WithPgBackRest(c.config.CloudProvider, c.config.PgBackRestBucket, c.config.PgBackRestRegion, c.config.PgBackRestEndpoint, c.config.PgBackRestGCSServiceAccount, c.config.PgBackRestCredentialsSecret, c.config.PgBackRestAzureAccount, c.config.PgBackRestAzureContainer, c.config.ClustersNamespace).
 		WithXataUtilsPreloadLibrary().
 		WithMandatoryPostgresParameters()
 
