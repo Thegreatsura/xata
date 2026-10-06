@@ -412,8 +412,9 @@ func TestSQLAuthStore(t *testing.T) {
 		})
 
 		t.Run("a deleted installation's account can host a new installation", func(t *testing.T) {
-			// The index is partial (status != deleted), so a torn-down installation
-			// must not permanently reserve its Vercel account — reinstall works.
+			// A torn-down installation must not permanently reserve its Vercel
+			// account: the account index only reserves on an active installation,
+			// so reinstall works.
 			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
 				InstallationID:     "icfg_reacct_old",
 				VercelAccountID:    "acct_reuse",
@@ -425,6 +426,29 @@ func TestSQLAuthStore(t *testing.T) {
 				InstallationID:     "icfg_reacct_new",
 				VercelAccountID:    "acct_reuse",
 				XataOrganizationID: "org_new",
+				AccessToken:        "token",
+				Status:             store.VercelInstallationActive,
+			}))
+		})
+
+		t.Run("a deleting installation's account can host a new installation", func(t *testing.T) {
+			// A deleting installation is a finalizing uninstall, not a reservation,
+			// so a re-install for the same Vercel account succeeds while the old row
+			// still finalizes. Drive the real active -> deleting transition rather
+			// than inserting the deleting row directly.
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     "icfg_deleting_old",
+				VercelAccountID:    "acct_deleting",
+				XataOrganizationID: "org_deleting_old",
+				AccessToken:        "token",
+				Status:             store.VercelInstallationActive,
+			}))
+			require.NoError(t, sqlStore.TriggerVercelInstallationDeletion(ctx, "icfg_deleting_old"))
+
+			require.NoError(t, sqlStore.UpsertVercelInstallation(ctx, &store.VercelInstallation{
+				InstallationID:     "icfg_deleting_new",
+				VercelAccountID:    "acct_deleting",
+				XataOrganizationID: "org_deleting_new",
 				AccessToken:        "token",
 				Status:             store.VercelInstallationActive,
 			}))

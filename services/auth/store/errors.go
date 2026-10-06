@@ -63,9 +63,10 @@ func (e ErrVercelInstallationAlreadyDeleting) StatusCode() int {
 	return http.StatusConflict
 }
 
-// ErrVercelAccountAlreadyLinked is returned when a Vercel account already has a
-// non-deleted installation. A Vercel team maps to at most one active
-// installation, enforced by a partial unique index.
+// ErrVercelAccountAlreadyLinked is returned when a Vercel account already has an
+// active installation. A Vercel team maps to at most one active installation,
+// enforced by a partial unique index; a deleting or deleted installation does
+// not reserve the account, so a re-install over a finalizing uninstall succeeds.
 type ErrVercelAccountAlreadyLinked struct {
 	InstallationID  string
 	VercelAccountID string

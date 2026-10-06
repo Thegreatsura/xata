@@ -28,7 +28,10 @@ var _ store.AuthStore = (*sqlAuthStore)(nil)
 const (
 	// Unique constraint name for API keys
 	UniqueConstraintKeyName = "unique_api_key_name"
-	// Partial unique index enforcing one active installation per Vercel account
+	// Partial unique index enforcing one active installation per Vercel account.
+	// The predicate is status = 'active', so a deleting (or deleted) installation
+	// does not reserve the account: an uninstall that is still finalizing no longer
+	// blocks a fresh re-install for the same Vercel account.
 	UniqueConstraintVercelInstallationAccount = "unique_active_vercel_installation_account"
 )
 

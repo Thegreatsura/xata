@@ -1,0 +1,10 @@
+{
+    "operations": [
+        {
+            "sql": {
+                "up": "DROP INDEX unique_active_vercel_installation_account; CREATE UNIQUE INDEX unique_active_vercel_installation_account ON vercel_installations (vercel_account_id) WHERE status = 'active'",
+                "down": "DROP INDEX unique_active_vercel_installation_account; CREATE UNIQUE INDEX unique_active_vercel_installation_account ON vercel_installations (vercel_account_id) WHERE status != 'deleted'"
+            }
+        }
+    ]
+}
