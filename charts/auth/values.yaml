@@ -134,7 +134,7 @@ billingReconciliation:
       memory: 256Mi
     requests:
       cpu: 50m
-      memory: 128Mi
+      memory: 256Mi
 
 manualInvoiceReadyAlerts:
   schedule: "0 9 * * *"
