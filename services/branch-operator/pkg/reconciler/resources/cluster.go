@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"cmp"
 	"fmt"
 	"strings"
 
@@ -519,50 +520,31 @@ func pgbackrestRepository(
 	return repo
 }
 
-// pgbackrestS3 builds the S3 apply configuration. When Endpoint is set, the
-// store is a non-AWS S3-compatible endpoint (Cloudflare R2, or RustFS for local
-// dev) with no IAM role to inherit, so it switches to static credentials from
-// the configured Secret.
+// pgbackrestS3 builds the S3 apply configuration.
 func pgbackrestS3(
 	s3 *v1alpha1.PgBackRestS3Spec,
 	creds BackupCredentials,
 ) *apiv1ac.PgBackRestS3ApplyConfiguration {
 	ac := apiv1ac.PgBackRestS3().
 		WithBucket(s3.Bucket).
-		WithRegion(s3.Region).
-		WithInheritFromIAMRole(s3.InheritFromIAMRole)
-	// TODO(Martin): Use only the endpoint to select IAM credentials. At this
-	// time, a Branch with inheritFromIAMRole=false and no endpoint ignores
-	// KeyType.
-	if s3.Endpoint == "" && s3.InheritFromIAMRole {
-		keyType := pgBackRestAWSS3KeyTypeAuto
-		if s3.KeyType != "" {
-			keyType = s3.KeyType
-		}
-		ac = ac.WithKeyType(keyType)
+		WithRegion(s3.Region)
+	if s3.Endpoint == "" {
+		return ac.WithKeyType(cmp.Or(s3.KeyType, pgBackRestAWSS3KeyTypeAuto))
 	}
 
-	if s3.Endpoint != "" {
-		// The branch-stamped Secret wins over the operator-wide default, so
-		// existing branches keep their store's credentials when the cell-wide
-		// default changes.
-		secretName := s3.CredentialsSecretName
-		if secretName == "" {
-			secretName = creds.SecretName
-		}
-		ac = ac.WithEndpoint(s3.Endpoint).
-			WithInheritFromIAMRole(false).
-			WithAccessKeyID(machineryapi.SecretKeySelector{
-				Name: secretName,
-				Key:  creds.AccessKeyIDKey,
-			}).
-			WithSecretAccessKey(machineryapi.SecretKeySelector{
-				Name: secretName,
-				Key:  creds.SecretAccessKeyKey,
-			})
-	}
-
-	return ac
+	// The branch-stamped Secret wins over the operator-wide default, so
+	// existing branches keep their store's credentials when the cell-wide
+	// default changes.
+	secretName := cmp.Or(s3.CredentialsSecretName, creds.SecretName)
+	return ac.WithEndpoint(s3.Endpoint).
+		WithAccessKeyID(machineryapi.SecretKeySelector{
+			Name: secretName,
+			Key:  creds.AccessKeyIDKey,
+		}).
+		WithSecretAccessKey(machineryapi.SecretKeySelector{
+			Name: secretName,
+			Key:  creds.SecretAccessKeyKey,
+		})
 }
 
 // pgbackrestGCS builds the GCS apply configuration. Auth is Workload Identity
@@ -590,7 +572,7 @@ func UsesAWSIAM(b *v1alpha1.BackupSpec) bool {
 		return false
 	}
 	s3 := b.PgBackRest.S3
-	return s3 != nil && s3.Endpoint == "" && s3.InheritFromIAMRole
+	return s3 != nil && s3.Endpoint == ""
 }
 
 // serviceAccountTemplate maps each cluster-specific Kubernetes ServiceAccount

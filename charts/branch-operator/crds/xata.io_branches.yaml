@@ -200,16 +200,10 @@ spec:
                               set, static credentials from the operator-configured credentials Secret
                               are used instead of an IAM role.
                             type: string
-                          inheritFromIAMRole:
-                            default: true
-                            description: InheritFromIAMRole uses the pod's IAM role
-                              for S3 authentication.
-                            type: boolean
                           keyType:
                             description: |-
-                              KeyType selects how pgBackRest gets S3 credentials. "auto" uses the
-                              instance metadata service. "web-id" uses the web identity token of the
-                              Branch ServiceAccount. The default is "auto".
+                              KeyType is the cnpg s3.keyType of the repository. The operator ignores
+                              it when Endpoint is set. The default is "auto".
                             enum:
                             - auto
                             - web-id

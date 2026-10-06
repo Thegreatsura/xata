@@ -471,10 +471,9 @@ func TestCreatePostgresCluster(t *testing.T) {
 				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
 					S3: &v1alpha1.PgBackRestS3Spec{
-						Bucket:             "test-pgbackrest-bucket",
-						Region:             "us-east-1",
-						InheritFromIAMRole: true,
-						KeyType:            webIdentityKeyType,
+						Bucket:  "test-pgbackrest-bucket",
+						Region:  "us-east-1",
+						KeyType: webIdentityKeyType,
 					},
 					RepoPath:            webIdentityRepoPath(b.Name),
 					RetentionFullDays:   7,
@@ -709,10 +708,9 @@ func TestCreatePostgresCluster(t *testing.T) {
 				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
 					S3: &v1alpha1.PgBackRestS3Spec{
-						Bucket:             "test-pgbackrest-bucket",
-						Region:             "us-east-1",
-						InheritFromIAMRole: true,
-						KeyType:            webIdentityKeyType,
+						Bucket:  "test-pgbackrest-bucket",
+						Region:  "us-east-1",
+						KeyType: webIdentityKeyType,
 					},
 					RepoPath:            webIdentityRepoPath(b.Name),
 					RetentionFullDays:   7,
@@ -735,10 +733,9 @@ func TestCreatePostgresCluster(t *testing.T) {
 				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
 					S3: &v1alpha1.PgBackRestS3Spec{
-						Bucket:             "test-pgbackrest-bucket",
-						Region:             "us-east-1",
-						InheritFromIAMRole: true,
-						KeyType:            webIdentityKeyType,
+						Bucket:  "test-pgbackrest-bucket",
+						Region:  "us-east-1",
+						KeyType: webIdentityKeyType,
 					},
 					RepoPath:            webIdentityRepoPath(b.Name),
 					RetentionFullDays:   14,
@@ -1428,9 +1425,8 @@ func TestUpdatePostgresCluster(t *testing.T) {
 				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
 					S3: &v1alpha1.PgBackRestS3Spec{
-						Bucket:             "test-bucket",
-						Region:             "us-east-1",
-						InheritFromIAMRole: true,
+						Bucket: "test-bucket",
+						Region: "us-east-1",
 					},
 					RetentionFullDays:   7,
 					CompressType:        DefaultPgBackRestCompressType,
@@ -1451,9 +1447,8 @@ func TestUpdatePostgresCluster(t *testing.T) {
 				b.Spec.BackupSpec.ScheduledBackup.Schedule = "0 2 * * *"
 				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
 					S3: &v1alpha1.PgBackRestS3Spec{
-						Bucket:             "test-bucket",
-						Region:             "us-east-1",
-						InheritFromIAMRole: true,
+						Bucket: "test-bucket",
+						Region: "us-east-1",
 					},
 					RetentionFullDays:   14,
 					CompressType:        DefaultPgBackRestCompressType,
@@ -3113,10 +3108,9 @@ func expectPgBackRestBackupSpec(b *v1alpha1.Branch) {
 	b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 	b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
 		S3: &v1alpha1.PgBackRestS3Spec{
-			Bucket:             "test-pgbackrest-bucket",
-			Region:             "us-east-1",
-			InheritFromIAMRole: true,
-			KeyType:            webIdentityKeyType,
+			Bucket:  "test-pgbackrest-bucket",
+			Region:  "us-east-1",
+			KeyType: webIdentityKeyType,
 		},
 		RepoPath:            webIdentityRepoPath(b.Name),
 		RetentionFullDays:   7,

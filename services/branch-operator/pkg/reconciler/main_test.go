@@ -188,9 +188,8 @@ func (b *BranchBuilder) WithPgBackRest(bucket, region string) *BranchBuilder {
 	b.branch.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 	b.branch.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
 		S3: &v1alpha1.PgBackRestS3Spec{
-			Bucket:             bucket,
-			Region:             region,
-			InheritFromIAMRole: true,
+			Bucket: bucket,
+			Region: region,
 		},
 	}
 	return b
@@ -205,10 +204,9 @@ func (b *BranchBuilder) WithPgBackRestWebIdentity(bucket, region string) *Branch
 	b.branch.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 	b.branch.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
 		S3: &v1alpha1.PgBackRestS3Spec{
-			Bucket:             bucket,
-			Region:             region,
-			InheritFromIAMRole: true,
-			KeyType:            pgbackrest.KeyTypeWebID,
+			Bucket:  bucket,
+			Region:  region,
+			KeyType: pgbackrest.KeyTypeWebID,
 		},
 		RepoPath: pgbackrest.RepoPath(XataClustersNamespace, b.branch.Name),
 	}

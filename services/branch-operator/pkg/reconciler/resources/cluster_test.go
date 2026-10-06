@@ -398,9 +398,8 @@ func TestClusterSpec(t *testing.T) {
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
 						S3: &v1alpha1.PgBackRestS3Spec{
-							Bucket:             "test-bucket",
-							Region:             "us-east-1",
-							InheritFromIAMRole: true,
+							Bucket: "test-bucket",
+							Region: "us-east-1",
 						},
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
@@ -424,7 +423,6 @@ func TestClusterSpec(t *testing.T) {
 							WithS3(apiv1ac.PgBackRestS3().
 								WithBucket("test-bucket").
 								WithRegion("us-east-1").
-								WithInheritFromIAMRole(true).
 								WithKeyType("auto"))).
 						WithOptions(apiv1ac.PgBackRestOptions().
 							WithCompressType("lz4").
@@ -448,9 +446,8 @@ func TestClusterSpec(t *testing.T) {
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
 						S3: &v1alpha1.PgBackRestS3Spec{
-							Bucket:             "test-bucket",
-							Region:             "us-east-1",
-							InheritFromIAMRole: true,
+							Bucket: "test-bucket",
+							Region: "us-east-1",
 						},
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
@@ -475,7 +472,6 @@ func TestClusterSpec(t *testing.T) {
 							WithS3(apiv1ac.PgBackRestS3().
 								WithBucket("test-bucket").
 								WithRegion("us-east-1").
-								WithInheritFromIAMRole(true).
 								WithKeyType("auto"))).
 						WithOptions(apiv1ac.PgBackRestOptions().
 							WithCompressType("lz4").
@@ -499,10 +495,9 @@ func TestClusterSpec(t *testing.T) {
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
 						S3: &v1alpha1.PgBackRestS3Spec{
-							Bucket:             "test-bucket",
-							Region:             "us-east-1",
-							Endpoint:           "http://rustfs.local:9000",
-							InheritFromIAMRole: true,
+							Bucket:   "test-bucket",
+							Region:   "us-east-1",
+							Endpoint: "http://rustfs.local:9000",
 						},
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
@@ -527,7 +522,6 @@ func TestClusterSpec(t *testing.T) {
 								WithBucket("test-bucket").
 								WithRegion("us-east-1").
 								WithEndpoint("http://rustfs.local:9000").
-								WithInheritFromIAMRole(false).
 								WithAccessKeyID(machineryapi.SecretKeySelector{
 									Name: "rustfs-eu",
 									Key:  "accessKey",
@@ -558,10 +552,9 @@ func TestClusterSpec(t *testing.T) {
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
 						S3: &v1alpha1.PgBackRestS3Spec{
-							Bucket:             "s3://example-backups",
-							Region:             "auto",
-							Endpoint:           "https://s3.example.com",
-							InheritFromIAMRole: true,
+							Bucket:   "s3://example-backups",
+							Region:   "auto",
+							Endpoint: "https://s3.example.com",
 						},
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
@@ -591,7 +584,6 @@ func TestClusterSpec(t *testing.T) {
 								WithBucket("s3://example-backups").
 								WithRegion("auto").
 								WithEndpoint("https://s3.example.com").
-								WithInheritFromIAMRole(false).
 								WithAccessKeyID(machineryapi.SecretKeySelector{
 									Name: "backup-s3-credentials",
 									Key:  "ACCESS_KEY_ID",
@@ -625,7 +617,6 @@ func TestClusterSpec(t *testing.T) {
 							Bucket:                "s3://example-backups",
 							Region:                "auto",
 							Endpoint:              "https://s3.example.com",
-							InheritFromIAMRole:    true,
 							CredentialsSecretName: "branch-pinned-credentials",
 						},
 						RetentionFullDays:   7,
@@ -656,7 +647,6 @@ func TestClusterSpec(t *testing.T) {
 								WithBucket("s3://example-backups").
 								WithRegion("auto").
 								WithEndpoint("https://s3.example.com").
-								WithInheritFromIAMRole(false).
 								WithAccessKeyID(machineryapi.SecretKeySelector{
 									Name: "branch-pinned-credentials",
 									Key:  "ACCESS_KEY_ID",
@@ -687,9 +677,8 @@ func TestClusterSpec(t *testing.T) {
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
 						S3: &v1alpha1.PgBackRestS3Spec{
-							Bucket:             "test-bucket",
-							Region:             "us-east-1",
-							InheritFromIAMRole: true,
+							Bucket: "test-bucket",
+							Region: "us-east-1",
 						},
 					},
 				}
@@ -712,7 +701,6 @@ func TestClusterSpec(t *testing.T) {
 							WithS3(apiv1ac.PgBackRestS3().
 								WithBucket("test-bucket").
 								WithRegion("us-east-1").
-								WithInheritFromIAMRole(true).
 								WithKeyType("auto"))).
 						WithOptions(apiv1ac.PgBackRestOptions().
 							WithCompressType("").
@@ -741,7 +729,6 @@ func TestClusterSpec(t *testing.T) {
 								WithS3(apiv1ac.PgBackRestS3().
 									WithBucket("test-bucket").
 									WithRegion("us-east-1").
-									WithInheritFromIAMRole(true).
 									WithKeyType("auto"))).
 							WithOptions(apiv1ac.PgBackRestOptions().
 								WithRepoPath("source-cluster"))),
@@ -754,9 +741,8 @@ func TestClusterSpec(t *testing.T) {
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
 						S3: &v1alpha1.PgBackRestS3Spec{
-							Bucket:             "test-bucket",
-							Region:             "us-east-1",
-							InheritFromIAMRole: true,
+							Bucket: "test-bucket",
+							Region: "us-east-1",
 						},
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
@@ -780,7 +766,6 @@ func TestClusterSpec(t *testing.T) {
 							WithS3(apiv1ac.PgBackRestS3().
 								WithBucket("test-bucket").
 								WithRegion("us-east-1").
-								WithInheritFromIAMRole(true).
 								WithKeyType("auto"))).
 						WithOptions(apiv1ac.PgBackRestOptions().
 							WithCompressType("lz4").
@@ -1081,9 +1066,8 @@ func TestClusterSpecPgBackRestCipherReferences(t *testing.T) {
 		Method: v1alpha1.BackupMethodPgBackRest,
 		PgBackRest: &v1alpha1.PgBackRestSpec{
 			S3: &v1alpha1.PgBackRestS3Spec{
-				Bucket:             "backup-bucket",
-				Region:             "eu-west-1",
-				InheritFromIAMRole: true,
+				Bucket: "backup-bucket",
+				Region: "eu-west-1",
 			},
 			CipherPassphraseSecretRef: &corev1.SecretKeySelector{
 				Name: "branch-pgbackrest",
@@ -1123,9 +1107,8 @@ func TestClusterSpecAWSS3DoesNotAnnotateClusterServiceAccount(t *testing.T) {
 		Method: v1alpha1.BackupMethodPgBackRest,
 		PgBackRest: &v1alpha1.PgBackRestSpec{
 			S3: &v1alpha1.PgBackRestS3Spec{
-				Bucket:             "backup-bucket",
-				Region:             "us-east-1",
-				InheritFromIAMRole: true,
+				Bucket: "backup-bucket",
+				Region: "us-east-1",
 			},
 		},
 	}
@@ -1388,9 +1371,8 @@ func TestExternalClustersPgBackRestRepoPath(t *testing.T) {
 			Method: v1alpha1.BackupMethodPgBackRest,
 			PgBackRest: &v1alpha1.PgBackRestSpec{
 				S3: &v1alpha1.PgBackRestS3Spec{
-					Bucket:             "test-bucket",
-					Region:             "us-east-1",
-					InheritFromIAMRole: true,
+					Bucket: "test-bucket",
+					Region: "us-east-1",
 				},
 			},
 		},
@@ -1417,7 +1399,7 @@ func TestUsesAWSIAM(t *testing.T) {
 		"s3 with IAM": {
 			spec: &v1alpha1.BackupSpec{
 				Method:     v1alpha1.BackupMethodPgBackRest,
-				PgBackRest: &v1alpha1.PgBackRestSpec{S3: &v1alpha1.PgBackRestS3Spec{Bucket: "b", InheritFromIAMRole: true}},
+				PgBackRest: &v1alpha1.PgBackRestSpec{S3: &v1alpha1.PgBackRestS3Spec{Bucket: "b"}},
 			},
 			want: true,
 		},
@@ -1432,7 +1414,7 @@ func TestUsesAWSIAM(t *testing.T) {
 			spec: &v1alpha1.BackupSpec{
 				Method: v1alpha1.BackupMethodPgBackRest,
 				PgBackRest: &v1alpha1.PgBackRestSpec{S3: &v1alpha1.PgBackRestS3Spec{
-					Bucket: "b", Endpoint: "http://rustfs:9000", InheritFromIAMRole: true,
+					Bucket: "b", Endpoint: "http://rustfs:9000",
 				}},
 			},
 		},
@@ -1497,10 +1479,9 @@ func TestClusterSpecPgBackRestWebIdentity(t *testing.T) {
 				Method: v1alpha1.BackupMethodPgBackRest,
 				PgBackRest: &v1alpha1.PgBackRestSpec{
 					S3: &v1alpha1.PgBackRestS3Spec{
-						Bucket:             "backup-bucket",
-						Region:             "us-east-1",
-						InheritFromIAMRole: true,
-						KeyType:            tc.keyType,
+						Bucket:  "backup-bucket",
+						Region:  "us-east-1",
+						KeyType: tc.keyType,
 					},
 				},
 			}

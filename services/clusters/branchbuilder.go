@@ -341,6 +341,12 @@ func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, servi
 		// web identity token for each branch. Use them with the repo path that
 		// the IAM policy allows for the token. The values are set only on new
 		// branches, so existing branches keep their repository.
+		//
+		// TODO(Martin): Select static keys with credentialsSecretName, not with
+		// the endpoint. clararx has no IAM role on its bare-metal nodes and sets
+		// the AWS S3 endpoint https://s3.us-west-1.amazonaws.com only to get
+		// static keys. After the change, clararx can remove the endpoint, and
+		// local dev must set credentialsSecret for RustFS.
 		if endpoint == "" {
 			b.branch.Spec.BackupSpec.PgBackRest.S3.KeyType = pgbackrest.KeyTypeWebID
 			b.branch.Spec.BackupSpec.PgBackRest.RepoPath = pgbackrest.RepoPath(clustersNamespace, b.branch.Name)
@@ -358,7 +364,6 @@ func pgBackRestS3Spec(bucket, region, endpoint, credentialsSecretName string) *v
 		Bucket:                bucket,
 		Region:                region,
 		Endpoint:              endpoint,
-		InheritFromIAMRole:    true,
 		CredentialsSecretName: credentialsSecretName,
 	}
 }

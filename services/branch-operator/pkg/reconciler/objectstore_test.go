@@ -177,9 +177,8 @@ func TestObjectStoreReconciliation(t *testing.T) {
 				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
 					S3: &v1alpha1.PgBackRestS3Spec{
-						Bucket:             "test-bucket",
-						Region:             "us-east-1",
-						InheritFromIAMRole: true,
+						Bucket: "test-bucket",
+						Region: "us-east-1",
 					},
 				}
 			})

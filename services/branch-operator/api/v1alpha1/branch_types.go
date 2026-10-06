@@ -532,15 +532,6 @@ type PgBackRestS3Spec struct {
 	// +optional
 	Endpoint string `json:"endpoint,omitempty"`
 
-	// TODO(Martin): Remove InheritFromIAMRole. Endpoint selects static keys. KeyType selects the
-	// IAM credential provider. xata-cnpg ignores InheritFromIAMRole. The
-	// operator uses it only to decide if KeyType applies.
-
-	// InheritFromIAMRole uses the pod's IAM role for S3 authentication.
-	// +optional
-	// +kubebuilder:default:=true
-	InheritFromIAMRole bool `json:"inheritFromIAMRole,omitempty"`
-
 	// CredentialsSecretName is the Secret (in the clusters namespace) holding
 	// the static credentials for this backend. When empty, the
 	// operator-configured credentials Secret is used. Stamped at branch
@@ -549,9 +540,8 @@ type PgBackRestS3Spec struct {
 	// +optional
 	CredentialsSecretName string `json:"credentialsSecretName,omitempty"`
 
-	// KeyType selects how pgBackRest gets S3 credentials. "auto" uses the
-	// instance metadata service. "web-id" uses the web identity token of the
-	// Branch ServiceAccount. The default is "auto".
+	// KeyType is the cnpg s3.keyType of the repository. The operator ignores
+	// it when Endpoint is set. The default is "auto".
 	// +optional
 	// +kubebuilder:validation:Enum=auto;web-id
 	KeyType string `json:"keyType,omitempty"`

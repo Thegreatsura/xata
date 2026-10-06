@@ -173,15 +173,14 @@ func TestReconcilePgBackRestToken(t *testing.T) {
 func TestUsesPgBackRestBranchIdentity(t *testing.T) {
 	t.Parallel()
 
-	s3Backup := func(endpoint string, inheritFromIAMRole bool) *v1alpha1.BackupSpec {
+	s3Backup := func(endpoint string) *v1alpha1.BackupSpec {
 		return &v1alpha1.BackupSpec{
 			Method: v1alpha1.BackupMethodPgBackRest,
 			PgBackRest: &v1alpha1.PgBackRestSpec{
 				S3: &v1alpha1.PgBackRestS3Spec{
-					Bucket:             "some-bucket",
-					Region:             "us-east-1",
-					Endpoint:           endpoint,
-					InheritFromIAMRole: inheritFromIAMRole,
+					Bucket:   "some-bucket",
+					Region:   "us-east-1",
+					Endpoint: endpoint,
 				},
 			},
 		}
@@ -197,26 +196,26 @@ func TestUsesPgBackRestBranchIdentity(t *testing.T) {
 		"AWS IAM backups with a role": {
 			cloudProvider: "aws",
 			roleARN:       "arn:aws:iam::123456789012:role/test-cnpg-backups",
-			backup:        s3Backup("", true),
+			backup:        s3Backup(""),
 			want:          true,
 		},
 		"AWS IAM backups without a role": {
 			cloudProvider: "aws",
-			backup:        s3Backup("", true),
+			backup:        s3Backup(""),
 			want:          true,
 		},
 		"GCP cell": {
 			cloudProvider: "gcp",
-			backup:        s3Backup("", true),
+			backup:        s3Backup(""),
 		},
 		"cell with an S3-compatible endpoint": {
 			cloudProvider: "aws",
 			endpoint:      "https://rustfs.local",
-			backup:        s3Backup("", true),
+			backup:        s3Backup(""),
 		},
 		"Branch with static keys": {
 			cloudProvider: "aws",
-			backup:        s3Backup("https://example.r2.cloudflarestorage.com", false),
+			backup:        s3Backup("https://example.r2.cloudflarestorage.com"),
 		},
 		"Branch without backups": {
 			cloudProvider: "aws",
