@@ -2,6 +2,7 @@ package branchoperator
 
 import (
 	"context"
+	"fmt"
 
 	barmanPluginApi "github.com/cloudnative-pg/plugin-barman-cloud/api/v1"
 	"github.com/go-logr/zerologr"
@@ -25,6 +26,7 @@ import (
 	poolv1alpha1 "xata/proto/clusterpool-operator/api/v1alpha1"
 	"xata/services/branch-operator/api/v1alpha1"
 	"xata/services/branch-operator/pkg/reconciler"
+	"xata/services/branch-operator/pkg/reconciler/metrics"
 	"xata/services/branch-operator/pkg/wakeup"
 )
 
@@ -45,6 +47,7 @@ var _ service.RunnerService = (*BranchOperatorService)(nil)
 type BranchOperatorService struct {
 	config           Config
 	manager          ctrl.Manager
+	branchReconciler *reconciler.BranchReconciler
 	wakeupReconciler *wakeup.WakeupReconciler
 }
 
@@ -181,6 +184,7 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 	if err := reconciler.SetupWithManager(ctx, mgr); err != nil {
 		return err
 	}
+	s.branchReconciler = reconciler
 
 	if s.config.XatastorEnabled {
 		wakeupReconciler := &wakeup.WakeupReconciler{
@@ -254,7 +258,12 @@ func (s *BranchOperatorService) Run(ctx context.Context, o *o11y.O) error {
 	ctrlLogger := logger.With().Str("module", "controller-runtime").Logger()
 	ctrl.SetLogger(zerologr.New(&ctrlLogger))
 
-	// Setup the wakeup reconciler with observability
+	// Set up the metrics and the observability of the reconcilers
+	branchMetrics, err := metrics.New(o.Meter(metrics.MeterName))
+	if err != nil {
+		return fmt.Errorf("create branch reconciler metrics: %w", err)
+	}
+	s.branchReconciler.Metrics = branchMetrics
 	if s.wakeupReconciler != nil {
 		s.wakeupReconciler.O = o
 	}

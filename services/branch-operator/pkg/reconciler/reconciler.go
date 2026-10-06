@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	barmanPluginApi "github.com/cloudnative-pg/plugin-barman-cloud/api/v1"
 	snapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
@@ -19,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"xata/services/branch-operator/api/v1alpha1"
+	"xata/services/branch-operator/pkg/reconciler/metrics"
 )
 
 // +kubebuilder:rbac:groups=xata.io,resources=branches,verbs=get;list;watch
@@ -45,6 +47,7 @@ const (
 // BranchReconciler reconciles a Branch object
 type BranchReconciler struct {
 	client.Client
+	Metrics                              *metrics.Metrics
 	Scheme                               *runtime.Scheme
 	ClustersNamespace                    string
 	BackupsBucket                        string
@@ -221,7 +224,9 @@ func (r *BranchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// Reconcile the pgBackRest ServiceAccount and token for the branch
+	start := time.Now()
 	tokenRefreshIn, err := r.reconcilePgBackRestIdentity(ctx, branch)
+	r.Metrics.RecordPgBackRestIdentity(ctx, time.Since(start), err == nil)
 	if err != nil {
 		log.Error(err, "reconciling pgbackrest identity")
 		return ctrl.Result{}, err
