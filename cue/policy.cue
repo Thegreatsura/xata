@@ -55,6 +55,6 @@ package policy
 	...
 }
 
-// When using -l 'kind' -l 'metadata.name', the data is structured as:
-// [Kind]: [Name]: #K8sObject
-[string]: [string]: #K8sObject
+// When using -l 'kind' -l 'metadata.namespace' -l 'metadata.name', the data is structured as:
+// [Kind]: [Namespace]: [Name]: #K8sObject
+[string]: [string]: [string]: #K8sObject
