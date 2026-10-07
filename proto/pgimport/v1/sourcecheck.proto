@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package pgimport.v1;
+
+// SourceCheckService answers whether a PostgreSQL database somebody else runs
+// can be imported into Xata.
+service SourceCheckService {
+  rpc RunSourceCheck(RunSourceCheckRequest) returns (RunSourceCheckResponse) {}
+}
+
+// SourceCheckMode is what the customer intends to do with the source.
+// Options: clone, replica
+enum SourceCheckMode {
+  SOURCE_CHECK_MODE_UNSPECIFIED = 0;
+  SOURCE_CHECK_MODE_CLONE = 1;
+  SOURCE_CHECK_MODE_REPLICA = 2;
+}
+
+message RunSourceCheckRequest {
+  // connection_string is pasted by the customer. Unsafe.
+  string connection_string = 1;
+  SourceCheckMode mode = 2;
+}
+
+message RunSourceCheckResponse {
+  SourceCheckVerdict verdict = 1;
+  repeated SourceCheck checks = 2;
+}
+
+enum SourceCheckVerdict {
+  SOURCE_CHECK_VERDICT_UNSPECIFIED = 0;
+  // Every check ran and found nothing wrong.
+  SOURCE_CHECK_VERDICT_READY = 1;
+  // Every check ran; at least one reported something the customer must fix.
+  SOURCE_CHECK_VERDICT_FINDINGS = 2;
+  // A check could not run or could not complete, so the source's suitability
+  // is not known.
+  SOURCE_CHECK_VERDICT_INCOMPLETE = 3;
+}
+
+message SourceCheck {
+  string name = 1;
+  SourceCheckStatus status = 2;
+  repeated Finding findings = 3;
+  // message is set when a check did not produce findings to report: it could
+  // not run, or could not finish. It is written for the customer.
+  string message = 4;
+
+  // reason is a short stable word for why, safe to show and meant to be
+  // counted: invalid_connection_string, refused_by_policy, connection_failed,
+  // source_unreachable, or one of pgstream's own.
+  string reason = 5;
+}
+
+enum SourceCheckStatus {
+  SOURCE_CHECK_STATUS_UNSPECIFIED = 0;
+  SOURCE_CHECK_STATUS_OK = 1;
+  SOURCE_CHECK_STATUS_FINDINGS = 2;
+  SOURCE_CHECK_STATUS_ERROR = 3;
+  SOURCE_CHECK_STATUS_NOT_RUN = 4;
+}
+
+message Finding {
+  string id = 1;
+  string title = 2;
+  string detail = 3;
+}
