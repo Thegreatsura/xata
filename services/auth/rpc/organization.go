@@ -17,6 +17,7 @@ func keycloakOrganizationToProto(org keycloak.Organization) *authv1.Organization
 		DisabledByAdmin:         org.Status.DisabledByAdmin,
 		DisabledByAdminReason:   org.Status.AdminReason,
 		BillingStatus:           string(org.Status.BillingStatus),
+		ForceBillingStatusOk:    org.ForceBillingStatusOk,
 		BillingReason:           org.Status.BillingReason,
 		UsageTier:               string(org.Status.UsageTier),
 		BillingCollectionMethod: string(org.BillingCollectionMethod),

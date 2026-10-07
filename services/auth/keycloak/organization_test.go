@@ -4,7 +4,31 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestOrganizationForceBillingStatusOkFromAttributes(t *testing.T) {
+	testCases := map[string]struct {
+		attributes map[string][]string
+		want       bool
+	}{
+		"missing":          {},
+		"true":             {attributes: map[string][]string{OrganizationForceBillingStatusOkKey: {"true"}}, want: true},
+		"case insensitive": {attributes: map[string][]string{OrganizationForceBillingStatusOkKey: {"TRUE"}}, want: true},
+		"false":            {attributes: map[string][]string{OrganizationForceBillingStatusOkKey: {"false"}}},
+		"empty list":       {attributes: map[string][]string{OrganizationForceBillingStatusOkKey: {}}},
+		"empty value":      {attributes: map[string][]string{OrganizationForceBillingStatusOkKey: {""}}},
+		"invalid":          {attributes: map[string][]string{OrganizationForceBillingStatusOkKey: {"invalid"}}},
+		"first value wins": {attributes: map[string][]string{OrganizationForceBillingStatusOkKey: {"false", "true"}}},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			got := OrganizationFromAttributes("org-1", tc.attributes)
+			require.Equal(t, tc.want, got.ForceBillingStatusOk)
+		})
+	}
+}
 
 func TestOrganizationBillingCollectionMethodFromAttributes(t *testing.T) {
 	testCases := map[string]struct {

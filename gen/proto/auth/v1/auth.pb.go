@@ -229,6 +229,7 @@ type Organization struct {
 	BillingCollectionMethod string                 `protobuf:"bytes,11,opt,name=billing_collection_method,json=billingCollectionMethod,proto3" json:"billing_collection_method,omitempty"`
 	Name                    string                 `protobuf:"bytes,12,opt,name=name,proto3" json:"name,omitempty"`
 	AwsMarketplace          *AWSMarketplace        `protobuf:"bytes,13,opt,name=aws_marketplace,json=awsMarketplace,proto3" json:"aws_marketplace,omitempty"`
+	ForceBillingStatusOk    bool                   `protobuf:"varint,14,opt,name=force_billing_status_ok,json=forceBillingStatusOk,proto3" json:"force_billing_status_ok,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -352,6 +353,13 @@ func (x *Organization) GetAwsMarketplace() *AWSMarketplace {
 		return x.AwsMarketplace
 	}
 	return nil
+}
+
+func (x *Organization) GetForceBillingStatusOk() bool {
+	if x != nil {
+		return x.ForceBillingStatusOk
+	}
+	return false
 }
 
 type AWSMarketplace struct {
@@ -844,7 +852,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"api_key_id\x18\t \x01(\tR\bapiKeyId\x1aW\n" +
 	"\x12OrganizationsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.auth.v1.OrganizationR\x05value:\x028\x01J\x04\b\x05\x10\x06\"\xec\x04\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.auth.v1.OrganizationR\x05value:\x028\x01J\x04\b\x05\x10\x06\"\xa3\x05\n" +
 	"\fOrganization\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12*\n" +
@@ -862,7 +870,8 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\x12:\n" +
 	"\x19billing_collection_method\x18\v \x01(\tR\x17billingCollectionMethod\x12\x12\n" +
 	"\x04name\x18\f \x01(\tR\x04name\x12@\n" +
-	"\x0faws_marketplace\x18\r \x01(\v2\x17.auth.v1.AWSMarketplaceR\x0eawsMarketplaceB\x1b\n" +
+	"\x0faws_marketplace\x18\r \x01(\v2\x17.auth.v1.AWSMarketplaceR\x0eawsMarketplace\x125\n" +
+	"\x17force_billing_status_ok\x18\x0e \x01(\bR\x14forceBillingStatusOkB\x1b\n" +
 	"\x19_disabled_by_admin_reasonB\x11\n" +
 	"\x0f_billing_reason\"o\n" +
 	"\x0eAWSMarketplace\x12\x1f\n" +

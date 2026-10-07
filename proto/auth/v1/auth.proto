@@ -44,6 +44,7 @@ message Organization {
   string billing_collection_method = 11;
   string name = 12;
   AWSMarketplace aws_marketplace = 13;
+  bool force_billing_status_ok = 14;
 }
 
 message AWSMarketplace {

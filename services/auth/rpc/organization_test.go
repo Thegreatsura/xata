@@ -74,6 +74,14 @@ func TestKeycloakOrganizationToProto(t *testing.T) {
 				AwsMarketplace: &authv1.AWSMarketplace{},
 			},
 		},
+		"forced billing does not itself enable an organization": {
+			org:  keycloak.Organization{ForceBillingStatusOk: true, Status: keycloak.OrganizationStatus{BillingStatus: keycloak.OrganizationBillingStatusInvoiceOverdue}},
+			want: &authv1.Organization{ForceBillingStatusOk: true, Status: string(keycloak.OrganizationStateDisabled), BillingStatus: string(keycloak.OrganizationBillingStatusInvoiceOverdue)},
+		},
+		"forced billing preserves admin disabling": {
+			org:  keycloak.Organization{ForceBillingStatusOk: true, Status: keycloak.OrganizationStatus{BillingStatus: keycloak.OrganizationBillingStatusOK, DisabledByAdmin: true}},
+			want: &authv1.Organization{ForceBillingStatusOk: true, Status: string(keycloak.OrganizationStateDisabled), BillingStatus: string(keycloak.OrganizationBillingStatusOK), DisabledByAdmin: true},
+		},
 		"bank transfer collection method": {
 			org: keycloak.Organization{
 				ID:                      "org-bank-transfer",

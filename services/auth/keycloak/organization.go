@@ -6,6 +6,7 @@ const (
 	OrganizationDisplayNameKey             = "displayName"
 	OrganizationDisabledByAdminKey         = "disabledByAdmin"
 	OrganizationBillingStatusKey           = "billingStatus"
+	OrganizationForceBillingStatusOkKey    = "forceBillingStatusOk"
 	OrganizationBillingCollectionMethodKey = "billingCollectionMethod"
 	OrganizationAdminReasonKey             = "adminReason"
 	OrganizationBillingReasonKey           = "billingReason"
@@ -104,6 +105,7 @@ type OrganizationUpdate struct {
 	BillingReason           *string                              `json:"billingReason,omitempty"`
 	AdminReason             *string                              `json:"adminReason,omitempty"`
 	DisabledByAdmin         *bool                                `json:"disabledByAdmin,omitempty"`
+	ForceBillingStatusOk    *bool                                `json:"forceBillingStatusOk,omitempty"`
 	ResourcesCleanedAt      *string                              `json:"resourcesCleanedAt,omitempty"`
 	UsageTier               *OrganizationUsageTier               `json:"usageTier,omitempty"`
 	BillingCollectionMethod *OrganizationBillingCollectionMethod `json:"billingCollectionMethod,omitempty"`
@@ -152,6 +154,7 @@ type Organization struct {
 	ID                      string
 	Name                    string
 	BillingCollectionMethod OrganizationBillingCollectionMethod
+	ForceBillingStatusOk    bool
 	Marketplace             *OrganizationMarketplaceProvider
 	AWSMarketplace          *AWSMarketplace
 	VercelMarketplace       *VercelMarketplace

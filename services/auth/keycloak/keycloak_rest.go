@@ -491,6 +491,9 @@ func (r *restKC) UpdateOrganization(
 	if update.DisabledByAdmin != nil {
 		updates[OrganizationDisabledByAdminKey] = []string{fmt.Sprintf("%t", *update.DisabledByAdmin)}
 	}
+	if update.ForceBillingStatusOk != nil {
+		updates[OrganizationForceBillingStatusOkKey] = []string{fmt.Sprintf("%t", *update.ForceBillingStatusOk)}
+	}
 	if update.BillingStatus != nil {
 		updates[OrganizationBillingStatusKey] = []string{string(*update.BillingStatus)}
 	}
@@ -1060,6 +1063,9 @@ func OrganizationFromAttributes(alias string, attributes map[string][]string) Or
 		ID:                      alias,
 		BillingCollectionMethod: extractBillingCollectionMethod(attributes),
 		Status:                  extractStatus(attributes),
+	}
+	if v, ok := FirstAttr(attributes, OrganizationForceBillingStatusOkKey); ok {
+		result.ForceBillingStatusOk = strings.EqualFold(v, "true")
 	}
 	if v, ok := FirstAttr(attributes, OrganizationMarketplaceKey); ok && v != "" {
 		marketplace := OrganizationMarketplaceProvider(v)

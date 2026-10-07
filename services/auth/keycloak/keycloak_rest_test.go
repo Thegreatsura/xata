@@ -851,6 +851,42 @@ func TestUpdateOrganizationBillingCollectionMethod(t *testing.T) {
 	assert.Equal(t, string(OrganizationBillingCollectionMethodStripePaymentMethod), organization.Attributes[OrganizationBillingCollectionMethodKey][0])
 }
 
+func TestUpdateOrganizationForceBillingStatusOk(t *testing.T) {
+	testCases := map[string]bool{"enable": true, "disable": false}
+	for name, want := range testCases {
+		t.Run(name, func(t *testing.T) {
+			organization := KeycloakOrganization{
+				ID: "keycloak-id", Name: "org_123", Alias: "org_123",
+				Attributes: map[string][]string{OrganizationForceBillingStatusOkKey: {strconv.FormatBool(!want)}},
+			}
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if strings.HasSuffix(req.URL.Path, tokenEndpointSuffix) {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`{"access_token":"test-token","expires_in":300,"token_type":"Bearer"}`))
+					return
+				}
+				if req.Method == http.MethodPut {
+					if err := json.NewDecoder(req.Body).Decode(&organization); err != nil {
+						http.Error(w, err.Error(), http.StatusBadRequest)
+						return
+					}
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode([]KeycloakOrganization{organization})
+			}))
+			defer srv.Close()
+
+			got, err := newTestRestKC(srv.URL).UpdateOrganization(t.Context(), "realm", "org_123", OrganizationUpdate{ForceBillingStatusOk: &want})
+
+			require.NoError(t, err)
+			require.Equal(t, want, got.ForceBillingStatusOk)
+			require.Equal(t, []string{strconv.FormatBool(want)}, organization.Attributes[OrganizationForceBillingStatusOkKey])
+		})
+	}
+}
+
 func TestOrganizationWritesKeepEnabled(t *testing.T) {
 	rename := func(r *restKC) error {
 		name := "Renamed"
