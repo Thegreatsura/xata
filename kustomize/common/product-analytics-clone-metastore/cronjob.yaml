@@ -11,6 +11,15 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 3
+      # Set a failure policy to ignore pod failures due to node disruptions, so
+      # that the job can be retried on another node without affecting the job's
+      # backoff limit.
+      podFailurePolicy:
+        rules:
+          - action: Ignore
+            onPodConditions:
+              - type: DisruptionTarget
+                status: "True"
       template:
         spec:
           nodeSelector:
@@ -19,7 +28,7 @@ spec:
             - effect: NoSchedule
               key: xata.io/workload
               value: controlplane
-          restartPolicy: OnFailure
+          restartPolicy: Never
           containers:
             - name: product-analytics-clone-metastore
               image: ghcr.io/xataio/xata:1.1.4-pg17
