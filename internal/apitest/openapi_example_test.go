@@ -105,13 +105,12 @@ func Example_tableTestValidation() {
 				WithOpenAPISpec(spec).
 				WithClaims(apitest.TestClaims)
 
-			// Build request, optionally skipping validation for specific cases
-			req := e.POST("/organizations").WithJSONBody(tt.jsonBody)
+			// Configure validation before building the request.
 			if tt.skipValidation {
-				req = req.SkipOpenAPIValidation()
+				e = e.SkipOpenAPIValidation()
 			}
 
-			c, rec := req.Context()
+			c, rec := e.POST("/organizations").WithJSONBody(tt.jsonBody).Context()
 
 			// Call handler
 			// err := handler.CreateOrganization(c)
@@ -135,21 +134,7 @@ func Example_advancedValidation() {
 	validator, err := validation.NewValidator(spec)
 	require.NoError(t, err)
 
-	// Example: Validate just a request body without making a full HTTP request
-	requestBody := map[string]string{"name": "test-org"}
-	err = validator.ValidateRequestBody("POST", "/organizations", requestBody)
-	require.NoError(t, err)
-
 	// Example: Get all available operations in the spec
 	operations := validator.GetOperationPaths()
 	_ = operations // Use for documentation or test discovery
-
-	// Example: Validate just a response body
-	responseBody := map[string]any{
-		"id":     "org123",
-		"name":   "test-org",
-		"status": "enabled",
-	}
-	err = validator.ValidateResponseBody("POST", "/organizations", http.StatusCreated, responseBody)
-	require.NoError(t, err)
 }

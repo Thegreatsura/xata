@@ -57,7 +57,6 @@ type testrequest struct {
 	req          *http.Request
 	rec          *ResponseRecorder
 	spec         *openapi3.T
-	skipSpec     bool
 	reqBodyBytes []byte // Cache of request body bytes for validation
 }
 
@@ -112,12 +111,11 @@ func (a *apitest) newRequest(method, path string) *testrequest {
 	req := httptest.NewRequest(method, path, nil)
 
 	return &testrequest{
-		t:        a.t,
-		e:        a.e,
-		claims:   a.claims,
-		req:      req,
-		spec:     a.spec,
-		skipSpec: a.skipSpec,
+		t:      a.t,
+		e:      a.e,
+		claims: a.claims,
+		req:    req,
+		spec:   a.spec,
 		rec: &ResponseRecorder{
 			ResponseRecorder: httptest.NewRecorder(),
 			t:                a.t,
@@ -172,14 +170,6 @@ func (t *testrequest) WithJSONBody(in any) *testrequest {
 // WithHeader sets a request header.
 func (t *testrequest) WithHeader(key, value string) *testrequest {
 	t.req.Header.Set(key, value)
-	return t
-}
-
-// SkipOpenAPIValidation disables automatic OpenAPI validation for this specific request.
-// This is useful when testing error cases that intentionally violate the schema.
-func (t *testrequest) SkipOpenAPIValidation() *testrequest {
-	t.skipSpec = true
-	t.rec.skipSpec = true
 	return t
 }
 

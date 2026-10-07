@@ -3,7 +3,6 @@ package validation
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -137,117 +136,6 @@ func (v *Validator) ValidateResponse(req *http.Request, resp *http.Response) err
 	// Validate response
 	if err := openapi3filter.ValidateResponse(req.Context(), responseValidationInput); err != nil {
 		return fmt.Errorf("validate response: %w", err)
-	}
-
-	return nil
-}
-
-// ValidateRequestBody validates just the request body against the schema for a specific operation.
-// This is useful when you want to validate a request body without having a full HTTP request.
-func (v *Validator) ValidateRequestBody(method, path string, body any) error {
-	// Find the operation
-	pathItem := v.spec.Paths.Find(path)
-	if pathItem == nil {
-		return fmt.Errorf("path not found: %s", path)
-	}
-
-	operation := pathItem.GetOperation(method)
-	if operation == nil {
-		return fmt.Errorf("operation not found: %s %s", method, path)
-	}
-
-	// Check if operation has request body
-	if operation.RequestBody == nil {
-		return fmt.Errorf("operation %s %s does not accept a request body", method, path)
-	}
-
-	// Get the JSON schema
-	mediaType := operation.RequestBody.Value.Content.Get("application/json")
-	if mediaType == nil {
-		return fmt.Errorf("operation %s %s does not accept application/json", method, path)
-	}
-
-	if mediaType.Schema == nil {
-		return fmt.Errorf("no schema defined for request body: %s %s", method, path)
-	}
-
-	// Convert body to JSON if it's not already a string/[]byte
-	var jsonData any
-	switch v := body.(type) {
-	case string:
-		if err := json.Unmarshal([]byte(v), &jsonData); err != nil {
-			return fmt.Errorf("unmarshal request body: %w", err)
-		}
-	case []byte:
-		if err := json.Unmarshal(v, &jsonData); err != nil {
-			return fmt.Errorf("unmarshal request body: %w", err)
-		}
-	default:
-		jsonData = body
-	}
-
-	// Validate against schema
-	if err := mediaType.Schema.Value.VisitJSON(jsonData); err != nil {
-		return fmt.Errorf("validate request body schema: %w", err)
-	}
-
-	return nil
-}
-
-// ValidateResponseBody validates just the response body against the schema for a specific operation and status code.
-// This is useful when you want to validate a response body without having a full HTTP response.
-func (v *Validator) ValidateResponseBody(method, path string, statusCode int, body any) error {
-	// Find the operation
-	pathItem := v.spec.Paths.Find(path)
-	if pathItem == nil {
-		return fmt.Errorf("path not found: %s", path)
-	}
-
-	operation := pathItem.GetOperation(method)
-	if operation == nil {
-		return fmt.Errorf("operation not found: %s %s", method, path)
-	}
-
-	// Get the response for the status code
-	statusStr := fmt.Sprintf("%d", statusCode)
-	response := operation.Responses.Status(statusCode)
-	if response == nil {
-		// Try default response
-		response = operation.Responses.Default()
-		if response == nil {
-			return fmt.Errorf("no response defined for status %d in %s %s", statusCode, method, path)
-		}
-	}
-
-	// Get the JSON schema
-	mediaType := response.Value.Content.Get("application/json")
-	if mediaType == nil {
-		// If no content is defined, the response should be empty
-		return nil
-	}
-
-	if mediaType.Schema == nil {
-		return fmt.Errorf("no schema defined for response %s: %s %s", statusStr, method, path)
-	}
-
-	// Convert body to JSON if it's not already a string/[]byte
-	var jsonData any
-	switch v := body.(type) {
-	case string:
-		if err := json.Unmarshal([]byte(v), &jsonData); err != nil {
-			return fmt.Errorf("unmarshal response body: %w", err)
-		}
-	case []byte:
-		if err := json.Unmarshal(v, &jsonData); err != nil {
-			return fmt.Errorf("unmarshal response body: %w", err)
-		}
-	default:
-		jsonData = body
-	}
-
-	// Validate against schema
-	if err := mediaType.Schema.Value.VisitJSON(jsonData); err != nil {
-		return fmt.Errorf("validate response body schema: %w", err)
 	}
 
 	return nil
