@@ -568,6 +568,101 @@ func TestClusterDialer_Dial(t *testing.T) {
 			wantDialCalls: 1,
 			wantErr:       syscall.ECONNREFUSED,
 		},
+		// A scale-to-zero wake that another connection triggered moments ago.
+		// Hibernation deleted the pod but kept the PVC, so CNPG still counts one
+		// instance, and the controller has not yet created the new pod, so the
+		// phase still reads healthy. The clusters service reports the instance
+		// with a placeholder status because the Cluster has no pod for it. This
+		// is the shape a concurrent request sees in the first reconcile of a
+		// wake, and it must be held rather than surfaced as a dial error.
+		"ok - wake in flight with PVC but no pod yet, waits then connects": {
+			dialer: &mockDialer{
+				dialFn: func(ctx context.Context, i uint, network, address string) (net.Conn, error) {
+					switch i {
+					case 1:
+						return nil, syscall.ECONNREFUSED
+					case 2:
+						return &net.TCPConn{}, nil
+					default:
+						return nil, errors.New("unexpected dial call")
+					}
+				},
+			},
+			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
+					Id: "test-branch",
+				}).Return(&clustersv1.DescribePostgresClusterResponse{
+					Status: &clustersv1.ClusterStatus{
+						Status:             apiv1.PhaseHealthy,
+						StatusType:         clustersv1.ClusterStatus_STATUS_TYPE_TRANSIENT,
+						InstanceCount:      1,
+						InstanceReadyCount: 0,
+						Instances: map[string]*clustersv1.InstanceStatus{
+							"test-branch-1": {
+								Primary: true,
+								Status:  "Unknown",
+							},
+						},
+					},
+					Configuration: &clustersv1.ClusterConfiguration{
+						ScaleToZero: &clustersv1.ScaleToZero{Enabled: true},
+					},
+				}, nil).Once()
+
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
+					Id: "test-branch",
+				}).Return(&clustersv1.DescribePostgresClusterResponse{
+					Status: &clustersv1.ClusterStatus{
+						Status:             apiv1.PhaseHealthy,
+						StatusType:         clustersv1.ClusterStatus_STATUS_TYPE_HEALTHY,
+						InstanceCount:      1,
+						InstanceReadyCount: 1,
+						Instances: map[string]*clustersv1.InstanceStatus{
+							"test-branch-1": {
+								Primary: true,
+								Status:  apiv1.PodHealthy,
+							},
+						},
+					},
+				}, nil).Once()
+			},
+
+			wantDialCalls: 2,
+			wantErr:       nil,
+		},
+		// The same counts and phase as the wake above, but the primary has a
+		// pod and CNPG classifies it as replicating: a running pod that is not
+		// ready, which is what a crash-looping primary looks like. The pod is
+		// evidence that nothing is being created, so this still fails fast.
+		"error - cluster healthy phase with crash-looping primary, fails fast without holding": {
+			dialer: &mockDialer{
+				dialFn: func(ctx context.Context, _ uint, network, address string) (net.Conn, error) {
+					return nil, syscall.ECONNREFUSED
+				},
+			},
+			setupMocks: func(mockClusters *protomocks.ClustersServiceClient) {
+				mockClusters.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{
+					Id: "test-branch",
+				}).Return(&clustersv1.DescribePostgresClusterResponse{
+					Status: &clustersv1.ClusterStatus{
+						Status:             apiv1.PhaseHealthy,
+						StatusType:         clustersv1.ClusterStatus_STATUS_TYPE_TRANSIENT,
+						InstanceCount:      1,
+						InstanceReadyCount: 0,
+						Instances: map[string]*clustersv1.InstanceStatus{
+							"test-branch-1": {
+								Primary: true,
+								Status:  apiv1.PodReplicating,
+							},
+						},
+					},
+					Configuration: &clustersv1.ClusterConfiguration{},
+				}, nil)
+			},
+
+			wantDialCalls: 1,
+			wantErr:       syscall.ECONNREFUSED,
+		},
 		// Simulates a hibernated cluster that reactivates successfully (Postgres
 		// instances come back) but the dial target (e.g. the pooler Service)
 		// stays unreachable. waitUntilReachable retries the probe-dial until

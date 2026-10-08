@@ -475,8 +475,36 @@ func (d *ClusterDialer) isStartingFromZero(status *clustersv1.ClusterStatus) boo
 		return true
 	}
 
-	_, ok := startingFromZeroPhases[status.Status]
-	return ok
+	if _, ok := startingFromZeroPhases[status.Status]; ok {
+		return true
+	}
+
+	return noInstanceHasPod(status)
+}
+
+// noInstanceHasPod reports whether the cluster has instances but none of them
+// has a pod. This is the first window of a scale-to-zero wake: hibernation
+// deletes the pod and keeps the PVC, and CNPG derives the instance list from
+// PVCs, so the count stays at one. When the hibernation annotation is removed
+// the controller sees no pod to wait for and moves straight to creating one
+// without leaving the healthy phase, so neither the count check nor the phase
+// check above recognises the wake. The clusters service fills each such
+// instance with a status that is not a CNPG pod status because the Cluster
+// reports no pod for it.
+//
+// A crash-looping primary keeps its pod, which CNPG reports as replicating
+// or failed. An empty map carries no evidence either way, so it is not held for.
+func noInstanceHasPod(status *clustersv1.ClusterStatus) bool {
+	if len(status.Instances) == 0 {
+		return false
+	}
+	for _, instance := range status.Instances {
+		switch instance.GetStatus() {
+		case apiv1.PodHealthy, apiv1.PodReplicating, apiv1.PodFailed:
+			return false
+		}
+	}
+	return true
 }
 
 // shouldAttemptReactivation returns true for dial errors that warrant a
