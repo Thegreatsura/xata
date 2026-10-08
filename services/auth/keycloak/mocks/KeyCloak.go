@@ -1664,25 +1664,23 @@ func (_c *KeyCloak_ListSSOOrganizations_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
-// OrganizationsForDomain provides a mock function with given fields: ctx, realm, domain
-func (_m *KeyCloak) OrganizationsForDomain(ctx context.Context, realm string, domain string) ([]string, error) {
+// OrganizationForDomain provides a mock function with given fields: ctx, realm, domain
+func (_m *KeyCloak) OrganizationForDomain(ctx context.Context, realm string, domain string) (string, error) {
 	ret := _m.Called(ctx, realm, domain)
 
 	if len(ret) == 0 {
-		panic("no return value specified for OrganizationsForDomain")
+		panic("no return value specified for OrganizationForDomain")
 	}
 
-	var r0 []string
+	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]string, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (string, error)); ok {
 		return rf(ctx, realm, domain)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) []string); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) string); ok {
 		r0 = rf(ctx, realm, domain)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
+		r0 = ret.Get(0).(string)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
@@ -1694,32 +1692,32 @@ func (_m *KeyCloak) OrganizationsForDomain(ctx context.Context, realm string, do
 	return r0, r1
 }
 
-// KeyCloak_OrganizationsForDomain_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OrganizationsForDomain'
-type KeyCloak_OrganizationsForDomain_Call struct {
+// KeyCloak_OrganizationForDomain_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OrganizationForDomain'
+type KeyCloak_OrganizationForDomain_Call struct {
 	*mock.Call
 }
 
-// OrganizationsForDomain is a helper method to define mock.On call
+// OrganizationForDomain is a helper method to define mock.On call
 //   - ctx context.Context
 //   - realm string
 //   - domain string
-func (_e *KeyCloak_Expecter) OrganizationsForDomain(ctx interface{}, realm interface{}, domain interface{}) *KeyCloak_OrganizationsForDomain_Call {
-	return &KeyCloak_OrganizationsForDomain_Call{Call: _e.mock.On("OrganizationsForDomain", ctx, realm, domain)}
+func (_e *KeyCloak_Expecter) OrganizationForDomain(ctx interface{}, realm interface{}, domain interface{}) *KeyCloak_OrganizationForDomain_Call {
+	return &KeyCloak_OrganizationForDomain_Call{Call: _e.mock.On("OrganizationForDomain", ctx, realm, domain)}
 }
 
-func (_c *KeyCloak_OrganizationsForDomain_Call) Run(run func(ctx context.Context, realm string, domain string)) *KeyCloak_OrganizationsForDomain_Call {
+func (_c *KeyCloak_OrganizationForDomain_Call) Run(run func(ctx context.Context, realm string, domain string)) *KeyCloak_OrganizationForDomain_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }
 
-func (_c *KeyCloak_OrganizationsForDomain_Call) Return(_a0 []string, _a1 error) *KeyCloak_OrganizationsForDomain_Call {
+func (_c *KeyCloak_OrganizationForDomain_Call) Return(_a0 string, _a1 error) *KeyCloak_OrganizationForDomain_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *KeyCloak_OrganizationsForDomain_Call) RunAndReturn(run func(context.Context, string, string) ([]string, error)) *KeyCloak_OrganizationsForDomain_Call {
+func (_c *KeyCloak_OrganizationForDomain_Call) RunAndReturn(run func(context.Context, string, string) (string, error)) *KeyCloak_OrganizationForDomain_Call {
 	_c.Call.Return(run)
 	return _c
 }

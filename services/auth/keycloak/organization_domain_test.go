@@ -89,23 +89,17 @@ func TestSetOrganizationDomainsRoundTripsRouting(t *testing.T) {
 	}
 }
 
-func TestOrganizationsForDomain(t *testing.T) {
+func TestOrganizationForDomain(t *testing.T) {
 	tests := map[string]struct {
 		status  int
 		body    string
-		want    []string
+		want    string
 		wantErr bool
 	}{
 		"returns the organization listing the domain": {
 			status: http.StatusOK,
 			body:   `[{"id":"internal-1","alias":"org-a","domains":[{"name":"acme.test","verified":true}]}]`,
-			want:   []string{"org-a"},
-		},
-		"returns every holder left by concurrent writes": {
-			status: http.StatusOK,
-			body: `[{"id":"internal-1","alias":"org-a","domains":[{"name":"acme.test","verified":true}]},` +
-				`{"id":"internal-2","alias":"org-b","domains":[{"name":"acme.test","verified":true}]}]`,
-			want: []string{"org-a", "org-b"},
+			want:   "org-a",
 		},
 		"ignores an organization matched only by its name": {
 			status: http.StatusOK,
@@ -114,7 +108,7 @@ func TestOrganizationsForDomain(t *testing.T) {
 		"matches the domain regardless of case": {
 			status: http.StatusOK,
 			body:   `[{"id":"internal-1","alias":"org-a","domains":[{"name":"ACME.test","verified":false}]}]`,
-			want:   []string{"org-a"},
+			want:   "org-a",
 		},
 		"reports nobody holding it": {
 			status: http.StatusOK,
@@ -139,7 +133,7 @@ func TestOrganizationsForDomain(t *testing.T) {
 			})
 			defer srv.Close()
 
-			got, err := newTestRestKC(srv.URL).OrganizationsForDomain(context.Background(), "xata", "acme.test")
+			got, err := newTestRestKC(srv.URL).OrganizationForDomain(context.Background(), "xata", "acme.test")
 
 			if tt.wantErr {
 				require.Error(t, err)
