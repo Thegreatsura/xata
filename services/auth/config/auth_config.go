@@ -7,5 +7,6 @@ type AuthConfig struct {
 	KeycloakAdminUsername string `env:"KEYCLOAK_ADMIN_USERNAME" env-default:"temp-admin"`
 	KeycloakAdminPassword string `env:"KEYCLOAK_ADMIN_PASSWORD"`
 	FrontendURL           string `env:"FRONTEND_URL"`
+	FrontendClientID      string `env:"FRONTEND_CLIENT_ID" env-default:"frontend"`
 	BillingRequired       bool   `env:"BILLING_REQUIRED" env-default:"false"`
 }

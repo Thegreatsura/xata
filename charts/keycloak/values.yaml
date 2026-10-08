@@ -65,6 +65,8 @@ config:
     url: http://auth-keycloak-service:8080
     realm: xata
   realm:
+    # The app's origin, where organization invitees land after accepting.
+    frontendURL: ""
     # Non-secret realm import variables. Each one set here takes precedence over
     # the same key in keycloak-realm-secret; left empty, the secret still applies.
     frontendRedirectURI: ""

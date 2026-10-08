@@ -13,6 +13,7 @@ metadata:
   name: keycloak-realm-config
   namespace: {{ .Release.Namespace }}
 data:
+  FRONTEND_BASE_URL: {{ .Values.config.realm.frontendURL | quote }}
   SMTP_HOST: "{{ .Values.config.realm.smtp.host }}"
   SMTP_PORT: "{{ .Values.config.realm.smtp.port }}" # STARTTLS
   SMTP_SSL: "{{ .Values.config.realm.smtp.ssl }}"

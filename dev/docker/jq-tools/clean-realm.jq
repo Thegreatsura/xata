@@ -37,13 +37,15 @@ def restore_env_placeholders:
       .secret = "$(env:XATA_CLI_CLIENT_SECRET)"
     elif .clientId == "frontend" then
       .secret = "$(env:FRONTEND_CLIENT_SECRET)" |
+      .baseUrl = "$(env:FRONTEND_BASE_URL)" |
       .redirectUris = ["$(env:FRONTEND_REDIRECT_URI)"] |
       .webOrigins = ["$(env:FRONTEND_WEB_ORIGIN_URL)"] |
       .attributes["post.logout.redirect.uris"] = "$(env:FRONTEND_APP_REDIRECT_URI)"
     elif .clientId == "account" then
-      # Org-invite links omit redirect_uri, so Keycloak requires EXACTLY ONE redirect
-      # URI on the account client, scoped to the app origin. When invites are not bound
-      # to the account OAuth client we can revert and set it to "/realms/xata/account/*"
+      # Invitations bind to the frontend client now, but links emailed before
+      # that switch still name the account client, and its sole redirect URI
+      # must keep matching the app origin those links redirect to. Leave this
+      # for one invitation-expiry window, then set "/realms/xata/account/*".
       .redirectUris = ["$(env:FRONTEND_APP_REDIRECT_URI)"]
     # Turnstile configuration
     elif has("config") and .config.secret then

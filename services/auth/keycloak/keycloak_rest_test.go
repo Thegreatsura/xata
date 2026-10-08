@@ -1488,3 +1488,24 @@ func TestListAllOrganizations(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateInvitationBindsFrontendClient(t *testing.T) {
+	var gotClientID, gotFormClientID, gotEmail string
+	srv := orgAdminTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+		require.NoError(t, req.ParseForm())
+		gotClientID = req.URL.Query().Get("client_id")
+		gotFormClientID = req.PostForm.Get("client_id")
+		gotEmail = req.PostForm.Get("email")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	defer srv.Close()
+	r := newTestRestKC(srv.URL)
+	r.authConfig.FrontendClientID = "frontend"
+
+	err := r.CreateInvitation(context.Background(), "test-realm", "org-alias", "a@b.com")
+
+	require.NoError(t, err)
+	assert.Equal(t, "frontend", gotClientID)
+	assert.Empty(t, gotFormClientID)
+	assert.Equal(t, "a@b.com", gotEmail)
+}

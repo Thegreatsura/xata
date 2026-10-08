@@ -309,7 +309,10 @@ func (r *restKC) CreateInvitation(ctx context.Context, realm string, organizatio
 	formData := url.Values{}
 	formData.Set("email", email)
 
-	resp, err := r.makeAuthenticatedRequest(ctx, "POST", invURL, nil, formData)
+	// client_id is read from the query only; Keycloak ignores it in the form.
+	queryParams := map[string]string{"client_id": r.authConfig.FrontendClientID}
+
+	resp, err := r.makeAuthenticatedRequest(ctx, "POST", invURL, queryParams, formData)
 	if err != nil {
 		return err
 	}
