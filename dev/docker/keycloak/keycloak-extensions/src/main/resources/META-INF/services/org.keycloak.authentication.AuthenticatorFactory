@@ -1,5 +1,3 @@
 io.xata.keycloak.LoginTurnstileFactory
 io.xata.keycloak.ResetCredentialsTurnstile
-io.xata.keycloak.CaptureOrgInvitationFactory
-io.xata.keycloak.AcceptOrgInvitationFactory
 io.xata.keycloak.RequireDomainSsoFactory
