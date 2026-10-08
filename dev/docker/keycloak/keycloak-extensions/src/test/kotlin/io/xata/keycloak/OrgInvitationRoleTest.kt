@@ -2,8 +2,12 @@ package io.xata.keycloak
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.unmockkAll
 import io.mockk.verify
+import io.mockk.verifyOrder
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.keycloak.events.Details
 import org.keycloak.events.Event
 import org.keycloak.events.EventType
@@ -13,9 +17,13 @@ import org.keycloak.models.OrganizationModel
 import org.keycloak.models.RealmModel
 import org.keycloak.models.UserModel
 import org.keycloak.organization.OrganizationProvider
+import org.keycloak.representations.idm.MembershipType
 import java.util.stream.Stream
 
 class OrgInvitationRoleTest {
+    @AfterEach
+    fun tearDown() = unmockkAll()
+
     private fun group(
         name: String,
         vararg invited: String,
@@ -96,36 +104,69 @@ class OrgInvitationRoleTest {
         verify { viewer.removeAttribute(OrgInvitationRole.INVITED_ROLES) }
     }
 
+    private fun invitation(type: EventType = EventType.INVITE_ORG): Event =
+        Event().apply {
+            this.type = type
+            realmId = "realm"
+            userId = "user"
+            details = mapOf(Details.ORG_ID to "org")
+        }
+
     @Test
-    fun `waits for the membership to commit`() {
+    fun `makes the membership unmanaged before scheduling the role grant`() {
         val session = mockk<KeycloakSession>(relaxed = true)
-        val event =
-            Event().apply {
-                type = EventType.INVITE_ORG
-                realmId = "realm"
-                userId = "user"
-                details = mapOf(Details.ORG_ID to "org")
-            }
+        val transaction = session.transactionManager
+        val provider = mockk<OrganizationProvider>(relaxed = true)
+        every { session.getProvider(OrganizationProvider::class.java) } returns provider
+        every { provider.updateMembershipType(any(), any(), MembershipType.UNMANAGED) } returns true
 
-        OrgInvitationRole(session).onEvent(event)
+        OrgInvitationRole(session).onEvent(invitation())
 
-        verify { session.transactionManager.enlistAfterCompletion(any()) }
+        verifyOrder {
+            provider.updateMembershipType(any(), any(), MembershipType.UNMANAGED)
+            transaction.enlistAfterCompletion(any())
+        }
+        verify(exactly = 0) { transaction.setRollbackOnly() }
         verify(exactly = 0) { session.keycloakSessionFactory }
     }
 
     @Test
-    fun `ignores a failed acceptance`() {
+    fun `rolls back when the membership update throws`() {
         val session = mockk<KeycloakSession>(relaxed = true)
-        val event =
-            Event().apply {
-                type = EventType.INVITE_ORG_ERROR
-                realmId = "realm"
-                userId = "user"
-                details = mapOf(Details.ORG_ID to "org")
-            }
+        val transaction = session.transactionManager
+        val provider = mockk<OrganizationProvider>(relaxed = true)
+        every { session.getProvider(OrganizationProvider::class.java) } returns provider
+        every { provider.updateMembershipType(any(), any(), MembershipType.UNMANAGED) } throws
+            IllegalStateException("membership update failed")
 
-        OrgInvitationRole(session).onEvent(event)
+        assertThrows<IllegalStateException> { OrgInvitationRole(session).onEvent(invitation()) }
 
+        verify { transaction.setRollbackOnly() }
+        verify(exactly = 0) { transaction.enlistAfterCompletion(any()) }
+    }
+
+    @Test
+    fun `rolls back when the membership was not found`() {
+        val session = mockk<KeycloakSession>(relaxed = true)
+        val transaction = session.transactionManager
+        val provider = mockk<OrganizationProvider>(relaxed = true)
+        every { session.getProvider(OrganizationProvider::class.java) } returns provider
+        every { provider.updateMembershipType(any(), any(), MembershipType.UNMANAGED) } returns false
+
+        assertThrows<IllegalStateException> { OrgInvitationRole(session).onEvent(invitation()) }
+
+        verify { transaction.setRollbackOnly() }
+        verify(exactly = 0) { transaction.enlistAfterCompletion(any()) }
+    }
+
+    @Test
+    fun `ignores unrelated and failed events`() {
+        val session = mockk<KeycloakSession>(relaxed = true)
+
+        OrgInvitationRole(session).onEvent(invitation(EventType.INVITE_ORG_ERROR))
+        OrgInvitationRole(session).onEvent(invitation(EventType.LOGIN))
+
+        verify(exactly = 0) { session.getProvider(OrganizationProvider::class.java) }
         verify(exactly = 0) { session.transactionManager }
     }
 }

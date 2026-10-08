@@ -13,6 +13,7 @@ import org.keycloak.models.KeycloakSession
 import org.keycloak.models.KeycloakSessionFactory
 import org.keycloak.models.utils.KeycloakModelUtils
 import org.keycloak.organization.OrganizationProvider
+import org.keycloak.representations.idm.MembershipType
 
 // Temporary until an invitation can carry a role (https://github.com/keycloak/keycloak/issues/45238),
 // e.g. through the invitation attributes of https://github.com/keycloak/keycloak/pull/48842.
@@ -24,6 +25,21 @@ class OrgInvitationRole(
         val realmId = event.realmId ?: return
         val userId = event.userId ?: return
         val orgId = event.details?.get(Details.ORG_ID) ?: return
+
+        // INVITE_ORG runs after membership creation, in the same transaction.
+        try {
+            val provider = session.getProvider(OrganizationProvider::class.java)
+            val organization = checkNotNull(provider.getById(orgId))
+            val user = checkNotNull(session.users().getUserById(session.context.realm, userId))
+            check(provider.updateMembershipType(organization, user, MembershipType.UNMANAGED))
+        } catch (e: Exception) {
+            // EventBuilder catches listener exceptions, so throwing alone would still commit.
+            session.transactionManager.setRollbackOnly()
+            throw IllegalStateException(
+                "make the invitation membership unmanaged: organization $orgId, user $userId",
+                e,
+            )
+        }
 
         // After commit, so a failure cannot undo the join.
         session.transactionManager.enlistAfterCompletion(
