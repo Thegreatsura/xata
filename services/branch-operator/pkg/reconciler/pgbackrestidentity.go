@@ -32,9 +32,9 @@ const (
 	// token in the Secret, so it does not have to parse the token.
 	PgBackRestTokenRefreshAnnotation = "xata.io/token-refresh-after"
 
-	// pgBackRestTokenAudience is the audience AWS STS requires in a web
+	// pgBackRestAWSTokenAudience is the audience AWS STS requires in a web
 	// identity token.
-	pgBackRestTokenAudience = "sts.amazonaws.com"
+	pgBackRestAWSTokenAudience = "sts.amazonaws.com"
 	// pgBackRestTokenLifetime is the requested token lifetime, the same as the
 	// EKS IRSA webhook default. AWS STS does not check whether the
 	// ServiceAccount still exists, so the lifetime is also the time a token
@@ -66,9 +66,9 @@ const (
 // is deleted. A token for the Branch never stays in the Secret of a cluster
 // the Branch no longer uses.
 //
-// The operator keeps the identity for each Branch that can use it, also if the
-// Branch does not use it. Only Branches with s3.keyType=web-id use the token.
-// Thus, a Branch that changes to web-id has a token immediately.
+// On AWS, the operator keeps the identity for each Branch that can use it,
+// also if the Branch does not use it. Only Branches with s3.keyType=web-id use
+// the token. Thus, a Branch that changes to web-id has a token immediately.
 func (r *BranchReconciler) reconcilePgBackRestIdentity(
 	ctx context.Context,
 	branch *v1alpha1.Branch,
@@ -101,9 +101,27 @@ func (r *BranchReconciler) reconcilePgBackRestIdentity(
 // usesPgBackRestBranchIdentity reports whether the Branch needs a pgBackRest
 // ServiceAccount and token.
 func (r *BranchReconciler) usesPgBackRestBranchIdentity(branch *v1alpha1.Branch) bool {
-	return r.CloudProvider == "aws" &&
-		r.BackupsEndpoint == "" &&
-		resources.UsesAWSIAM(branch.Spec.BackupSpec)
+	switch r.CloudProvider {
+	case cloudProviderAWS:
+		return r.BackupsEndpoint == "" && resources.UsesAWSIAM(branch.Spec.BackupSpec)
+	case cloudProviderGCP:
+		return r.PgBackRestWorkloadIdentityPool != "" && usesGCS(branch.Spec.BackupSpec)
+	default:
+		return false
+	}
+}
+
+func usesGCS(b *v1alpha1.BackupSpec) bool {
+	return b.IsPgBackRest() && b.PgBackRest.GCS != nil
+}
+
+// pgBackRestTokenAudience returns the token audience that the STS of the cloud
+// provider accepts.
+func (r *BranchReconciler) pgBackRestTokenAudience() string {
+	if r.CloudProvider == cloudProviderGCP {
+		return r.PgBackRestWorkloadIdentityPool
+	}
+	return pgBackRestAWSTokenAudience
 }
 
 func (r *BranchReconciler) reconcilePgBackRestServiceAccount(
@@ -148,7 +166,7 @@ func (r *BranchReconciler) reconcilePgBackRestToken(
 		// deleted and created again after the operator read it.
 		UID: sa.UID,
 		Spec: authenticationv1.TokenRequestSpec{
-			Audiences:         []string{pgBackRestTokenAudience},
+			Audiences:         []string{r.pgBackRestTokenAudience()},
 			ExpirationSeconds: new(int64(pgBackRestTokenLifetime.Seconds())),
 		},
 	}

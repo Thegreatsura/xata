@@ -44,6 +44,11 @@ const (
 	ClusterOwnerKey                = ".metadata.ownerReferences[controller=true].name"
 )
 
+const (
+	cloudProviderAWS = "aws"
+	cloudProviderGCP = "gcp"
+)
+
 // BranchReconciler reconciles a Branch object
 type BranchReconciler struct {
 	client.Client
@@ -53,6 +58,7 @@ type BranchReconciler struct {
 	BackupsBucket                        string
 	BackupsEndpoint                      string
 	PgBackRestWebIdentityRoleARN         string
+	PgBackRestWorkloadIdentityPool       string
 	BackupsCredentialsSecretName         string
 	BackupsCredentialsAccessKeyIDKey     string
 	BackupsCredentialsSecretAccessKeyKey string

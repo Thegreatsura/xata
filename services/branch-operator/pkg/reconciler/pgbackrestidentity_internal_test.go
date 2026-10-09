@@ -30,7 +30,7 @@ func TestReconcilePgBackRestToken(t *testing.T) {
 	}
 	request := pgBackRestTokenRequestKey(sa, &authenticationv1.TokenRequest{
 		Spec: authenticationv1.TokenRequestSpec{
-			Audiences:         []string{pgBackRestTokenAudience},
+			Audiences:         []string{pgBackRestAWSTokenAudience},
 			ExpirationSeconds: new(int64(pgBackRestTokenLifetime.Seconds())),
 		},
 	})
@@ -186,10 +186,21 @@ func TestUsesPgBackRestBranchIdentity(t *testing.T) {
 		}
 	}
 
+	gcsBackup := &v1alpha1.BackupSpec{
+		Method: v1alpha1.BackupMethodPgBackRest,
+		PgBackRest: &v1alpha1.PgBackRestSpec{
+			GCS: &v1alpha1.PgBackRestGCSSpec{
+				Bucket:              "some-bucket",
+				ServiceAccountEmail: "cnpg@project.iam.gserviceaccount.com",
+			},
+		},
+	}
+
 	testcases := map[string]struct {
 		cloudProvider string
 		endpoint      string
 		roleARN       string
+		pool          string
 		backup        *v1alpha1.BackupSpec
 		want          bool
 	}{
@@ -204,9 +215,25 @@ func TestUsesPgBackRestBranchIdentity(t *testing.T) {
 			backup:        s3Backup(""),
 			want:          true,
 		},
-		"GCP cell": {
+		"GCP cell with S3 backups": {
 			cloudProvider: "gcp",
+			pool:          "project.svc.id.goog",
 			backup:        s3Backup(""),
+		},
+		"GCP cell with GCS backups": {
+			cloudProvider: "gcp",
+			pool:          "project.svc.id.goog",
+			backup:        gcsBackup,
+			want:          true,
+		},
+		"GCP cell without a Workload Identity pool": {
+			cloudProvider: "gcp",
+			backup:        gcsBackup,
+		},
+		"AWS cell with GCS backups": {
+			cloudProvider: "aws",
+			pool:          "project.svc.id.goog",
+			backup:        gcsBackup,
 		},
 		"cell with an S3-compatible endpoint": {
 			cloudProvider: "aws",
@@ -227,9 +254,10 @@ func TestUsesPgBackRestBranchIdentity(t *testing.T) {
 			t.Parallel()
 
 			r := &BranchReconciler{
-				CloudProvider:                tc.cloudProvider,
-				BackupsEndpoint:              tc.endpoint,
-				PgBackRestWebIdentityRoleARN: tc.roleARN,
+				CloudProvider:                  tc.cloudProvider,
+				BackupsEndpoint:                tc.endpoint,
+				PgBackRestWebIdentityRoleARN:   tc.roleARN,
+				PgBackRestWorkloadIdentityPool: tc.pool,
 			}
 			branch := &v1alpha1.Branch{Spec: v1alpha1.BranchSpec{BackupSpec: tc.backup}}
 
@@ -237,4 +265,63 @@ func TestUsesPgBackRestBranchIdentity(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestReconcilePgBackRestIdentityGCP(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+	require.NoError(t, apiv1.AddToScheme(scheme))
+
+	branch := &v1alpha1.Branch{
+		Name: "branch", UID: types.UID("branch-uid"),
+		Spec: v1alpha1.BranchSpec{
+			ClusterSpec: v1alpha1.ClusterSpec{Name: new("cluster")},
+			BackupSpec: &v1alpha1.BackupSpec{
+				Method: v1alpha1.BackupMethodPgBackRest,
+				PgBackRest: &v1alpha1.PgBackRestSpec{
+					GCS: &v1alpha1.PgBackRestGCSSpec{
+						Bucket:              "some-bucket",
+						ServiceAccountEmail: "cnpg@project.iam.gserviceaccount.com",
+					},
+				},
+			},
+		},
+	}
+	cluster := &apiv1.Cluster{
+		Name: "cluster", Namespace: "xata-clusters", UID: types.UID("cluster-uid"),
+	}
+
+	var audiences []string
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(branch, cluster).
+		WithInterceptorFuncs(interceptor.Funcs{
+			SubResourceCreate: func(_ context.Context, _ client.Client, _ string, _ client.Object, sub client.Object, _ ...client.SubResourceCreateOption) error {
+				tr, ok := sub.(*authenticationv1.TokenRequest)
+				if !ok {
+					return fmt.Errorf("unexpected subresource %T", sub)
+				}
+				audiences = tr.Spec.Audiences
+				tr.Status.Token = "new"
+				tr.Status.ExpirationTimestamp = metav1.NewTime(time.Now().Add(time.Hour))
+				return nil
+			},
+		}).Build()
+	r := &BranchReconciler{
+		Client: c, Scheme: scheme, ClustersNamespace: "xata-clusters",
+		CloudProvider:                  "gcp",
+		PgBackRestWorkloadIdentityPool: "project.svc.id.goog",
+	}
+
+	_, err := r.reconcilePgBackRestIdentity(ctx, branch)
+	require.NoError(t, err)
+	require.Equal(t, []string{"project.svc.id.goog"}, audiences)
+
+	require.NoError(t, c.Get(ctx, client.ObjectKey{Name: "branch-pgbackrest", Namespace: "xata-clusters"}, &corev1.ServiceAccount{}))
+
+	secret := &corev1.Secret{}
+	require.NoError(t, c.Get(ctx, client.ObjectKey{Name: "cluster-pgbackrest-web-identity", Namespace: "xata-clusters"}, secret))
+	require.Equal(t, "new", string(secret.Data[pgbackrest.TokenKey]))
 }

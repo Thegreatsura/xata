@@ -12,6 +12,9 @@ data:
   {{- with .Values.config.branchOperator.pgbackrestWebIdentityRoleARN }}
   XATA_PGBACKREST_S3_WEB_IDENTITY_ROLE_ARN: {{ . | quote }}
   {{- end }}
+  {{- with .Values.config.branchOperator.pgbackrestWorkloadIdentityPool }}
+  XATA_PGBACKREST_GCS_WORKLOAD_IDENTITY_POOL: {{ . | quote }}
+  {{- end }}
   XATA_BARMAN_REGION_SECRET_NAME: {{ .Values.config.branchOperator.barmanRegionSecret.name | quote }}
   XATA_BARMAN_REGION_SECRET_KEY: {{ .Values.config.branchOperator.barmanRegionSecret.key | quote }}
   XATA_XATASTOR_ENABLED: {{ .Values.config.branchOperator.xatastor.enabled | quote }}

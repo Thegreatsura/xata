@@ -15,6 +15,9 @@ config:
     # s3.keyType=web-id. If you set it, each Cluster gets the web identity
     # token volume and the AWS_ROLE_ARN environment variable.
     pgbackrestWebIdentityRoleARN: ""
+    # GKE Workload Identity pool (<project>.svc.id.goog) for the pgBackRest
+    # token of GCS Branches. If empty, GCS Branches get no token.
+    pgbackrestWorkloadIdentityPool: ""
     barmanRegionSecret:
       # Without this barman will create a role and bind it to our CNPG pods with
       # '*' permissions to all secrets in the namespace. This is a problem if
