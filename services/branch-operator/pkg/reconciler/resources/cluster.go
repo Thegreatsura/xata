@@ -334,12 +334,13 @@ func ExternalClusters(cfg ClusterConfig) []*apiv1ac.ExternalClusterApplyConfigur
 	if cfg.IsPgBackRest() {
 		pgb := cfg.PgBackRest
 
-		// The source branch's repo path is its stanza (= the restore source name).
+		// The source backups are at the defined repo path of the Branch. Without
+		// one, they are at the stanza (= the restore source name).
 		// RepoPath is the bare prefix; the instance manager prepends the leading
 		// "/" when it writes repo1-path, so do NOT add one here (else repo1-path
 		// becomes "//<name>", which pgbackrest rejects).
 		options := apiv1ac.PgBackRestOptions().
-			WithRepoPath(cfg.RestoreSpec.Name)
+			WithRepoPath(cmp.Or(pgb.RepoPath, cfg.RestoreSpec.Name))
 
 		return []*apiv1ac.ExternalClusterApplyConfiguration{
 			apiv1ac.ExternalCluster().

@@ -1357,32 +1357,48 @@ func baseExpectedSpec() *apiv1ac.ClusterSpecApplyConfiguration {
 		WithSmartShutdownTimeout(resources.DefaultSmartShutdownTimeout)
 }
 
-// TestExternalClustersPgBackRestRepoPath guards against a double-slash in the
-// restore source repo path: RepoPath must be the bare stanza name, because the
-// instance manager prepends the leading "/" when writing repo1-path. A leading
-// "/" here would produce "//<name>", which pgbackrest rejects.
+// TestExternalClustersPgBackRestRepoPath checks the repo path of the restore
+// source. The path has no leading "/", because the instance manager adds one.
 func TestExternalClustersPgBackRestRepoPath(t *testing.T) {
-	ext := resources.ExternalClusters(resources.ClusterConfig{
-		RestoreSpec: &v1alpha1.RestoreSpec{
-			Type: v1alpha1.RestoreTypeObjectStore,
-			Name: "source-cluster",
+	testcases := map[string]struct {
+		repoPath string
+		want     string
+	}{
+		"no repo path": {
+			want: "source-cluster",
 		},
-		BackupSpec: &v1alpha1.BackupSpec{
-			Method: v1alpha1.BackupMethodPgBackRest,
-			PgBackRest: &v1alpha1.PgBackRestSpec{
-				S3: &v1alpha1.PgBackRestS3Spec{
-					Bucket: "test-bucket",
-					Region: "us-east-1",
-				},
-			},
+		"defined repo path": {
+			repoPath: "system:serviceaccount:xata-clusters:source-cluster-pgbackrest",
+			want:     "system:serviceaccount:xata-clusters:source-cluster-pgbackrest",
 		},
-	})
+	}
 
-	require.Len(t, ext, 1)
-	require.NotNil(t, ext[0].PgBackRest)
-	require.NotNil(t, ext[0].PgBackRest.Options)
-	require.NotNil(t, ext[0].PgBackRest.Options.RepoPath)
-	require.Equal(t, "source-cluster", *ext[0].PgBackRest.Options.RepoPath)
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			ext := resources.ExternalClusters(resources.ClusterConfig{
+				RestoreSpec: &v1alpha1.RestoreSpec{
+					Type: v1alpha1.RestoreTypeObjectStore,
+					Name: "source-cluster",
+				},
+				BackupSpec: &v1alpha1.BackupSpec{
+					Method: v1alpha1.BackupMethodPgBackRest,
+					PgBackRest: &v1alpha1.PgBackRestSpec{
+						RepoPath: tc.repoPath,
+						S3: &v1alpha1.PgBackRestS3Spec{
+							Bucket: "test-bucket",
+							Region: "us-east-1",
+						},
+					},
+				},
+			})
+
+			require.Len(t, ext, 1)
+			require.NotNil(t, ext[0].PgBackRest)
+			require.NotNil(t, ext[0].PgBackRest.Options)
+			require.NotNil(t, ext[0].PgBackRest.Options.RepoPath)
+			require.Equal(t, tc.want, *ext[0].PgBackRest.Options.RepoPath)
+		})
+	}
 }
 
 func TestUsesAWSIAM(t *testing.T) {
