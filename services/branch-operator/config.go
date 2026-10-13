@@ -12,6 +12,8 @@ type Config struct {
 	BackupsEndpoint                string `env:"XATA_BACKUPS_ENDPOINT" env-description:"endpoint for reaching the backups bucket; set for a non-AWS S3-compatible store such as Cloudflare R2"`
 	PgBackRestWebIdentityRoleARN   string `env:"XATA_PGBACKREST_S3_WEB_IDENTITY_ROLE_ARN" env-description:"IRSA role that pgbackrest assumes for Branches with s3.keyType=web-id"`
 	PgBackRestWorkloadIdentityPool string `env:"XATA_PGBACKREST_GCS_WORKLOAD_IDENTITY_POOL" env-description:"GKE Workload Identity pool (<project>.svc.id.goog) for the pgbackrest token of GCS Branches; if empty, GCS Branches get no token"`
+	PgBackRestGCSFolderBucket      string `env:"XATA_PGBACKREST_GCS_FOLDER_BUCKET" env-description:"GCS bucket with a managed folder for each Branch; if empty, the operator creates no managed folders"`
+	PgBackRestGCSProjectNumber     string `env:"XATA_PGBACKREST_GCS_PROJECT_NUMBER" env-description:"number of the GCP project that owns the Workload Identity pool; required with XATA_PGBACKREST_GCS_FOLDER_BUCKET"`
 	// When BackupsEndpoint is set (non-AWS S3-compatible store), backups
 	// authenticate with static credentials from this Secret instead of an IAM
 	// role. Defaults match the local-dev RustFS secret.
@@ -31,6 +33,7 @@ type Config struct {
 	WakeupRPCTimeout                     time.Duration              `env:"XATA_WAKEUP_RPC_TIMEOUT" env-default:"30s" env-description:"timeout for the WakeUp RPC to the SlotController service on CSI node plugin pods"`
 	WakeupPasswordSyncTimeout            time.Duration              `env:"XATA_WAKEUP_PASSWORD_SYNC_TIMEOUT" env-default:"5m" env-description:"how long a wakeup waits for CNPG to sync the xata role password before proceeding without it"`
 	WakeupMaxConcurrent                  int                        `env:"XATA_WAKEUP_MAX_CONCURRENT" env-default:"128" env-description:"maximum concurrent wakeup reconciliations"`
+	GCSFolderMaxConcurrent               int                        `env:"XATA_GCS_FOLDER_MAX_CONCURRENT" env-default:"4" env-description:"maximum concurrent managed folder reconciliations"`
 	BranchMaxConcurrent                  int                        `env:"XATA_BRANCH_MAX_CONCURRENT" env-default:"1" env-description:"maximum concurrent Branch reconciliations (default 1 = current behavior)"`
 	KubeClientQPS                        float64                    `env:"XATA_KUBE_CLIENT_QPS" env-default:"0" env-description:"Kubernetes API client QPS; 0 keeps the controller-runtime default (20)"`
 	KubeClientBurst                      int                        `env:"XATA_KUBE_CLIENT_BURST" env-default:"0" env-description:"Kubernetes API client burst; 0 keeps the controller-runtime default (30)"`

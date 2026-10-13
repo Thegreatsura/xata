@@ -32,6 +32,11 @@ const (
 	// ServiceAccount.
 	KeyTypeWebID = "web-id"
 
+	// GCSManagedFolderLabel is the label with the Branch name on the pgBackRest
+	// ServiceAccount. The branch-operator gives the ServiceAccount access to the
+	// managed folder of that Branch.
+	GCSManagedFolderLabel = "xata.io/gcs-managed-folder"
+
 	// TokenKey is the key in the web identity Secret that holds the token.
 	TokenKey = "token"
 

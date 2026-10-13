@@ -2,12 +2,14 @@ package branchoperator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	barmanPluginApi "github.com/cloudnative-pg/plugin-barman-cloud/api/v1"
 	"github.com/go-logr/zerologr"
 	snapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
+	storage "google.golang.org/api/storage/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -25,6 +27,7 @@ import (
 	"xata/internal/service"
 	poolv1alpha1 "xata/proto/clusterpool-operator/api/v1alpha1"
 	"xata/services/branch-operator/api/v1alpha1"
+	"xata/services/branch-operator/pkg/gcp/gcsfolder"
 	"xata/services/branch-operator/pkg/reconciler"
 	"xata/services/branch-operator/pkg/reconciler/metrics"
 	"xata/services/branch-operator/pkg/wakeup"
@@ -205,8 +208,38 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 		s.wakeupReconciler = wakeupReconciler
 	}
 
+	if s.config.PgBackRestGCSFolderBucket != "" {
+		if err := s.setupGCSFolderReconciler(ctx, mgr); err != nil {
+			return err
+		}
+	}
+
 	s.manager = mgr
 	return nil
+}
+
+func (s *BranchOperatorService) setupGCSFolderReconciler(ctx context.Context, mgr ctrl.Manager) error {
+	if s.config.PgBackRestWorkloadIdentityPool == "" {
+		return errors.New("pgbackrest GCS folder bucket requires the workload identity pool")
+	}
+	if s.config.PgBackRestGCSProjectNumber == "" {
+		return errors.New("pgbackrest GCS folder bucket requires the GCS project number")
+	}
+
+	// Application Default Credentials: Workload Identity in GKE.
+	gcs, err := storage.NewService(ctx)
+	if err != nil {
+		return fmt.Errorf("create GCS client: %w", err)
+	}
+	r := &gcsfolder.Reconciler{
+		Client:                  mgr.GetClient(),
+		Storage:                 gcs,
+		Bucket:                  s.config.PgBackRestGCSFolderBucket,
+		ProjectNumber:           s.config.PgBackRestGCSProjectNumber,
+		WorkloadIdentityPool:    s.config.PgBackRestWorkloadIdentityPool,
+		MaxConcurrentReconciles: s.config.GCSFolderMaxConcurrent,
+	}
+	return r.SetupWithManager(mgr)
 }
 
 func cacheNamespaces(namespaces ...string) map[string]cache.Config {
