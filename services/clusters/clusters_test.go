@@ -318,6 +318,7 @@ func TestCreatePostgresCluster(t *testing.T) {
 			parentBranch:  nil,
 			sourceCluster: sourceClusterForPITR(),
 			objectStore:   objectStoreForPITR(),
+			extraObjects:  []client.Object{sourceBranchForPITR()},
 			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
 				r.DataSource = &clustersv1.CreatePostgresClusterRequest_ContinuousBackup{
 					ContinuousBackup: &clustersv1.ContinuousBackup{
@@ -337,6 +338,7 @@ func TestCreatePostgresCluster(t *testing.T) {
 			parentBranch:  nil,
 			sourceCluster: sourceClusterForPITR(),
 			objectStore:   objectStoreForPITR(),
+			extraObjects:  []client.Object{sourceBranchForPITR()},
 			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
 				r.DataSource = &clustersv1.CreatePostgresClusterRequest_ContinuousBackup{
 					ContinuousBackup: &clustersv1.ContinuousBackup{
@@ -1069,243 +1071,6 @@ func TestCreatePostgresClusterAppSecret(t *testing.T) {
 		require.Error(t, err)
 
 		err = k8sClient.Get(ctx, appSecretKey(req.GetId()+"-app"), &corev1.Secret{})
-		require.True(t, errors.IsNotFound(err))
-	})
-}
-
-func TestCreatePostgresClusterPgBackRestSecret(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	secretKey := client.ObjectKey{Name: "branch-id-pgbackrest", Namespace: "xata-clusters"}
-
-	pgBackRestBranch := func(name string, restore *v1alpha1.RestoreSpec) *v1alpha1.Branch {
-		return &v1alpha1.Branch{
-			Name: name,
-			Labels: map[string]string{
-				LabelOrgID:     "org-id",
-				LabelProjectID: "project-id",
-			},
-			Spec: v1alpha1.BranchSpec{
-				BackupSpec: &v1alpha1.BackupSpec{
-					Method:     v1alpha1.BackupMethodPgBackRest,
-					PgBackRest: &v1alpha1.PgBackRestSpec{},
-				},
-				Restore: restore,
-			},
-		}
-	}
-	sourceBranch := func(cipherRef bool) *v1alpha1.Branch {
-		branch := pgBackRestBranch("source-branch", nil)
-		if cipherRef {
-			branch.Spec.BackupSpec.PgBackRest.CipherPassphraseSecretRef = pgBackRestSecretKeySelector(branch.Name, PgBackRestCipherPassphraseKey)
-		}
-		return branch
-	}
-	t.Run("new repository gets a generated target cipher", func(t *testing.T) {
-		svc, k8sClient := setupTestClustersService(t, withPgBackRestEncryptionEnabled(true))
-		req, _, _, _, _ := exampleRequestsAndBranches()
-		req.Id = "branch-id"
-		req.BackupConfiguration.BackupMethod = "pgbackrest"
-
-		_, err := svc.CreatePostgresCluster(ctx, req)
-		require.NoError(t, err)
-
-		secret := &corev1.Secret{}
-		require.NoError(t, k8sClient.Get(ctx, secretKey, secret))
-		require.Equal(t, new(true), secret.Immutable)
-		require.NotEmpty(t, secret.Data[PgBackRestCipherPassphraseKey])
-
-		branch, err := getBranchFromK8s(ctx, k8sClient, req.GetId())
-		require.NoError(t, err)
-		require.Equal(t,
-			pgBackRestSecretKeySelector(req.GetId(), PgBackRestCipherPassphraseKey),
-			branch.Spec.BackupSpec.PgBackRest.CipherPassphraseSecretRef,
-		)
-	})
-
-	t.Run("disabled encryption leaves a new repository unencrypted", func(t *testing.T) {
-		svc, k8sClient := setupTestClustersService(t)
-		req, _, _, _, _ := exampleRequestsAndBranches()
-		req.Id = "branch-id"
-		req.BackupConfiguration.BackupMethod = "pgbackrest"
-
-		_, err := svc.CreatePostgresCluster(ctx, req)
-		require.NoError(t, err)
-
-		err = k8sClient.Get(ctx, secretKey, &corev1.Secret{})
-		require.True(t, errors.IsNotFound(err))
-		branch, err := getBranchFromK8s(ctx, k8sClient, req.GetId())
-		require.NoError(t, err)
-		require.Nil(t, branch.Spec.BackupSpec.PgBackRest.CipherPassphraseSecretRef)
-	})
-
-	t.Run("encrypted restore copies the source cipher", func(t *testing.T) {
-		sourceCipher := []byte("source-passphrase")
-		sourceSecret := &corev1.Secret{
-			Name:      "source-branch-pgbackrest",
-			Namespace: "xata-clusters",
-			Data: map[string][]byte{
-				PgBackRestCipherPassphraseKey: sourceCipher,
-			},
-		}
-		svc, k8sClient := setupTestClustersService(t,
-			withExistingObjects(sourceBranch(true), sourceSecret),
-			withPgBackRestEncryptionEnabled(true),
-		)
-		req, _, _, _, _ := exampleRequestsAndBranches()
-		req.Id = "branch-id"
-		req.BackupConfiguration.BackupMethod = "pgbackrest"
-		req.DataSource = &clustersv1.CreatePostgresClusterRequest_ContinuousBackup{
-			ContinuousBackup: &clustersv1.ContinuousBackup{ClusterId: "source-branch"},
-		}
-
-		_, err := svc.CreatePostgresCluster(ctx, req)
-		require.NoError(t, err)
-
-		secret := &corev1.Secret{}
-		require.NoError(t, k8sClient.Get(ctx, secretKey, secret))
-		require.NotEqual(t, sourceCipher, secret.Data[PgBackRestCipherPassphraseKey])
-		require.Equal(t, sourceCipher, secret.Data[PgBackRestRestorePassphraseKey])
-
-		branch, err := getBranchFromK8s(ctx, k8sClient, req.GetId())
-		require.NoError(t, err)
-		require.Equal(t,
-			pgBackRestSecretKeySelector(req.GetId(), PgBackRestRestorePassphraseKey),
-			branch.Spec.Restore.PgBackRestCipherPassphraseSecretRef,
-		)
-	})
-
-	t.Run("disabled target encryption can restore an encrypted source", func(t *testing.T) {
-		sourceCipher := []byte("source-passphrase")
-		sourceSecret := &corev1.Secret{
-			Name:      "source-branch-pgbackrest",
-			Namespace: "xata-clusters",
-			Immutable: new(true),
-			Data: map[string][]byte{
-				PgBackRestCipherPassphraseKey: sourceCipher,
-			},
-		}
-		svc, k8sClient := setupTestClustersService(t, withExistingObjects(
-			sourceBranch(true), sourceSecret,
-		))
-		branch := pgBackRestBranch("branch-id", &v1alpha1.RestoreSpec{
-			Type: v1alpha1.RestoreTypeObjectStore,
-			Name: "source-branch",
-		})
-
-		_, err := svc.createPgBackRestSecret(ctx, branch, false)
-		require.NoError(t, err)
-
-		secret := &corev1.Secret{}
-		require.NoError(t, k8sClient.Get(ctx, secretKey, secret))
-		require.NotContains(t, secret.Data, PgBackRestCipherPassphraseKey)
-		require.Equal(t, sourceCipher, secret.Data[PgBackRestRestorePassphraseKey])
-		require.Nil(t, branch.Spec.BackupSpec.PgBackRest.CipherPassphraseSecretRef)
-		require.Equal(t,
-			pgBackRestSecretKeySelector(branch.Name, PgBackRestRestorePassphraseKey),
-			branch.Spec.Restore.PgBackRestCipherPassphraseSecretRef,
-		)
-	})
-
-	t.Run("legacy restore has no restore cipher", func(t *testing.T) {
-		svc, k8sClient := setupTestClustersService(t, withExistingObjects(sourceBranch(false)))
-		branch := pgBackRestBranch("branch-id", &v1alpha1.RestoreSpec{
-			Type: v1alpha1.RestoreTypeObjectStore,
-			Name: "source-branch",
-		})
-
-		_, err := svc.createPgBackRestSecret(ctx, branch, true)
-		require.NoError(t, err)
-
-		secret := &corev1.Secret{}
-		require.NoError(t, k8sClient.Get(ctx, secretKey, secret))
-		require.NotEmpty(t, secret.Data[PgBackRestCipherPassphraseKey])
-		require.NotContains(t, secret.Data, PgBackRestRestorePassphraseKey)
-		require.Nil(t, branch.Spec.Restore.PgBackRestCipherPassphraseSecretRef)
-	})
-
-	t.Run("retry reuses the existing target cipher", func(t *testing.T) {
-		existing := &corev1.Secret{
-			Name: secretKey.Name, Namespace: secretKey.Namespace,
-			Immutable: new(true),
-			Data: map[string][]byte{
-				PgBackRestCipherPassphraseKey: []byte("existing-passphrase"),
-			},
-		}
-		svc, k8sClient := setupTestClustersService(t, withExistingObjects(existing))
-		branch := pgBackRestBranch("branch-id", nil)
-
-		created, err := svc.createPgBackRestSecret(ctx, branch, true)
-		require.NoError(t, err)
-		require.Nil(t, created)
-
-		secret := &corev1.Secret{}
-		require.NoError(t, k8sClient.Get(ctx, secretKey, secret))
-		require.Equal(t, "existing-passphrase", string(secret.Data[PgBackRestCipherPassphraseKey]))
-		require.Equal(t,
-			pgBackRestSecretKeySelector(branch.Name, PgBackRestCipherPassphraseKey),
-			branch.Spec.BackupSpec.PgBackRest.CipherPassphraseSecretRef,
-		)
-	})
-
-	t.Run("invalid encrypted source prevents Branch creation", func(t *testing.T) {
-		tests := []struct {
-			name       string
-			source     *corev1.Secret
-			statusCode codes.Code
-		}{
-			{name: "missing Secret", statusCode: codes.NotFound},
-			{
-				name: "Secret without selected key",
-				source: &corev1.Secret{
-					Name: "source-branch-pgbackrest", Namespace: "xata-clusters",
-					Immutable: new(true),
-					Data:      map[string][]byte{"another-key": []byte("source-passphrase")},
-				},
-				statusCode: codes.FailedPrecondition,
-			},
-		}
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				objects := []client.Object{sourceBranch(true)}
-				if tt.source != nil {
-					objects = append(objects, tt.source)
-				}
-				svc, k8sClient := setupTestClustersService(t, withExistingObjects(objects...))
-				req, _, _, _, _ := exampleRequestsAndBranches()
-				req.Id = "branch-id"
-				req.BackupConfiguration.BackupMethod = "pgbackrest"
-				req.DataSource = &clustersv1.CreatePostgresClusterRequest_ContinuousBackup{
-					ContinuousBackup: &clustersv1.ContinuousBackup{ClusterId: "source-branch"},
-				}
-
-				_, err := svc.CreatePostgresCluster(ctx, req)
-				require.Equal(t, tt.statusCode, status.Code(err))
-				err = k8sClient.Get(ctx, client.ObjectKey{Name: req.GetId()}, &v1alpha1.Branch{})
-				require.True(t, errors.IsNotFound(err))
-			})
-		}
-	})
-
-	t.Run("branch create failure removes a newly created secret", func(t *testing.T) {
-		svc, k8sClient := setupTestClustersService(t,
-			withPgBackRestEncryptionEnabled(true),
-			withInterceptorFuncs(interceptor.Funcs{
-				Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
-					if _, ok := obj.(*v1alpha1.Branch); ok {
-						return fmt.Errorf("branch create failed")
-					}
-					return c.Create(ctx, obj, opts...)
-				},
-			}))
-		req, _, _, _, _ := exampleRequestsAndBranches()
-		req.Id = "branch-id"
-		req.BackupConfiguration.BackupMethod = "pgbackrest"
-
-		_, err := svc.CreatePostgresCluster(ctx, req)
-		require.Error(t, err)
-
-		err = k8sClient.Get(ctx, secretKey, &corev1.Secret{})
 		require.True(t, errors.IsNotFound(err))
 	})
 }
@@ -2595,12 +2360,6 @@ func withPgBackRestBucket(bucket string) testServiceOption {
 	}
 }
 
-func withPgBackRestEncryptionEnabled(enabled bool) testServiceOption {
-	return func(c *testServiceConfig) {
-		c.pgBackRestEncryption = enabled
-	}
-}
-
 func withCloudProvider(provider string) testServiceOption {
 	return func(c *testServiceConfig) {
 		c.cloudProvider = provider
@@ -3064,6 +2823,15 @@ func sourceClusterForPITR() *apiv1.Cluster {
 				Size: "100Gi",
 			},
 		},
+	}
+}
+
+// sourceBranchForPITR returns the Branch of the continuous backup source that
+// sourceClusterForPITR runs. The service reads it to decide whether a restore
+// needs the source's repository cipher.
+func sourceBranchForPITR() *v1alpha1.Branch {
+	return &v1alpha1.Branch{
+		Name: "source-cluster-for-pitr",
 	}
 }
 

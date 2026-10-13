@@ -235,13 +235,21 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		}
 	}
 
-	// Validate the continuous backup source ID before building the Branch. The
-	// backup-method-specific validation runs after all Branch overrides.
+	// Validate the continuous backup source ID before building the Branch
 	continuousBackupSource := ""
+	var restoreSource *branchv1alpha1.Branch
 	if cb, ok := req.GetDataSource().(*clustersv1.CreatePostgresClusterRequest_ContinuousBackup); ok {
 		continuousBackupSource = cb.ContinuousBackup.GetClusterId()
 		if continuousBackupSource == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "continuous_backup.cluster_id is required")
+		}
+
+		// Read the source Branch: whether it encrypts its repository decides
+		// whether the restored Branch references a restore cipher, and that
+		// reference is immutable once the Branch exists
+		restoreSource, err = c.getBranch(ctx, continuousBackupSource)
+		if err != nil {
+			return nil, k8sErrorToGRPCError(err)
 		}
 	}
 
@@ -268,6 +276,8 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		WithDefaultNodeSelector(c.config.ClustersNodeSelector).
 		WithPooler(c.config.EnablePooler).
 		WithPgBackRest(c.config.CloudProvider, c.config.PgBackRestBucket, c.config.PgBackRestRegion, c.config.PgBackRestEndpoint, c.config.PgBackRestGCSServiceAccount, c.config.PgBackRestCredentialsSecret, c.config.PgBackRestAzureAccount, c.config.PgBackRestAzureContainer, c.config.ClustersNamespace).
+		WithPgBackRestCipher(c.config.PgBackRestEncryptionEnabled).
+		WithPgBackRestRestoreCipher(restoreSource).
 		WithXataUtilsPreloadLibrary().
 		WithMandatoryPostgresParameters()
 
@@ -341,19 +351,6 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 		return nil, fmt.Errorf("create app secret: %w", err)
 	}
 
-	createdPgBackRestSecret, err := c.createPgBackRestSecret(ctx, branch, c.config.PgBackRestEncryptionEnabled)
-	if err != nil {
-		// The Branch does not exist yet, so it cannot own the app Secret.
-		// Remove the app Secret only if this request created it.
-		if createdSecret != nil {
-			if delErr := c.kubeClient.Delete(ctx, createdSecret); delErr != nil {
-				log.Ctx(ctx).Warn().Err(delErr).Str("secret", createdSecret.Name).
-					Msg("clean up app secret after pgbackrest secret create failure")
-			}
-		}
-		return nil, err
-	}
-
 	// Create the Branch CR. A retry can reach this point after the first call
 	// created the Branch but lost its response. Treat the existing Branch as
 	// the result only when it has the same idempotency key.
@@ -375,12 +372,6 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 			if delErr := c.kubeClient.Delete(ctx, createdSecret); delErr != nil {
 				log.Ctx(ctx).Warn().Err(delErr).Str("secret", createdSecret.Name).
 					Msg("clean up app secret after branch create failure")
-			}
-		}
-		if createdPgBackRestSecret != nil {
-			if delErr := c.kubeClient.Delete(ctx, createdPgBackRestSecret); delErr != nil {
-				log.Ctx(ctx).Warn().Err(delErr).Str("secret", createdPgBackRestSecret.Name).
-					Msg("clean up pgbackrest secret after branch create failure")
 			}
 		}
 		return nil, k8sErrorToGRPCError(createErr)

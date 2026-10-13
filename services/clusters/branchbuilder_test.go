@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 
 	"xata/internal/pgbackrest"
 	"xata/services/branch-operator/api/v1alpha1"
@@ -58,6 +59,129 @@ func TestWithPgBackRestS3(t *testing.T) {
 
 			require.Equal(t, tc.wantKeyType, got.S3.KeyType)
 			require.Equal(t, tc.wantRepoPath, got.RepoPath)
+		})
+	}
+}
+
+func TestWithPgBackRestCipher(t *testing.T) {
+	t.Parallel()
+
+	testcases := map[string]struct {
+		enabled bool
+		method  v1alpha1.BackupMethod
+		wantRef *corev1.SecretKeySelector
+	}{
+		"enabled encryption references the cipher secret": {
+			enabled: true,
+			method:  v1alpha1.BackupMethodPgBackRest,
+			wantRef: &corev1.SecretKeySelector{
+				Name: "branch-id-pgbackrest",
+				Key:  pgbackrest.CipherPassphraseKey,
+			},
+		},
+		"disabled encryption leaves the repository unencrypted": {
+			method:  v1alpha1.BackupMethodPgBackRest,
+			wantRef: nil,
+		},
+	}
+
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			b := &BranchBuilder{branch: &v1alpha1.Branch{
+				Name: "branch-id",
+				Spec: v1alpha1.BranchSpec{
+					BackupSpec: &v1alpha1.BackupSpec{
+						Method:     tc.method,
+						PgBackRest: &v1alpha1.PgBackRestSpec{},
+					},
+				},
+			}}
+
+			got := b.WithPgBackRestCipher(tc.enabled).
+				Build().Spec.BackupSpec.PgBackRest
+
+			require.Equal(t, tc.wantRef, got.CipherPassphraseSecretRef)
+		})
+	}
+}
+
+func TestWithPgBackRestRestoreCipher(t *testing.T) {
+	t.Parallel()
+
+	// sourceBranch returns the restore source, encrypted or not
+	sourceBranch := func(encrypted bool) *v1alpha1.Branch {
+		source := &v1alpha1.Branch{
+			Name: "source",
+			Spec: v1alpha1.BranchSpec{
+				BackupSpec: &v1alpha1.BackupSpec{
+					Method:     v1alpha1.BackupMethodPgBackRest,
+					PgBackRest: &v1alpha1.PgBackRestSpec{},
+				},
+			},
+		}
+		if encrypted {
+			source.Spec.BackupSpec.PgBackRest.CipherPassphraseSecretRef = &corev1.SecretKeySelector{
+				Name: "source-pgbackrest",
+				Key:  pgbackrest.CipherPassphraseKey,
+			}
+		}
+		return source
+	}
+
+	testcases := map[string]struct {
+		source      *v1alpha1.Branch
+		restoreType v1alpha1.RestoreType
+		wantRef     *corev1.SecretKeySelector
+	}{
+		"encrypted source references the restore cipher": {
+			source:      sourceBranch(true),
+			restoreType: v1alpha1.RestoreTypeObjectStore,
+			wantRef: &corev1.SecretKeySelector{
+				Name: "branch-id-pgbackrest",
+				Key:  pgbackrest.RestoreCipherPassphraseKey,
+			},
+		},
+		"unencrypted source needs no restore cipher": {
+			source:      sourceBranch(false),
+			restoreType: v1alpha1.RestoreTypeObjectStore,
+			wantRef:     nil,
+		},
+		"no source needs no restore cipher": {
+			source:      nil,
+			restoreType: v1alpha1.RestoreTypeObjectStore,
+			wantRef:     nil,
+		},
+		"volume snapshot restore does not read the source repository": {
+			source:      sourceBranch(true),
+			restoreType: v1alpha1.RestoreTypeVolumeSnapshot,
+			wantRef:     nil,
+		},
+	}
+
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			b := &BranchBuilder{branch: &v1alpha1.Branch{
+				Name: "branch-id",
+				Spec: v1alpha1.BranchSpec{
+					BackupSpec: &v1alpha1.BackupSpec{
+						Method:     v1alpha1.BackupMethodPgBackRest,
+						PgBackRest: &v1alpha1.PgBackRestSpec{},
+					},
+					Restore: &v1alpha1.RestoreSpec{
+						Type: tc.restoreType,
+						Name: "source",
+					},
+				},
+			}}
+
+			got := b.WithPgBackRestRestoreCipher(tc.source).
+				Build().Spec.Restore
+
+			require.Equal(t, tc.wantRef, got.PgBackRestCipherPassphraseSecretRef)
 		})
 	}
 }

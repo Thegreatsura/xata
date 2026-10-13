@@ -358,6 +358,39 @@ func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, servi
 	return b
 }
 
+// WithPgBackRestCipher references the cipher Secret that the branch operator
+// creates for the Branch. Only applies when the backup method is pgbackrest.
+func (b *BranchBuilder) WithPgBackRestCipher(encryptionEnabled bool) *BranchBuilder {
+	if !encryptionEnabled || !b.branch.Spec.BackupSpec.IsPgBackRest() {
+		return b
+	}
+
+	b.branch.Spec.BackupSpec.PgBackRest.CipherPassphraseSecretRef = &corev1.SecretKeySelector{
+		Name: pgbackrest.CipherSecretName(b.branch.Name),
+		Key:  pgbackrest.CipherPassphraseKey,
+	}
+	return b
+}
+
+// WithPgBackRestRestoreCipher references the restore cipher when the Branch
+// restores from the encrypted pgBackRest repository of source. Only applies to
+// an object store restore when the backup method is pgbackrest and the source
+// is encrypted.
+func (b *BranchBuilder) WithPgBackRestRestoreCipher(source *v1alpha1.Branch) *BranchBuilder {
+	if source == nil || !b.branch.Spec.Restore.IsObjectStoreType() || !b.branch.Spec.BackupSpec.IsPgBackRest() {
+		return b
+	}
+	if !source.Spec.BackupSpec.IsPgBackRest() || source.Spec.BackupSpec.PgBackRest.CipherPassphraseSecretRef == nil {
+		return b
+	}
+
+	b.branch.Spec.Restore.PgBackRestCipherPassphraseSecretRef = &corev1.SecretKeySelector{
+		Name: pgbackrest.CipherSecretName(b.branch.Name),
+		Key:  pgbackrest.RestoreCipherPassphraseKey,
+	}
+	return b
+}
+
 // pgBackRestS3Spec returns the S3 backend of a new branch.
 func pgBackRestS3Spec(bucket, region, endpoint, credentialsSecretName string) *v1alpha1.PgBackRestS3Spec {
 	return &v1alpha1.PgBackRestS3Spec{
