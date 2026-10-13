@@ -549,26 +549,32 @@ type PgBackRestS3Spec struct {
 	CredentialsSecretName string `json:"credentialsSecretName,omitempty"`
 
 	// KeyType is the cnpg s3.keyType of the repository. The operator ignores
-	// it when Endpoint is set. The default is "auto".
+	// it when Endpoint is set.
 	// +optional
+	// +kubebuilder:default:="auto"
 	// +kubebuilder:validation:Enum=auto;web-id
 	KeyType string `json:"keyType,omitempty"`
 }
 
 // PgBackRestGCSSpec configures a Google Cloud Storage pgbackrest backend.
-// Authentication is Workload Identity only: the operator renders the cnpg GCS
-// repository with keyType=auto and stamps ServiceAccountEmail as the
-// iam.gke.io/gcp-service-account annotation on the cluster's
-// serviceAccountTemplate.
+// Authentication is Workload Identity only.
 type PgBackRestGCSSpec struct {
 	// Bucket is the GCS bucket for backups and WAL archives.
 	// +kubebuilder:validation:Required
 	Bucket string `json:"bucket"`
 
-	// ServiceAccountEmail is the GCP service account the cluster's pods
-	// impersonate via Workload Identity to access the bucket.
-	// +kubebuilder:validation:Required
-	ServiceAccountEmail string `json:"serviceAccountEmail"`
+	// ServiceAccountEmail is the GCP service account that the pods of the
+	// cluster impersonate with keyType=auto. The operator sets it as the
+	// iam.gke.io/gcp-service-account annotation on the ServiceAccount of the
+	// cluster. If empty, the pods use the ServiceAccount of the cluster.
+	// +optional
+	ServiceAccountEmail string `json:"serviceAccountEmail,omitempty"`
+
+	// KeyType is the cnpg gcs.keyType of the repository.
+	// +optional
+	// +kubebuilder:default:="auto"
+	// +kubebuilder:validation:Enum=auto;web-id
+	KeyType string `json:"keyType,omitempty"`
 }
 
 // PgBackRestAzureSpec configures an Azure Blob Storage pgbackrest backend.

@@ -398,8 +398,9 @@ func TestClusterSpec(t *testing.T) {
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
 						S3: &v1alpha1.PgBackRestS3Spec{
-							Bucket: "test-bucket",
-							Region: "us-east-1",
+							Bucket:  "test-bucket",
+							Region:  "us-east-1",
+							KeyType: "auto",
 						},
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
@@ -446,8 +447,9 @@ func TestClusterSpec(t *testing.T) {
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
 						S3: &v1alpha1.PgBackRestS3Spec{
-							Bucket: "test-bucket",
-							Region: "us-east-1",
+							Bucket:  "test-bucket",
+							Region:  "us-east-1",
+							KeyType: "auto",
 						},
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
@@ -677,8 +679,9 @@ func TestClusterSpec(t *testing.T) {
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
 						S3: &v1alpha1.PgBackRestS3Spec{
-							Bucket: "test-bucket",
-							Region: "us-east-1",
+							Bucket:  "test-bucket",
+							Region:  "us-east-1",
+							KeyType: "auto",
 						},
 					},
 				}
@@ -741,8 +744,9 @@ func TestClusterSpec(t *testing.T) {
 					Method: v1alpha1.BackupMethodPgBackRest,
 					PgBackRest: &v1alpha1.PgBackRestSpec{
 						S3: &v1alpha1.PgBackRestS3Spec{
-							Bucket: "test-bucket",
-							Region: "us-east-1",
+							Bucket:  "test-bucket",
+							Region:  "us-east-1",
+							KeyType: "auto",
 						},
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
@@ -791,6 +795,7 @@ func TestClusterSpec(t *testing.T) {
 						GCS: &v1alpha1.PgBackRestGCSSpec{
 							Bucket:              "test-bucket",
 							ServiceAccountEmail: "backups@project.iam.gserviceaccount.com",
+							KeyType:             "auto",
 						},
 						RetentionFullDays:   7,
 						CompressType:        "lz4",
@@ -843,6 +848,7 @@ func TestClusterSpec(t *testing.T) {
 						GCS: &v1alpha1.PgBackRestGCSSpec{
 							Bucket:              "test-bucket",
 							ServiceAccountEmail: "backups@project.iam.gserviceaccount.com",
+							KeyType:             "auto",
 						},
 					},
 				}
@@ -1107,8 +1113,9 @@ func TestClusterSpecAWSS3DoesNotAnnotateClusterServiceAccount(t *testing.T) {
 		Method: v1alpha1.BackupMethodPgBackRest,
 		PgBackRest: &v1alpha1.PgBackRestSpec{
 			S3: &v1alpha1.PgBackRestS3Spec{
-				Bucket: "backup-bucket",
-				Region: "us-east-1",
+				Bucket:  "backup-bucket",
+				Region:  "us-east-1",
+				KeyType: "auto",
 			},
 		},
 	}
@@ -1462,11 +1469,6 @@ func TestClusterSpecPgBackRestWebIdentity(t *testing.T) {
 		wantKeyType string
 		wantMount   bool
 	}{
-		"default keyType mounts the token but uses the node role": {
-			roleARN:     roleARN,
-			wantKeyType: "auto",
-			wantMount:   true,
-		},
 		"auto keyType mounts the token but uses the node role": {
 			roleARN:     roleARN,
 			keyType:     "auto",
@@ -1520,4 +1522,56 @@ func TestClusterSpecPgBackRestWebIdentity(t *testing.T) {
 			}, got.Env)
 		})
 	}
+}
+
+func TestClusterSpecPgBackRestGCSKeyType(t *testing.T) {
+	t.Parallel()
+
+	testcases := map[string]struct {
+		keyType string
+		want    string
+	}{
+		"auto keyType":   {keyType: "auto", want: "auto"},
+		"web-id keyType": {keyType: pgbackrest.KeyTypeWebID, want: pgbackrest.KeyTypeWebID},
+	}
+
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := baseClusterConfig()
+			cfg.BackupSpec = &v1alpha1.BackupSpec{
+				Method: v1alpha1.BackupMethodPgBackRest,
+				PgBackRest: &v1alpha1.PgBackRestSpec{
+					GCS: &v1alpha1.PgBackRestGCSSpec{
+						Bucket:              "backup-bucket",
+						ServiceAccountEmail: "backups@project.iam.gserviceaccount.com",
+						KeyType:             tc.keyType,
+					},
+				},
+			}
+
+			got := resources.ClusterSpec(testBranchName, "cluster-1", cfg)
+			require.Equal(t, new(tc.want), got.Backup.PgBackRest.Repository.GCS.KeyType)
+		})
+	}
+}
+
+func TestClusterSpecPgBackRestGCSServiceAccountEmail(t *testing.T) {
+	t.Parallel()
+
+	cfg := baseClusterConfig()
+	cfg.BackupSpec = &v1alpha1.BackupSpec{
+		Method: v1alpha1.BackupMethodPgBackRest,
+		PgBackRest: &v1alpha1.PgBackRestSpec{
+			GCS: &v1alpha1.PgBackRestGCSSpec{Bucket: "backup-bucket"},
+		},
+	}
+	require.Nil(t, resources.ClusterSpec(testBranchName, "cluster-1", cfg).ServiceAccountTemplate)
+
+	cfg.PgBackRest.GCS.ServiceAccountEmail = "backups@project.iam.gserviceaccount.com"
+	got := resources.ClusterSpec(testBranchName, "cluster-1", cfg)
+	require.Equal(t, map[string]string{
+		"iam.gke.io/gcp-service-account": "backups@project.iam.gserviceaccount.com",
+	}, got.ServiceAccountTemplate.Metadata.Annotations)
 }

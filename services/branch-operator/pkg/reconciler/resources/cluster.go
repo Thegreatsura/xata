@@ -21,13 +21,6 @@ const (
 	// Fixed pgbackrest defaults not exposed to users
 	pgbackrestPriority = 19
 
-	// pgBackRestGCSKeyTypeAuto selects GKE Workload Identity for the GCS repo.
-	pgBackRestGCSKeyTypeAuto = "auto"
-	// pgBackRestAWSS3KeyTypeAuto gets credentials for the node role from the
-	// instance metadata service. Branches use it unless they set
-	// s3.keyType=web-id.
-	pgBackRestAWSS3KeyTypeAuto = "auto"
-
 	// pgBackRestAzureKeyTypeAuto selects managed-identity auth for the Azure repo.
 	pgBackRestAzureKeyTypeAuto = "auto"
 
@@ -530,7 +523,7 @@ func pgbackrestS3(
 		WithBucket(s3.Bucket).
 		WithRegion(s3.Region)
 	if s3.Endpoint == "" {
-		return ac.WithKeyType(cmp.Or(s3.KeyType, pgBackRestAWSS3KeyTypeAuto))
+		return ac.WithKeyType(s3.KeyType)
 	}
 
 	// The branch-stamped Secret wins over the operator-wide default, so
@@ -548,13 +541,13 @@ func pgbackrestS3(
 		})
 }
 
-// pgbackrestGCS builds the GCS apply configuration. Auth is Workload Identity
-// only (keyType=auto); the GCP service account is bound via the cluster's
-// serviceAccountTemplate, not the repository.
+// pgbackrestGCS builds the GCS apply configuration. With keyType=auto, the GCP
+// service account is bound via the cluster's serviceAccountTemplate, not the
+// repository.
 func pgbackrestGCS(gcs *v1alpha1.PgBackRestGCSSpec) *apiv1ac.PgBackRestGCSApplyConfiguration {
 	return apiv1ac.PgBackRestGCS().
 		WithBucket(gcs.Bucket).
-		WithKeyType(pgBackRestGCSKeyTypeAuto)
+		WithKeyType(gcs.KeyType)
 }
 
 // pgbackrestAzure builds the Azure apply configuration. Auth is managed
@@ -582,6 +575,9 @@ func UsesAWSIAM(b *v1alpha1.BackupSpec) bool {
 // ServiceAccount, and Azure managed identity comes from the node.
 func serviceAccountTemplate(cfg ClusterConfig) *apiv1ac.ServiceAccountTemplateApplyConfiguration {
 	if !cfg.IsPgBackRest() || cfg.PgBackRest.Azure != nil || cfg.PgBackRest.GCS == nil {
+		return nil
+	}
+	if cfg.PgBackRest.GCS.ServiceAccountEmail == "" {
 		return nil
 	}
 

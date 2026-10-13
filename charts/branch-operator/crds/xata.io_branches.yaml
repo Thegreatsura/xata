@@ -159,14 +159,22 @@ spec:
                             description: Bucket is the GCS bucket for backups and
                               WAL archives.
                             type: string
+                          keyType:
+                            default: auto
+                            description: KeyType is the cnpg gcs.keyType of the repository.
+                            enum:
+                            - auto
+                            - web-id
+                            type: string
                           serviceAccountEmail:
                             description: |-
-                              ServiceAccountEmail is the GCP service account the cluster's pods
-                              impersonate via Workload Identity to access the bucket.
+                              ServiceAccountEmail is the GCP service account that the pods of the
+                              cluster impersonate with keyType=auto. The operator sets it as the
+                              iam.gke.io/gcp-service-account annotation on the ServiceAccount of the
+                              cluster. If empty, the pods use the ServiceAccount of the cluster.
                             type: string
                         required:
                         - bucket
-                        - serviceAccountEmail
                         type: object
                       repoPath:
                         description: RepoPath overrides the storage path prefix. Defaults
@@ -201,9 +209,10 @@ spec:
                               are used instead of an IAM role.
                             type: string
                           keyType:
+                            default: auto
                             description: |-
                               KeyType is the cnpg s3.keyType of the repository. The operator ignores
-                              it when Endpoint is set. The default is "auto".
+                              it when Endpoint is set.
                             enum:
                             - auto
                             - web-id

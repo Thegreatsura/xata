@@ -27,8 +27,9 @@ const (
 	// cipherPassphraseBytes is the entropy of a generated passphrase.
 	cipherPassphraseBytes = 32
 
-	// KeyTypeWebID is the s3.keyType that makes pgBackRest get AWS credentials
-	// with the web identity token of the Branch ServiceAccount.
+	// KeyTypeWebID is the s3.keyType and gcs.keyType that makes pgBackRest get
+	// cloud credentials with the web identity token of the Branch
+	// ServiceAccount.
 	KeyTypeWebID = "web-id"
 
 	// TokenKey is the key in the web identity Secret that holds the token.

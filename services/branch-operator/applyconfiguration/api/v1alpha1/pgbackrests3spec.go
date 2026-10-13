@@ -25,7 +25,7 @@ type PgBackRestS3SpecApplyConfiguration struct {
 	// cell-wide default changes.
 	CredentialsSecretName *string `json:"credentialsSecretName,omitempty"`
 	// KeyType is the cnpg s3.keyType of the repository. The operator ignores
-	// it when Endpoint is set. The default is "auto".
+	// it when Endpoint is set.
 	KeyType *string `json:"keyType,omitempty"`
 }
 

@@ -6,16 +6,17 @@ package v1alpha1
 // with apply.
 //
 // PgBackRestGCSSpec configures a Google Cloud Storage pgbackrest backend.
-// Authentication is Workload Identity only: the operator renders the cnpg GCS
-// repository with keyType=auto and stamps ServiceAccountEmail as the
-// iam.gke.io/gcp-service-account annotation on the cluster's
-// serviceAccountTemplate.
+// Authentication is Workload Identity only.
 type PgBackRestGCSSpecApplyConfiguration struct {
 	// Bucket is the GCS bucket for backups and WAL archives.
 	Bucket *string `json:"bucket,omitempty"`
-	// ServiceAccountEmail is the GCP service account the cluster's pods
-	// impersonate via Workload Identity to access the bucket.
+	// ServiceAccountEmail is the GCP service account that the pods of the
+	// cluster impersonate with keyType=auto. The operator sets it as the
+	// iam.gke.io/gcp-service-account annotation on the ServiceAccount of the
+	// cluster. If empty, the pods use the ServiceAccount of the cluster.
 	ServiceAccountEmail *string `json:"serviceAccountEmail,omitempty"`
+	// KeyType is the cnpg gcs.keyType of the repository.
+	KeyType *string `json:"keyType,omitempty"`
 }
 
 // PgBackRestGCSSpecApplyConfiguration constructs a declarative configuration of the PgBackRestGCSSpec type for use with
@@ -37,5 +38,13 @@ func (b *PgBackRestGCSSpecApplyConfiguration) WithBucket(value string) *PgBackRe
 // If called multiple times, the ServiceAccountEmail field is set to the value of the last call.
 func (b *PgBackRestGCSSpecApplyConfiguration) WithServiceAccountEmail(value string) *PgBackRestGCSSpecApplyConfiguration {
 	b.ServiceAccountEmail = &value
+	return b
+}
+
+// WithKeyType sets the KeyType field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the KeyType field is set to the value of the last call.
+func (b *PgBackRestGCSSpecApplyConfiguration) WithKeyType(value string) *PgBackRestGCSSpecApplyConfiguration {
+	b.KeyType = &value
 	return b
 }
