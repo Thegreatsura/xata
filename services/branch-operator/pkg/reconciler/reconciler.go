@@ -199,6 +199,7 @@ func (r *BranchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	_, err = r.reconcileAdditionalServiceRO(ctx, branch)
 	if err != nil {
 		log.Error(err, "reconciling additional service ro")
+		return ctrl.Result{}, err
 	}
 
 	// Reconcile the additional service for the Pooler
