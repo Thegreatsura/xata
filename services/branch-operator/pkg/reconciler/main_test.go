@@ -213,6 +213,31 @@ func (b *BranchBuilder) WithPgBackRestWebIdentity(bucket, region string) *Branch
 	return b
 }
 
+// WithPgBackRestCipher encrypts the pgBackRest repository of the Branch with
+// the passphrase in its cipher Secret. Call after WithPgBackRest.
+func (b *BranchBuilder) WithPgBackRestCipher() *BranchBuilder {
+	b.branch.Spec.BackupSpec.PgBackRest.CipherPassphraseSecretRef = &corev1.SecretKeySelector{
+		Name: pgbackrest.CipherSecretName(b.branch.Name),
+		Key:  pgbackrest.CipherPassphraseKey,
+	}
+	return b
+}
+
+// WithPgBackRestRestoreCipher restores the Branch from the encrypted pgBackRest
+// repository of the source Branch, reading its passphrase from the restore key
+// of the cipher Secret of this Branch.
+func (b *BranchBuilder) WithPgBackRestRestoreCipher(source string) *BranchBuilder {
+	b.branch.Spec.Restore = &v1alpha1.RestoreSpec{
+		Type: v1alpha1.RestoreTypeObjectStore,
+		Name: source,
+		PgBackRestCipherPassphraseSecretRef: &corev1.SecretKeySelector{
+			Name: pgbackrest.CipherSecretName(b.branch.Name),
+			Key:  pgbackrest.RestoreCipherPassphraseKey,
+		},
+	}
+	return b
+}
+
 // WithBackupSchedule sets the BackupConfiguration.ScheduledBackup field
 func (b *BranchBuilder) WithBackupSchedule(schedule string) *BranchBuilder {
 	if b.branch.Spec.BackupSpec == nil {

@@ -3,12 +3,30 @@
 package pgbackrest
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"path"
 
 	corev1 "k8s.io/api/core/v1"
 )
 
 const (
+	// CipherSecretSuffix is appended to the Branch name to form the Secret
+	// that holds the pgBackRest repository cipher passphrases of the Branch.
+	CipherSecretSuffix = "-pgbackrest"
+
+	// CipherPassphraseKey is the Secret data key holding the passphrase that
+	// encrypts the repository of the Branch. It names a key, not a credential.
+	//nolint:gosec
+	CipherPassphraseKey = "cipher-passphrase"
+
+	// RestoreCipherPassphraseKey is the Secret data key holding the passphrase
+	// of the repository a Branch restores from, copied from the source Branch.
+	RestoreCipherPassphraseKey = "restore-cipher-passphrase"
+
+	// cipherPassphraseBytes is the entropy of a generated passphrase.
+	cipherPassphraseBytes = 32
+
 	// KeyTypeWebID is the s3.keyType that makes pgBackRest get AWS credentials
 	// with the web identity token of the Branch ServiceAccount.
 	KeyTypeWebID = "web-id"
@@ -21,6 +39,26 @@ const (
 	// projectedDir is the path where CNPG mounts the projected volume.
 	projectedDir = "/projected"
 )
+
+// CipherSecretName is the Secret that holds the repository cipher passphrases
+// of a Branch. It shares its name with the pgBackRest ServiceAccount of the
+// Branch; the two are kept as separate functions so that the shared name stays
+// visible.
+func CipherSecretName(branchName string) string {
+	return branchName + CipherSecretSuffix
+}
+
+// GeneratePassphrase returns a new repository cipher passphrase: 32 random
+// bytes, base64url-encoded without padding so it is safe in config files.
+func GeneratePassphrase() ([]byte, error) {
+	raw := make([]byte, cipherPassphraseBytes)
+	if _, err := rand.Read(raw); err != nil {
+		return nil, err
+	}
+	encoded := make([]byte, base64.RawURLEncoding.EncodedLen(len(raw)))
+	base64.RawURLEncoding.Encode(encoded, raw)
+	return encoded, nil
+}
 
 // ServiceAccountName is the ServiceAccount whose tokens give pgBackRest access
 // to the backups of the Branch. The IAM trust policy accepts only

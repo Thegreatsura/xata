@@ -3,8 +3,6 @@ package clusters
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	"google.golang.org/grpc/codes"
@@ -15,16 +13,16 @@ import (
 
 	clustersv1 "xata/gen/proto/clusters/v1"
 	"xata/internal/passwords"
+	"xata/internal/pgbackrest"
 	branchv1alpha1 "xata/services/branch-operator/api/v1alpha1"
 )
 
+// The cipher Secret layout is shared with the branch operator, which creates
+// the Secret when it is missing and adopts it otherwise.
 const (
-	pgBackRestCipherBytes  = 32
-	PgBackRestSecretSuffix = "-pgbackrest"
-	// PgBackRestCipherPassphraseKey is a Secret data key, not a credential.
-	//nolint:gosec
-	PgBackRestCipherPassphraseKey  = "cipher-passphrase"
-	PgBackRestRestorePassphraseKey = "restore-cipher-passphrase"
+	PgBackRestSecretSuffix         = pgbackrest.CipherSecretSuffix
+	PgBackRestCipherPassphraseKey  = pgbackrest.CipherPassphraseKey
+	PgBackRestRestorePassphraseKey = pgbackrest.RestoreCipherPassphraseKey
 )
 
 // createAppSecret creates the kubernetes.io/basic-auth Secret holding the xata
@@ -140,7 +138,7 @@ func (c *ClustersService) createPgBackRestSecret(
 
 	data := make(map[string][]byte, 2)
 	if encryptTarget {
-		targetPassphrase, err := generatePgBackRestCipherPassphrase()
+		targetPassphrase, err := pgbackrest.GeneratePassphrase()
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "generate pgbackrest cipher: %v", err)
 		}
@@ -213,16 +211,6 @@ func (c *ClustersService) pgBackRestRestorePassphrase(ctx context.Context, resto
 		return nil, status.Errorf(codes.FailedPrecondition, "source pgbackrest cipher secret %s does not contain key %s", secret.Name, ref.Key)
 	}
 	return bytes.Clone(passphrase), nil
-}
-
-func generatePgBackRestCipherPassphrase() ([]byte, error) {
-	raw := make([]byte, pgBackRestCipherBytes)
-	if _, err := rand.Read(raw); err != nil {
-		return nil, err
-	}
-	encoded := make([]byte, base64.RawURLEncoding.EncodedLen(len(raw)))
-	base64.RawURLEncoding.Encode(encoded, raw)
-	return encoded, nil
 }
 
 func checkPgBackRestSecret(

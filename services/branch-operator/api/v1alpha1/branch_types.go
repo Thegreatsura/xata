@@ -175,6 +175,14 @@ func (b *Branch) HasClusterName() bool {
 	return b.Spec.ClusterSpec.Name != nil
 }
 
+// HasBackupData returns true iff the branch has written a backup or archived
+// WAL to its repository.
+func (b *Branch) HasBackupData() bool {
+	return b.Status.FirstRecoverabilityPoint != "" ||
+		b.Status.LastSuccessfulBackup != "" ||
+		b.Status.LastRecoverabilityPoint != ""
+}
+
 // AffinitySpec defines pod scheduling constraints
 type AffinitySpec struct {
 	// NodeSelector specifies node labels that pods must match to be scheduled

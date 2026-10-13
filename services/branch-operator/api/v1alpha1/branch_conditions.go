@@ -19,6 +19,7 @@ const (
 	ParentClusterPVCNotFoundReason = "ParentClusterPVCNotFound"
 	ReconciliationFailedReason     = "ReconciliationFailed"
 	XVolNotFoundReason             = "XVolNotFound"
+	PgBackRestCipherLostReason     = "PgBackRestCipherLost"
 
 	// Reason strings for the `Ready` Unknown condition
 	ReconciliationPausedReason = "ReconciliationPaused"
@@ -41,4 +42,5 @@ var BranchConditionMessages = map[string]string{
 	ReconciliationPausedReason:     "Reconciliation has been paused",
 	ReconciliationFailedReason:     "An error occurred during reconciliation",
 	XVolNotFoundReason:             "No XVol found for the primary volume",
+	PgBackRestCipherLostReason:     "The pgbackreset cipher secret is missing",
 }
