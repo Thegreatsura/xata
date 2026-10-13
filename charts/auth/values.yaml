@@ -126,8 +126,8 @@ mcpClientCleanup:
 billingReconciliation:
   schedule: "0 * * * *"
   timeZone: "Etc/UTC"
-  suspend: true
-  dryRun: true
+  suspend: false
+  dryRun: false
   resources:
     limits:
       cpu: 200m

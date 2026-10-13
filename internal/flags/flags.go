@@ -3,10 +3,6 @@ package flags
 import "xata/internal/openfeature"
 
 var (
-	OrgAutoWindDown = openfeature.FeatureFlag{
-		Name:           "orgAutoWindDown",
-		DefaultEnabled: true,
-	}
 	OrganizationCreation = openfeature.FeatureFlag{
 		Name:           "organizationCreation",
 		DefaultEnabled: true,

@@ -20,8 +20,8 @@ func TestBoolValueOverrides(t *testing.T) {
 			want: true,
 		},
 		"disabled by override": {
-			env:  "usePgBackRest:true,orgAutoWindDown:false",
-			flag: FeatureFlag{Name: "orgAutoWindDown", DefaultEnabled: true},
+			env:  "usePgBackRest:true,organizationCreation:false",
+			flag: FeatureFlag{Name: "organizationCreation", DefaultEnabled: true},
 			want: false,
 		},
 		"not overridden": {
@@ -30,7 +30,7 @@ func TestBoolValueOverrides(t *testing.T) {
 			want: false,
 		},
 		"unset": {
-			flag: FeatureFlag{Name: "orgAutoWindDown", DefaultEnabled: true},
+			flag: FeatureFlag{Name: "organizationCreation", DefaultEnabled: true},
 			want: true,
 		},
 	}
