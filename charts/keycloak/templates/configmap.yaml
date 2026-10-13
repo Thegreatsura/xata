@@ -17,6 +17,7 @@ data:
   SMTP_HOST: "{{ .Values.config.realm.smtp.host }}"
   SMTP_PORT: "{{ .Values.config.realm.smtp.port }}" # STARTTLS
   SMTP_SSL: "{{ .Values.config.realm.smtp.ssl }}"
+  SMTP_STARTTLS: "{{ .Values.config.realm.smtp.starttls }}"
   SMTP_FROM: "{{ .Values.config.realm.smtp.from }}"
   SMTP_REPLY_TO: "{{ .Values.config.realm.smtp.replyTo }}"
   {{- with .Values.config.realm.frontendRedirectURI }}

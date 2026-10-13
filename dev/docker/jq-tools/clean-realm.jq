@@ -59,6 +59,7 @@ def restore_env_placeholders:
       .smtpServer.port = "$(env:SMTP_PORT)" |
       .smtpServer.replyTo = "$(env:SMTP_REPLY_TO)" |
       .smtpServer.ssl = "$(env:SMTP_SSL)" |
+      .smtpServer.starttls = "$(env:SMTP_STARTTLS)" |
       .smtpServer.user = "$(env:SMTP_USER)"
     else
       .
