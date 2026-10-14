@@ -5,6 +5,8 @@ package pgbackrest
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"path"
 
 	corev1 "k8s.io/api/core/v1"
@@ -39,6 +41,10 @@ const (
 
 	// TokenKey is the key in the web identity Secret that holds the token.
 	TokenKey = "token"
+
+	// GCSCredentialsKey is the key in the web identity Secret that holds the
+	// external account credential file for gcs.keyType=web-id.
+	GCSCredentialsKey = "gcs-credentials.json"
 
 	// tokenDir is the directory of the token in the projected volume.
 	tokenDir = "pgbackrest"
@@ -118,4 +124,28 @@ func WebIdentity(clusterName, roleARN string) (corev1.ProjectedVolumeSource, []c
 		},
 	}
 	return volume, env
+}
+
+// GCSCredentials returns the external account credential file that makes
+// pgBackRest exchange the mounted token for a Google access token. The issuer
+// is the `iss` claim of the token, which is also the name of the provider in
+// the GKE Workload Identity pool.
+func GCSCredentials(pool, issuer string) ([]byte, error) {
+	//nolint:gosec // G101: the file names a token path and holds no secret.
+	credentials := map[string]any{
+		"type":               "external_account",
+		"audience":           fmt.Sprintf("identitynamespace:%s:%s", pool, issuer),
+		"subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+		"token_url":          "https://sts.googleapis.com/v1/token",
+		"credential_source": map[string]any{
+			"file":   projectedPath(TokenKey),
+			"format": map[string]string{"type": "text"},
+		},
+	}
+	return json.Marshal(credentials)
+}
+
+// projectedPath is the path in the pod of a key of the web identity Secret.
+func projectedPath(key string) string {
+	return path.Join(projectedDir, tokenDir, key)
 }

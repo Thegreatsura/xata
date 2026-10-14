@@ -23,6 +23,7 @@ config:
     # and pgbackrestGCSProjectNumber.
     pgbackrestGCSFolderBucket: ""
     # Number of the GCP project that owns pgbackrestWorkloadIdentityPool.
+    # Required for gcs.keyType=web-id.
     pgbackrestGCSProjectNumber: ""
     barmanRegionSecret:
       # Without this barman will create a role and bind it to our CNPG pods with

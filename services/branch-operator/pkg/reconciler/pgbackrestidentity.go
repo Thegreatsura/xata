@@ -2,10 +2,12 @@ package reconciler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,7 +31,7 @@ const (
 	// expires.
 	PgBackRestTokenExpirationAnnotation = "xata.io/token-expiration"
 	// PgBackRestTokenRefreshAnnotation records when the operator replaces the
-	// token in the Secret, so it does not have to parse the token.
+	// token in the Secret.
 	PgBackRestTokenRefreshAnnotation = "xata.io/token-refresh-after"
 
 	// pgBackRestAWSTokenAudience is the audience AWS STS requires in a web
@@ -205,23 +207,53 @@ func (r *BranchReconciler) reconcilePgBackRestToken(
 			return err
 		}
 		ensureLabels(secret, branch.Spec.InheritedMetadata)
-		if !issued {
-			return nil
+		if issued {
+			if secret.Annotations == nil {
+				secret.Annotations = map[string]string{}
+			}
+			secret.Annotations[PgBackRestTokenRequestAnnotation] = request
+			secret.Annotations[PgBackRestTokenExpirationAnnotation] = tr.Status.ExpirationTimestamp.UTC().Format(time.RFC3339)
+			secret.Annotations[PgBackRestTokenRefreshAnnotation] = next.UTC().Format(time.RFC3339)
+			secret.Data = map[string][]byte{pgbackrest.TokenKey: []byte(tr.Status.Token)}
 		}
-		if secret.Annotations == nil {
-			secret.Annotations = map[string]string{}
-		}
-		secret.Annotations[PgBackRestTokenRequestAnnotation] = request
-		secret.Annotations[PgBackRestTokenExpirationAnnotation] = tr.Status.ExpirationTimestamp.UTC().Format(time.RFC3339)
-		secret.Annotations[PgBackRestTokenRefreshAnnotation] = next.UTC().Format(time.RFC3339)
-		secret.Data = map[string][]byte{pgbackrest.TokenKey: []byte(tr.Status.Token)}
-		return nil
+		return r.setGCSCredentials(secret)
 	})
 	if err != nil {
 		return 0, err
 	}
 
 	return max(time.Until(next), time.Second), nil
+}
+
+// setGCSCredentials writes the external account credential file for the token
+// in the Secret.
+func (r *BranchReconciler) setGCSCredentials(secret *corev1.Secret) error {
+	if r.CloudProvider != cloudProviderGCP || r.PgBackRestWorkloadIdentityPool == "" {
+		return nil
+	}
+	issuer, err := tokenIssuer(string(secret.Data[pgbackrest.TokenKey]))
+	if err != nil {
+		return fmt.Errorf("read token issuer: %w", err)
+	}
+	credentials, err := pgbackrest.GCSCredentials(
+		r.PgBackRestWorkloadIdentityPool, issuer)
+	if err != nil {
+		return fmt.Errorf("build GCS credential file: %w", err)
+	}
+	secret.Data[pgbackrest.GCSCredentialsKey] = credentials
+	return nil
+}
+
+// tokenIssuer returns the `iss` claim of a ServiceAccount token.
+func tokenIssuer(token string) (string, error) {
+	var claims jwt.RegisteredClaims
+	if _, _, err := jwt.NewParser().ParseUnverified(token, &claims); err != nil {
+		return "", fmt.Errorf("parse token: %w", err)
+	}
+	if claims.Issuer == "" {
+		return "", errors.New("token has no issuer")
+	}
+	return claims.Issuer, nil
 }
 
 // pgBackRestTokenRequestKey identifies the token request, like the cache key

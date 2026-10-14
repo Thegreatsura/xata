@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 	apiv1 "github.com/xataio/xata-cnpg/api/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
@@ -295,6 +296,11 @@ func TestReconcilePgBackRestIdentityGCP(t *testing.T) {
 		Name: "cluster", Namespace: "xata-clusters", UID: types.UID("cluster-uid"),
 	}
 
+	const issuer = "https://container.googleapis.com/v1/projects/project/locations/region/clusters/cell"
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{Issuer: issuer}).
+		SignedString([]byte("key"))
+	require.NoError(t, err)
+
 	var audiences []string
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(branch, cluster).
 		WithInterceptorFuncs(interceptor.Funcs{
@@ -304,7 +310,7 @@ func TestReconcilePgBackRestIdentityGCP(t *testing.T) {
 					return fmt.Errorf("unexpected subresource %T", sub)
 				}
 				audiences = tr.Spec.Audiences
-				tr.Status.Token = "new"
+				tr.Status.Token = token
 				tr.Status.ExpirationTimestamp = metav1.NewTime(time.Now().Add(time.Hour))
 				return nil
 			},
@@ -315,7 +321,7 @@ func TestReconcilePgBackRestIdentityGCP(t *testing.T) {
 		PgBackRestWorkloadIdentityPool: "project.svc.id.goog",
 	}
 
-	_, err := r.reconcilePgBackRestIdentity(ctx, branch)
+	_, err = r.reconcilePgBackRestIdentity(ctx, branch)
 	require.NoError(t, err)
 	require.Equal(t, []string{"project.svc.id.goog"}, audiences)
 
@@ -323,5 +329,81 @@ func TestReconcilePgBackRestIdentityGCP(t *testing.T) {
 
 	secret := &corev1.Secret{}
 	require.NoError(t, c.Get(ctx, client.ObjectKey{Name: "cluster-pgbackrest-web-identity", Namespace: "xata-clusters"}, secret))
-	require.Equal(t, "new", string(secret.Data[pgbackrest.TokenKey]))
+	require.Equal(t, token, string(secret.Data[pgbackrest.TokenKey]))
+	require.JSONEq(t, `{
+		"type": "external_account",
+		"audience": "identitynamespace:project.svc.id.goog:`+issuer+`",
+		"subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+		"token_url": "https://sts.googleapis.com/v1/token",
+		"credential_source": {"file": "/projected/pgbackrest/token", "format": {"type": "text"}}
+	}`, string(secret.Data[pgbackrest.GCSCredentialsKey]))
+}
+
+func TestSetGCSCredentials(t *testing.T) {
+	t.Parallel()
+
+	signed := func(claims jwt.RegisteredClaims) string {
+		token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("key"))
+		require.NoError(t, err)
+		return token
+	}
+	token := signed(jwt.RegisteredClaims{Issuer: "https://issuer"})
+
+	testcases := map[string]struct {
+		cloudProvider string
+		pool          string
+		token         string
+		want          bool
+		wantErr       string
+	}{
+		"GCP cell with a Workload Identity pool": {
+			cloudProvider: "gcp",
+			pool:          "project.svc.id.goog",
+			token:         token,
+			want:          true,
+		},
+		"GCP cell without a Workload Identity pool": {
+			cloudProvider: "gcp",
+			token:         token,
+		},
+		"AWS cell": {
+			cloudProvider: "aws",
+			pool:          "project.svc.id.goog",
+			token:         token,
+		},
+		"token that is not a JWT": {
+			cloudProvider: "gcp",
+			pool:          "project.svc.id.goog",
+			token:         "new",
+			wantErr:       "read token issuer",
+		},
+		"token without an issuer": {
+			cloudProvider: "gcp",
+			pool:          "project.svc.id.goog",
+			token:         signed(jwt.RegisteredClaims{}),
+			wantErr:       "token has no issuer",
+		},
+	}
+
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			r := &BranchReconciler{
+				CloudProvider:                  tc.cloudProvider,
+				PgBackRestWorkloadIdentityPool: tc.pool,
+			}
+			secret := &corev1.Secret{Data: map[string][]byte{pgbackrest.TokenKey: []byte(tc.token)}}
+
+			err := r.setGCSCredentials(secret)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+
+			_, got := secret.Data[pgbackrest.GCSCredentialsKey]
+			require.Equal(t, tc.want, got)
+		})
+	}
 }
