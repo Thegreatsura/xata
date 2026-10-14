@@ -142,6 +142,10 @@ type ClusterConfig struct {
 	// Branches with s3.keyType=web-id. If it is set, each Cluster gets the web
 	// identity token volume and the AWS_ROLE_ARN environment variable.
 	PgBackRestWebIdentityRoleARN string
+	// PgBackRestGCSWebIdentity gives each Cluster the web identity token
+	// volume and the PGBACKREST_REPO1_GCS_KEY environment variable, which
+	// pgBackRest uses for Branches with gcs.keyType=web-id.
+	PgBackRestGCSWebIdentity bool
 }
 
 // ClusterSpec generates the CNPG Cluster spec apply configuration from the
@@ -256,8 +260,14 @@ func ClusterSpec(
 		WithSmartShutdownTimeout(smartShutdownTimeout(cfg.SmartShutdownTimeout)).
 		WithServiceAccountTemplate(serviceAccountTemplate(cfg))
 
-	if cfg.PgBackRestWebIdentityRoleARN != "" {
+	switch {
+	case cfg.PgBackRestWebIdentityRoleARN != "":
 		volume, env := pgbackrest.WebIdentity(clusterName, cfg.PgBackRestWebIdentityRoleARN)
+		spec = spec.
+			WithProjectedVolumeTemplate(volume).
+			WithEnv(env...)
+	case cfg.PgBackRestGCSWebIdentity:
+		volume, env := pgbackrest.GCSWebIdentity(clusterName)
 		spec = spec.
 			WithProjectedVolumeTemplate(volume).
 			WithEnv(env...)

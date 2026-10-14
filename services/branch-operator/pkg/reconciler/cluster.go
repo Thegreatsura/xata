@@ -50,6 +50,7 @@ func (r *BranchReconciler) reconcileCluster(
 			SecretAccessKeyKey: r.BackupsCredentialsSecretAccessKeyKey,
 		},
 		PgBackRestWebIdentityRoleARN: r.PgBackRestWebIdentityRoleARN,
+		PgBackRestGCSWebIdentity:     r.PgBackRestWorkloadIdentityPool != "",
 	}
 
 	ac := apiv1ac.Cluster(branch.ClusterName(), r.ClustersNamespace).

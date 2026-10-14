@@ -1458,6 +1458,28 @@ func TestUsesAWSIAM(t *testing.T) {
 	}
 }
 
+func TestClusterSpecPgBackRestGCSWebIdentity(t *testing.T) {
+	t.Parallel()
+
+	cfg := baseClusterConfig()
+	require.Nil(t, resources.ClusterSpec(testBranchName, "cluster-1", cfg).ProjectedVolumeTemplate)
+
+	cfg.PgBackRestGCSWebIdentity = true
+	got := resources.ClusterSpec(testBranchName, "cluster-1", cfg)
+
+	wantVolume, wantEnv := pgbackrest.GCSWebIdentity("cluster-1")
+	require.Equal(t, &wantVolume, got.ProjectedVolumeTemplate)
+	require.Equal(t, wantEnv, got.Env)
+	require.Equal(t, "cluster-1-pgbackrest-web-identity", got.ProjectedVolumeTemplate.Sources[0].Secret.Name)
+	require.Equal(t, []corev1.KeyToPath{
+		{Key: "token", Path: "pgbackrest/token"},
+		{Key: "gcs-credentials.json", Path: "pgbackrest/gcs-credentials.json"},
+	}, got.ProjectedVolumeTemplate.Sources[0].Secret.Items)
+	require.Equal(t, []corev1.EnvVar{
+		{Name: "PGBACKREST_REPO1_GCS_KEY", Value: "/projected/pgbackrest/gcs-credentials.json"},
+	}, got.Env)
+}
+
 func TestClusterSpecPgBackRestWebIdentity(t *testing.T) {
 	t.Parallel()
 

@@ -15,8 +15,8 @@ config:
     # s3.keyType=web-id. If you set it, each Cluster gets the web identity
     # token volume and the AWS_ROLE_ARN environment variable.
     pgbackrestWebIdentityRoleARN: ""
-    # GKE Workload Identity pool (<project>.svc.id.goog) for the pgBackRest
-    # token of GCS Branches. If empty, GCS Branches get no token.
+    # GKE Workload Identity pool (<project>.svc.id.goog). Enables
+    # gcs.keyType=web-id for Branches.
     pgbackrestWorkloadIdentityPool: ""
     # GCS bucket with a managed folder for each Branch. If you set it, the
     # operator creates the folders and needs pgbackrestWorkloadIdentityPool
