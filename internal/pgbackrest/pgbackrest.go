@@ -103,27 +103,20 @@ func WebIdentitySecretName(clusterName string) string {
 // The Secret is optional. Thus, the pods can start before the Secret exists.
 // The kubelet adds the token to the volume when the Secret exists.
 func WebIdentity(clusterName, roleARN string) (corev1.ProjectedVolumeSource, []corev1.EnvVar) {
-	optional := true
-	volume := corev1.ProjectedVolumeSource{
-		Sources: []corev1.VolumeProjection{{
-			Secret: &corev1.SecretProjection{
-				Name: WebIdentitySecretName(clusterName),
-				Items: []corev1.KeyToPath{{
-					Key:  TokenKey,
-					Path: path.Join(tokenDir, TokenKey),
-				}},
-				Optional: &optional,
-			},
-		}},
-	}
 	env := []corev1.EnvVar{
 		{Name: "AWS_ROLE_ARN", Value: roleARN},
-		{
-			Name:  "AWS_WEB_IDENTITY_TOKEN_FILE",
-			Value: path.Join(projectedDir, tokenDir, TokenKey),
-		},
+		{Name: "AWS_WEB_IDENTITY_TOKEN_FILE", Value: projectedPath(TokenKey)},
 	}
-	return volume, env
+	return webIdentityVolume(clusterName, TokenKey), env
+}
+
+// GCSWebIdentity returns the projected volume and the environment variable
+// that pgBackRest needs for gcs.keyType=web-id.
+func GCSWebIdentity(clusterName string) (corev1.ProjectedVolumeSource, []corev1.EnvVar) {
+	env := []corev1.EnvVar{
+		{Name: "PGBACKREST_REPO1_GCS_KEY", Value: projectedPath(GCSCredentialsKey)},
+	}
+	return webIdentityVolume(clusterName, TokenKey, GCSCredentialsKey), env
 }
 
 // GCSCredentials returns the external account credential file that makes
@@ -148,4 +141,20 @@ func GCSCredentials(pool, issuer string) ([]byte, error) {
 // projectedPath is the path in the pod of a key of the web identity Secret.
 func projectedPath(key string) string {
 	return path.Join(projectedDir, tokenDir, key)
+}
+
+func webIdentityVolume(clusterName string, keys ...string) corev1.ProjectedVolumeSource {
+	items := make([]corev1.KeyToPath, 0, len(keys))
+	for _, key := range keys {
+		items = append(items, corev1.KeyToPath{Key: key, Path: path.Join(tokenDir, key)})
+	}
+	return corev1.ProjectedVolumeSource{
+		Sources: []corev1.VolumeProjection{{
+			Secret: &corev1.SecretProjection{
+				Name:     WebIdentitySecretName(clusterName),
+				Items:    items,
+				Optional: new(true),
+			},
+		}},
+	}
 }

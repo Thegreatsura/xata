@@ -35,6 +35,12 @@ type ClusterPoolSpec struct {
 	// variable.
 	// +optional
 	PgBackRestWebIdentityRoleARN string `json:"pgbackrestWebIdentityRoleARN,omitempty"`
+
+	// PgBackRestGCSWebIdentity gives each pool cluster the web identity token
+	// volume and the PGBACKREST_REPO1_GCS_KEY environment variable, which
+	// pgBackRest uses for Branches with gcs.keyType=web-id.
+	// +optional
+	PgBackRestGCSWebIdentity bool `json:"pgbackrestGCSWebIdentity,omitempty"`
 }
 
 // PoolerSpec defines the desired state of a pre-provisioned PgBouncer Pooler
