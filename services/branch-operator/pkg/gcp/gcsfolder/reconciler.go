@@ -1,5 +1,5 @@
 // Package gcsfolder gives the pgBackRest ServiceAccount of each Branch access
-// to its own managed folder in the GCS backup bucket.
+// to its own managed folder in the GCS backup bucket of the Branch.
 package gcsfolder
 
 import (
@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,8 +42,6 @@ type Reconciler struct {
 	Client  client.Client
 	Storage *storage.Service
 
-	Bucket string
-
 	// ProjectNumber and WorkloadIdentityPool identify the Workload Identity
 	// pool of the cluster, for example "123456" and "my-project.svc.id.goog".
 	ProjectNumber        string
@@ -52,14 +51,14 @@ type Reconciler struct {
 }
 
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
-	hasBranch := predicate.NewPredicateFuncs(func(o client.Object) bool {
-		_, ok := o.GetLabels()[pgbackrest.GCSManagedFolderLabel]
+	hasBucket := predicate.NewPredicateFuncs(func(o client.Object) bool {
+		_, ok := o.GetAnnotations()[pgbackrest.GCSBucketAnnotation]
 		return ok
 	})
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(ReconcilerName).
-		For(&corev1.ServiceAccount{}, builder.WithPredicates(hasBranch)).
+		For(&corev1.ServiceAccount{}, builder.WithPredicates(hasBucket)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: r.MaxConcurrentReconciles}).
 		Complete(r)
 }
@@ -70,14 +69,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	branch := sa.Labels[pgbackrest.GCSManagedFolderLabel]
-	if branch == "" {
+	branch := metav1.GetControllerOf(sa)
+	bucket := sa.Annotations[pgbackrest.GCSBucketAnnotation]
+	if branch == nil || bucket == "" {
 		return ctrl.Result{}, nil
 	}
-	folder := Folder(branch)
+	folder := Folder(branch.Name)
 
 	if !sa.DeletionTimestamp.IsZero() {
-		return ctrl.Result{}, r.delete(ctx, sa, folder)
+		return ctrl.Result{}, r.delete(ctx, sa, bucket, folder)
 	}
 
 	if sa.Annotations[FolderAnnotation] == folder {
@@ -94,10 +94,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	if err := r.createFolder(ctx, folder); err != nil {
+	if err := r.createFolder(ctx, bucket, folder); err != nil {
 		return ctrl.Result{}, err
 	}
-	if err := r.grant(ctx, folder, r.Principal(sa.Namespace, sa.Name)); err != nil {
+	if err := r.grant(ctx, bucket, folder, r.Principal(sa.Namespace, sa.Name)); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -115,12 +115,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 // delete deletes the managed folder and its grant. The objects in the folder
 // stay in the bucket.
-func (r *Reconciler) delete(ctx context.Context, sa *corev1.ServiceAccount, folder string) error {
+func (r *Reconciler) delete(ctx context.Context, sa *corev1.ServiceAccount, bucket, folder string) error {
 	if !controllerutil.ContainsFinalizer(sa, Finalizer) {
 		return nil
 	}
 
-	err := r.Storage.ManagedFolders.Delete(r.Bucket, folder).AllowNonEmpty(true).Context(ctx).Do()
+	err := r.Storage.ManagedFolders.Delete(bucket, folder).AllowNonEmpty(true).Context(ctx).Do()
 	if err != nil && !isStatus(err, http.StatusNotFound) {
 		return fmt.Errorf("delete managed folder %s: %w", folder, err)
 	}
@@ -133,8 +133,8 @@ func (r *Reconciler) delete(ctx context.Context, sa *corev1.ServiceAccount, fold
 	return nil
 }
 
-func (r *Reconciler) createFolder(ctx context.Context, folder string) error {
-	_, err := r.Storage.ManagedFolders.Insert(r.Bucket, &storage.ManagedFolder{Name: folder}).Context(ctx).Do()
+func (r *Reconciler) createFolder(ctx context.Context, bucket, folder string) error {
+	_, err := r.Storage.ManagedFolders.Insert(bucket, &storage.ManagedFolder{Name: folder}).Context(ctx).Do()
 	if err != nil && !isStatus(err, http.StatusConflict) {
 		return fmt.Errorf("create managed folder %s: %w", folder, err)
 	}
@@ -143,8 +143,8 @@ func (r *Reconciler) createFolder(ctx context.Context, folder string) error {
 
 // grant adds member to Role on folder. GCS rejects the update with 412 when
 // the policy changed after it was read, and the reconciler tries again.
-func (r *Reconciler) grant(ctx context.Context, folder, member string) error {
-	policy, err := r.Storage.ManagedFolders.GetIamPolicy(r.Bucket, folder).Context(ctx).Do()
+func (r *Reconciler) grant(ctx context.Context, bucket, folder, member string) error {
+	policy, err := r.Storage.ManagedFolders.GetIamPolicy(bucket, folder).Context(ctx).Do()
 	if err != nil {
 		return fmt.Errorf("get IAM policy of managed folder %s: %w", folder, err)
 	}
@@ -156,7 +156,7 @@ func (r *Reconciler) grant(ctx context.Context, folder, member string) error {
 	}
 	policy.Bindings = append(policy.Bindings, &storage.PolicyBindings{Role: Role, Members: []string{member}})
 
-	if _, err := r.Storage.ManagedFolders.SetIamPolicy(r.Bucket, folder, policy).Context(ctx).Do(); err != nil {
+	if _, err := r.Storage.ManagedFolders.SetIamPolicy(bucket, folder, policy).Context(ctx).Do(); err != nil {
 		return fmt.Errorf("set IAM policy of managed folder %s: %w", folder, err)
 	}
 	return nil

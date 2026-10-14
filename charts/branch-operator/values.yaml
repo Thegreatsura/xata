@@ -18,12 +18,8 @@ config:
     # GKE Workload Identity pool (<project>.svc.id.goog). Enables
     # gcs.keyType=web-id for Branches.
     pgbackrestWorkloadIdentityPool: ""
-    # GCS bucket with a managed folder for each Branch. If you set it, the
-    # operator creates the folders and needs pgbackrestWorkloadIdentityPool
-    # and pgbackrestGCSProjectNumber.
-    pgbackrestGCSFolderBucket: ""
     # Number of the GCP project that owns pgbackrestWorkloadIdentityPool.
-    # Required for gcs.keyType=web-id.
+    # Required for managed folder IAM policies.
     pgbackrestGCSProjectNumber: ""
     barmanRegionSecret:
       # Without this barman will create a role and bind it to our CNPG pods with

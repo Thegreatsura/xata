@@ -15,9 +15,6 @@ data:
   {{- with .Values.config.branchOperator.pgbackrestWorkloadIdentityPool }}
   XATA_PGBACKREST_GCS_WORKLOAD_IDENTITY_POOL: {{ . | quote }}
   {{- end }}
-  {{- with .Values.config.branchOperator.pgbackrestGCSFolderBucket }}
-  XATA_PGBACKREST_GCS_FOLDER_BUCKET: {{ . | quote }}
-  {{- end }}
   {{- with .Values.config.branchOperator.pgbackrestGCSProjectNumber }}
   XATA_PGBACKREST_GCS_PROJECT_NUMBER: {{ . | quote }}
   {{- end }}

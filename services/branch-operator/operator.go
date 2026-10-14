@@ -2,7 +2,6 @@ package branchoperator
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	barmanPluginApi "github.com/cloudnative-pg/plugin-barman-cloud/api/v1"
@@ -208,7 +207,7 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 		s.wakeupReconciler = wakeupReconciler
 	}
 
-	if s.config.PgBackRestGCSFolderBucket != "" {
+	if s.config.PgBackRestWorkloadIdentityPool != "" && s.config.PgBackRestGCSProjectNumber != "" {
 		if err := s.setupGCSFolderReconciler(ctx, mgr); err != nil {
 			return err
 		}
@@ -219,13 +218,6 @@ func (s *BranchOperatorService) Init(ctx context.Context) error {
 }
 
 func (s *BranchOperatorService) setupGCSFolderReconciler(ctx context.Context, mgr ctrl.Manager) error {
-	if s.config.PgBackRestWorkloadIdentityPool == "" {
-		return errors.New("pgbackrest GCS folder bucket requires the workload identity pool")
-	}
-	if s.config.PgBackRestGCSProjectNumber == "" {
-		return errors.New("pgbackrest GCS folder bucket requires the GCS project number")
-	}
-
 	// Application Default Credentials: Workload Identity in GKE.
 	gcs, err := storage.NewService(ctx)
 	if err != nil {
@@ -234,7 +226,6 @@ func (s *BranchOperatorService) setupGCSFolderReconciler(ctx context.Context, mg
 	r := &gcsfolder.Reconciler{
 		Client:                  mgr.GetClient(),
 		Storage:                 gcs,
-		Bucket:                  s.config.PgBackRestGCSFolderBucket,
 		ProjectNumber:           s.config.PgBackRestGCSProjectNumber,
 		WorkloadIdentityPool:    s.config.PgBackRestWorkloadIdentityPool,
 		MaxConcurrentReconciles: s.config.GCSFolderMaxConcurrent,

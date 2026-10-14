@@ -140,6 +140,12 @@ func (r *BranchReconciler) reconcilePgBackRestServiceAccount(
 			return err
 		}
 		ensureLabels(sa, branch.Spec.InheritedMetadata)
+		if b := branch.Spec.BackupSpec; usesGCS(b) && b.PgBackRest.GCS.KeyType == pgbackrest.KeyTypeWebID {
+			if sa.Annotations == nil {
+				sa.Annotations = map[string]string{}
+			}
+			sa.Annotations[pgbackrest.GCSBucketAnnotation] = b.PgBackRest.GCS.Bucket
+		}
 		// The token is only for pgBackRest, which reads it from the Secret.
 		sa.AutomountServiceAccountToken = new(false)
 		return nil

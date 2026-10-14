@@ -15,6 +15,7 @@ import (
 	storage "google.golang.org/api/storage/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -99,7 +100,6 @@ func setup(t *testing.T, objs ...client.Object) (*gcsfolder.Reconciler, *fakeGCS
 	return &gcsfolder.Reconciler{
 		Client:               fake.NewClientBuilder().WithScheme(clientgoscheme.Scheme).WithObjects(objs...).Build(),
 		Storage:              svc,
-		Bucket:               bucket,
 		ProjectNumber:        "123",
 		WorkloadIdentityPool: "project.svc.id.goog",
 	}, gcs
@@ -117,7 +117,8 @@ func serviceAccount(name string) *corev1.ServiceAccount {
 
 func branchServiceAccount(branch string) *corev1.ServiceAccount {
 	sa := serviceAccount(pgbackrest.ServiceAccountName(branch))
-	sa.Labels = map[string]string{pgbackrest.GCSManagedFolderLabel: branch}
+	sa.OwnerReferences = []metav1.OwnerReference{{Kind: "Branch", Name: branch, Controller: new(true)}}
+	sa.Annotations = map[string]string{pgbackrest.GCSBucketAnnotation: bucket}
 	return sa
 }
 
@@ -159,7 +160,7 @@ func TestReconcile(t *testing.T) {
 		// Lose the annotation, as if the reconciler stopped before it wrote it.
 		sa := &corev1.ServiceAccount{}
 		require.NoError(t, r.Client.Get(ctx, client.ObjectKeyFromObject(serviceAccount("b123-pgbackrest")), sa))
-		sa.Annotations = nil
+		delete(sa.Annotations, gcsfolder.FolderAnnotation)
 		require.NoError(t, r.Client.Update(ctx, sa))
 
 		reconcile(t, r, "b123-pgbackrest")
@@ -183,10 +184,13 @@ func TestReconcile(t *testing.T) {
 		t.Parallel()
 		branchID := serviceAccount("b456-pgbackrest")
 		branchID.Labels = map[string]string{"xata.io/branchID": "b456"}
-		r, gcs := setup(t, serviceAccount("b123"), branchID)
+		noBucket := branchServiceAccount("b789")
+		noBucket.Annotations = nil
+		r, gcs := setup(t, serviceAccount("b123"), branchID, noBucket)
 
 		reconcile(t, r, "b123")
 		reconcile(t, r, "b456-pgbackrest")
+		reconcile(t, r, "b789-pgbackrest")
 		require.Empty(t, gcs.calls)
 	})
 }

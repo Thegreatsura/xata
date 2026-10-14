@@ -325,7 +325,10 @@ func TestReconcilePgBackRestIdentityGCP(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"project.svc.id.goog"}, audiences)
 
-	require.NoError(t, c.Get(ctx, client.ObjectKey{Name: "branch-pgbackrest", Namespace: "xata-clusters"}, &corev1.ServiceAccount{}))
+	sa := &corev1.ServiceAccount{}
+	saKey := client.ObjectKey{Name: "branch-pgbackrest", Namespace: "xata-clusters"}
+	require.NoError(t, c.Get(ctx, saKey, sa))
+	require.NotContains(t, sa.Annotations, pgbackrest.GCSBucketAnnotation)
 
 	secret := &corev1.Secret{}
 	require.NoError(t, c.Get(ctx, client.ObjectKey{Name: "cluster-pgbackrest-web-identity", Namespace: "xata-clusters"}, secret))
@@ -337,6 +340,13 @@ func TestReconcilePgBackRestIdentityGCP(t *testing.T) {
 		"token_url": "https://sts.googleapis.com/v1/token",
 		"credential_source": {"file": "/projected/pgbackrest/token", "format": {"type": "text"}}
 	}`, string(secret.Data[pgbackrest.GCSCredentialsKey]))
+
+	branch.Spec.BackupSpec.PgBackRest.GCS.KeyType = pgbackrest.KeyTypeWebID
+	_, err = r.reconcilePgBackRestIdentity(ctx, branch)
+	require.NoError(t, err)
+
+	require.NoError(t, c.Get(ctx, saKey, sa))
+	require.Equal(t, "some-bucket", sa.Annotations[pgbackrest.GCSBucketAnnotation])
 }
 
 func TestSetGCSCredentials(t *testing.T) {

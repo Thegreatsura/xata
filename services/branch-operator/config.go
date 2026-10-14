@@ -12,8 +12,7 @@ type Config struct {
 	BackupsEndpoint                string `env:"XATA_BACKUPS_ENDPOINT" env-description:"endpoint for reaching the backups bucket; set for a non-AWS S3-compatible store such as Cloudflare R2"`
 	PgBackRestWebIdentityRoleARN   string `env:"XATA_PGBACKREST_S3_WEB_IDENTITY_ROLE_ARN" env-description:"AWS IRSA role that pgbackrest assumes for Branches with s3.keyType=web-id"`
 	PgBackRestWorkloadIdentityPool string `env:"XATA_PGBACKREST_GCS_WORKLOAD_IDENTITY_POOL" env-description:"GKE Workload Identity pool (<project>.svc.id.goog); enables gcs.keyType=web-id for Branches"`
-	PgBackRestGCSFolderBucket      string `env:"XATA_PGBACKREST_GCS_FOLDER_BUCKET" env-description:"GCS bucket with a managed folder for each Branch; if empty, the operator creates no managed folders"`
-	PgBackRestGCSProjectNumber     string `env:"XATA_PGBACKREST_GCS_PROJECT_NUMBER" env-description:"number of the GCP project that owns the Workload Identity pool; required with XATA_PGBACKREST_GCS_FOLDER_BUCKET and for gcs.keyType=web-id"`
+	PgBackRestGCSProjectNumber     string `env:"XATA_PGBACKREST_GCS_PROJECT_NUMBER" env-description:"number of the GCP project that owns the Workload Identity pool; required for managed folder IAM policies"`
 	// When BackupsEndpoint is set (non-AWS S3-compatible store), backups
 	// authenticate with static credentials from this Secret instead of an IAM
 	// role. Defaults match the local-dev RustFS secret.
