@@ -47,7 +47,10 @@ ARG SOURCE_DATE_EPOCH=946684800
 
 WORKDIR /opt/keycloak
 
+# Set the timestamps that kc.sh build writes into lib/quarkus.
 RUN touch -m --date="@${SOURCE_DATE_EPOCH}" /opt/keycloak/providers/* && \
+    date=$(date -u -d "@${SOURCE_DATE_EPOCH}" +%Y-%m-%dT%H:%M:%SZ) && \
+    JAVA_OPTS_APPEND="-Dquarkus.package.output-timestamp=${date} -Djava.properties.date=${date}" \
     /opt/keycloak/bin/kc.sh build --features=docker,authorization \
         --tracing-enabled=true --tracing-jdbc-enabled=false --verbose
 
