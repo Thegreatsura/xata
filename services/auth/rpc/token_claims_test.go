@@ -157,6 +157,22 @@ func TestClaimsFromAccessToken(t *testing.T) {
 			wantOK:   true,
 			wantOrgs: map[string]token.Organization{},
 		},
+		// The Xata mapper's addRole setting adds the caller's role to each organization.
+		"role is ignored": {
+			raw: `{"email": "user@xata.io", "organization": {
+				"acme": {"billingStatus": ["ok"], "usageTier": ["t2"], "role": ["admin"]},
+				"globex": {"billingStatus": ["ok"], "usageTier": ["t1"], "role": []}
+			}}`,
+			wantOK: true,
+			wantOrgs: map[string]token.Organization{
+				"acme":   {ID: "acme", Status: "enabled", UsageTier: "t2"},
+				"globex": {ID: "globex", Status: "enabled", UsageTier: "t1"},
+			},
+		},
+		"role alone falls back": {
+			raw:    `{"email": "user@xata.io", "organization": {"acme": {"role": ["admin"]}}}`,
+			wantOK: false,
+		},
 		"empty deletedAt is not deleted": {
 			raw:    `{"email": "user@xata.io", "organization": {"acme": {"displayName": ["Acme Inc"], "deletedAt": [""]}}}`,
 			wantOK: true,
