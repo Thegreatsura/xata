@@ -309,7 +309,7 @@ func (b *BranchBuilder) WithStorageQoSClass(useStorageQoSClasses bool, storageQo
 }
 
 // WithPgBackRest sets the pgbackrest storage backend for the cell's cloud
-// provider: gcs for gcp (bucket + GCP service account, Workload Identity
+// provider: gcs for gcp (bucket + optional GCP service account, Workload Identity
 // auth), azure for azure (storage account + container, managed identity
 // auth), s3 otherwise. Only applies when the backup method is pgbackrest. A
 // non-empty s3 endpoint targets a non-AWS S3-compatible store (RustFS,

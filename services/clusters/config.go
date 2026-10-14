@@ -25,7 +25,7 @@ type Config struct {
 	PgBackRestRegion            string            `env:"XATA_BACKUPS_REGION" env-default:"" env-description:"S3 region for pgbackrest backups (aws only)"`
 	PgBackRestEndpoint          string            `env:"XATA_PGBACKREST_ENDPOINT" env-default:"" env-description:"S3 endpoint for pgbackrest backups; set for a non-AWS S3-compatible store such as RustFS (local dev) or Cloudflare R2"`
 	PgBackRestCredentialsSecret string            `env:"XATA_PGBACKREST_CREDENTIALS_SECRET" env-default:"" env-description:"Secret with static S3 credentials for pgbackrest, stamped on new branches; empty uses the branch-operator's configured default"`
-	PgBackRestGCSServiceAccount string            `env:"XATA_PGBACKREST_GCS_SERVICE_ACCOUNT" env-default:"" env-description:"GCP service account email for pgbackrest GCS backups via Workload Identity (gcp only)"`
+	PgBackRestGCSServiceAccount string            `env:"XATA_PGBACKREST_GCS_SERVICE_ACCOUNT" env-default:"" env-description:"GCP service account that the cluster pods impersonate for pgbackrest; if empty, the pods use their own Kubernetes ServiceAccount (gcp only)"`
 	PgBackRestAzureAccount      string            `env:"XATA_PGBACKREST_AZURE_STORAGE_ACCOUNT" env-default:"" env-description:"Azure storage account for pgbackrest backups via managed identity (azure only)"`
 	PgBackRestAzureContainer    string            `env:"XATA_PGBACKREST_AZURE_CONTAINER" env-default:"" env-description:"Azure Blob Storage container for pgbackrest backups (azure only)"`
 	PgBackRestEncryptionEnabled bool              `env:"XATA_PGBACKREST_ENCRYPTION_ENABLED" env-default:"false" env-description:"enable client-side encryption for new pgbackrest backup destinations in this cell"`

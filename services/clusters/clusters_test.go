@@ -773,6 +773,26 @@ func TestCreatePostgresCluster(t *testing.T) {
 			},
 		},
 		{
+			name:        "main branch - pgbackrest gcs backend without service account",
+			serviceOpts: []testServiceOption{withCloudProvider(CloudProviderGCP)},
+			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
+				r.BackupConfiguration.BackupMethod = string(v1alpha1.BackupMethodPgBackRest)
+			},
+			expectedBranchFn: func(b *v1alpha1.Branch) {
+				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
+				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
+					GCS: &v1alpha1.PgBackRestGCSSpec{
+						Bucket: "test-pgbackrest-bucket",
+					},
+					RetentionFullDays:   7,
+					CompressType:        DefaultPgBackRestCompressType,
+					ArchiveAsync:        DefaultPgBackRestArchiveAsync,
+					ArchivePushQueueMax: DefaultPgBackRestPushQueueMax,
+					ArchiveGetQueueMax:  DefaultPgBackRestGetQueueMax,
+				}
+			},
+		},
+		{
 			name: "main branch - pgbackrest azure backend",
 			serviceOpts: []testServiceOption{
 				withCloudProvider(CloudProviderAzure),
@@ -799,14 +819,6 @@ func TestCreatePostgresCluster(t *testing.T) {
 		{
 			name:        "error - pgbackrest without cell config",
 			serviceOpts: []testServiceOption{withPgBackRestBucket("")},
-			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
-				r.BackupConfiguration.BackupMethod = "pgbackrest"
-			},
-			expectedStatusCode: codes.FailedPrecondition,
-		},
-		{
-			name:        "error - pgbackrest gcs without service account",
-			serviceOpts: []testServiceOption{withCloudProvider(CloudProviderGCP)},
 			requestFn: func(r *clustersv1.CreatePostgresClusterRequest) {
 				r.BackupConfiguration.BackupMethod = "pgbackrest"
 			},

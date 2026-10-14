@@ -389,20 +389,20 @@ func (c *ClustersService) CreatePostgresCluster(ctx context.Context, req *cluste
 }
 
 // validatePgBackRestConfigured fails fast when a branch requests pgbackrest but
-// the cell's backend env is incomplete for its cloud provider.
+// the cell's backend configuration is incomplete for its cloud provider.
 func validatePgBackRestConfigured(pgb *branchv1alpha1.PgBackRestSpec) error {
 	switch {
 	case pgb.Azure != nil:
 		if pgb.Azure.Account == "" || pgb.Azure.Container == "" {
-			return status.Errorf(codes.FailedPrecondition, "pgbackrest backup method requested but XATA_PGBACKREST_AZURE_STORAGE_ACCOUNT/XATA_PGBACKREST_AZURE_CONTAINER is not configured in this cell")
+			return status.Errorf(codes.FailedPrecondition, "pgbackrest backup method requested but the Azure storage account or container is not configured in this cell")
 		}
 	case pgb.GCS != nil:
-		if pgb.GCS.Bucket == "" || pgb.GCS.ServiceAccountEmail == "" {
-			return status.Errorf(codes.FailedPrecondition, "pgbackrest backup method requested but XATA_PGBACKREST_BUCKET/XATA_PGBACKREST_GCS_SERVICE_ACCOUNT is not configured in this cell")
+		if pgb.GCS.Bucket == "" {
+			return status.Errorf(codes.FailedPrecondition, "pgbackrest backup method requested but the GCS bucket is not configured in this cell")
 		}
 	case pgb.S3 != nil:
 		if pgb.S3.Bucket == "" || pgb.S3.Region == "" {
-			return status.Errorf(codes.FailedPrecondition, "pgbackrest backup method requested but XATA_PGBACKREST_BUCKET/XATA_BACKUPS_REGION is not configured in this cell")
+			return status.Errorf(codes.FailedPrecondition, "pgbackrest backup method requested but the S3 bucket or region is not configured in this cell")
 		}
 	}
 	return nil
