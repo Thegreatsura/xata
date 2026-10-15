@@ -329,6 +329,7 @@ func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, servi
 		b.branch.Spec.BackupSpec.PgBackRest.GCS = &v1alpha1.PgBackRestGCSSpec{
 			Bucket:              bucket,
 			ServiceAccountEmail: serviceAccount,
+			KeyType:             pgbackrest.KeyTypeWebID,
 		}
 	case CloudProviderAzure:
 		b.branch.Spec.BackupSpec.PgBackRest.Azure = &v1alpha1.PgBackRestAzureSpec{

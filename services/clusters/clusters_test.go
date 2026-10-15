@@ -763,6 +763,7 @@ func TestCreatePostgresCluster(t *testing.T) {
 					GCS: &v1alpha1.PgBackRestGCSSpec{
 						Bucket:              "test-pgbackrest-bucket",
 						ServiceAccountEmail: "backups@project.iam.gserviceaccount.com",
+						KeyType:             webIdentityKeyType,
 					},
 					RetentionFullDays:   7,
 					CompressType:        DefaultPgBackRestCompressType,
@@ -782,7 +783,8 @@ func TestCreatePostgresCluster(t *testing.T) {
 				b.Spec.BackupSpec.Method = v1alpha1.BackupMethodPgBackRest
 				b.Spec.BackupSpec.PgBackRest = &v1alpha1.PgBackRestSpec{
 					GCS: &v1alpha1.PgBackRestGCSSpec{
-						Bucket: "test-pgbackrest-bucket",
+						Bucket:  "test-pgbackrest-bucket",
+						KeyType: webIdentityKeyType,
 					},
 					RetentionFullDays:   7,
 					CompressType:        DefaultPgBackRestCompressType,
