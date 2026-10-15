@@ -113,11 +113,11 @@
       "protocolMappers": [
         {
           "config": {
-            "access.token.claim": "true",
+            "access.token.claim": "false",
             "addOrganizationAttributes": "true",
             "addOrganizationId": "false",
             "claim.name": "organization",
-            "id.token.claim": "true",
+            "id.token.claim": "false",
             "introspection.token.claim": "false",
             "jsonType.label": "JSON",
             "multivalued": "true",
@@ -127,6 +127,25 @@
           "name": "organization",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-organization-membership-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "addOrganizationAttributes": "true",
+            "addOrganizationId": "false",
+            "addRole": "true",
+            "claim.name": "organization",
+            "id.token.claim": "false",
+            "includedAttributes": "billingStatus##createdAt##disabledByAdmin##lastUpdated##marketplace##usageTier",
+            "introspection.token.claim": "false",
+            "jsonType.label": "JSON",
+            "multivalued": "true",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "xata-organization",
+          "protocol": "openid-connect",
+          "protocolMapper": "xata-organization-membership-mapper"
         }
       ]
     }
