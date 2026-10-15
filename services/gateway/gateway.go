@@ -139,8 +139,10 @@ func (g *GatewayService) Run(ctx context.Context, o *o11y.O) error {
 	}
 
 	httpServer, err := serverless.NewServer(o, g.resolver, dialer, gwMetrics, g.ipFilter, serverless.Config{
-		ListenAddress: g.config.HTTPListenAddress,
-		TLSCert:       g.certificate,
+		ListenAddress:      g.config.HTTPListenAddress,
+		TrustProxyHeader:   g.config.TrustProxyHeader,
+		ProxyListenAddress: g.config.HTTPProxyListenAddress,
+		TLSCert:            g.certificate,
 	})
 	if err != nil {
 		return err
@@ -162,6 +164,8 @@ func (g *GatewayService) newServer(shutdownSignal context.Context, gwMetrics *me
 
 	return NewServer(sessionInitiator, ServerConfig{
 		Listen:               g.config.ListenAddress,
+		TrustProxyHeader:     g.config.TrustProxyHeader,
+		ProxyListen:          g.config.ProxyListenAddress,
 		DrainingTime:         g.config.DrainingTime,
 		ShutdownSignal:       shutdownSignal,
 		ClientTCPUserTimeout: g.config.ClientTCPUserTimeout,

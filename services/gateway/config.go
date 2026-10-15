@@ -27,6 +27,17 @@ type Config struct {
 	HTTPEnabled bool `env:"XATA_SQL_GW_HTTP_ENABLED" env-description:"SQL Gateway: enable HTTP/WebSocket endpoints" env-default:"true"`
 	// HTTPListenAddress is the address and port to listen on for HTTP and WebSocket connections.
 	HTTPListenAddress string `env:"XATA_SQL_GW_HTTP_LISTEN_ADDRESS" env-description:"SQL Gateway: address and port to listen on for HTTP/WebSocket" env-default:":8443"`
+	// TrustProxyHeader makes ListenAddress and HTTPListenAddress take the client
+	// address from a PROXY protocol header. Disable it when the load balancer
+	// in front of those ports does not add a header, or any client can set
+	// its own address.
+	TrustProxyHeader bool `env:"XATA_SQL_GW_TRUST_PROXY_HEADER" env-description:"SQL Gateway: take the client address from a PROXY protocol header on the listen addresses" env-default:"true"`
+	// ProxyListenAddress and HTTPProxyListenAddress always take the client
+	// address from a PROXY protocol header, whatever TrustProxyHeader says,
+	// and reject a connection without one. Only a load balancer that always
+	// adds a header may target them.
+	ProxyListenAddress     string `env:"XATA_SQL_GW_PROXY_LISTEN_ADDRESS" env-description:"SQL Gateway: address and port that always trusts a PROXY protocol header; empty disables it" env-default:""`
+	HTTPProxyListenAddress string `env:"XATA_SQL_GW_HTTP_PROXY_LISTEN_ADDRESS" env-description:"SQL Gateway: HTTP/WebSocket address and port that always trusts a PROXY protocol header; empty disables it" env-default:""`
 	// BackendTCPUserTimeout bounds how long data written to a backend Postgres
 	// connection may stay unacknowledged before the kernel fails the
 	// connection. Zero keeps the system default. Linux only.
@@ -56,6 +67,12 @@ type ServerConfig struct {
 	// Listen is the address to listen on for incoming wire protocol connections.
 	// The format of the address is "host:port".
 	Listen string
+	// TrustProxyHeader sets the PROXY protocol policy of Listen. See
+	// Config.TrustProxyHeader.
+	TrustProxyHeader bool
+	// ProxyListen, when set, is a second address whose connections always use
+	// the PROXY protocol header. See Config.ProxyListenAddress.
+	ProxyListen string
 	// DrainingTime is the time to wait for connections to drain before shutting down. After receiving a SIGTERM, the server will stop accepting new connections and wait for existing connections to drain.
 	// Zero skips draining; a negative value drains indefinitely, blocking
 	// shutdown until every connection ends (Config.Validate rejects it).

@@ -30,7 +30,7 @@ type Server interface {
 type server struct {
 	initiator            sessionInitiator
 	drainer              *timedWaitGroup
-	listenURL            string
+	listeners            []listenerConfig
 	metrics              *metrics.GatewayMetrics
 	shutdownSignal       context.Context
 	clientTCPUserTimeout time.Duration
@@ -42,6 +42,13 @@ type sessionInitiator interface {
 	InitSession(ctx context.Context, sessionID string, conn net.Conn) (session.Session, error)
 }
 
+// listenerConfig is one address the server accepts connections on, with the
+// PROXY protocol policy for that address.
+type listenerConfig struct {
+	address string
+	policy  proxyproto.Policy
+}
+
 const sessionIDKey = "session_id"
 
 // NewServer creates a new SQL gateway server.
@@ -50,8 +57,13 @@ func NewServer(si sessionInitiator, cfg ServerConfig, m *metrics.GatewayMetrics)
 		si = initiator.NewRejectInitiator()
 	}
 
+	listeners := []listenerConfig{{address: cfg.Listen, policy: proxyHeaderPolicy(cfg.TrustProxyHeader)}}
+	if cfg.ProxyListen != "" {
+		listeners = append(listeners, listenerConfig{address: cfg.ProxyListen, policy: proxyproto.REQUIRE})
+	}
+
 	return &server{
-		listenURL:            cfg.Listen,
+		listeners:            listeners,
 		drainer:              newTimedWaitGroup(cfg.DrainingTime),
 		initiator:            si,
 		metrics:              m,
@@ -61,33 +73,63 @@ func NewServer(si sessionInitiator, cfg ServerConfig, m *metrics.GatewayMetrics)
 }
 
 func (s *server) Run(ctx context.Context) error {
-	lc := net.ListenConfig{}
-	baseListener, err := lc.Listen(ctx, "tcp", s.listenURL)
+	listeners, err := s.listen(ctx)
 	if err != nil {
 		return err
 	}
-	return s.runWithListener(ctx, baseListener)
+	return s.runWithListeners(ctx, listeners)
 }
 
-// runWithListener runs the server on an already bound listener and takes
-// ownership of it.
-func (s *server) runWithListener(ctx context.Context, baseListener net.Listener) error {
+// listen binds every configured address and wraps it with its PROXY protocol
+// policy. The listeners are returned in configuration order.
+func (s *server) listen(ctx context.Context) ([]net.Listener, error) {
+	lc := net.ListenConfig{}
+	listeners := make([]net.Listener, 0, len(s.listeners))
+	for _, cfg := range s.listeners {
+		baseListener, err := lc.Listen(ctx, "tcp", cfg.address)
+		if err != nil {
+			for _, l := range listeners {
+				l.Close()
+			}
+			return nil, err
+		}
+		listeners = append(listeners, newProxyListener(baseListener, cfg.policy))
+	}
+	return listeners, nil
+}
+
+// proxyHeaderPolicy maps the trust setting of a listener to its PROXY
+// protocol policy. IGNORE still reads and drops a header, so a header sent
+// by the client does not reach the TLS handshake.
+func proxyHeaderPolicy(trust bool) proxyproto.Policy {
+	if trust {
+		return proxyproto.USE
+	}
+	return proxyproto.IGNORE
+}
+
+// newProxyListener wraps a listener with PROXY protocol version 1 and 2
+// support. With USE, RemoteAddr() returns the address from the header when a
+// header is present. With REQUIRE, a connection without a header fails on its
+// first read. With IGNORE, it always returns the socket address.
+func newProxyListener(l net.Listener, policy proxyproto.Policy) *proxyproto.Listener {
+	trusted := policy == proxyproto.USE || policy == proxyproto.REQUIRE
+	log.Info().Msgf("listening on %s, trusting the PROXY protocol header: %t", l.Addr(), trusted)
+	return &proxyproto.Listener{
+		Listener: l,
+		ConnPolicy: func(opts proxyproto.ConnPolicyOptions) (proxyproto.Policy, error) {
+			return policy, nil
+		},
+	}
+}
+
+// runWithListeners runs the server on already bound listeners and takes
+// ownership of them.
+func (s *server) runWithListeners(ctx context.Context, listeners []net.Listener) error {
 	var ac ctxtool.AutoCancel
 	defer ac.Cancel()
 
-	// Wrap the listener with PROXY protocol support
-	// This enables automatic detection and parsing of PROXY protocol v1 and v2 headers
-	// If PROXY protocol headers are present, RemoteAddr() will return the real client IP
-	// If not present, it falls back to the actual connection RemoteAddr()
-	proxyListener := &proxyproto.Listener{
-		Listener: baseListener,
-		ConnPolicy: func(opts proxyproto.ConnPolicyOptions) (proxyproto.Policy, error) {
-			return proxyproto.USE, nil
-		},
-	}
-	log.Info().Msgf("listening on %s with PROXY protocol support...", baseListener.Addr())
-
-	// On shutdown: close the listener, then give connections time to finish.
+	// On shutdown: close the listeners, then give connections time to finish.
 	// The drainer.Wait call must run inside this hook: ctx.Done() does not
 	// fire until the hook returns, which is what keeps session contexts (and
 	// their client connections) alive during the draining period.
@@ -95,7 +137,9 @@ func (s *server) runWithListener(ctx context.Context, baseListener net.Listener)
 	serveCtx := ac.With(ctxtool.WithFunc(ctx, func() {
 		defer close(drainDone)
 		// Stop accepting connections right away
-		proxyListener.Close()
+		for _, l := range listeners {
+			l.Close()
+		}
 
 		if !s.shuttingDown(ctx) {
 			// Not a graceful shutdown (e.g. sibling failure): skip draining
@@ -115,15 +159,20 @@ func (s *server) runWithListener(ctx context.Context, baseListener net.Listener)
 		}
 	}))
 
-	err := s.serve(serveCtx, proxyListener)
+	serveErrs := make(chan error, len(listeners))
+	for _, l := range listeners {
+		go func() { serveErrs <- s.serve(serveCtx, l) }()
+	}
+
+	err := <-serveErrs
 	if !s.shuttingDown(ctx) {
 		// serve failed on its own, not via a graceful shutdown: fail fast
-		// instead of draining.
+		// instead of draining. The deferred cancel closes the other listeners.
 		return err
 	}
 
 	// Shutting down: serve returned because the hook above closed the
-	// listener. Block until draining completes so active connections are not
+	// listeners. Block until draining completes so active connections are not
 	// killed by process exit.
 	<-drainDone
 	return nil

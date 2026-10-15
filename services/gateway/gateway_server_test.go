@@ -110,7 +110,7 @@ func startTestServerWithSignal(t *testing.T, drainingTime time.Duration, signal 
 	require.True(t, ok)
 
 	runErr = make(chan error, 1)
-	go func() { runErr <- srv.runWithListener(ctx, l) }()
+	go func() { runErr <- srv.runWithListeners(ctx, []net.Listener{newProxyListener(l, proxyproto.USE)}) }()
 
 	return addr, si.sessions, runErr, cancel
 }
@@ -324,6 +324,125 @@ func TestStartSessionEnrichesSessionLogger(t *testing.T) {
 	require.Equal(t, float64(1), entry["proxy_protocol_version"])
 }
 
+// addrInitiator reports the client address that the session sees, then
+// ends the session.
+type addrInitiator struct {
+	addrs chan net.Addr
+}
+
+func (ai addrInitiator) InitSession(_ context.Context, _ string, conn net.Conn) (session.Session, error) {
+	ai.addrs <- conn.RemoteAddr()
+	return nil, errors.New("session ended by test")
+}
+
+// TestServerProxyHeaderPolicy checks which client address each listener
+// reports when the client sends its own PROXY protocol header.
+func TestServerProxyHeaderPolicy(t *testing.T) {
+	headerAddr := &net.TCPAddr{IP: net.ParseIP("203.0.113.10"), Port: 54321}
+
+	tests := map[string]struct {
+		trustProxyHeader bool
+		proxyListener    bool
+		wantHeaderAddr   bool
+	}{
+		"listen address trusts the header": {
+			trustProxyHeader: true,
+			wantHeaderAddr:   true,
+		},
+		"listen address ignores the header": {
+			trustProxyHeader: false,
+			wantHeaderAddr:   false,
+		},
+		"proxy listen address trusts the header when the listen address does not": {
+			trustProxyHeader: false,
+			proxyListener:    true,
+			wantHeaderAddr:   true,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			m, err := metrics.New(noop.NewMeterProvider().Meter("test"))
+			require.NoError(t, err)
+
+			ai := addrInitiator{addrs: make(chan net.Addr, 1)}
+			srv, ok := NewServer(ai, ServerConfig{
+				Listen:           "127.0.0.1:0",
+				TrustProxyHeader: tt.trustProxyHeader,
+				ProxyListen:      "127.0.0.1:0",
+			}, m).(*server)
+			require.True(t, ok)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			t.Cleanup(cancel)
+			listeners, err := srv.listen(ctx)
+			require.NoError(t, err)
+			require.Len(t, listeners, 2)
+			go func() { _ = srv.runWithListeners(ctx, listeners) }()
+
+			target := listeners[0]
+			if tt.proxyListener {
+				target = listeners[1]
+			}
+			conn, err := net.Dial("tcp", target.Addr().String())
+			require.NoError(t, err)
+			defer conn.Close()
+
+			header := proxyproto.HeaderProxyFromAddrs(2, headerAddr, target.Addr())
+			_, err = header.WriteTo(conn)
+			require.NoError(t, err)
+			_, err = conn.Write([]byte{0})
+			require.NoError(t, err)
+
+			var got net.Addr
+			select {
+			case got = <-ai.addrs:
+			case <-time.After(5 * time.Second):
+				t.Fatal("no session started")
+			}
+
+			if tt.wantHeaderAddr {
+				require.Equal(t, headerAddr.String(), got.String())
+			} else {
+				require.Equal(t, conn.LocalAddr().String(), got.String())
+			}
+		})
+	}
+}
+
+// TestServerProxyListenRequiresHeader checks that the proxy listen address
+// rejects a connection that sends no PROXY protocol header.
+func TestServerProxyListenRequiresHeader(t *testing.T) {
+	m, err := metrics.New(noop.NewMeterProvider().Meter("test"))
+	require.NoError(t, err)
+
+	srv, ok := NewServer(nil, ServerConfig{
+		Listen:      "127.0.0.1:0",
+		ProxyListen: "127.0.0.1:0",
+	}, m).(*server)
+	require.True(t, ok)
+
+	listeners, err := srv.listen(context.Background())
+	require.NoError(t, err)
+	require.Len(t, listeners, 2)
+	for _, l := range listeners {
+		t.Cleanup(func() { l.Close() })
+	}
+
+	conn, err := net.Dial("tcp", listeners[1].Addr().String())
+	require.NoError(t, err)
+	defer conn.Close()
+	_, err = conn.Write([]byte{0})
+	require.NoError(t, err)
+
+	accepted, err := listeners[1].Accept()
+	require.NoError(t, err)
+	defer accepted.Close()
+
+	_, err = accepted.Read(make([]byte, 1))
+	require.ErrorIs(t, err, proxyproto.ErrNoProxyProtocol)
+}
+
 // TestServerRunCancelRace cancels the run context concurrently with server
 // startup: the shutdown hook may run before runWithListener finishes setting
 // up and must not race it (caught by the race detector).
@@ -345,7 +464,7 @@ func TestServerRunCancelRace(t *testing.T) {
 			time.Sleep(delay)
 			cancel()
 		}()
-		_ = srv.runWithListener(ctx, l)
+		_ = srv.runWithListeners(ctx, []net.Listener{newProxyListener(l, proxyproto.USE)})
 		cancel()
 	}
 }

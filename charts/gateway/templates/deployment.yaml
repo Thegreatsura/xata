@@ -36,9 +36,15 @@ spec:
             - name: wire-port
               containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
+            - name: wire-proxy-port
+              containerPort: {{ .Values.service.proxyTargetPort }}
+              protocol: TCP
             {{- if .Values.http.enabled }}
             - name: http-port
               containerPort: {{ .Values.service.httpTargetPort }}
+              protocol: TCP
+            - name: http-proxy-port
+              containerPort: {{ .Values.service.httpProxyTargetPort }}
               protocol: TCP
             {{- end }}
           volumeMounts:
@@ -50,6 +56,10 @@ spec:
               value: "8"
             - name: XATA_SQL_GW_LISTEN_ADDRESS
               value: "0.0.0.0:{{ .Values.service.targetPort }}"
+            - name: XATA_SQL_GW_PROXY_LISTEN_ADDRESS
+              value: "0.0.0.0:{{ .Values.service.proxyTargetPort }}"
+            - name: XATA_SQL_GW_TRUST_PROXY_HEADER
+              value: {{ .Values.trustProxyHeader | quote }}
             - name: XATA_SQL_GW_HEALTH_CHECK_PORT
               value: "8089"
             - name: XATA_SQL_GW_DRAINING_TIME
@@ -71,6 +81,8 @@ spec:
               value: "true"
             - name: XATA_SQL_GW_HTTP_LISTEN_ADDRESS
               value: "0.0.0.0:{{ .Values.service.httpTargetPort }}"
+            - name: XATA_SQL_GW_HTTP_PROXY_LISTEN_ADDRESS
+              value: "0.0.0.0:{{ .Values.service.httpProxyTargetPort }}"
             {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}

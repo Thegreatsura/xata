@@ -10,6 +10,11 @@ service:
   targetPort: 7654
   httpPort: 443
   httpTargetPort: 8443
+  # These ports always take the client address from a PROXY protocol header,
+  # and reject a connection without one. Point only a load balancer that always
+  # adds the header at them.
+  proxyTargetPort: 7655
+  httpProxyTargetPort: 8444
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-type: external
     service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: instance
@@ -18,6 +23,11 @@ service:
 
 http:
   enabled: true
+
+# Take the client address from a PROXY protocol header on targetPort and
+# httpTargetPort. Set false when the load balancer adds no header, or any
+# client can set its own address.
+trustProxyHeader: true
 
 clustersNamespace: xata-clusters
 

@@ -24,7 +24,12 @@ import (
 
 type Config struct {
 	ListenAddress string
-	TLSCert       *tls.Certificate
+	// TrustProxyHeader sets the PROXY protocol policy of ListenAddress.
+	TrustProxyHeader bool
+	// ProxyListenAddress, when set, is a second address that always uses the
+	// PROXY protocol header.
+	ProxyListenAddress string
+	TLSCert            *tls.Certificate
 }
 
 type Server struct {
@@ -111,27 +116,9 @@ func normalizeHeadersMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 func (s *Server) Run(ctx context.Context) error {
 	logger := log.Ctx(ctx)
 
-	baseListener, err := net.Listen("tcp", s.config.ListenAddress)
+	listeners, err := s.listen()
 	if err != nil {
 		return err
-	}
-
-	// Wrap with PROXY protocol support so RemoteAddr() returns the real
-	// client IP when behind an AWS NLB (or any L4 proxy sending PROXY
-	// protocol headers). Falls back to the actual connection address when
-	// no PROXY protocol header is present.
-	var listener net.Listener = &proxyproto.Listener{
-		Listener: baseListener,
-		ConnPolicy: func(opts proxyproto.ConnPolicyOptions) (proxyproto.Policy, error) {
-			return proxyproto.USE, nil
-		},
-	}
-
-	if s.config.TLSCert != nil {
-		listener = tls.NewListener(listener, &tls.Config{
-			Certificates: []tls.Certificate{*s.config.TLSCert},
-			MinVersion:   tls.VersionTLS12,
-		})
 	}
 
 	server := &http.Server{
@@ -148,14 +135,15 @@ func (s *Server) Run(ctx context.Context) error {
 		}),
 	}
 
-	errChan := make(chan error, 1)
-	go func() {
-		logger.Info().Str("address", s.config.ListenAddress).Msg("starting HTTP/WebSocket server")
-		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			errChan <- err
-		}
-		close(errChan)
-	}()
+	errChan := make(chan error, len(listeners))
+	for _, listener := range listeners {
+		go func() {
+			logger.Info().Str("address", listener.Addr().String()).Msg("starting HTTP/WebSocket server")
+			if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
+				errChan <- err
+			}
+		}()
+	}
 
 	select {
 	case <-ctx.Done():
@@ -168,6 +156,51 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 		return ctx.Err()
 	case err := <-errChan:
+		server.Close()
 		return err
 	}
+}
+
+// listen binds ListenAddress and, when set, ProxyListenAddress. With USE,
+// RemoteAddr() returns the address from a PROXY protocol header when one is
+// present. With REQUIRE, a connection without a header fails on its first
+// read. With IGNORE, it always returns the socket address.
+func (s *Server) listen() ([]net.Listener, error) {
+	type listenerConfig struct {
+		address string
+		policy  proxyproto.Policy
+	}
+	configs := []listenerConfig{{address: s.config.ListenAddress, policy: proxyproto.IGNORE}}
+	if s.config.TrustProxyHeader {
+		configs[0].policy = proxyproto.USE
+	}
+	if s.config.ProxyListenAddress != "" {
+		configs = append(configs, listenerConfig{address: s.config.ProxyListenAddress, policy: proxyproto.REQUIRE})
+	}
+
+	listeners := make([]net.Listener, 0, len(configs))
+	for _, cfg := range configs {
+		baseListener, err := net.Listen("tcp", cfg.address)
+		if err != nil {
+			for _, l := range listeners {
+				l.Close()
+			}
+			return nil, err
+		}
+
+		var listener net.Listener = &proxyproto.Listener{
+			Listener: baseListener,
+			ConnPolicy: func(opts proxyproto.ConnPolicyOptions) (proxyproto.Policy, error) {
+				return cfg.policy, nil
+			},
+		}
+		if s.config.TLSCert != nil {
+			listener = tls.NewListener(listener, &tls.Config{
+				Certificates: []tls.Certificate{*s.config.TLSCert},
+				MinVersion:   tls.VersionTLS12,
+			})
+		}
+		listeners = append(listeners, listener)
+	}
+	return listeners, nil
 }
