@@ -31,6 +31,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/utils/ptr"
 
 	clustersv1 "xata/gen/proto/clusters/v1"
@@ -1677,6 +1678,10 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 			return ErrorInvalidParam{BranchName: body.Name, Param: "backupConfiguration", Message: "backup configuration cannot be specified when backups are disabled in the selected region"}
 		}
 
+		if err := s.checkRestoreTarget(ctx, organizationID, sourceBranch, body.Name, body.TargetTime); err != nil {
+			return err
+		}
+
 		releaseLock, err := s.tryAcquireProjectLock(c, projectID)
 		if err != nil {
 			return err
@@ -1703,9 +1708,7 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 					ParentId:       branch.ParentID,
 					Configuration:  &createClusterPayload.Configuration,
 					DataSource: &clustersv1.CreatePostgresClusterRequest_ContinuousBackup{
-						ContinuousBackup: &clustersv1.ContinuousBackup{
-							ClusterId: branchID, // the source branch ID
-						},
+						ContinuousBackup: continuousBackupSource(branchID, body.TargetTime),
 					},
 					BackupConfiguration: apiToClustersBackupConfig(body.BackupConfiguration, createClusterPayload.BackupsEnabled, usePgBackRest),
 				}
@@ -1741,6 +1744,63 @@ func (s *handler) RestoreFromBackup(c echo.Context, organizationID spec.Organiza
 			return c.JSON(http.StatusCreated, storeToAPIBranchShortMetadata(branch, connString))
 		})
 	})
+}
+
+// checkRestoreTarget checks that the source branch can be restored to target.
+// It returns ErrorNoRecoveryPoint if the source branch has no recovery point,
+// and ErrorInvalidParam if target is outside its recovery window. A nil target
+// is the latest point.
+func (s *handler) checkRestoreTarget(ctx context.Context, organizationID spec.OrganizationID, source *store.Branch, name string, target *time.Time) error {
+	client, err := s.cells.GetCellConnection(ctx, organizationID, source.CellID)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	window, err := client.GetRecoveryWindow(ctx, &clustersv1.GetRecoveryWindowRequest{Id: source.ID})
+	if err != nil {
+		// NotFound means the cell has no recovery window for the branch.
+		if status.Code(err) == codes.NotFound {
+			return ErrorNoRecoveryPoint{BranchID: source.ID}
+		}
+		return err
+	}
+	earliest, latest, err := parseRecoveryWindow(window)
+	if err != nil {
+		return err
+	}
+	if earliest == nil {
+		return ErrorNoRecoveryPoint{BranchID: source.ID}
+	}
+	if target == nil {
+		return nil
+	}
+
+	// The window has no latest point if the cell reports neither a recovery
+	// point nor a backup time. Accept any time up to now in that case.
+	upper := time.Now()
+	if latest != nil {
+		upper = *latest
+	}
+	if target.Before(*earliest) || target.After(upper) {
+		return ErrorInvalidParam{
+			BranchName: name,
+			Param:      "targetTime",
+			Message: fmt.Sprintf("must be between %s and %s, the recovery window of branch %s",
+				earliest.UTC().Format(time.RFC3339), upper.UTC().Format(time.RFC3339), source.ID),
+		}
+	}
+	return nil
+}
+
+// continuousBackupSource returns the restore data source for the source
+// branch. A nil target restores to the end of the archived WAL.
+func continuousBackupSource(sourceBranchID string, target *time.Time) *clustersv1.ContinuousBackup {
+	cb := &clustersv1.ContinuousBackup{ClusterId: sourceBranchID}
+	if target != nil {
+		cb.Timestamp = timestamppb.New(*target)
+	}
+	return cb
 }
 
 func stringArrayValue[T ~string](v []T) []string {

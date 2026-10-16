@@ -4419,6 +4419,9 @@
           "404": {
             "$ref": "#/components/responses/GenericError"
           },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailedError"
+          },
           "5XX": {
             "description": "Unexpected Error"
           },
@@ -8597,6 +8600,11 @@
           },
           "configuration": {
             "$ref": "#/components/schemas/ClusterConfiguration"
+          },
+          "targetTime": {
+            "description": "Point in time to restore the source branch to. It must be in the recovery window that getBackup reports, from earliestRestore to latestRestore. If it is not set, the new branch is restored to the end of the archived WAL at the time the restore runs.",
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [

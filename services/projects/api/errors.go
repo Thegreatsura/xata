@@ -257,6 +257,20 @@ func (e ErrorBackupNotFound) StatusCode() int {
 	return http.StatusNotFound
 }
 
+// ErrorNoRecoveryPoint is returned when a restore is requested from a branch
+// that has no completed backup, so no point in time can be restored.
+type ErrorNoRecoveryPoint struct {
+	BranchID string
+}
+
+func (e ErrorNoRecoveryPoint) Error() string {
+	return fmt.Sprintf("Branch with ID [%s] has no completed backup to restore from", e.BranchID)
+}
+
+func (e ErrorNoRecoveryPoint) StatusCode() int {
+	return http.StatusPreconditionFailed
+}
+
 type ErrorBranchConflict struct {
 	BranchID string
 }
