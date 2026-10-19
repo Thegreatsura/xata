@@ -32,9 +32,10 @@ const (
 
 // fakeGCS serves the managed folder calls of the GCS JSON API.
 type fakeGCS struct {
-	mu       sync.Mutex
-	policies map[string]*storage.Policy // by managed folder
-	calls    []string
+	mu          sync.Mutex
+	policies    map[string]*storage.Policy // by managed folder
+	calls       []string
+	failRequest string
 }
 
 func (f *fakeGCS) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -42,21 +43,26 @@ func (f *fakeGCS) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, req.Method)
 
-	path := strings.TrimPrefix(req.URL.EscapedPath(), "/storage/v1/b/"+bucket+"/managedFolders")
+	requestBucket, path, _ := strings.Cut(strings.TrimPrefix(req.URL.EscapedPath(), "/storage/v1/b/"), "/managedFolders")
+	if f.failRequest == req.Method+" "+requestBucket {
+		http.Error(w, `{"error":{"code":403}}`, http.StatusForbidden)
+		return
+	}
 	folder, iam := strings.CutSuffix(strings.TrimPrefix(path, "/"), "/iam")
+	key := requestBucket + "/" + unescape(folder)
 
 	switch {
 	case req.Method == http.MethodPost && folder == "":
 		var mf storage.ManagedFolder
 		_ = json.NewDecoder(req.Body).Decode(&mf)
-		if _, ok := f.policies[mf.Name]; ok {
+		if _, ok := f.policies[requestBucket+"/"+mf.Name]; ok {
 			http.Error(w, `{"error":{"code":409}}`, http.StatusConflict)
 			return
 		}
-		f.policies[mf.Name] = &storage.Policy{Etag: "0"}
+		f.policies[requestBucket+"/"+mf.Name] = &storage.Policy{Etag: "0"}
 		_ = json.NewEncoder(w).Encode(mf)
 	case req.Method == http.MethodGet && iam:
-		policy, ok := f.policies[unescape(folder)]
+		policy, ok := f.policies[key]
 		if !ok {
 			http.Error(w, `{"error":{"code":404}}`, http.StatusNotFound)
 			return
@@ -65,14 +71,14 @@ func (f *fakeGCS) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	case req.Method == http.MethodPut && iam:
 		var policy storage.Policy
 		_ = json.NewDecoder(req.Body).Decode(&policy)
-		f.policies[unescape(folder)] = &policy
+		f.policies[key] = &policy
 		_ = json.NewEncoder(w).Encode(policy)
 	case req.Method == http.MethodDelete && !iam:
-		if _, ok := f.policies[unescape(folder)]; !ok {
+		if _, ok := f.policies[key]; !ok {
 			http.Error(w, `{"error":{"code":404}}`, http.StatusNotFound)
 			return
 		}
-		delete(f.policies, unescape(folder))
+		delete(f.policies, key)
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		http.Error(w, "unexpected request "+req.Method+" "+req.URL.String(), http.StatusBadRequest)
@@ -135,12 +141,12 @@ func TestReconcile(t *testing.T) {
 		reconcile(t, r, "b123-pgbackrest")
 
 		require.Equal(t, "b123/", folder)
-		require.Len(t, gcs.policies[folder].Bindings, 1)
+		require.Len(t, gcs.policies[bucket+"/"+folder].Bindings, 1)
 		want := &storage.PolicyBindings{
 			Role:    gcsfolder.Role,
 			Members: []string{"principal://iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/project.svc.id.goog/subject/ns/xata-clusters/sa/b123-pgbackrest"},
 		}
-		require.Equal(t, want, gcs.policies[folder].Bindings[0])
+		require.Equal(t, want, gcs.policies[bucket+"/"+folder].Bindings[0])
 
 		got := &corev1.ServiceAccount{}
 		require.NoError(t, r.Client.Get(ctx, client.ObjectKeyFromObject(serviceAccount("b123-pgbackrest")), got))
@@ -164,7 +170,7 @@ func TestReconcile(t *testing.T) {
 		require.NoError(t, r.Client.Update(ctx, sa))
 
 		reconcile(t, r, "b123-pgbackrest")
-		require.Len(t, gcs.policies[folder].Bindings, 1)
+		require.Len(t, gcs.policies[bucket+"/"+folder].Bindings, 1)
 	})
 
 	t.Run("deletes folder before the ServiceAccount", func(t *testing.T) {
@@ -175,7 +181,7 @@ func TestReconcile(t *testing.T) {
 		require.NoError(t, r.Client.Delete(ctx, serviceAccount("b123-pgbackrest")))
 
 		reconcile(t, r, "b123-pgbackrest")
-		require.NotContains(t, gcs.policies, folder)
+		require.NotContains(t, gcs.policies, bucket+"/"+folder)
 		err := r.Client.Get(ctx, client.ObjectKeyFromObject(serviceAccount("b123-pgbackrest")), &corev1.ServiceAccount{})
 		require.True(t, apierrors.IsNotFound(err))
 	})
@@ -201,13 +207,26 @@ func TestReconcileGrantKeepsOtherBindings(t *testing.T) {
 	folder := gcsfolder.Folder("b123")
 
 	other := &storage.PolicyBindings{Role: "roles/storage.objectViewer", Members: []string{"principal://restore"}}
-	gcs.policies[folder] = &storage.Policy{Etag: "0", Bindings: []*storage.PolicyBindings{other}}
+	gcs.policies[bucket+"/"+folder] = &storage.Policy{Etag: "0", Bindings: []*storage.PolicyBindings{other}}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_, err := r.Reconcile(ctx, ctrl.Request{Namespace: namespace, Name: "b123-pgbackrest"})
 	require.NoError(t, err)
 
-	require.Len(t, gcs.policies[folder].Bindings, 2)
-	require.Equal(t, other, gcs.policies[folder].Bindings[0])
+	require.Len(t, gcs.policies[bucket+"/"+folder].Bindings, 2)
+	require.Equal(t, other, gcs.policies[bucket+"/"+folder].Bindings[0])
+}
+
+func TestReconcileFolderURI(t *testing.T) {
+	t.Parallel()
+	sa := branchServiceAccount("b123")
+	delete(sa.Annotations, pgbackrest.GCSBucketAnnotation)
+	sa.Annotations[pgbackrest.GCSFolderAnnotation] = "gs://other-backups/team/repository/"
+	r, gcs := setup(t, sa)
+	reconcile(t, r, sa.Name)
+	require.Len(t, gcs.policies["other-backups/team/repository/"].Bindings, 1)
+	require.NoError(t, r.Client.Delete(t.Context(), sa))
+	reconcile(t, r, sa.Name)
+	require.Empty(t, gcs.policies)
 }

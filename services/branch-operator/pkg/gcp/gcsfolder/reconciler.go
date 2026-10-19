@@ -52,8 +52,8 @@ type Reconciler struct {
 
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	hasBucket := predicate.NewPredicateFuncs(func(o client.Object) bool {
-		_, ok := o.GetAnnotations()[pgbackrest.GCSBucketAnnotation]
-		return ok
+		a := o.GetAnnotations()
+		return a[pgbackrest.GCSBucketAnnotation] != "" || a[pgbackrest.GCSFolderAnnotation] != ""
 	})
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -71,10 +71,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	branch := metav1.GetControllerOf(sa)
 	bucket := sa.Annotations[pgbackrest.GCSBucketAnnotation]
-	if branch == nil || bucket == "" {
+	if branch == nil {
 		return ctrl.Result{}, nil
 	}
 	folder := Folder(branch.Name)
+	if location := sa.Annotations[pgbackrest.GCSFolderAnnotation]; location != "" {
+		var err error
+		bucket, folder, err = pgbackrest.ParseGCSFolderURI(location)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+	if bucket == "" {
+		return ctrl.Result{}, nil
+	}
 
 	if !sa.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, r.delete(ctx, sa, bucket, folder)
