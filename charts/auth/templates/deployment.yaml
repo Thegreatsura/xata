@@ -147,6 +147,10 @@ spec:
                 secretKeyRef:
                   name: tackle-secret
                   key: client-secret
+            {{- if .Values.featureFlags }}
+            - name: XATA_FEATURE_FLAGS
+              value: {{ .Values.featureFlags | quote }}
+            {{- end }}
             {{- if .Values.config.vercel.integrationId }}
             - name: VERCEL_INTEGRATION_ID
               value: {{ .Values.config.vercel.integrationId | quote }}
@@ -165,6 +169,7 @@ spec:
                 name: otel-config
             - configMapRef:
                 name: slack-config
+                optional: true
             - secretRef:
                 name: auth-keycloak-initial-admin
             - secretRef:

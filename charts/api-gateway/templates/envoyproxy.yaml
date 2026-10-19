@@ -9,11 +9,23 @@ spec:
     type: Kubernetes
     kubernetes:
       envoyService:
+        {{- with .Values.envoyProxy.service.type }}
+        type: {{ . }}
+        {{- end }}
         annotations:
           service.beta.kubernetes.io/aws-load-balancer-type: external
           service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
           service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
           service.beta.kubernetes.io/aws-load-balancer-target-group-attributes: preserve_client_ip.enabled=true
+        {{- with .Values.envoyProxy.service.nodePort }}
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              ports:
+                - port: 443
+                  nodePort: {{ . }}
+        {{- end }}
       envoyDeployment:
         patch:
           type: StrategicMerge

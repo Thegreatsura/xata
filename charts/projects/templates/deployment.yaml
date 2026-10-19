@@ -158,6 +158,10 @@ spec:
             - name: DEFAULT_REGION
               value: {{ .Values.defaultRegion | quote }}
             {{- end }}
+            {{- if .Values.featureFlags }}
+            - name: XATA_FEATURE_FLAGS
+              value: {{ .Values.featureFlags | quote }}
+            {{- end }}
           envFrom:
             {{- range .Values.externalConfigMaps }}
             - configMapRef:

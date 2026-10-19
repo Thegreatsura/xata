@@ -10,6 +10,8 @@ service:
   targetPort: 7654
   httpPort: 443
   httpTargetPort: 8443
+  nodePort: ""
+  httpNodePort: ""
   # These ports always take the client address from a PROXY protocol header,
   # and reject a connection without one. Point only a load balancer that always
   # adds the header at them.

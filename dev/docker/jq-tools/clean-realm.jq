@@ -27,9 +27,11 @@ def restore_env_placeholders:
   if type == "object" then
     # OAuth providers
     if .providerId == "github" then
+      .enabled = "$(env:GITHUB_IDP_ENABLED)" |
       .config.clientId = "$(env:GITHUB_OAUTH_CLIENT_ID)" |
       .config.clientSecret = "$(env:GITHUB_OAUTH_SECRET)"
     elif .providerId == "google" then
+      .enabled = "$(env:GOOGLE_IDP_ENABLED)" |
       .config.clientId = "$(env:GOOGLE_OAUTH_CLIENT_ID)" |
       .config.clientSecret = "$(env:GOOGLE_OAUTH_SECRET)"
     # Client configurations

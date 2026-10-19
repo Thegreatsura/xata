@@ -16,5 +16,8 @@ spec:
     - name: grpc
       port: {{ .Values.service.grpcPort }}
       targetPort: {{ .Values.service.grpcPort }}
+      {{- with .Values.service.nodePort }}
+      nodePort: {{ . }}
+      {{- end }}
   selector:
     app: clusters

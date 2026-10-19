@@ -1,2 +1,8 @@
 gateway:
   hostname: localhost
+
+envoyProxy:
+  service:
+    # Empty keeps Envoy Gateway's default, LoadBalancer.
+    type: ""
+    nodePort: ""

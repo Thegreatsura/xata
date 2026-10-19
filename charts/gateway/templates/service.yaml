@@ -13,8 +13,14 @@ spec:
     - name: wire
       port: {{ .Values.service.port }}
       targetPort: {{ .Values.service.targetPort }}
+      {{- with .Values.service.nodePort }}
+      nodePort: {{ . }}
+      {{- end }}
     {{- if .Values.http.enabled }}
     - name: http
       port: {{ .Values.service.httpPort }}
       targetPort: {{ .Values.service.httpTargetPort }}
+      {{- with .Values.service.httpNodePort }}
+      nodePort: {{ . }}
+      {{- end }}
     {{- end }}

@@ -20,6 +20,8 @@ data:
   SMTP_STARTTLS: "{{ .Values.config.realm.smtp.starttls }}"
   SMTP_FROM: "{{ .Values.config.realm.smtp.from }}"
   SMTP_REPLY_TO: "{{ .Values.config.realm.smtp.replyTo }}"
+  GITHUB_IDP_ENABLED: {{ .Values.config.realm.identityProviders.github.enabled | quote }}
+  GOOGLE_IDP_ENABLED: {{ .Values.config.realm.identityProviders.google.enabled | quote }}
   {{- with .Values.config.realm.frontendRedirectURI }}
   FRONTEND_REDIRECT_URI: {{ . | quote }}
   {{- end }}

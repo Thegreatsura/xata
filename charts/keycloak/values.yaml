@@ -60,6 +60,10 @@ additionalOptions:
 tracing:
   enabled: false
 
+theme:
+  # Where the xata theme's account console redirects; empty derives it from the auth hostname.
+  accountURL: ""
+
 config:
   api:
     url: http://auth-keycloak-service:8080
@@ -80,6 +84,11 @@ config:
       starttls: "true"
       from: "noreply@xata.io"
       replyTo: "support@xata.io"
+    identityProviders:
+      github:
+        enabled: true
+      google:
+        enabled: true
 
 realmImport:
   # Disable for a server upgrade; re-enable only after the intended rollout is ready.

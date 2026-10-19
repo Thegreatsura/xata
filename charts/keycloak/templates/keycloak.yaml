@@ -28,14 +28,19 @@ spec:
       key: {{ .key }}
     {{- end }}
     {{- end }}
-  {{- with .Values.db.passwordSecret }}
-  {{- if and .name .key }}
+  {{- $passwordSecret := and .Values.db.passwordSecret.name .Values.db.passwordSecret.key }}
+  {{- if or $passwordSecret .Values.theme.accountURL }}
   env:
+    {{- if $passwordSecret }}
     - name: KCRAW_DB_PASSWORD
       secret:
-        name: {{ .name }}
-        key: {{ .key }}
-  {{- end }}
+        name: {{ .Values.db.passwordSecret.name }}
+        key: {{ .Values.db.passwordSecret.key }}
+    {{- end }}
+    {{- with .Values.theme.accountURL }}
+    - name: AUTH_KEYCLOAK_ACCOUNT_URL
+      value: {{ . | quote }}
+    {{- end }}
   {{- end }}
   http:
     httpEnabled: {{ .Values.http.httpEnabled }}
