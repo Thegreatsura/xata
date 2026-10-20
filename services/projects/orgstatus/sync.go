@@ -90,22 +90,46 @@ func Sync(ctx context.Context, projectsStore store.ProjectsStore, cellConns cell
 			}
 
 			shouldUpdate := false
+			hadS2Z := cluster.Configuration.ScaleToZero != nil && cluster.Configuration.ScaleToZero.InactivityPeriodMinutes > 0
+
+			isHibernated := cluster.Status.StatusType == clustersv1.ClusterStatus_STATUS_TYPE_HIBERNATED
+
 			hibernate := disabled
+
+			// ==================== Richard testing start ====================
+			// Richard is testing https://github.com/xataio/maki/pull/3402 using logging only
+			// in https://github.com/xataio/maki/pull/3441; the existing update logic remains unchanged.
+
+			proposedHibernate := disabled || (hadS2Z && isHibernated)
+
+			log.Ctx(ctx).Info().
+				Str("organization", organizationID).
+				Str("branch", branch.ID).
+				Bool("disabled", disabled).
+				Bool("had_s2z", hadS2Z).
+				Bool("is_hibernated", isHibernated).
+				Bool("hibernate", hibernate).
+				Bool("proposed_hibernate", proposedHibernate).
+				Bool("hibernate_would_change", hibernate != proposedHibernate).
+				Msg("Evaluated proposed wind-up hibernation logic")
+
+			// ==================== Richard testing end ====================
+
 			// Only update if there is a change
 			configuration := clustersv1.UpdateClusterConfiguration{}
-			if hibernate != (cluster.Status.StatusType == clustersv1.ClusterStatus_STATUS_TYPE_HIBERNATED) {
+			if hibernate != isHibernated {
 				shouldUpdate = true
 				configuration.Hibernate = new(hibernate)
 			}
 
-			// Toggle S2Z only for branches that already had it configured.
+			// Calculate S2Z only for branches that already had it configured by inferring
+			// it was previously set with: InactivityPeriodMinutes > 0
 			// DescribePostgresCluster always returns a non-nil ScaleToZero proto
 			// (defaulting to {Enabled:false, InactivityPeriodMinutes:0} for
 			// branches without CRD config), so the nil check is purely defensive.
-			// InactivityPeriodMinutes > 0 is the real guard: the CRD enforces
-			// minimum=1, so 0 means the branch was never configured for S2Z.
+			// the CRD enforces minimum=1, so 0 means the branch was never configured for S2Z.
 			if cluster.Configuration.ScaleToZero != nil {
-				desiredEnabled := !hibernate && cluster.Configuration.ScaleToZero.InactivityPeriodMinutes > 0
+				desiredEnabled := !disabled && hadS2Z
 				if cluster.Configuration.ScaleToZero.Enabled != desiredEnabled {
 					shouldUpdate = true
 					configuration.ScaleToZero = &clustersv1.ScaleToZero{
