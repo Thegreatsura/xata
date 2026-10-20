@@ -331,6 +331,14 @@ func (b *BranchBuilder) WithPgBackRest(provider, bucket, region, endpoint, servi
 			ServiceAccountEmail: serviceAccount,
 			KeyType:             pgbackrest.KeyTypeWebID,
 		}
+		// With web identity the token has access only to the managed folder of
+		// the branch, named after the branch. Pin the repo path to that folder
+		// so the repository sits inside the grant. Without it the repo path
+		// defaults to the stanza, which differs from the branch name once the
+		// branch is restored (the stanza gets a -N suffix) and then falls
+		// outside the granted folder. Set only on new branches, so existing
+		// branches keep their repository.
+		b.branch.Spec.BackupSpec.PgBackRest.RepoPath = b.branch.Name
 	case CloudProviderAzure:
 		b.branch.Spec.BackupSpec.PgBackRest.Azure = &v1alpha1.PgBackRestAzureSpec{
 			Account:   azureAccount,
