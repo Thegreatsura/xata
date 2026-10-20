@@ -681,9 +681,9 @@ type ClusterServicePayload = provisioner.ClusterServicePayload
 // (POST /organizations/{organizationID}/projects/{projectID}/branches)
 func (s *handler) CreateBranch(c echo.Context, organizationID spec.OrganizationID, projectID string) error {
 	// NOTE: Branch creation is also triggered by the GitHub App webhook (saas-services/projects/webhooks).
-	// Common provisioning logic lives in the provisioner package — changes to how branches are
-	// created should go there, not here. This handler should only deal with input validation,
-	// feature flags, and building the provisioner payload.
+	// Common creation logic lives in the branch service (BuildPayload + Provision), which both
+	// paths call — changes to how branches are created should go there, not here. This handler
+	// should only deal with HTTP concerns: input parsing, auth, feature flags, and analytics.
 	return s.withOrganizationAccess(c, organizationID, OnlyEnabled, func() error {
 		// Check if branch creation is disabled (any type of branch)
 		if s.feat.BoolValue(c.Request().Context(), flags.BranchCreationDisabled) {

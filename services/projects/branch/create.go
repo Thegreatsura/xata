@@ -74,7 +74,9 @@ func (s *Service) BuildPayload(ctx context.Context, in CreateInput) (*provisione
 //
 // It is transport agnostic: it does not touch the HTTP request/response (no
 // region o11y attribute, no Retry-After header). On lock contention it returns
-// an error wrapping store.ErrProjectBusy so the caller can surface Retry-After.
+// an error wrapping store.ErrProjectBusy so the caller can surface Retry-After,
+// unless in.ProjectLockHeld says the caller already holds the lock, in which
+// case Provision does not touch it.
 //
 // Provision mutates payload in place to finalize it, so it takes ownership of
 // the value BuildPayload returned: pair each Provision with its own BuildPayload
@@ -105,13 +107,18 @@ func (s *Service) Provision(ctx context.Context, in CreateInput, payload *provis
 	// Hold the project lock only around provisioning: it guards against races
 	// with IP filtering updates while the branch is created, and must not be held
 	// across the read-only connection-string fetch below (a cell round-trip). The
-	// closure keeps release deferred so a panic still frees the lock.
+	// closure keeps release deferred so a panic still frees the lock. When the
+	// caller already holds the lock (in.ProjectLockHeld), skip the acquire: the
+	// lock is a session-scoped advisory lock, so a second acquire would
+	// self-deadlock.
 	created, err := func() (*store.Branch, error) {
-		releaseLock, err := s.store.TryAcquireProjectLock(ctx, in.ProjectID)
-		if err != nil {
-			return nil, fmt.Errorf("acquire project lock: %w", err)
+		if !in.ProjectLockHeld {
+			releaseLock, err := s.store.TryAcquireProjectLock(ctx, in.ProjectID)
+			if err != nil {
+				return nil, fmt.Errorf("acquire project lock: %w", err)
+			}
+			defer releaseLock()
 		}
-		defer releaseLock()
 		return s.provisioner.CreateBranch(ctx, in.ProjectID, in.OrganizationID, in.Name, payload)
 	}()
 	if err != nil {

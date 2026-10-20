@@ -212,6 +212,19 @@ func TestProvision(t *testing.T) {
 			},
 			wantOK: true,
 		},
+		"ProjectLockHeld skips acquiring the lock": {
+			payload: &provisioner.ClusterServicePayload{BackupsEnabled: true},
+			in:      CreateInput{OrganizationID: testOrg, ProjectID: testProject, Name: testBranch, ProjectLockHeld: true},
+			setup: func(st *storemocks.ProjectsStore, prov *provisionermocks.Provisioner, cl *cellsmock.Cells) {
+				// No lock expectations: the caller holds the lock, so neither
+				// TryAcquireProjectLock nor AcquireProjectLock may be called.
+				prov.EXPECT().CreateBranch(mock.Anything, testProject, testOrg, testBranch, mock.Anything).
+					Return(&store.Branch{ID: testBranch, CellID: "cell-1"}, nil).Once()
+				cl.EXPECT().GetCellConnection(mock.Anything, testOrg, "cell-1").
+					Return(nil, errors.New("no connection")).Once()
+			},
+			wantOK: true,
+		},
 	}
 
 	for name, tc := range tests {
@@ -236,6 +249,13 @@ func TestProvision(t *testing.T) {
 				require.NotNil(t, branch)
 				require.Equal(t, testBranch, branch.ID)
 				require.Empty(t, connString)
+				// Every caller (API, Vercel, GitHub webhook) relies on Provision
+				// populating the backup defaults when the request has none.
+				require.Equal(t, DefaultBackupRetentionPeriod, tc.payload.BackupRetentionPeriod)
+				require.NotNil(t, tc.payload.BackupConfig)
+				require.True(t, tc.payload.BackupConfig.BackupsEnabled)
+				require.Equal(t, "2d", tc.payload.BackupConfig.BackupRetention)
+				require.Equal(t, BackupMethodBarman, tc.payload.BackupConfig.BackupMethod)
 			default:
 				require.Equal(t, tc.wantErr, err)
 			}
