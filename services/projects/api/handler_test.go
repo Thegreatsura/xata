@@ -857,7 +857,7 @@ func TestAuthDisabledOrg(t *testing.T) {
 	// READs should still work
 	mockStore.EXPECT().GetProject(c.Request().Context(), noWriteAccessOrgID, "test").Return(&store.Project{}, nil)
 	mockStore.EXPECT().ListGithubInstallations(c.Request().Context(), noWriteAccessOrgID).Return([]store.GithubInstallation{}, nil)
-	mockStore.EXPECT().GetGithubRepoMappingByProject(c.Request().Context(), noWriteAccessOrgID, "test").Return(&store.GithubRepoMapping{}, nil)
+	mockStore.EXPECT().GetGithubRepoMappingByProject(c.Request().Context(), noWriteAccessOrgID, "test").Return(&store.GithubRepoMapping{RootBranchID: "branch"}, nil)
 	assert.NoError(t, handler.GetProject(c, noWriteAccessOrgID, "test"))
 	assert.NoError(t, handler.ListGithubAppInstallations(c, noWriteAccessOrgID))
 	assert.NoError(t, handler.GetGithubRepository(c, noWriteAccessOrgID, "test", "branch"))
@@ -7725,6 +7725,7 @@ func TestGetGithubRepository(t *testing.T) {
 
 	tests := map[string]struct {
 		projectID       string
+		claims          token.Claims
 		setupMocks      func(*mocks.ProjectsStore)
 		wantError       bool
 		expectedError   error
@@ -7732,6 +7733,7 @@ func TestGetGithubRepository(t *testing.T) {
 	}{
 		"returns mapping": {
 			projectID: "proj-1",
+			claims:    apitest.TestClaims,
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
 				mockStore.EXPECT().GetGithubRepoMappingByProject(mock.Anything, apitest.TestOrganization, "proj-1").Return(&mapping, nil)
 			},
@@ -7746,6 +7748,7 @@ func TestGetGithubRepository(t *testing.T) {
 		},
 		"mapping not found returns error": {
 			projectID: "proj-2",
+			claims:    apitest.TestClaims,
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
 				mockStore.EXPECT().GetGithubRepoMappingByProject(mock.Anything, apitest.TestOrganization, "proj-2").Return(nil, store.ErrGithubRepoMappingNotFound{Organization: apitest.TestOrganization, Project: "proj-2"})
 			},
@@ -7754,11 +7757,24 @@ func TestGetGithubRepository(t *testing.T) {
 		},
 		"project not found returns error": {
 			projectID: "proj-unknown",
+			claims:    apitest.TestClaims,
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
 				mockStore.EXPECT().GetGithubRepoMappingByProject(mock.Anything, apitest.TestOrganization, "proj-unknown").Return(nil, store.ErrProjectNotFound{ID: "proj-unknown"})
 			},
 			wantError:     true,
 			expectedError: store.ErrProjectNotFound{ID: "proj-unknown"},
+		},
+		"branch-scoped key cannot read another branch's mapping": {
+			// Mapping's root branch (branch-1 from the fixture) differs from the
+			// branch the key is scoped to, so the read must be refused with
+			// not-found rather than exposing the mapping.
+			projectID: "proj-1",
+			claims:    branchScopedClaims("other-branch"),
+			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().GetGithubRepoMappingByProject(mock.Anything, apitest.TestOrganization, "proj-1").Return(&mapping, nil)
+			},
+			wantError:     true,
+			expectedError: store.ErrGithubRepoMappingNotFound{Organization: apitest.TestOrganization, Project: "proj-1"},
 		},
 	}
 
@@ -7770,7 +7786,7 @@ func TestGetGithubRepository(t *testing.T) {
 			tt.setupMocks(mockStore)
 			sched := &scheduler.Scheduler{DefaultStrategy: &strategy.Random{}}
 			handler := NewAPIHandler(feat, mockStore, nil, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil)
-			e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
+			e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(tt.claims)
 
 			c, rec := e.GET("/organizations/" + apitest.TestOrganization + "/projects/" + tt.projectID + "/branches/branch-1/githubapp/repository").Context()
 			err := handler.GetGithubRepository(c, apitest.TestOrganization, tt.projectID, "branch-1")
@@ -8073,13 +8089,21 @@ func TestUpdateGithubRepository(t *testing.T) {
 	}
 }
 
+// branchScopedClaims returns a copy of the test claims scoped to a single
+// branch, so authorization against a different branch is denied.
+func branchScopedClaims(branchID string) token.Claims {
+	claims := apitest.TestClaims
+	claims.Branches = []string{branchID}
+	return claims
+}
+
 func TestDeleteGithubRepository(t *testing.T) {
 	feat := openfeaturetest.NewClient(nil)
-	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(apitest.TestClaims)
 
 	tests := map[string]struct {
 		projectID     string
 		branchID      string
+		claims        token.Claims
 		setupMocks    func(*mocks.ProjectsStore)
 		wantError     bool
 		expectedError error
@@ -8087,18 +8111,35 @@ func TestDeleteGithubRepository(t *testing.T) {
 		"delete succeeds": {
 			projectID: "proj-1",
 			branchID:  "branch-1",
+			claims:    apitest.TestClaims,
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				mockStore.EXPECT().GetGithubRepoMappingByProject(mock.Anything, apitest.TestOrganization, "proj-1").Return(&store.GithubRepoMapping{ID: "map-1", Project: "proj-1", RootBranchID: "branch-root"}, nil)
 				mockStore.EXPECT().DeleteGithubRepoMapping(mock.Anything, apitest.TestOrganization, "proj-1").Return(nil)
 			},
 		},
 		"mapping not found returns error": {
 			projectID: "proj-missing",
 			branchID:  "branch-1",
+			claims:    apitest.TestClaims,
 			setupMocks: func(mockStore *mocks.ProjectsStore) {
-				mockStore.EXPECT().DeleteGithubRepoMapping(mock.Anything, apitest.TestOrganization, "proj-missing").Return(store.ErrGithubRepoMappingNotFound{Organization: apitest.TestOrganization, Project: "proj-missing"})
+				mockStore.EXPECT().GetGithubRepoMappingByProject(mock.Anything, apitest.TestOrganization, "proj-missing").Return(nil, store.ErrGithubRepoMappingNotFound{Organization: apitest.TestOrganization, Project: "proj-missing"})
 			},
 			wantError:     true,
 			expectedError: store.ErrGithubRepoMappingNotFound{Organization: apitest.TestOrganization, Project: "proj-missing"},
+		},
+		"branch-scoped key cannot delete another branch's mapping": {
+			projectID: "proj-1",
+			branchID:  "branch-1",
+			claims:    branchScopedClaims("branch-1"),
+			setupMocks: func(mockStore *mocks.ProjectsStore) {
+				// Mapping belongs to branch-root, but the key is only scoped to
+				// branch-1 (the path branch): authorize against the mapping's
+				// root branch and refuse without reaching the delete.
+				mockStore.EXPECT().GetGithubRepoMappingByProject(mock.Anything, apitest.TestOrganization, "proj-1").Return(&store.GithubRepoMapping{ID: "map-1", Project: "proj-1", RootBranchID: "branch-root"}, nil)
+				mockStore.AssertNotCalled(t, "DeleteGithubRepoMapping", mock.Anything, mock.Anything, mock.Anything)
+			},
+			wantError:     true,
+			expectedError: store.ErrGithubRepoMappingNotFound{Organization: apitest.TestOrganization, Project: "proj-1"},
 		},
 	}
 
@@ -8106,6 +8147,7 @@ func TestDeleteGithubRepository(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
+			e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(tt.claims)
 			mockStore := mocks.NewProjectsStore(t)
 			tt.setupMocks(mockStore)
 			sched := &scheduler.Scheduler{DefaultStrategy: &strategy.Random{}}

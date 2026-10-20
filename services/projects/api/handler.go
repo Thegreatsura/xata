@@ -2102,6 +2102,16 @@ func (s *handler) GetGithubRepository(c echo.Context, organizationID spec.Organi
 			return err
 		}
 
+		// Authorize the key against the branch the mapping actually belongs to,
+		// not just the organization or the branchID in the path: the mapping is
+		// project-wide and tied to its root branch, so a branch-scoped key must
+		// not read integration metadata for a branch it cannot access. Return
+		// not-found rather than forbidden to avoid leaking the mapping's
+		// existence.
+		if !api.GetUserClaims(c).HasAccessToBranch(mapping.RootBranchID) {
+			return store.ErrGithubRepoMappingNotFound{Organization: organizationID, Project: projectID}
+		}
+
 		return c.JSON(http.StatusOK, map[string]any{"mapping": storeToAPIGithubRepository(mapping)})
 	})
 }
@@ -2161,8 +2171,20 @@ func (s *handler) UpdateGithubRepository(c echo.Context, organizationID spec.Org
 // (DELETE /organizations/{organizationID}/projects/{projectID}/branches/{branchID}/githubapp/repository)
 func (s *handler) DeleteGithubRepository(c echo.Context, organizationID spec.OrganizationID, projectID string, branchID string) error {
 	return s.withOrganizationAccess(c, organizationID, All, func() error {
-		err := s.store.DeleteGithubRepoMapping(c.Request().Context(), organizationID, projectID)
+		// Resolve the mapping first so we can authorize the key against the
+		// branch it belongs to. Deleting the project-wide mapping is
+		// disruptive, so a branch-scoped key must not delete a mapping for a
+		// branch it cannot access. Return not-found rather than forbidden to
+		// avoid leaking the mapping's existence.
+		mapping, err := s.store.GetGithubRepoMappingByProject(c.Request().Context(), organizationID, projectID)
 		if err != nil {
+			return err
+		}
+		if !api.GetUserClaims(c).HasAccessToBranch(mapping.RootBranchID) {
+			return store.ErrGithubRepoMappingNotFound{Organization: organizationID, Project: projectID}
+		}
+
+		if err := s.store.DeleteGithubRepoMapping(c.Request().Context(), organizationID, projectID); err != nil {
 			return err
 		}
 
