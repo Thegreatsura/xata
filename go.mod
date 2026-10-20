@@ -17,7 +17,7 @@ require (
 	github.com/coder/websocket v1.8.15
 	github.com/customerio/go-customerio/v3 v3.11.0
 	github.com/elastic/go-concert v0.3.1
-	github.com/getkin/kin-openapi v0.145.0
+	github.com/getkin/kin-openapi v0.149.0
 	github.com/go-logr/logr v1.4.4
 	github.com/go-logr/zerologr v1.2.3
 	github.com/go-playground/validator/v10 v10.30.1
