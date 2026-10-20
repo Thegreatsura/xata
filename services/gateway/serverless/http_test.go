@@ -658,6 +658,27 @@ func TestHandlePgError(t *testing.T) {
 			wantStatusCode: http.StatusInternalServerError,
 			wantCode:       "XX000",
 		},
+		"connect connection refused": {
+			err:            &connectionEstablishmentError{err: &net.OpError{Op: "dial", Net: "tcp", Err: syscall.ECONNREFUSED}},
+			wantStatusCode: http.StatusServiceUnavailable,
+			wantCode:       "08001",
+		},
+		"connection reset": {
+			err:            fmt.Errorf("read: %w", syscall.ECONNRESET),
+			wantStatusCode: http.StatusServiceUnavailable,
+			wantCode:       "08006",
+		},
+		"connect message": {
+			err:            errors.New("connect: failed to connect to database: dial error: connection refused"),
+			wantStatusCode: http.StatusServiceUnavailable,
+			wantCode:       "08006",
+		},
+		"connection error with credentials": {
+			err:             errors.New("connect: postgres://user:secret@localhost:5432/db: connection refused"),
+			wantStatusCode:  http.StatusServiceUnavailable,
+			wantCode:        "08006",
+			wantMsgContains: "postgres://REDACTED@localhost:5432/db",
+		},
 		"response too large": {
 			err:             ErrResponseTooLarge,
 			wantStatusCode:  http.StatusBadRequest,
@@ -834,11 +855,11 @@ func TestClassifyError(t *testing.T) {
 		},
 		"pg error": {
 			err:  &pgconn.PgError{Code: "42601", Message: "syntax error"},
-			want: "pg_error",
+			want: errTypePgErrorRequest,
 		},
 		"wrapped pg error": {
 			err:  fmt.Errorf("query: %w", &pgconn.PgError{Code: "42601"}),
-			want: "pg_error",
+			want: errTypePgErrorRequest,
 		},
 		"client error - unused argument": {
 			err:  errors.New("unused argument: 1"),
@@ -1003,7 +1024,7 @@ func TestQuery_IPFilter(t *testing.T) {
 	})
 
 	// Stub dialer: always fails so we can verify that connection errors are
-	// surfaced as HTTP 500 without needing a real Postgres backend.
+	// surfaced as HTTP 503 without needing a real Postgres backend.
 	dialer := session.NewClusterDialer(
 		session.ClusterDialerConfiguration{
 			ReactivateTimeout:   time.Second,
@@ -1027,7 +1048,7 @@ func TestQuery_IPFilter(t *testing.T) {
 		},
 		"nil filter allows": {
 			filter:     nil,
-			wantStatus: http.StatusInternalServerError, // allowed through filter, fails at connect
+			wantStatus: http.StatusServiceUnavailable, // allowed through filter, fails at connect
 		},
 	}
 
@@ -1061,6 +1082,10 @@ func TestQuery_IPFilter(t *testing.T) {
 				var resp spec.ErrorResponse
 				require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 				require.Equal(t, "FORBIDDEN", *resp.Code)
+			} else {
+				var resp spec.ErrorResponse
+				require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+				require.Equal(t, "08001", *resp.Code)
 			}
 		})
 	}

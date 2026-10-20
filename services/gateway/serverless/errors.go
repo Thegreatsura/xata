@@ -35,11 +35,76 @@ const (
 	errTypeTimeout          = "timeout"
 	errTypeCanceled         = "canceled"
 	errTypeResponseTooLarge = "response_too_large"
-	errTypePgError          = "pg_error"
+	errTypePgErrorRequest   = "pg_error_request"
+	errTypePgErrorAccess    = "pg_error_access"
+	errTypePgErrorConflict  = "pg_error_conflict"
+	errTypePgErrorAvailable = "pg_error_unavailable"
+	errTypePgErrorUpstream  = "pg_error_upstream"
+	errTypePgErrorInternal  = "pg_error_internal"
 	errTypeClient           = "client"
 	errTypeConnection       = "connection"
 	errTypeOther            = "other"
 )
+
+// connectionEstablishmentError identifies failures before a database connection
+// is available. Unwrap preserves PostgreSQL errors and lifecycle sentinels.
+type connectionEstablishmentError struct{ err error }
+
+func (e *connectionEstablishmentError) Error() string { return "connect: " + e.err.Error() }
+func (e *connectionEstablishmentError) Unwrap() error { return e.err }
+
+// pgErrorClassification maps SQLSTATE to a metric and logging category.
+func pgErrorClassification(code string) string {
+	// Validate the SQLSTATE shape before applying class defaults. Otherwise a
+	// malformed value such as "08!01" would be treated as a connection failure.
+	if len(code) != 5 {
+		return errTypePgErrorInternal
+	}
+	for _, ch := range code {
+		if (ch < '0' || ch > '9') && (ch < 'A' || ch > 'Z') {
+			return errTypePgErrorInternal
+		}
+	}
+	switch code {
+	case "08P01": // The gateway's upstream PostgreSQL protocol failed.
+		return errTypePgErrorUpstream
+	case "08007", "40003": // Execution outcome is unknown; do not imply safe replay.
+		return errTypePgErrorInternal
+	case "42501":
+		// The database denied permission to execute the operation.
+		return errTypePgErrorAccess
+	case "23502", "23514", "57014", "P0001", "P0002", "P0003":
+		// Invalid row values, canceled queries, and user routine exceptions
+		// remain request errors rather than data conflicts or internal failures.
+		return errTypePgErrorRequest
+	case "57P01", "57P02", "57P03", "57P04", "57P05":
+		// Shutdown, recovery, a dropped database, or an expired session makes
+		// the database connection unavailable.
+		return errTypePgErrorAvailable
+	}
+	switch code[:2] {
+	case "08", "53":
+		// Connection failures and resource shortages prevent database service.
+		return errTypePgErrorAvailable
+	case "28":
+		// Database authentication was rejected; HTTP authentication is separate.
+		return errTypePgErrorAccess
+	case "23", "40", "55":
+		// Integrity constraints, transaction rollbacks, and object state can
+		// conflict with an otherwise valid operation.
+		return errTypePgErrorConflict
+	case "03", "09", "0A", "0B", "0F", "0L", "0P", "0Z", "10", "20",
+		"21", "22", "24", "25", "26", "27", "2B", "2D", "2F", "34",
+		"38", "39", "3B", "3D", "3F", "42", "44", "54":
+		// SQL syntax, data, execution context, routine usage, and program-limit
+		// errors require a change to the submitted SQL or its execution context.
+		return errTypePgErrorRequest
+	default:
+		// System, configuration, internal, and unrecognized errors do not
+		// provide enough evidence to classify the request as invalid.
+		return errTypePgErrorInternal
+	}
+}
 
 func errorResponse(code, message string) *spec.ErrorResponse {
 	return &spec.ErrorResponse{Message: message, Code: &code}
@@ -124,7 +189,8 @@ func pgErrorResponse(pgErr *pgconn.PgError) *spec.ErrorResponse {
 
 // handlePgError maps the error classification to an HTTP response.
 func handlePgError(c echo.Context, err error) error {
-	switch classifyError(err) {
+	errorType := classifyError(err)
+	switch errorType {
 	case errTypeResponseTooLarge:
 		return c.JSON(http.StatusBadRequest, errorResponse("RESPONSE_TOO_LARGE",
 			fmt.Sprintf("query result exceeds the %dMB response limit, narrow it with LIMIT/OFFSET or use a direct Postgres connection", maxResponseSizeBytes/(1024*1024))))
@@ -138,12 +204,19 @@ func handlePgError(c echo.Context, err error) error {
 		return c.JSON(http.StatusConflict, errorResponse("BRANCH_HIBERNATED", "branch is hibernated, reactivate it to continue"))
 	case errTypeBranchNotFound:
 		return c.JSON(http.StatusNotFound, errorResponse("BRANCH_NOT_FOUND", "branch not found"))
-	case errTypePgError:
+	case errTypePgErrorRequest, errTypePgErrorAccess, errTypePgErrorConflict,
+		errTypePgErrorAvailable, errTypePgErrorUpstream, errTypePgErrorInternal:
 		var pgErr *pgconn.PgError
 		errors.As(err, &pgErr)
 		return c.JSON(http.StatusBadRequest, pgErrorResponse(pgErr))
 	case errTypeClient:
 		return c.JSON(http.StatusBadRequest, errorResponse("08P01", err.Error()))
+	case errTypeConnection:
+		code := "08006"
+		if _, ok := errors.AsType[*connectionEstablishmentError](err); ok {
+			code = "08001"
+		}
+		return c.JSON(http.StatusServiceUnavailable, errorResponse(code, sanitizeError(err)))
 	default:
 		return c.JSON(http.StatusInternalServerError, errorResponse("XX000", sanitizeError(err)))
 	}
@@ -186,7 +259,9 @@ func classifyError(err error) string {
 		return errTypeResponseTooLarge
 	}
 	if _, ok := errors.AsType[*pgconn.PgError](err); ok {
-		return errTypePgError
+		var pgErr *pgconn.PgError
+		errors.As(err, &pgErr)
+		return pgErrorClassification(pgErr.Code)
 	}
 	if isPgxClientError(err) {
 		return errTypeClient
@@ -197,7 +272,16 @@ func classifyError(err error) string {
 	return errTypeOther
 }
 
+func isPgErrorServerFault(errorType string) bool {
+	return errorType == errTypePgErrorAvailable ||
+		errorType == errTypePgErrorUpstream ||
+		errorType == errTypePgErrorInternal
+}
+
 func isConnectionError(err error) bool {
+	if _, ok := errors.AsType[*connectionEstablishmentError](err); ok {
+		return true
+	}
 	if errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ECONNRESET) {
 		return true
 	}

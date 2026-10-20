@@ -112,7 +112,7 @@ func (h *handler) Query(c echo.Context, params spec.QueryParams) error {
 		}
 
 		sanitized := sanitizeError(err)
-		if c.Response().Status >= http.StatusInternalServerError {
+		if c.Response().Status >= http.StatusInternalServerError || isPgErrorServerFault(errorType) {
 			log.Ctx(c.Request().Context()).Error().Msg(sanitized)
 		}
 
@@ -188,7 +188,11 @@ func (h *handler) connect(ctx context.Context, branch *session.Branch, connInfo 
 	if err != nil {
 		return nil, err
 	}
-	return pgx.ConnectConfig(ctx, cfg)
+	conn, err := pgx.ConnectConfig(ctx, cfg)
+	if err != nil {
+		return nil, &connectionEstablishmentError{err: err}
+	}
+	return conn, nil
 }
 
 type queryOptions struct {
@@ -213,11 +217,7 @@ func (h *handler) connectTraced(ctx context.Context, branch *session.Branch, con
 	ctx, span := h.tracer.Start(ctx, "sql_connect")
 	defer span.End()
 
-	conn, err := h.connect(ctx, branch, connInfo)
-	if err != nil {
-		return nil, fmt.Errorf("connect: %w", err)
-	}
-	return conn, nil
+	return h.connect(ctx, branch, connInfo)
 }
 
 // asExecTimeout maps an error to ErrQueryExecTimeout when the per-query
