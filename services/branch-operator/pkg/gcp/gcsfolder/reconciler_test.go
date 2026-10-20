@@ -134,7 +134,7 @@ func TestReconcile(t *testing.T) {
 	folder := gcsfolder.Folder("b123")
 	ctx := context.Background()
 
-	t.Run("creates folder and grant, then skips GCS", func(t *testing.T) {
+	t.Run("creates folder and grant idempotently", func(t *testing.T) {
 		t.Parallel()
 		r, gcs := setup(t, branchServiceAccount("b123"))
 
@@ -151,11 +151,10 @@ func TestReconcile(t *testing.T) {
 		got := &corev1.ServiceAccount{}
 		require.NoError(t, r.Client.Get(ctx, client.ObjectKeyFromObject(serviceAccount("b123-pgbackrest")), got))
 		require.Contains(t, got.Finalizers, gcsfolder.Finalizer)
-		require.Equal(t, folder, got.Annotations[gcsfolder.FolderAnnotation])
+		require.NotContains(t, got.Annotations, gcsfolder.FolderAnnotation)
 
-		calls := len(gcs.calls)
 		reconcile(t, r, "b123-pgbackrest")
-		require.Len(t, gcs.calls, calls)
+		require.Len(t, gcs.policies[bucket+"/"+folder].Bindings, 1)
 	})
 
 	t.Run("existing folder and grant are kept", func(t *testing.T) {
@@ -163,11 +162,6 @@ func TestReconcile(t *testing.T) {
 		r, gcs := setup(t, branchServiceAccount("b123"))
 
 		reconcile(t, r, "b123-pgbackrest")
-		// Lose the annotation, as if the reconciler stopped before it wrote it.
-		sa := &corev1.ServiceAccount{}
-		require.NoError(t, r.Client.Get(ctx, client.ObjectKeyFromObject(serviceAccount("b123-pgbackrest")), sa))
-		delete(sa.Annotations, gcsfolder.FolderAnnotation)
-		require.NoError(t, r.Client.Update(ctx, sa))
 
 		reconcile(t, r, "b123-pgbackrest")
 		require.Len(t, gcs.policies[bucket+"/"+folder].Bindings, 1)
@@ -229,4 +223,16 @@ func TestReconcileFolderURI(t *testing.T) {
 	require.NoError(t, r.Client.Delete(t.Context(), sa))
 	reconcile(t, r, sa.Name)
 	require.Empty(t, gcs.policies)
+}
+
+func TestReconcileRemovesLegacyFolderAnnotation(t *testing.T) {
+	t.Parallel()
+	sa := branchServiceAccount("b123")
+	sa.Annotations[gcsfolder.FolderAnnotation] = "b123/"
+	sa.Annotations[pgbackrest.GCSFolderAnnotation] = "gs://backups/b123/"
+	r, gcs := setup(t, sa)
+	reconcile(t, r, sa.Name)
+	require.Len(t, gcs.policies["backups/b123/"].Bindings, 1)
+	require.NoError(t, r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa))
+	require.NotContains(t, sa.Annotations, gcsfolder.FolderAnnotation)
 }

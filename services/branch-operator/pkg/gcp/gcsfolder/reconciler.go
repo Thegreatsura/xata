@@ -30,8 +30,7 @@ const (
 	// Finalizer keeps the ServiceAccount until its managed folder is deleted.
 	Finalizer = "xata.io/gcs-managed-folder"
 
-	// FolderAnnotation is the managed folder that the ServiceAccount has access
-	// to. The reconciler does not call GCS for a ServiceAccount that has it.
+	// FolderAnnotation is the completion marker removed during URI migration.
 	FolderAnnotation = "xata.io/gcs-managed-folder"
 
 	// Role is the role of the ServiceAccount on its managed folder.
@@ -90,10 +89,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, r.delete(ctx, sa, bucket, folder)
 	}
 
-	if sa.Annotations[FolderAnnotation] == folder {
-		return ctrl.Result{}, nil
-	}
-
 	// Add the finalizer before the folder exists, so that a folder never
 	// outlives its ServiceAccount.
 	if !controllerutil.ContainsFinalizer(sa, Finalizer) {
@@ -111,13 +106,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
-	patch := client.MergeFrom(sa.DeepCopy())
-	if sa.Annotations == nil {
-		sa.Annotations = map[string]string{}
-	}
-	sa.Annotations[FolderAnnotation] = folder
-	if err := r.Client.Patch(ctx, sa, patch); err != nil {
-		return ctrl.Result{}, fmt.Errorf("add annotation: %w", err)
+	if _, legacy := sa.Annotations[FolderAnnotation]; legacy {
+		patch := client.MergeFromWithOptions(sa.DeepCopy(), client.MergeFromWithOptimisticLock{})
+		delete(sa.Annotations, FolderAnnotation)
+		if err := r.Client.Patch(ctx, sa, patch); err != nil {
+			return ctrl.Result{}, fmt.Errorf("remove legacy folder annotation: %w", err)
+		}
 	}
 
 	return ctrl.Result{}, nil

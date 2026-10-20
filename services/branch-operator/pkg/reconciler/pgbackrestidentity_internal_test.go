@@ -328,7 +328,7 @@ func TestReconcilePgBackRestIdentityGCP(t *testing.T) {
 	sa := &corev1.ServiceAccount{}
 	saKey := client.ObjectKey{Name: "branch-pgbackrest", Namespace: "xata-clusters"}
 	require.NoError(t, c.Get(ctx, saKey, sa))
-	require.NotContains(t, sa.Annotations, pgbackrest.GCSBucketAnnotation)
+	require.NotContains(t, sa.Annotations, pgbackrest.GCSFolderAnnotation)
 
 	secret := &corev1.Secret{}
 	require.NoError(t, c.Get(ctx, client.ObjectKey{Name: "cluster-pgbackrest-web-identity", Namespace: "xata-clusters"}, secret))
@@ -346,7 +346,36 @@ func TestReconcilePgBackRestIdentityGCP(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, c.Get(ctx, saKey, sa))
-	require.Equal(t, "some-bucket", sa.Annotations[pgbackrest.GCSBucketAnnotation])
+	require.Equal(t, "gs://some-bucket/branch/", sa.Annotations[pgbackrest.GCSFolderAnnotation])
+	for name, spec := range map[string]struct{ repoPath, stanza, want string }{
+		"explicit path":   {"team/repository", "branch-2", "team/repository"},
+		"stanza fallback": {"", "branch-2", "branch-2"},
+		"branch fallback": {"", "", "branch"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			branch.Spec.BackupSpec.PgBackRest.RepoPath = spec.repoPath
+			branch.Spec.BackupSpec.PgBackRest.StanzaName = spec.stanza
+			sa.Annotations[pgbackrest.GCSBucketAnnotation] = "some-bucket"
+			require.NoError(t, c.Update(ctx, sa))
+			_, err := r.reconcilePgBackRestServiceAccount(ctx, branch)
+			require.NoError(t, err)
+			require.NoError(t, c.Get(ctx, saKey, sa))
+			require.Equal(t, "gs://some-bucket/"+spec.want+"/", sa.Annotations[pgbackrest.GCSFolderAnnotation])
+			require.NotContains(t, sa.Annotations, pgbackrest.GCSBucketAnnotation)
+		})
+	}
+	t.Run("migrates the account without an assigned cluster", func(t *testing.T) {
+		branch.Spec.ClusterSpec.Name = nil
+		sa.Annotations[pgbackrest.GCSBucketAnnotation] = "some-bucket"
+		delete(sa.Annotations, pgbackrest.GCSFolderAnnotation)
+		require.NoError(t, c.Update(ctx, sa))
+		refreshIn, err := r.reconcilePgBackRestIdentity(ctx, branch)
+		require.NoError(t, err)
+		require.Zero(t, refreshIn)
+		require.NoError(t, c.Get(ctx, saKey, sa))
+		require.NotContains(t, sa.Annotations, pgbackrest.GCSBucketAnnotation)
+		require.Contains(t, sa.Annotations, pgbackrest.GCSFolderAnnotation)
+	})
 }
 
 func TestSetGCSCredentials(t *testing.T) {

@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"cmp"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -699,4 +700,14 @@ type BranchList struct {
 
 func init() {
 	SchemeBuilder.Register(&Branch{}, &BranchList{})
+}
+
+// GetStanzaName returns the configured stanza or the Branch name.
+func (p *PgBackRestSpec) GetStanzaName(branchName string) string {
+	return cmp.Or(p.StanzaName, branchName)
+}
+
+// GetRepoPath returns the configured repository path or its stanza name.
+func (p *PgBackRestSpec) GetRepoPath(branchName string) string {
+	return cmp.Or(p.RepoPath, p.GetStanzaName(branchName))
 }

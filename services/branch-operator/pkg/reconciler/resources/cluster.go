@@ -478,10 +478,7 @@ func backupConfiguration(branchName string, cfg ClusterConfig) *apiv1ac.BackupCo
 	// override is used when restoring a branch under the same name, so the
 	// restored branch writes to a fresh stanza instead of the one it restored
 	// from.
-	stanza := branchName
-	if pgb.StanzaName != "" {
-		stanza = pgb.StanzaName
-	}
+	stanza := pgb.GetStanzaName(branchName)
 
 	return backup.
 		WithPgBackRest(apiv1ac.PgBackRestConfiguration().

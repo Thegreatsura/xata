@@ -75,13 +75,17 @@ func (r *BranchReconciler) reconcilePgBackRestIdentity(
 	ctx context.Context,
 	branch *v1alpha1.Branch,
 ) (time.Duration, error) {
-	if !r.usesPgBackRestBranchIdentity(branch) || !branch.HasClusterName() {
+	if !r.usesPgBackRestBranchIdentity(branch) {
 		return 0, nil
 	}
 
 	sa, err := r.reconcilePgBackRestServiceAccount(ctx, branch)
 	if err != nil {
 		return 0, fmt.Errorf("reconcile pgbackrest ServiceAccount: %w", err)
+	}
+
+	if !branch.HasClusterName() {
+		return 0, nil
 	}
 
 	// The Cluster was applied earlier in this reconcile, but a new Cluster can
@@ -144,7 +148,10 @@ func (r *BranchReconciler) reconcilePgBackRestServiceAccount(
 			if sa.Annotations == nil {
 				sa.Annotations = map[string]string{}
 			}
-			sa.Annotations[pgbackrest.GCSBucketAnnotation] = b.PgBackRest.GCS.Bucket
+			sa.Annotations[pgbackrest.GCSFolderAnnotation] = pgbackrest.GCSFolderURI(
+				b.PgBackRest.GCS.Bucket, b.PgBackRest.GetRepoPath(branch.Name),
+			)
+			delete(sa.Annotations, pgbackrest.GCSBucketAnnotation)
 		}
 		// The token is only for pgBackRest, which reads it from the Secret.
 		sa.AutomountServiceAccountToken = new(false)
