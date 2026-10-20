@@ -3,6 +3,7 @@ package wakeup
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"slices"
 
 	poolv1alpha1 "xata/proto/clusterpool-operator/api/v1alpha1"
@@ -65,7 +66,8 @@ func (r *WakeupReconciler) takeClusterFromPool(ctx context.Context, namespace, p
 	// This uses optimistic concurrency via ResourceVersion — if another
 	// WakeupRequest claimed this cluster first, the update returns a conflict
 	// and the reconciler requeues.
-	cluster := &clusterList.Items[0]
+	//nolint:gosec // cluster selection does not need a secure random source
+	cluster := &clusterList.Items[rand.IntN(len(clusterList.Items))]
 	if err = controllerutil.RemoveControllerReference(pool, cluster, r.Scheme); err != nil {
 		return nil, fmt.Errorf("remove controller reference: %w", err)
 	}
