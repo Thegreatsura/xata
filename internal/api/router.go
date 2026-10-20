@@ -18,7 +18,6 @@ type Option interface {
 }
 
 type options struct {
-	withRecovery      bool
 	corsConfig        *middleware.CORSConfig
 	extraAllowHeaders []string
 }
@@ -26,12 +25,6 @@ type options struct {
 type optionFunc func(*options)
 
 func (fn optionFunc) apply(opts *options) { fn(opts) }
-
-func WithRecovery(b bool) Option {
-	return optionFunc(func(opts *options) {
-		opts.withRecovery = b
-	})
-}
 
 func WithCORS(cfg middleware.CORSConfig) Option {
 	return optionFunc(func(opts *options) {
@@ -62,9 +55,7 @@ var DefaultAllowHeaders = []string{
 func SetupRouter(o *o11y.O, with ...Option) *echo.Echo {
 	const maxRequestIDSize = 100
 
-	opts := options{
-		withRecovery: true,
-	}
+	var opts options
 	for _, opt := range with {
 		opt.apply(&opts)
 	}
@@ -80,9 +71,7 @@ func SetupRouter(o *o11y.O, with ...Option) *echo.Echo {
 	e.HTTPErrorHandler = makeHTTPErrorHandler()
 	e.Use(requestIDMiddleware(echo.HeaderXRequestID, maxRequestIDSize))
 	e.Use(o11y.LoggerMiddleware(&logger))
-	if opts.withRecovery {
-		e.Use(o11y.RecoverMiddleware(0))
-	}
+	e.Use(o11y.RecoverMiddleware(0))
 	e.Use(o11y.MetricsMiddleware(o))
 	e.Use(o11y.TracingMiddleware(o))
 	e.Use(xataEchoMiddleware(o))

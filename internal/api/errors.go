@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -46,11 +45,6 @@ type badRequestError struct{ inner error }
 func (e badRequestError) StatusCode() int { return http.StatusBadRequest }
 func (e badRequestError) Unwrap() error   { return e.inner }
 func (e badRequestError) Error() string   { return e.inner.Error() }
-
-// BadRequestErr creates a new badRequestError using the format string given.
-func BadRequestErr(str string) error {
-	return badRequestError{inner: errors.New(str)}
-}
 
 // BadRequestErrf creates a new badRequestError using the format string given.
 func BadRequestErrf(str string, args ...any) error {
@@ -216,32 +210,4 @@ func ErrorMessage(err error) string {
 	default:
 		return err.Error()
 	}
-}
-
-// ErrJSONInvalidField parses invalid field errors from json.Unmarshal. These only return an error string, without
-// easily-accessible metadata. In order to give users a better error message, we parse the error string and
-// produce a better message for them to act upon.
-//
-// For the future: it'd be wise to look deeper here. Perhaps another library could better support our needs.
-type ErrJSONInvalidField struct {
-	field string
-}
-
-func (e ErrJSONInvalidField) Error() string {
-	return fmt.Sprintf("invalid key [%s] in request", e.field)
-}
-
-func NewErrJSONInvalidField(field string) ErrJSONInvalidField {
-	return ErrJSONInvalidField{field}
-}
-
-func ErrAsJSONInvalidFieldError(err error) (error, bool) {
-	if after, ok := strings.CutPrefix(err.Error(), "json: unknown field \""); ok {
-		fieldName := after
-		fieldName = strings.TrimSuffix(fieldName, "\"")
-
-		return NewErrJSONInvalidField(fieldName), true
-	}
-
-	return err, false
 }

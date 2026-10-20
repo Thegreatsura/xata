@@ -17,18 +17,6 @@ func (e ErrOrganizationNotFound) StatusCode() int {
 	return http.StatusNotFound
 }
 
-type ErrOrganizationAlreadyExists struct {
-	ID string
-}
-
-func (e ErrOrganizationAlreadyExists) Error() string {
-	return fmt.Sprintf("organization %s already exists", e.ID)
-}
-
-func (e ErrOrganizationAlreadyExists) StatusCode() int {
-	return http.StatusConflict
-}
-
 type ErrGroupNotFound struct {
 	ID string
 }

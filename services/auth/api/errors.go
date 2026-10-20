@@ -5,16 +5,6 @@ import (
 	"net/http"
 )
 
-type ErrorOrganizationCreationDisabled struct{}
-
-func (e ErrorOrganizationCreationDisabled) Error() string {
-	return "Organization creation is temporarily disabled"
-}
-
-func (e ErrorOrganizationCreationDisabled) StatusCode() int {
-	return http.StatusForbidden
-}
-
 // ErrorMissingRequiredField is returned when a required field is missing
 type ErrorMissingRequiredField struct {
 	Field string
@@ -53,17 +43,6 @@ func (e ErrorTooManyAPIKeys) Error() string {
 
 func (e ErrorTooManyAPIKeys) StatusCode() int {
 	return http.StatusBadRequest
-}
-
-// ErrorCannotRemoveSelf is returned when a user tries to remove themselves from an organization
-type ErrorCannotRemoveSelf struct{}
-
-func (e ErrorCannotRemoveSelf) Error() string {
-	return "You cannot remove yourself from an organization"
-}
-
-func (e ErrorCannotRemoveSelf) StatusCode() int {
-	return http.StatusForbidden
 }
 
 // ErrInvalidResourceRestrictions is returned when resource restrictions are invalid
