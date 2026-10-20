@@ -24,6 +24,66 @@ func (_m *AuthStore) EXPECT() *AuthStore_Expecter {
 	return &AuthStore_Expecter{mock: &_m.Mock}
 }
 
+// AddVercelResourceBranch provides a mock function with given fields: ctx, installationID, branch
+func (_m *AuthStore) AddVercelResourceBranch(ctx context.Context, installationID string, branch *store.VercelResourceBranch) (*store.VercelResourceBranch, error) {
+	ret := _m.Called(ctx, installationID, branch)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddVercelResourceBranch")
+	}
+
+	var r0 *store.VercelResourceBranch
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *store.VercelResourceBranch) (*store.VercelResourceBranch, error)); ok {
+		return rf(ctx, installationID, branch)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, *store.VercelResourceBranch) *store.VercelResourceBranch); ok {
+		r0 = rf(ctx, installationID, branch)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*store.VercelResourceBranch)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, *store.VercelResourceBranch) error); ok {
+		r1 = rf(ctx, installationID, branch)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AuthStore_AddVercelResourceBranch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddVercelResourceBranch'
+type AuthStore_AddVercelResourceBranch_Call struct {
+	*mock.Call
+}
+
+// AddVercelResourceBranch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - installationID string
+//   - branch *store.VercelResourceBranch
+func (_e *AuthStore_Expecter) AddVercelResourceBranch(ctx interface{}, installationID interface{}, branch interface{}) *AuthStore_AddVercelResourceBranch_Call {
+	return &AuthStore_AddVercelResourceBranch_Call{Call: _e.mock.On("AddVercelResourceBranch", ctx, installationID, branch)}
+}
+
+func (_c *AuthStore_AddVercelResourceBranch_Call) Run(run func(ctx context.Context, installationID string, branch *store.VercelResourceBranch)) *AuthStore_AddVercelResourceBranch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(*store.VercelResourceBranch))
+	})
+	return _c
+}
+
+func (_c *AuthStore_AddVercelResourceBranch_Call) Return(_a0 *store.VercelResourceBranch, _a1 error) *AuthStore_AddVercelResourceBranch_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *AuthStore_AddVercelResourceBranch_Call) RunAndReturn(run func(context.Context, string, *store.VercelResourceBranch) (*store.VercelResourceBranch, error)) *AuthStore_AddVercelResourceBranch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Close provides a mock function with given fields: ctx
 func (_m *AuthStore) Close(ctx context.Context) error {
 	ret := _m.Called(ctx)
@@ -134,6 +194,125 @@ func (_c *AuthStore_CreateAPIKey_Call) Return(_a0 key.Key, _a1 *store.APIKey, _a
 }
 
 func (_c *AuthStore_CreateAPIKey_Call) RunAndReturn(run func(context.Context, store.KeyTargetType, string, *store.APIKeyCreate) (key.Key, *store.APIKey, error)) *AuthStore_CreateAPIKey_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateVercelResource provides a mock function with given fields: ctx, resource
+func (_m *AuthStore) CreateVercelResource(ctx context.Context, resource *store.VercelResource) (*store.VercelResource, error) {
+	ret := _m.Called(ctx, resource)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateVercelResource")
+	}
+
+	var r0 *store.VercelResource
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *store.VercelResource) (*store.VercelResource, error)); ok {
+		return rf(ctx, resource)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *store.VercelResource) *store.VercelResource); ok {
+		r0 = rf(ctx, resource)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*store.VercelResource)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *store.VercelResource) error); ok {
+		r1 = rf(ctx, resource)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AuthStore_CreateVercelResource_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateVercelResource'
+type AuthStore_CreateVercelResource_Call struct {
+	*mock.Call
+}
+
+// CreateVercelResource is a helper method to define mock.On call
+//   - ctx context.Context
+//   - resource *store.VercelResource
+func (_e *AuthStore_Expecter) CreateVercelResource(ctx interface{}, resource interface{}) *AuthStore_CreateVercelResource_Call {
+	return &AuthStore_CreateVercelResource_Call{Call: _e.mock.On("CreateVercelResource", ctx, resource)}
+}
+
+func (_c *AuthStore_CreateVercelResource_Call) Run(run func(ctx context.Context, resource *store.VercelResource)) *AuthStore_CreateVercelResource_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*store.VercelResource))
+	})
+	return _c
+}
+
+func (_c *AuthStore_CreateVercelResource_Call) Return(_a0 *store.VercelResource, _a1 error) *AuthStore_CreateVercelResource_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *AuthStore_CreateVercelResource_Call) RunAndReturn(run func(context.Context, *store.VercelResource) (*store.VercelResource, error)) *AuthStore_CreateVercelResource_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateVercelResourceAndBranches provides a mock function with given fields: ctx, resource, branches
+func (_m *AuthStore) CreateVercelResourceAndBranches(ctx context.Context, resource *store.VercelResource, branches []store.VercelResourceBranch) (*store.VercelResource, error) {
+	ret := _m.Called(ctx, resource, branches)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateVercelResourceAndBranches")
+	}
+
+	var r0 *store.VercelResource
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *store.VercelResource, []store.VercelResourceBranch) (*store.VercelResource, error)); ok {
+		return rf(ctx, resource, branches)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *store.VercelResource, []store.VercelResourceBranch) *store.VercelResource); ok {
+		r0 = rf(ctx, resource, branches)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*store.VercelResource)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *store.VercelResource, []store.VercelResourceBranch) error); ok {
+		r1 = rf(ctx, resource, branches)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AuthStore_CreateVercelResourceAndBranches_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateVercelResourceAndBranches'
+type AuthStore_CreateVercelResourceAndBranches_Call struct {
+	*mock.Call
+}
+
+// CreateVercelResourceAndBranches is a helper method to define mock.On call
+//   - ctx context.Context
+//   - resource *store.VercelResource
+//   - branches []store.VercelResourceBranch
+func (_e *AuthStore_Expecter) CreateVercelResourceAndBranches(ctx interface{}, resource interface{}, branches interface{}) *AuthStore_CreateVercelResourceAndBranches_Call {
+	return &AuthStore_CreateVercelResourceAndBranches_Call{Call: _e.mock.On("CreateVercelResourceAndBranches", ctx, resource, branches)}
+}
+
+func (_c *AuthStore_CreateVercelResourceAndBranches_Call) Run(run func(ctx context.Context, resource *store.VercelResource, branches []store.VercelResourceBranch)) *AuthStore_CreateVercelResourceAndBranches_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*store.VercelResource), args[2].([]store.VercelResourceBranch))
+	})
+	return _c
+}
+
+func (_c *AuthStore_CreateVercelResourceAndBranches_Call) Return(_a0 *store.VercelResource, _a1 error) *AuthStore_CreateVercelResourceAndBranches_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *AuthStore_CreateVercelResourceAndBranches_Call) RunAndReturn(run func(context.Context, *store.VercelResource, []store.VercelResourceBranch) (*store.VercelResource, error)) *AuthStore_CreateVercelResourceAndBranches_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -412,6 +591,66 @@ func (_c *AuthStore_GetVercelInstallation_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// GetVercelResource provides a mock function with given fields: ctx, installationID, resourceID
+func (_m *AuthStore) GetVercelResource(ctx context.Context, installationID string, resourceID string) (*store.VercelResource, error) {
+	ret := _m.Called(ctx, installationID, resourceID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVercelResource")
+	}
+
+	var r0 *store.VercelResource
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*store.VercelResource, error)); ok {
+		return rf(ctx, installationID, resourceID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *store.VercelResource); ok {
+		r0 = rf(ctx, installationID, resourceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*store.VercelResource)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, installationID, resourceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AuthStore_GetVercelResource_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVercelResource'
+type AuthStore_GetVercelResource_Call struct {
+	*mock.Call
+}
+
+// GetVercelResource is a helper method to define mock.On call
+//   - ctx context.Context
+//   - installationID string
+//   - resourceID string
+func (_e *AuthStore_Expecter) GetVercelResource(ctx interface{}, installationID interface{}, resourceID interface{}) *AuthStore_GetVercelResource_Call {
+	return &AuthStore_GetVercelResource_Call{Call: _e.mock.On("GetVercelResource", ctx, installationID, resourceID)}
+}
+
+func (_c *AuthStore_GetVercelResource_Call) Run(run func(ctx context.Context, installationID string, resourceID string)) *AuthStore_GetVercelResource_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *AuthStore_GetVercelResource_Call) Return(_a0 *store.VercelResource, _a1 error) *AuthStore_GetVercelResource_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *AuthStore_GetVercelResource_Call) RunAndReturn(run func(context.Context, string, string) (*store.VercelResource, error)) *AuthStore_GetVercelResource_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListAPIKeys provides a mock function with given fields: ctx, targetType, targetID
 func (_m *AuthStore) ListAPIKeys(ctx context.Context, targetType store.KeyTargetType, targetID string) ([]store.APIKey, error) {
 	ret := _m.Called(ctx, targetType, targetID)
@@ -468,6 +707,66 @@ func (_c *AuthStore_ListAPIKeys_Call) Return(_a0 []store.APIKey, _a1 error) *Aut
 }
 
 func (_c *AuthStore_ListAPIKeys_Call) RunAndReturn(run func(context.Context, store.KeyTargetType, string) ([]store.APIKey, error)) *AuthStore_ListAPIKeys_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVercelResourceBranches provides a mock function with given fields: ctx, installationID, resourceID
+func (_m *AuthStore) ListVercelResourceBranches(ctx context.Context, installationID string, resourceID string) ([]store.VercelResourceBranch, error) {
+	ret := _m.Called(ctx, installationID, resourceID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVercelResourceBranches")
+	}
+
+	var r0 []store.VercelResourceBranch
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]store.VercelResourceBranch, error)); ok {
+		return rf(ctx, installationID, resourceID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) []store.VercelResourceBranch); ok {
+		r0 = rf(ctx, installationID, resourceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]store.VercelResourceBranch)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, installationID, resourceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AuthStore_ListVercelResourceBranches_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVercelResourceBranches'
+type AuthStore_ListVercelResourceBranches_Call struct {
+	*mock.Call
+}
+
+// ListVercelResourceBranches is a helper method to define mock.On call
+//   - ctx context.Context
+//   - installationID string
+//   - resourceID string
+func (_e *AuthStore_Expecter) ListVercelResourceBranches(ctx interface{}, installationID interface{}, resourceID interface{}) *AuthStore_ListVercelResourceBranches_Call {
+	return &AuthStore_ListVercelResourceBranches_Call{Call: _e.mock.On("ListVercelResourceBranches", ctx, installationID, resourceID)}
+}
+
+func (_c *AuthStore_ListVercelResourceBranches_Call) Run(run func(ctx context.Context, installationID string, resourceID string)) *AuthStore_ListVercelResourceBranches_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *AuthStore_ListVercelResourceBranches_Call) Return(_a0 []store.VercelResourceBranch, _a1 error) *AuthStore_ListVercelResourceBranches_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *AuthStore_ListVercelResourceBranches_Call) RunAndReturn(run func(context.Context, string, string) ([]store.VercelResourceBranch, error)) *AuthStore_ListVercelResourceBranches_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -610,6 +909,162 @@ func (_c *AuthStore_TriggerVercelInstallationDeletion_Call) Return(_a0 error) *A
 }
 
 func (_c *AuthStore_TriggerVercelInstallationDeletion_Call) RunAndReturn(run func(context.Context, string) error) *AuthStore_TriggerVercelInstallationDeletion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TriggerVercelResourceBranchDeletion provides a mock function with given fields: ctx, installationID, resourceID, scope
+func (_m *AuthStore) TriggerVercelResourceBranchDeletion(ctx context.Context, installationID string, resourceID string, scope string) error {
+	ret := _m.Called(ctx, installationID, resourceID, scope)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TriggerVercelResourceBranchDeletion")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
+		r0 = rf(ctx, installationID, resourceID, scope)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// AuthStore_TriggerVercelResourceBranchDeletion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TriggerVercelResourceBranchDeletion'
+type AuthStore_TriggerVercelResourceBranchDeletion_Call struct {
+	*mock.Call
+}
+
+// TriggerVercelResourceBranchDeletion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - installationID string
+//   - resourceID string
+//   - scope string
+func (_e *AuthStore_Expecter) TriggerVercelResourceBranchDeletion(ctx interface{}, installationID interface{}, resourceID interface{}, scope interface{}) *AuthStore_TriggerVercelResourceBranchDeletion_Call {
+	return &AuthStore_TriggerVercelResourceBranchDeletion_Call{Call: _e.mock.On("TriggerVercelResourceBranchDeletion", ctx, installationID, resourceID, scope)}
+}
+
+func (_c *AuthStore_TriggerVercelResourceBranchDeletion_Call) Run(run func(ctx context.Context, installationID string, resourceID string, scope string)) *AuthStore_TriggerVercelResourceBranchDeletion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *AuthStore_TriggerVercelResourceBranchDeletion_Call) Return(_a0 error) *AuthStore_TriggerVercelResourceBranchDeletion_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *AuthStore_TriggerVercelResourceBranchDeletion_Call) RunAndReturn(run func(context.Context, string, string, string) error) *AuthStore_TriggerVercelResourceBranchDeletion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TriggerVercelResourceDeletion provides a mock function with given fields: ctx, installationID, resourceID
+func (_m *AuthStore) TriggerVercelResourceDeletion(ctx context.Context, installationID string, resourceID string) error {
+	ret := _m.Called(ctx, installationID, resourceID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TriggerVercelResourceDeletion")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, installationID, resourceID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// AuthStore_TriggerVercelResourceDeletion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TriggerVercelResourceDeletion'
+type AuthStore_TriggerVercelResourceDeletion_Call struct {
+	*mock.Call
+}
+
+// TriggerVercelResourceDeletion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - installationID string
+//   - resourceID string
+func (_e *AuthStore_Expecter) TriggerVercelResourceDeletion(ctx interface{}, installationID interface{}, resourceID interface{}) *AuthStore_TriggerVercelResourceDeletion_Call {
+	return &AuthStore_TriggerVercelResourceDeletion_Call{Call: _e.mock.On("TriggerVercelResourceDeletion", ctx, installationID, resourceID)}
+}
+
+func (_c *AuthStore_TriggerVercelResourceDeletion_Call) Run(run func(ctx context.Context, installationID string, resourceID string)) *AuthStore_TriggerVercelResourceDeletion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *AuthStore_TriggerVercelResourceDeletion_Call) Return(_a0 error) *AuthStore_TriggerVercelResourceDeletion_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *AuthStore_TriggerVercelResourceDeletion_Call) RunAndReturn(run func(context.Context, string, string) error) *AuthStore_TriggerVercelResourceDeletion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TryAcquireVercelResourceLock provides a mock function with given fields: ctx, resourceID
+func (_m *AuthStore) TryAcquireVercelResourceLock(ctx context.Context, resourceID string) (func() error, error) {
+	ret := _m.Called(ctx, resourceID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TryAcquireVercelResourceLock")
+	}
+
+	var r0 func() error
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (func() error, error)); ok {
+		return rf(ctx, resourceID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) func() error); ok {
+		r0 = rf(ctx, resourceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(func() error)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, resourceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AuthStore_TryAcquireVercelResourceLock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TryAcquireVercelResourceLock'
+type AuthStore_TryAcquireVercelResourceLock_Call struct {
+	*mock.Call
+}
+
+// TryAcquireVercelResourceLock is a helper method to define mock.On call
+//   - ctx context.Context
+//   - resourceID string
+func (_e *AuthStore_Expecter) TryAcquireVercelResourceLock(ctx interface{}, resourceID interface{}) *AuthStore_TryAcquireVercelResourceLock_Call {
+	return &AuthStore_TryAcquireVercelResourceLock_Call{Call: _e.mock.On("TryAcquireVercelResourceLock", ctx, resourceID)}
+}
+
+func (_c *AuthStore_TryAcquireVercelResourceLock_Call) Run(run func(ctx context.Context, resourceID string)) *AuthStore_TryAcquireVercelResourceLock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *AuthStore_TryAcquireVercelResourceLock_Call) Return(_a0 func() error, _a1 error) *AuthStore_TryAcquireVercelResourceLock_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *AuthStore_TryAcquireVercelResourceLock_Call) RunAndReturn(run func(context.Context, string) (func() error, error)) *AuthStore_TryAcquireVercelResourceLock_Call {
 	_c.Call.Return(run)
 	return _c
 }

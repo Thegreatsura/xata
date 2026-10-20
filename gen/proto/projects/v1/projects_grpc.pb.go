@@ -19,16 +19,20 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ProjectsService_ListRegions_FullMethodName              = "/projects.v1.ProjectsService/ListRegions"
-	ProjectsService_CreateRegion_FullMethodName             = "/projects.v1.ProjectsService/CreateRegion"
-	ProjectsService_ListCells_FullMethodName                = "/projects.v1.ProjectsService/ListCells"
-	ProjectsService_CreateCell_FullMethodName               = "/projects.v1.ProjectsService/CreateCell"
-	ProjectsService_ValidateHierarchy_FullMethodName        = "/projects.v1.ProjectsService/ValidateHierarchy"
-	ProjectsService_UpdateOrganizationStatus_FullMethodName = "/projects.v1.ProjectsService/UpdateOrganizationStatus"
-	ProjectsService_DeleteProjectsInOrg_FullMethodName      = "/projects.v1.ProjectsService/DeleteProjectsInOrg"
-	ProjectsService_HasActiveProjects_FullMethodName        = "/projects.v1.ProjectsService/HasActiveProjects"
-	ProjectsService_SetOrganizationLimits_FullMethodName    = "/projects.v1.ProjectsService/SetOrganizationLimits"
-	ProjectsService_GetOrganizationLimits_FullMethodName    = "/projects.v1.ProjectsService/GetOrganizationLimits"
+	ProjectsService_ListRegions_FullMethodName               = "/projects.v1.ProjectsService/ListRegions"
+	ProjectsService_CreateRegion_FullMethodName              = "/projects.v1.ProjectsService/CreateRegion"
+	ProjectsService_ListCells_FullMethodName                 = "/projects.v1.ProjectsService/ListCells"
+	ProjectsService_CreateCell_FullMethodName                = "/projects.v1.ProjectsService/CreateCell"
+	ProjectsService_ValidateHierarchy_FullMethodName         = "/projects.v1.ProjectsService/ValidateHierarchy"
+	ProjectsService_UpdateOrganizationStatus_FullMethodName  = "/projects.v1.ProjectsService/UpdateOrganizationStatus"
+	ProjectsService_DeleteProjectsInOrg_FullMethodName       = "/projects.v1.ProjectsService/DeleteProjectsInOrg"
+	ProjectsService_HasActiveProjects_FullMethodName         = "/projects.v1.ProjectsService/HasActiveProjects"
+	ProjectsService_SetOrganizationLimits_FullMethodName     = "/projects.v1.ProjectsService/SetOrganizationLimits"
+	ProjectsService_GetOrganizationLimits_FullMethodName     = "/projects.v1.ProjectsService/GetOrganizationLimits"
+	ProjectsService_CreateProject_FullMethodName             = "/projects.v1.ProjectsService/CreateProject"
+	ProjectsService_CreateBranch_FullMethodName              = "/projects.v1.ProjectsService/CreateBranch"
+	ProjectsService_DeleteProject_FullMethodName             = "/projects.v1.ProjectsService/DeleteProject"
+	ProjectsService_GetBranchConnectionString_FullMethodName = "/projects.v1.ProjectsService/GetBranchConnectionString"
 )
 
 // ProjectsServiceClient is the client API for ProjectsService service.
@@ -59,6 +63,18 @@ type ProjectsServiceClient interface {
 	// GetOrganizationLimits returns the stored projects-store limit overrides for
 	// an organization (empty project_id) or a single project.
 	GetOrganizationLimits(ctx context.Context, in *GetOrganizationLimitsRequest, opts ...grpc.CallOption) (*GetOrganizationLimitsResponse, error)
+	// CreateProject creates a project for an organization and returns its id.
+	CreateProject(ctx context.Context, in *CreateProjectRequest, opts ...grpc.CallOption) (*CreateProjectResponse, error)
+	// CreateBranch provisions a branch (a root branch from an explicit
+	// configuration, or a copy-on-write child of a parent) and returns its id and
+	// connection string. The server resolves feature flags, org limits and the
+	// branch-creation kill switch; the caller supplies only the branch spec.
+	CreateBranch(ctx context.Context, in *CreateBranchRequest, opts ...grpc.CallOption) (*CreateBranchResponse, error)
+	// DeleteProject tears down a project and all its branches (best-effort,
+	// idempotent) — the shared teardown cascade.
+	DeleteProject(ctx context.Context, in *DeleteProjectRequest, opts ...grpc.CallOption) (*DeleteProjectResponse, error)
+	// GetBranchConnectionString returns the connection string for a branch.
+	GetBranchConnectionString(ctx context.Context, in *GetBranchConnectionStringRequest, opts ...grpc.CallOption) (*GetBranchConnectionStringResponse, error)
 }
 
 type projectsServiceClient struct {
@@ -169,6 +185,46 @@ func (c *projectsServiceClient) GetOrganizationLimits(ctx context.Context, in *G
 	return out, nil
 }
 
+func (c *projectsServiceClient) CreateProject(ctx context.Context, in *CreateProjectRequest, opts ...grpc.CallOption) (*CreateProjectResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateProjectResponse)
+	err := c.cc.Invoke(ctx, ProjectsService_CreateProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *projectsServiceClient) CreateBranch(ctx context.Context, in *CreateBranchRequest, opts ...grpc.CallOption) (*CreateBranchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateBranchResponse)
+	err := c.cc.Invoke(ctx, ProjectsService_CreateBranch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *projectsServiceClient) DeleteProject(ctx context.Context, in *DeleteProjectRequest, opts ...grpc.CallOption) (*DeleteProjectResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteProjectResponse)
+	err := c.cc.Invoke(ctx, ProjectsService_DeleteProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *projectsServiceClient) GetBranchConnectionString(ctx context.Context, in *GetBranchConnectionStringRequest, opts ...grpc.CallOption) (*GetBranchConnectionStringResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetBranchConnectionStringResponse)
+	err := c.cc.Invoke(ctx, ProjectsService_GetBranchConnectionString_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ProjectsServiceServer is the server API for ProjectsService service.
 // All implementations must embed UnimplementedProjectsServiceServer
 // for forward compatibility.
@@ -197,6 +253,18 @@ type ProjectsServiceServer interface {
 	// GetOrganizationLimits returns the stored projects-store limit overrides for
 	// an organization (empty project_id) or a single project.
 	GetOrganizationLimits(context.Context, *GetOrganizationLimitsRequest) (*GetOrganizationLimitsResponse, error)
+	// CreateProject creates a project for an organization and returns its id.
+	CreateProject(context.Context, *CreateProjectRequest) (*CreateProjectResponse, error)
+	// CreateBranch provisions a branch (a root branch from an explicit
+	// configuration, or a copy-on-write child of a parent) and returns its id and
+	// connection string. The server resolves feature flags, org limits and the
+	// branch-creation kill switch; the caller supplies only the branch spec.
+	CreateBranch(context.Context, *CreateBranchRequest) (*CreateBranchResponse, error)
+	// DeleteProject tears down a project and all its branches (best-effort,
+	// idempotent) — the shared teardown cascade.
+	DeleteProject(context.Context, *DeleteProjectRequest) (*DeleteProjectResponse, error)
+	// GetBranchConnectionString returns the connection string for a branch.
+	GetBranchConnectionString(context.Context, *GetBranchConnectionStringRequest) (*GetBranchConnectionStringResponse, error)
 	mustEmbedUnimplementedProjectsServiceServer()
 }
 
@@ -236,6 +304,18 @@ func (UnimplementedProjectsServiceServer) SetOrganizationLimits(context.Context,
 }
 func (UnimplementedProjectsServiceServer) GetOrganizationLimits(context.Context, *GetOrganizationLimitsRequest) (*GetOrganizationLimitsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetOrganizationLimits not implemented")
+}
+func (UnimplementedProjectsServiceServer) CreateProject(context.Context, *CreateProjectRequest) (*CreateProjectResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateProject not implemented")
+}
+func (UnimplementedProjectsServiceServer) CreateBranch(context.Context, *CreateBranchRequest) (*CreateBranchResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateBranch not implemented")
+}
+func (UnimplementedProjectsServiceServer) DeleteProject(context.Context, *DeleteProjectRequest) (*DeleteProjectResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteProject not implemented")
+}
+func (UnimplementedProjectsServiceServer) GetBranchConnectionString(context.Context, *GetBranchConnectionStringRequest) (*GetBranchConnectionStringResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetBranchConnectionString not implemented")
 }
 func (UnimplementedProjectsServiceServer) mustEmbedUnimplementedProjectsServiceServer() {}
 func (UnimplementedProjectsServiceServer) testEmbeddedByValue()                         {}
@@ -438,6 +518,78 @@ func _ProjectsService_GetOrganizationLimits_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProjectsService_CreateProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProjectsServiceServer).CreateProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProjectsService_CreateProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProjectsServiceServer).CreateProject(ctx, req.(*CreateProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProjectsService_CreateBranch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateBranchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProjectsServiceServer).CreateBranch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProjectsService_CreateBranch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProjectsServiceServer).CreateBranch(ctx, req.(*CreateBranchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProjectsService_DeleteProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProjectsServiceServer).DeleteProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProjectsService_DeleteProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProjectsServiceServer).DeleteProject(ctx, req.(*DeleteProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProjectsService_GetBranchConnectionString_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBranchConnectionStringRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProjectsServiceServer).GetBranchConnectionString(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProjectsService_GetBranchConnectionString_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProjectsServiceServer).GetBranchConnectionString(ctx, req.(*GetBranchConnectionStringRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ProjectsService_ServiceDesc is the grpc.ServiceDesc for ProjectsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -484,6 +636,22 @@ var ProjectsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetOrganizationLimits",
 			Handler:    _ProjectsService_GetOrganizationLimits_Handler,
+		},
+		{
+			MethodName: "CreateProject",
+			Handler:    _ProjectsService_CreateProject_Handler,
+		},
+		{
+			MethodName: "CreateBranch",
+			Handler:    _ProjectsService_CreateBranch_Handler,
+		},
+		{
+			MethodName: "DeleteProject",
+			Handler:    _ProjectsService_DeleteProject_Handler,
+		},
+		{
+			MethodName: "GetBranchConnectionString",
+			Handler:    _ProjectsService_GetBranchConnectionString_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

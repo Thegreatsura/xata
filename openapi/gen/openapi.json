@@ -8898,7 +8898,7 @@
         "x-internal": true
       },
       "Resource": {
-        "description": "A provisioned Vercel Marketplace resource. Matches Vercel's Partner API\n\"Get Resource\" response. Secrets/connection info are returned by Provision\nResource, not here. The optional billingPlan, protocolSettings, and\nnotification fields are not yet populated.\n",
+        "description": "A provisioned Vercel Marketplace resource. Matches Vercel's Partner API\n\"Get Resource\" response. Secrets/connection info are returned by Provision\nResource, not here.\n",
         "type": "object",
         "properties": {
           "id": {
@@ -9312,12 +9312,7 @@
     {
       "name": "Vercel Marketplace API",
       "tags": [
-        "Vercel"
-      ]
-    },
-    {
-      "name": "Vercel Marketplace Resources API",
-      "tags": [
+        "Vercel",
         "Vercel Resources"
       ]
     }

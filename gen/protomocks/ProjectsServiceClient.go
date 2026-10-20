@@ -25,6 +25,80 @@ func (_m *ProjectsServiceClient) EXPECT() *ProjectsServiceClient_Expecter {
 	return &ProjectsServiceClient_Expecter{mock: &_m.Mock}
 }
 
+// CreateBranch provides a mock function with given fields: ctx, in, opts
+func (_m *ProjectsServiceClient) CreateBranch(ctx context.Context, in *projectsv1.CreateBranchRequest, opts ...grpc.CallOption) (*projectsv1.CreateBranchResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateBranch")
+	}
+
+	var r0 *projectsv1.CreateBranchResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *projectsv1.CreateBranchRequest, ...grpc.CallOption) (*projectsv1.CreateBranchResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *projectsv1.CreateBranchRequest, ...grpc.CallOption) *projectsv1.CreateBranchResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*projectsv1.CreateBranchResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *projectsv1.CreateBranchRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProjectsServiceClient_CreateBranch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBranch'
+type ProjectsServiceClient_CreateBranch_Call struct {
+	*mock.Call
+}
+
+// CreateBranch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *projectsv1.CreateBranchRequest
+//   - opts ...grpc.CallOption
+func (_e *ProjectsServiceClient_Expecter) CreateBranch(ctx interface{}, in interface{}, opts ...interface{}) *ProjectsServiceClient_CreateBranch_Call {
+	return &ProjectsServiceClient_CreateBranch_Call{Call: _e.mock.On("CreateBranch",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *ProjectsServiceClient_CreateBranch_Call) Run(run func(ctx context.Context, in *projectsv1.CreateBranchRequest, opts ...grpc.CallOption)) *ProjectsServiceClient_CreateBranch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*projectsv1.CreateBranchRequest), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *ProjectsServiceClient_CreateBranch_Call) Return(_a0 *projectsv1.CreateBranchResponse, _a1 error) *ProjectsServiceClient_CreateBranch_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *ProjectsServiceClient_CreateBranch_Call) RunAndReturn(run func(context.Context, *projectsv1.CreateBranchRequest, ...grpc.CallOption) (*projectsv1.CreateBranchResponse, error)) *ProjectsServiceClient_CreateBranch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateCell provides a mock function with given fields: ctx, in, opts
 func (_m *ProjectsServiceClient) CreateCell(ctx context.Context, in *projectsv1.CreateCellRequest, opts ...grpc.CallOption) (*projectsv1.CreateCellResponse, error) {
 	_va := make([]interface{}, len(opts))
@@ -95,6 +169,80 @@ func (_c *ProjectsServiceClient_CreateCell_Call) Return(_a0 *projectsv1.CreateCe
 }
 
 func (_c *ProjectsServiceClient_CreateCell_Call) RunAndReturn(run func(context.Context, *projectsv1.CreateCellRequest, ...grpc.CallOption) (*projectsv1.CreateCellResponse, error)) *ProjectsServiceClient_CreateCell_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateProject provides a mock function with given fields: ctx, in, opts
+func (_m *ProjectsServiceClient) CreateProject(ctx context.Context, in *projectsv1.CreateProjectRequest, opts ...grpc.CallOption) (*projectsv1.CreateProjectResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateProject")
+	}
+
+	var r0 *projectsv1.CreateProjectResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *projectsv1.CreateProjectRequest, ...grpc.CallOption) (*projectsv1.CreateProjectResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *projectsv1.CreateProjectRequest, ...grpc.CallOption) *projectsv1.CreateProjectResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*projectsv1.CreateProjectResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *projectsv1.CreateProjectRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProjectsServiceClient_CreateProject_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateProject'
+type ProjectsServiceClient_CreateProject_Call struct {
+	*mock.Call
+}
+
+// CreateProject is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *projectsv1.CreateProjectRequest
+//   - opts ...grpc.CallOption
+func (_e *ProjectsServiceClient_Expecter) CreateProject(ctx interface{}, in interface{}, opts ...interface{}) *ProjectsServiceClient_CreateProject_Call {
+	return &ProjectsServiceClient_CreateProject_Call{Call: _e.mock.On("CreateProject",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *ProjectsServiceClient_CreateProject_Call) Run(run func(ctx context.Context, in *projectsv1.CreateProjectRequest, opts ...grpc.CallOption)) *ProjectsServiceClient_CreateProject_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*projectsv1.CreateProjectRequest), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *ProjectsServiceClient_CreateProject_Call) Return(_a0 *projectsv1.CreateProjectResponse, _a1 error) *ProjectsServiceClient_CreateProject_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *ProjectsServiceClient_CreateProject_Call) RunAndReturn(run func(context.Context, *projectsv1.CreateProjectRequest, ...grpc.CallOption) (*projectsv1.CreateProjectResponse, error)) *ProjectsServiceClient_CreateProject_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -173,6 +321,80 @@ func (_c *ProjectsServiceClient_CreateRegion_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// DeleteProject provides a mock function with given fields: ctx, in, opts
+func (_m *ProjectsServiceClient) DeleteProject(ctx context.Context, in *projectsv1.DeleteProjectRequest, opts ...grpc.CallOption) (*projectsv1.DeleteProjectResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteProject")
+	}
+
+	var r0 *projectsv1.DeleteProjectResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *projectsv1.DeleteProjectRequest, ...grpc.CallOption) (*projectsv1.DeleteProjectResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *projectsv1.DeleteProjectRequest, ...grpc.CallOption) *projectsv1.DeleteProjectResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*projectsv1.DeleteProjectResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *projectsv1.DeleteProjectRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProjectsServiceClient_DeleteProject_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteProject'
+type ProjectsServiceClient_DeleteProject_Call struct {
+	*mock.Call
+}
+
+// DeleteProject is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *projectsv1.DeleteProjectRequest
+//   - opts ...grpc.CallOption
+func (_e *ProjectsServiceClient_Expecter) DeleteProject(ctx interface{}, in interface{}, opts ...interface{}) *ProjectsServiceClient_DeleteProject_Call {
+	return &ProjectsServiceClient_DeleteProject_Call{Call: _e.mock.On("DeleteProject",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *ProjectsServiceClient_DeleteProject_Call) Run(run func(ctx context.Context, in *projectsv1.DeleteProjectRequest, opts ...grpc.CallOption)) *ProjectsServiceClient_DeleteProject_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*projectsv1.DeleteProjectRequest), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *ProjectsServiceClient_DeleteProject_Call) Return(_a0 *projectsv1.DeleteProjectResponse, _a1 error) *ProjectsServiceClient_DeleteProject_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *ProjectsServiceClient_DeleteProject_Call) RunAndReturn(run func(context.Context, *projectsv1.DeleteProjectRequest, ...grpc.CallOption) (*projectsv1.DeleteProjectResponse, error)) *ProjectsServiceClient_DeleteProject_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteProjectsInOrg provides a mock function with given fields: ctx, in, opts
 func (_m *ProjectsServiceClient) DeleteProjectsInOrg(ctx context.Context, in *projectsv1.DeleteProjectsInOrgRequest, opts ...grpc.CallOption) (*projectsv1.DeleteProjectsInOrgResponse, error) {
 	_va := make([]interface{}, len(opts))
@@ -243,6 +465,80 @@ func (_c *ProjectsServiceClient_DeleteProjectsInOrg_Call) Return(_a0 *projectsv1
 }
 
 func (_c *ProjectsServiceClient_DeleteProjectsInOrg_Call) RunAndReturn(run func(context.Context, *projectsv1.DeleteProjectsInOrgRequest, ...grpc.CallOption) (*projectsv1.DeleteProjectsInOrgResponse, error)) *ProjectsServiceClient_DeleteProjectsInOrg_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBranchConnectionString provides a mock function with given fields: ctx, in, opts
+func (_m *ProjectsServiceClient) GetBranchConnectionString(ctx context.Context, in *projectsv1.GetBranchConnectionStringRequest, opts ...grpc.CallOption) (*projectsv1.GetBranchConnectionStringResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBranchConnectionString")
+	}
+
+	var r0 *projectsv1.GetBranchConnectionStringResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *projectsv1.GetBranchConnectionStringRequest, ...grpc.CallOption) (*projectsv1.GetBranchConnectionStringResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *projectsv1.GetBranchConnectionStringRequest, ...grpc.CallOption) *projectsv1.GetBranchConnectionStringResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*projectsv1.GetBranchConnectionStringResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *projectsv1.GetBranchConnectionStringRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProjectsServiceClient_GetBranchConnectionString_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBranchConnectionString'
+type ProjectsServiceClient_GetBranchConnectionString_Call struct {
+	*mock.Call
+}
+
+// GetBranchConnectionString is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *projectsv1.GetBranchConnectionStringRequest
+//   - opts ...grpc.CallOption
+func (_e *ProjectsServiceClient_Expecter) GetBranchConnectionString(ctx interface{}, in interface{}, opts ...interface{}) *ProjectsServiceClient_GetBranchConnectionString_Call {
+	return &ProjectsServiceClient_GetBranchConnectionString_Call{Call: _e.mock.On("GetBranchConnectionString",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *ProjectsServiceClient_GetBranchConnectionString_Call) Run(run func(ctx context.Context, in *projectsv1.GetBranchConnectionStringRequest, opts ...grpc.CallOption)) *ProjectsServiceClient_GetBranchConnectionString_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*projectsv1.GetBranchConnectionStringRequest), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *ProjectsServiceClient_GetBranchConnectionString_Call) Return(_a0 *projectsv1.GetBranchConnectionStringResponse, _a1 error) *ProjectsServiceClient_GetBranchConnectionString_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *ProjectsServiceClient_GetBranchConnectionString_Call) RunAndReturn(run func(context.Context, *projectsv1.GetBranchConnectionStringRequest, ...grpc.CallOption) (*projectsv1.GetBranchConnectionStringResponse, error)) *ProjectsServiceClient_GetBranchConnectionString_Call {
 	_c.Call.Return(run)
 	return _c
 }

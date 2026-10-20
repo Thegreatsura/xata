@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"xata/internal/openfeature"
+	"xata/services/projects/branch"
 	"xata/services/projects/cells"
 	"xata/services/projects/provisioner"
 
@@ -27,6 +29,13 @@ type ProjectsService struct {
 	cells       cells.Cells
 	provisioner provisioner.Provisioner
 
+	// branches provisions and tears down branches/projects; set for the
+	// provisioning RPCs (CreateProject/CreateBranch/DeleteProject/...).
+	branches *branch.Service
+	// feat resolves the provisioning feature flags (cluster pool, xatastor,
+	// pgBackRest, branch-creation kill switch) server-side.
+	feat openfeature.Client
+
 	// nudger wakes the orgstatus worker after a desired-state write.
 	nudger Nudger
 }
@@ -48,6 +57,12 @@ func NewProjectsService(store store.ProjectsStore, cells cells.Cells) *ProjectsS
 // SetNudger wires the orgstatus worker so status writes are applied promptly
 // instead of waiting for the worker's next poll.
 func (p *ProjectsService) SetNudger(n Nudger) { p.nudger = n }
+
+// SetBranches wires the branch service used by the provisioning RPCs.
+func (p *ProjectsService) SetBranches(b *branch.Service) { p.branches = b }
+
+// SetFeat wires the feature-flag client used to resolve provisioning flags.
+func (p *ProjectsService) SetFeat(f openfeature.Client) { p.feat = f }
 
 // CreateCell implements projectsv1.ProjectsServiceServer.
 func (p *ProjectsService) CreateCell(ctx context.Context, input *projectsv1.CreateCellRequest) (*projectsv1.CreateCellResponse, error) {

@@ -51,11 +51,12 @@ httpRoute:
       type: PathPrefix
     - path: "^/organizations(/*)$|^/organizations/([^/]+)(/api-keys|/members.*|/roles.*|/invitations.*|/deletion-request|/membership-limits|/sso(/domains(/[^/]+(/verify)?)?|/providers(/[^/]+(/enforcement)?)?)?|/billing/(checkout-session|payment-method-session|customer|invoices(/upcoming)?))?$"
       type: RegularExpression
-    # Vercel Marketplace Partner API — auth-owned paths only. The resource paths
-    # (^/v1/installations/[^/]+/resources(/.*)?$) belong to projects; these match
-    # the installation record itself and the plans catalog, and deliberately do
-    # not overlap the resources route.
+    # Vercel Marketplace Partner API — all auth-owned: the installation record,
+    # the plans catalog, and resource provisioning/teardown (resources call the
+    # projects gRPC internally).
     - path: "^/v1/installations/[^/]+$"
+      type: RegularExpression
+    - path: "^/v1/installations/[^/]+/resources(/.*)?$"
       type: RegularExpression
     - path: "^/v1/products/[^/]+/plans$"
       type: RegularExpression

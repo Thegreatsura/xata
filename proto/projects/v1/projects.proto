@@ -35,6 +35,22 @@ service ProjectsService {
   // GetOrganizationLimits returns the stored projects-store limit overrides for
   // an organization (empty project_id) or a single project.
   rpc GetOrganizationLimits(GetOrganizationLimitsRequest) returns (GetOrganizationLimitsResponse) {}
+
+  // CreateProject creates a project for an organization and returns its id.
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse) {}
+
+  // CreateBranch provisions a branch (a root branch from an explicit
+  // configuration, or a copy-on-write child of a parent) and returns its id and
+  // connection string. The server resolves feature flags, org limits and the
+  // branch-creation kill switch; the caller supplies only the branch spec.
+  rpc CreateBranch(CreateBranchRequest) returns (CreateBranchResponse) {}
+
+  // DeleteProject tears down a project and all its branches (best-effort,
+  // idempotent) — the shared teardown cascade.
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse) {}
+
+  // GetBranchConnectionString returns the connection string for a branch.
+  rpc GetBranchConnectionString(GetBranchConnectionStringRequest) returns (GetBranchConnectionStringResponse) {}
 }
 
 // ListRegionsRequest is the request object for ListRegions
@@ -190,4 +206,79 @@ message GetOrganizationLimitsRequest {
 message GetOrganizationLimitsResponse {
   // limits holds the stored overrides; only overridden fields are present.
   Limits limits = 1;
+}
+
+// CreateProjectRequest is the request object for CreateProject.
+message CreateProjectRequest {
+  string organization_id = 1;
+  string name = 2;
+  // usage_tier the project is created under (e.g. "t2"); empty uses the default.
+  string usage_tier = 3;
+}
+
+// CreateProjectResponse is the response object for CreateProject.
+message CreateProjectResponse {
+  string project_id = 1;
+}
+
+// BranchConfiguration is the explicit configuration for a root branch.
+message BranchConfiguration {
+  string image = 1; // e.g. "postgres:17.11"
+  string region = 2;
+  string instance_type = 3; // size
+  int32 replicas = 4;
+  repeated string preload_libraries = 5;
+  map<string, string> postgres_configuration_parameters = 6;
+  optional int32 storage_gb = 7;
+}
+
+// BranchScaleToZero configures aggressive hibernation for a branch.
+message BranchScaleToZero {
+  bool enabled = 1;
+  int32 inactivity_period_minutes = 2;
+}
+
+// CreateBranchRequest is the request object for CreateBranch.
+message CreateBranchRequest {
+  string organization_id = 1;
+  string project_id = 2;
+  string name = 3;
+  // marketplace tags the branch's origin (e.g. "vercel"); empty for the regular flow.
+  string marketplace = 4;
+  // usage_tier the branch is created under (e.g. "t2"); empty uses the default.
+  string usage_tier = 5;
+  // mode selects a root branch from an explicit configuration, or a
+  // copy-on-write child of parent_branch_id.
+  oneof mode {
+    BranchConfiguration from_configuration = 6;
+    string from_parent_branch_id = 7;
+  }
+  optional BranchScaleToZero scale_to_zero = 8;
+}
+
+// CreateBranchResponse is the response object for CreateBranch.
+message CreateBranchResponse {
+  string branch_id = 1;
+  string connection_string = 2;
+}
+
+// DeleteProjectRequest is the request object for DeleteProject.
+message DeleteProjectRequest {
+  string organization_id = 1;
+  string project_id = 2;
+}
+
+// DeleteProjectResponse is the response object for DeleteProject.
+message DeleteProjectResponse {}
+
+// GetBranchConnectionStringRequest is the request object for GetBranchConnectionString.
+message GetBranchConnectionStringRequest {
+  string organization_id = 1;
+  string project_id = 2;
+  string branch_id = 3;
+}
+
+// GetBranchConnectionStringResponse is the response object for GetBranchConnectionString.
+message GetBranchConnectionStringResponse {
+  string connection_string = 1;
 }

@@ -42,6 +42,36 @@ type AuthStore interface {
 	// TriggerVercelInstallationDeletion flags an installation as deleting on
 	// uninstall. It stays retrievable in this state so billing can finalize
 	TriggerVercelInstallationDeletion(ctx context.Context, installationID string) error
+
+	// Vercel Marketplace resources. XataProjectID/XataBranchID are logical
+	// references to the projects service's database (no FK): the project/branch is
+	// provisioned via the projects gRPC first, so these methods do not validate its
+	// existence. Every method is scoped by installationID.
+
+	// CreateVercelResource inserts a resource and returns the stored row. The input
+	// is not modified; a nil Metadata is stored as an empty object.
+	CreateVercelResource(ctx context.Context, resource *VercelResource) (*VercelResource, error)
+	// CreateVercelResourceAndBranches inserts a resource and all of its branch rows
+	// in one transaction, so a partial write can't leave a resource missing a scope.
+	CreateVercelResourceAndBranches(ctx context.Context, resource *VercelResource, branches []VercelResourceBranch) (*VercelResource, error)
+	// TryAcquireVercelResourceLock takes a NON-blocking advisory lock scoped to a
+	// resource id, serializing same-key provisions. On contention it returns
+	// ErrVercelResourceBusy (→ 429). The returned closure releases the lock and must
+	// be called (defer) even on error.
+	TryAcquireVercelResourceLock(ctx context.Context, resourceID string) (func() error, error)
+	// GetVercelResource returns active and deleting resources (deleted rows read as
+	// absent). Callers must inspect Status.
+	GetVercelResource(ctx context.Context, installationID, resourceID string) (*VercelResource, error)
+	// TriggerVercelResourceDeletion flags an active resource as deleting.
+	TriggerVercelResourceDeletion(ctx context.Context, installationID, resourceID string) error
+	// AddVercelResourceBranch adds a branch (any scope) to an active resource and
+	// returns the stored row with its generated id. The input is not modified.
+	AddVercelResourceBranch(ctx context.Context, installationID string, branch *VercelResourceBranch) (*VercelResourceBranch, error)
+	// ListVercelResourceBranches returns a resource's non-deleted branches.
+	ListVercelResourceBranches(ctx context.Context, installationID, resourceID string) ([]VercelResourceBranch, error)
+	// TriggerVercelResourceBranchDeletion flags an active branch (by resource and
+	// scope) as deleting.
+	TriggerVercelResourceBranchDeletion(ctx context.Context, installationID, resourceID, scope string) error
 }
 
 // OrgLimitKey identifies an organization-level limit stored in the auth service.

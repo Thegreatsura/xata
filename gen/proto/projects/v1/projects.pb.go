@@ -1298,6 +1298,644 @@ func (x *GetOrganizationLimitsResponse) GetLimits() *Limits {
 	return nil
 }
 
+// CreateProjectRequest is the request object for CreateProject.
+type CreateProjectRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	OrganizationId string                 `protobuf:"bytes,1,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
+	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// usage_tier the project is created under (e.g. "t2"); empty uses the default.
+	UsageTier     string `protobuf:"bytes,3,opt,name=usage_tier,json=usageTier,proto3" json:"usage_tier,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateProjectRequest) Reset() {
+	*x = CreateProjectRequest{}
+	mi := &file_projects_v1_projects_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateProjectRequest) ProtoMessage() {}
+
+func (x *CreateProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_projects_v1_projects_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateProjectRequest.ProtoReflect.Descriptor instead.
+func (*CreateProjectRequest) Descriptor() ([]byte, []int) {
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *CreateProjectRequest) GetOrganizationId() string {
+	if x != nil {
+		return x.OrganizationId
+	}
+	return ""
+}
+
+func (x *CreateProjectRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateProjectRequest) GetUsageTier() string {
+	if x != nil {
+		return x.UsageTier
+	}
+	return ""
+}
+
+// CreateProjectResponse is the response object for CreateProject.
+type CreateProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateProjectResponse) Reset() {
+	*x = CreateProjectResponse{}
+	mi := &file_projects_v1_projects_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateProjectResponse) ProtoMessage() {}
+
+func (x *CreateProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_projects_v1_projects_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateProjectResponse.ProtoReflect.Descriptor instead.
+func (*CreateProjectResponse) Descriptor() ([]byte, []int) {
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *CreateProjectResponse) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+// BranchConfiguration is the explicit configuration for a root branch.
+type BranchConfiguration struct {
+	state                           protoimpl.MessageState `protogen:"open.v1"`
+	Image                           string                 `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"` // e.g. "postgres:17.11"
+	Region                          string                 `protobuf:"bytes,2,opt,name=region,proto3" json:"region,omitempty"`
+	InstanceType                    string                 `protobuf:"bytes,3,opt,name=instance_type,json=instanceType,proto3" json:"instance_type,omitempty"` // size
+	Replicas                        int32                  `protobuf:"varint,4,opt,name=replicas,proto3" json:"replicas,omitempty"`
+	PreloadLibraries                []string               `protobuf:"bytes,5,rep,name=preload_libraries,json=preloadLibraries,proto3" json:"preload_libraries,omitempty"`
+	PostgresConfigurationParameters map[string]string      `protobuf:"bytes,6,rep,name=postgres_configuration_parameters,json=postgresConfigurationParameters,proto3" json:"postgres_configuration_parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	StorageGb                       *int32                 `protobuf:"varint,7,opt,name=storage_gb,json=storageGb,proto3,oneof" json:"storage_gb,omitempty"`
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
+}
+
+func (x *BranchConfiguration) Reset() {
+	*x = BranchConfiguration{}
+	mi := &file_projects_v1_projects_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BranchConfiguration) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BranchConfiguration) ProtoMessage() {}
+
+func (x *BranchConfiguration) ProtoReflect() protoreflect.Message {
+	mi := &file_projects_v1_projects_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BranchConfiguration.ProtoReflect.Descriptor instead.
+func (*BranchConfiguration) Descriptor() ([]byte, []int) {
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *BranchConfiguration) GetImage() string {
+	if x != nil {
+		return x.Image
+	}
+	return ""
+}
+
+func (x *BranchConfiguration) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *BranchConfiguration) GetInstanceType() string {
+	if x != nil {
+		return x.InstanceType
+	}
+	return ""
+}
+
+func (x *BranchConfiguration) GetReplicas() int32 {
+	if x != nil {
+		return x.Replicas
+	}
+	return 0
+}
+
+func (x *BranchConfiguration) GetPreloadLibraries() []string {
+	if x != nil {
+		return x.PreloadLibraries
+	}
+	return nil
+}
+
+func (x *BranchConfiguration) GetPostgresConfigurationParameters() map[string]string {
+	if x != nil {
+		return x.PostgresConfigurationParameters
+	}
+	return nil
+}
+
+func (x *BranchConfiguration) GetStorageGb() int32 {
+	if x != nil && x.StorageGb != nil {
+		return *x.StorageGb
+	}
+	return 0
+}
+
+// BranchScaleToZero configures aggressive hibernation for a branch.
+type BranchScaleToZero struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Enabled                 bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	InactivityPeriodMinutes int32                  `protobuf:"varint,2,opt,name=inactivity_period_minutes,json=inactivityPeriodMinutes,proto3" json:"inactivity_period_minutes,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *BranchScaleToZero) Reset() {
+	*x = BranchScaleToZero{}
+	mi := &file_projects_v1_projects_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BranchScaleToZero) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BranchScaleToZero) ProtoMessage() {}
+
+func (x *BranchScaleToZero) ProtoReflect() protoreflect.Message {
+	mi := &file_projects_v1_projects_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BranchScaleToZero.ProtoReflect.Descriptor instead.
+func (*BranchScaleToZero) Descriptor() ([]byte, []int) {
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *BranchScaleToZero) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *BranchScaleToZero) GetInactivityPeriodMinutes() int32 {
+	if x != nil {
+		return x.InactivityPeriodMinutes
+	}
+	return 0
+}
+
+// CreateBranchRequest is the request object for CreateBranch.
+type CreateBranchRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	OrganizationId string                 `protobuf:"bytes,1,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
+	ProjectId      string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name           string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	// marketplace tags the branch's origin (e.g. "vercel"); empty for the regular flow.
+	Marketplace string `protobuf:"bytes,4,opt,name=marketplace,proto3" json:"marketplace,omitempty"`
+	// usage_tier the branch is created under (e.g. "t2"); empty uses the default.
+	UsageTier string `protobuf:"bytes,5,opt,name=usage_tier,json=usageTier,proto3" json:"usage_tier,omitempty"`
+	// mode selects a root branch from an explicit configuration, or a
+	// copy-on-write child of parent_branch_id.
+	//
+	// Types that are valid to be assigned to Mode:
+	//
+	//	*CreateBranchRequest_FromConfiguration
+	//	*CreateBranchRequest_FromParentBranchId
+	Mode          isCreateBranchRequest_Mode `protobuf_oneof:"mode"`
+	ScaleToZero   *BranchScaleToZero         `protobuf:"bytes,8,opt,name=scale_to_zero,json=scaleToZero,proto3,oneof" json:"scale_to_zero,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateBranchRequest) Reset() {
+	*x = CreateBranchRequest{}
+	mi := &file_projects_v1_projects_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateBranchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateBranchRequest) ProtoMessage() {}
+
+func (x *CreateBranchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_projects_v1_projects_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateBranchRequest.ProtoReflect.Descriptor instead.
+func (*CreateBranchRequest) Descriptor() ([]byte, []int) {
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *CreateBranchRequest) GetOrganizationId() string {
+	if x != nil {
+		return x.OrganizationId
+	}
+	return ""
+}
+
+func (x *CreateBranchRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *CreateBranchRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateBranchRequest) GetMarketplace() string {
+	if x != nil {
+		return x.Marketplace
+	}
+	return ""
+}
+
+func (x *CreateBranchRequest) GetUsageTier() string {
+	if x != nil {
+		return x.UsageTier
+	}
+	return ""
+}
+
+func (x *CreateBranchRequest) GetMode() isCreateBranchRequest_Mode {
+	if x != nil {
+		return x.Mode
+	}
+	return nil
+}
+
+func (x *CreateBranchRequest) GetFromConfiguration() *BranchConfiguration {
+	if x != nil {
+		if x, ok := x.Mode.(*CreateBranchRequest_FromConfiguration); ok {
+			return x.FromConfiguration
+		}
+	}
+	return nil
+}
+
+func (x *CreateBranchRequest) GetFromParentBranchId() string {
+	if x != nil {
+		if x, ok := x.Mode.(*CreateBranchRequest_FromParentBranchId); ok {
+			return x.FromParentBranchId
+		}
+	}
+	return ""
+}
+
+func (x *CreateBranchRequest) GetScaleToZero() *BranchScaleToZero {
+	if x != nil {
+		return x.ScaleToZero
+	}
+	return nil
+}
+
+type isCreateBranchRequest_Mode interface {
+	isCreateBranchRequest_Mode()
+}
+
+type CreateBranchRequest_FromConfiguration struct {
+	FromConfiguration *BranchConfiguration `protobuf:"bytes,6,opt,name=from_configuration,json=fromConfiguration,proto3,oneof"`
+}
+
+type CreateBranchRequest_FromParentBranchId struct {
+	FromParentBranchId string `protobuf:"bytes,7,opt,name=from_parent_branch_id,json=fromParentBranchId,proto3,oneof"`
+}
+
+func (*CreateBranchRequest_FromConfiguration) isCreateBranchRequest_Mode() {}
+
+func (*CreateBranchRequest_FromParentBranchId) isCreateBranchRequest_Mode() {}
+
+// CreateBranchResponse is the response object for CreateBranch.
+type CreateBranchResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	BranchId         string                 `protobuf:"bytes,1,opt,name=branch_id,json=branchId,proto3" json:"branch_id,omitempty"`
+	ConnectionString string                 `protobuf:"bytes,2,opt,name=connection_string,json=connectionString,proto3" json:"connection_string,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CreateBranchResponse) Reset() {
+	*x = CreateBranchResponse{}
+	mi := &file_projects_v1_projects_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateBranchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateBranchResponse) ProtoMessage() {}
+
+func (x *CreateBranchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_projects_v1_projects_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateBranchResponse.ProtoReflect.Descriptor instead.
+func (*CreateBranchResponse) Descriptor() ([]byte, []int) {
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *CreateBranchResponse) GetBranchId() string {
+	if x != nil {
+		return x.BranchId
+	}
+	return ""
+}
+
+func (x *CreateBranchResponse) GetConnectionString() string {
+	if x != nil {
+		return x.ConnectionString
+	}
+	return ""
+}
+
+// DeleteProjectRequest is the request object for DeleteProject.
+type DeleteProjectRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	OrganizationId string                 `protobuf:"bytes,1,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
+	ProjectId      string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *DeleteProjectRequest) Reset() {
+	*x = DeleteProjectRequest{}
+	mi := &file_projects_v1_projects_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteProjectRequest) ProtoMessage() {}
+
+func (x *DeleteProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_projects_v1_projects_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteProjectRequest.ProtoReflect.Descriptor instead.
+func (*DeleteProjectRequest) Descriptor() ([]byte, []int) {
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *DeleteProjectRequest) GetOrganizationId() string {
+	if x != nil {
+		return x.OrganizationId
+	}
+	return ""
+}
+
+func (x *DeleteProjectRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+// DeleteProjectResponse is the response object for DeleteProject.
+type DeleteProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteProjectResponse) Reset() {
+	*x = DeleteProjectResponse{}
+	mi := &file_projects_v1_projects_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteProjectResponse) ProtoMessage() {}
+
+func (x *DeleteProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_projects_v1_projects_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteProjectResponse.ProtoReflect.Descriptor instead.
+func (*DeleteProjectResponse) Descriptor() ([]byte, []int) {
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{30}
+}
+
+// GetBranchConnectionStringRequest is the request object for GetBranchConnectionString.
+type GetBranchConnectionStringRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	OrganizationId string                 `protobuf:"bytes,1,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
+	ProjectId      string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	BranchId       string                 `protobuf:"bytes,3,opt,name=branch_id,json=branchId,proto3" json:"branch_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetBranchConnectionStringRequest) Reset() {
+	*x = GetBranchConnectionStringRequest{}
+	mi := &file_projects_v1_projects_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBranchConnectionStringRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBranchConnectionStringRequest) ProtoMessage() {}
+
+func (x *GetBranchConnectionStringRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_projects_v1_projects_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBranchConnectionStringRequest.ProtoReflect.Descriptor instead.
+func (*GetBranchConnectionStringRequest) Descriptor() ([]byte, []int) {
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *GetBranchConnectionStringRequest) GetOrganizationId() string {
+	if x != nil {
+		return x.OrganizationId
+	}
+	return ""
+}
+
+func (x *GetBranchConnectionStringRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *GetBranchConnectionStringRequest) GetBranchId() string {
+	if x != nil {
+		return x.BranchId
+	}
+	return ""
+}
+
+// GetBranchConnectionStringResponse is the response object for GetBranchConnectionString.
+type GetBranchConnectionStringResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ConnectionString string                 `protobuf:"bytes,1,opt,name=connection_string,json=connectionString,proto3" json:"connection_string,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *GetBranchConnectionStringResponse) Reset() {
+	*x = GetBranchConnectionStringResponse{}
+	mi := &file_projects_v1_projects_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBranchConnectionStringResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBranchConnectionStringResponse) ProtoMessage() {}
+
+func (x *GetBranchConnectionStringResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_projects_v1_projects_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBranchConnectionStringResponse.ProtoReflect.Descriptor instead.
+func (*GetBranchConnectionStringResponse) Descriptor() ([]byte, []int) {
+	return file_projects_v1_projects_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GetBranchConnectionStringResponse) GetConnectionString() string {
+	if x != nil {
+		return x.ConnectionString
+	}
+	return ""
+}
+
 var File_projects_v1_projects_proto protoreflect.FileDescriptor
 
 const file_projects_v1_projects_proto_rawDesc = "" +
@@ -1398,7 +2036,60 @@ const file_projects_v1_projects_proto_rawDesc = "" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\"L\n" +
 	"\x1dGetOrganizationLimitsResponse\x12+\n" +
-	"\x06limits\x18\x01 \x01(\v2\x13.projects.v1.LimitsR\x06limits2\xf2\a\n" +
+	"\x06limits\x18\x01 \x01(\v2\x13.projects.v1.LimitsR\x06limits\"r\n" +
+	"\x14CreateProjectRequest\x12'\n" +
+	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"usage_tier\x18\x03 \x01(\tR\tusageTier\"6\n" +
+	"\x15CreateProjectResponse\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"\xcc\x03\n" +
+	"\x13BranchConfiguration\x12\x14\n" +
+	"\x05image\x18\x01 \x01(\tR\x05image\x12\x16\n" +
+	"\x06region\x18\x02 \x01(\tR\x06region\x12#\n" +
+	"\rinstance_type\x18\x03 \x01(\tR\finstanceType\x12\x1a\n" +
+	"\breplicas\x18\x04 \x01(\x05R\breplicas\x12+\n" +
+	"\x11preload_libraries\x18\x05 \x03(\tR\x10preloadLibraries\x12\x91\x01\n" +
+	"!postgres_configuration_parameters\x18\x06 \x03(\v2E.projects.v1.BranchConfiguration.PostgresConfigurationParametersEntryR\x1fpostgresConfigurationParameters\x12\"\n" +
+	"\n" +
+	"storage_gb\x18\a \x01(\x05H\x00R\tstorageGb\x88\x01\x01\x1aR\n" +
+	"$PostgresConfigurationParametersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\r\n" +
+	"\v_storage_gb\"i\n" +
+	"\x11BranchScaleToZero\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12:\n" +
+	"\x19inactivity_period_minutes\x18\x02 \x01(\x05R\x17inactivityPeriodMinutes\"\x9d\x03\n" +
+	"\x13CreateBranchRequest\x12'\n" +
+	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
+	"\vmarketplace\x18\x04 \x01(\tR\vmarketplace\x12\x1d\n" +
+	"\n" +
+	"usage_tier\x18\x05 \x01(\tR\tusageTier\x12Q\n" +
+	"\x12from_configuration\x18\x06 \x01(\v2 .projects.v1.BranchConfigurationH\x00R\x11fromConfiguration\x123\n" +
+	"\x15from_parent_branch_id\x18\a \x01(\tH\x00R\x12fromParentBranchId\x12G\n" +
+	"\rscale_to_zero\x18\b \x01(\v2\x1e.projects.v1.BranchScaleToZeroH\x01R\vscaleToZero\x88\x01\x01B\x06\n" +
+	"\x04modeB\x10\n" +
+	"\x0e_scale_to_zero\"`\n" +
+	"\x14CreateBranchResponse\x12\x1b\n" +
+	"\tbranch_id\x18\x01 \x01(\tR\bbranchId\x12+\n" +
+	"\x11connection_string\x18\x02 \x01(\tR\x10connectionString\"^\n" +
+	"\x14DeleteProjectRequest\x12'\n" +
+	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\"\x17\n" +
+	"\x15DeleteProjectResponse\"\x87\x01\n" +
+	" GetBranchConnectionStringRequest\x12'\n" +
+	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tbranch_id\x18\x03 \x01(\tR\bbranchId\"P\n" +
+	"!GetBranchConnectionStringResponse\x12+\n" +
+	"\x11connection_string\x18\x01 \x01(\tR\x10connectionString2\xfb\n" +
+	"\n" +
 	"\x0fProjectsService\x12R\n" +
 	"\vListRegions\x12\x1f.projects.v1.ListRegionsRequest\x1a .projects.v1.ListRegionsResponse\"\x00\x12U\n" +
 	"\fCreateRegion\x12 .projects.v1.CreateRegionRequest\x1a!.projects.v1.CreateRegionResponse\"\x00\x12L\n" +
@@ -1410,7 +2101,11 @@ const file_projects_v1_projects_proto_rawDesc = "" +
 	"\x13DeleteProjectsInOrg\x12'.projects.v1.DeleteProjectsInOrgRequest\x1a(.projects.v1.DeleteProjectsInOrgResponse\"\x00\x12d\n" +
 	"\x11HasActiveProjects\x12%.projects.v1.HasActiveProjectsRequest\x1a&.projects.v1.HasActiveProjectsResponse\"\x00\x12p\n" +
 	"\x15SetOrganizationLimits\x12).projects.v1.SetOrganizationLimitsRequest\x1a*.projects.v1.SetOrganizationLimitsResponse\"\x00\x12p\n" +
-	"\x15GetOrganizationLimits\x12).projects.v1.GetOrganizationLimitsRequest\x1a*.projects.v1.GetOrganizationLimitsResponse\"\x00B\x9c\x01\n" +
+	"\x15GetOrganizationLimits\x12).projects.v1.GetOrganizationLimitsRequest\x1a*.projects.v1.GetOrganizationLimitsResponse\"\x00\x12X\n" +
+	"\rCreateProject\x12!.projects.v1.CreateProjectRequest\x1a\".projects.v1.CreateProjectResponse\"\x00\x12U\n" +
+	"\fCreateBranch\x12 .projects.v1.CreateBranchRequest\x1a!.projects.v1.CreateBranchResponse\"\x00\x12X\n" +
+	"\rDeleteProject\x12!.projects.v1.DeleteProjectRequest\x1a\".projects.v1.DeleteProjectResponse\"\x00\x12|\n" +
+	"\x19GetBranchConnectionString\x12-.projects.v1.GetBranchConnectionStringRequest\x1a..projects.v1.GetBranchConnectionStringResponse\"\x00B\x9c\x01\n" +
 	"\x0fcom.projects.v1B\rProjectsProtoP\x01Z-github.com/xataio/maki/projects/v1;projectsv1\xa2\x02\x03PXX\xaa\x02\vProjects.V1\xca\x02\vProjects\\V1\xe2\x02\x17Projects\\V1\\GPBMetadata\xea\x02\fProjects::V1b\x06proto3"
 
 var (
@@ -1425,31 +2120,42 @@ func file_projects_v1_projects_proto_rawDescGZIP() []byte {
 	return file_projects_v1_projects_proto_rawDescData
 }
 
-var file_projects_v1_projects_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_projects_v1_projects_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_projects_v1_projects_proto_goTypes = []any{
-	(*ListRegionsRequest)(nil),               // 0: projects.v1.ListRegionsRequest
-	(*ListRegionsResponse)(nil),              // 1: projects.v1.ListRegionsResponse
-	(*Region)(nil),                           // 2: projects.v1.Region
-	(*CreateRegionRequest)(nil),              // 3: projects.v1.CreateRegionRequest
-	(*CreateRegionResponse)(nil),             // 4: projects.v1.CreateRegionResponse
-	(*ListCellsRequest)(nil),                 // 5: projects.v1.ListCellsRequest
-	(*ListCellsResponse)(nil),                // 6: projects.v1.ListCellsResponse
-	(*CreateCellResponse)(nil),               // 7: projects.v1.CreateCellResponse
-	(*Cell)(nil),                             // 8: projects.v1.Cell
-	(*CreateCellRequest)(nil),                // 9: projects.v1.CreateCellRequest
-	(*ValidateHierarchyRequest)(nil),         // 10: projects.v1.ValidateHierarchyRequest
-	(*ValidateHierarchyResponse)(nil),        // 11: projects.v1.ValidateHierarchyResponse
-	(*UpdateOrganizationStatusRequest)(nil),  // 12: projects.v1.UpdateOrganizationStatusRequest
-	(*UpdateOrganizationStatusResponse)(nil), // 13: projects.v1.UpdateOrganizationStatusResponse
-	(*HasActiveProjectsRequest)(nil),         // 14: projects.v1.HasActiveProjectsRequest
-	(*HasActiveProjectsResponse)(nil),        // 15: projects.v1.HasActiveProjectsResponse
-	(*DeleteProjectsInOrgRequest)(nil),       // 16: projects.v1.DeleteProjectsInOrgRequest
-	(*DeleteProjectsInOrgResponse)(nil),      // 17: projects.v1.DeleteProjectsInOrgResponse
-	(*Limits)(nil),                           // 18: projects.v1.Limits
-	(*SetOrganizationLimitsRequest)(nil),     // 19: projects.v1.SetOrganizationLimitsRequest
-	(*SetOrganizationLimitsResponse)(nil),    // 20: projects.v1.SetOrganizationLimitsResponse
-	(*GetOrganizationLimitsRequest)(nil),     // 21: projects.v1.GetOrganizationLimitsRequest
-	(*GetOrganizationLimitsResponse)(nil),    // 22: projects.v1.GetOrganizationLimitsResponse
+	(*ListRegionsRequest)(nil),                // 0: projects.v1.ListRegionsRequest
+	(*ListRegionsResponse)(nil),               // 1: projects.v1.ListRegionsResponse
+	(*Region)(nil),                            // 2: projects.v1.Region
+	(*CreateRegionRequest)(nil),               // 3: projects.v1.CreateRegionRequest
+	(*CreateRegionResponse)(nil),              // 4: projects.v1.CreateRegionResponse
+	(*ListCellsRequest)(nil),                  // 5: projects.v1.ListCellsRequest
+	(*ListCellsResponse)(nil),                 // 6: projects.v1.ListCellsResponse
+	(*CreateCellResponse)(nil),                // 7: projects.v1.CreateCellResponse
+	(*Cell)(nil),                              // 8: projects.v1.Cell
+	(*CreateCellRequest)(nil),                 // 9: projects.v1.CreateCellRequest
+	(*ValidateHierarchyRequest)(nil),          // 10: projects.v1.ValidateHierarchyRequest
+	(*ValidateHierarchyResponse)(nil),         // 11: projects.v1.ValidateHierarchyResponse
+	(*UpdateOrganizationStatusRequest)(nil),   // 12: projects.v1.UpdateOrganizationStatusRequest
+	(*UpdateOrganizationStatusResponse)(nil),  // 13: projects.v1.UpdateOrganizationStatusResponse
+	(*HasActiveProjectsRequest)(nil),          // 14: projects.v1.HasActiveProjectsRequest
+	(*HasActiveProjectsResponse)(nil),         // 15: projects.v1.HasActiveProjectsResponse
+	(*DeleteProjectsInOrgRequest)(nil),        // 16: projects.v1.DeleteProjectsInOrgRequest
+	(*DeleteProjectsInOrgResponse)(nil),       // 17: projects.v1.DeleteProjectsInOrgResponse
+	(*Limits)(nil),                            // 18: projects.v1.Limits
+	(*SetOrganizationLimitsRequest)(nil),      // 19: projects.v1.SetOrganizationLimitsRequest
+	(*SetOrganizationLimitsResponse)(nil),     // 20: projects.v1.SetOrganizationLimitsResponse
+	(*GetOrganizationLimitsRequest)(nil),      // 21: projects.v1.GetOrganizationLimitsRequest
+	(*GetOrganizationLimitsResponse)(nil),     // 22: projects.v1.GetOrganizationLimitsResponse
+	(*CreateProjectRequest)(nil),              // 23: projects.v1.CreateProjectRequest
+	(*CreateProjectResponse)(nil),             // 24: projects.v1.CreateProjectResponse
+	(*BranchConfiguration)(nil),               // 25: projects.v1.BranchConfiguration
+	(*BranchScaleToZero)(nil),                 // 26: projects.v1.BranchScaleToZero
+	(*CreateBranchRequest)(nil),               // 27: projects.v1.CreateBranchRequest
+	(*CreateBranchResponse)(nil),              // 28: projects.v1.CreateBranchResponse
+	(*DeleteProjectRequest)(nil),              // 29: projects.v1.DeleteProjectRequest
+	(*DeleteProjectResponse)(nil),             // 30: projects.v1.DeleteProjectResponse
+	(*GetBranchConnectionStringRequest)(nil),  // 31: projects.v1.GetBranchConnectionStringRequest
+	(*GetBranchConnectionStringResponse)(nil), // 32: projects.v1.GetBranchConnectionStringResponse
+	nil, // 33: projects.v1.BranchConfiguration.PostgresConfigurationParametersEntry
 }
 var file_projects_v1_projects_proto_depIdxs = []int32{
 	2,  // 0: projects.v1.ListRegionsResponse.regions:type_name -> projects.v1.Region
@@ -1457,31 +2163,42 @@ var file_projects_v1_projects_proto_depIdxs = []int32{
 	18, // 2: projects.v1.SetOrganizationLimitsRequest.limits:type_name -> projects.v1.Limits
 	18, // 3: projects.v1.SetOrganizationLimitsResponse.limits:type_name -> projects.v1.Limits
 	18, // 4: projects.v1.GetOrganizationLimitsResponse.limits:type_name -> projects.v1.Limits
-	0,  // 5: projects.v1.ProjectsService.ListRegions:input_type -> projects.v1.ListRegionsRequest
-	3,  // 6: projects.v1.ProjectsService.CreateRegion:input_type -> projects.v1.CreateRegionRequest
-	5,  // 7: projects.v1.ProjectsService.ListCells:input_type -> projects.v1.ListCellsRequest
-	9,  // 8: projects.v1.ProjectsService.CreateCell:input_type -> projects.v1.CreateCellRequest
-	10, // 9: projects.v1.ProjectsService.ValidateHierarchy:input_type -> projects.v1.ValidateHierarchyRequest
-	12, // 10: projects.v1.ProjectsService.UpdateOrganizationStatus:input_type -> projects.v1.UpdateOrganizationStatusRequest
-	16, // 11: projects.v1.ProjectsService.DeleteProjectsInOrg:input_type -> projects.v1.DeleteProjectsInOrgRequest
-	14, // 12: projects.v1.ProjectsService.HasActiveProjects:input_type -> projects.v1.HasActiveProjectsRequest
-	19, // 13: projects.v1.ProjectsService.SetOrganizationLimits:input_type -> projects.v1.SetOrganizationLimitsRequest
-	21, // 14: projects.v1.ProjectsService.GetOrganizationLimits:input_type -> projects.v1.GetOrganizationLimitsRequest
-	1,  // 15: projects.v1.ProjectsService.ListRegions:output_type -> projects.v1.ListRegionsResponse
-	4,  // 16: projects.v1.ProjectsService.CreateRegion:output_type -> projects.v1.CreateRegionResponse
-	6,  // 17: projects.v1.ProjectsService.ListCells:output_type -> projects.v1.ListCellsResponse
-	7,  // 18: projects.v1.ProjectsService.CreateCell:output_type -> projects.v1.CreateCellResponse
-	11, // 19: projects.v1.ProjectsService.ValidateHierarchy:output_type -> projects.v1.ValidateHierarchyResponse
-	13, // 20: projects.v1.ProjectsService.UpdateOrganizationStatus:output_type -> projects.v1.UpdateOrganizationStatusResponse
-	17, // 21: projects.v1.ProjectsService.DeleteProjectsInOrg:output_type -> projects.v1.DeleteProjectsInOrgResponse
-	15, // 22: projects.v1.ProjectsService.HasActiveProjects:output_type -> projects.v1.HasActiveProjectsResponse
-	20, // 23: projects.v1.ProjectsService.SetOrganizationLimits:output_type -> projects.v1.SetOrganizationLimitsResponse
-	22, // 24: projects.v1.ProjectsService.GetOrganizationLimits:output_type -> projects.v1.GetOrganizationLimitsResponse
-	15, // [15:25] is the sub-list for method output_type
-	5,  // [5:15] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	33, // 5: projects.v1.BranchConfiguration.postgres_configuration_parameters:type_name -> projects.v1.BranchConfiguration.PostgresConfigurationParametersEntry
+	25, // 6: projects.v1.CreateBranchRequest.from_configuration:type_name -> projects.v1.BranchConfiguration
+	26, // 7: projects.v1.CreateBranchRequest.scale_to_zero:type_name -> projects.v1.BranchScaleToZero
+	0,  // 8: projects.v1.ProjectsService.ListRegions:input_type -> projects.v1.ListRegionsRequest
+	3,  // 9: projects.v1.ProjectsService.CreateRegion:input_type -> projects.v1.CreateRegionRequest
+	5,  // 10: projects.v1.ProjectsService.ListCells:input_type -> projects.v1.ListCellsRequest
+	9,  // 11: projects.v1.ProjectsService.CreateCell:input_type -> projects.v1.CreateCellRequest
+	10, // 12: projects.v1.ProjectsService.ValidateHierarchy:input_type -> projects.v1.ValidateHierarchyRequest
+	12, // 13: projects.v1.ProjectsService.UpdateOrganizationStatus:input_type -> projects.v1.UpdateOrganizationStatusRequest
+	16, // 14: projects.v1.ProjectsService.DeleteProjectsInOrg:input_type -> projects.v1.DeleteProjectsInOrgRequest
+	14, // 15: projects.v1.ProjectsService.HasActiveProjects:input_type -> projects.v1.HasActiveProjectsRequest
+	19, // 16: projects.v1.ProjectsService.SetOrganizationLimits:input_type -> projects.v1.SetOrganizationLimitsRequest
+	21, // 17: projects.v1.ProjectsService.GetOrganizationLimits:input_type -> projects.v1.GetOrganizationLimitsRequest
+	23, // 18: projects.v1.ProjectsService.CreateProject:input_type -> projects.v1.CreateProjectRequest
+	27, // 19: projects.v1.ProjectsService.CreateBranch:input_type -> projects.v1.CreateBranchRequest
+	29, // 20: projects.v1.ProjectsService.DeleteProject:input_type -> projects.v1.DeleteProjectRequest
+	31, // 21: projects.v1.ProjectsService.GetBranchConnectionString:input_type -> projects.v1.GetBranchConnectionStringRequest
+	1,  // 22: projects.v1.ProjectsService.ListRegions:output_type -> projects.v1.ListRegionsResponse
+	4,  // 23: projects.v1.ProjectsService.CreateRegion:output_type -> projects.v1.CreateRegionResponse
+	6,  // 24: projects.v1.ProjectsService.ListCells:output_type -> projects.v1.ListCellsResponse
+	7,  // 25: projects.v1.ProjectsService.CreateCell:output_type -> projects.v1.CreateCellResponse
+	11, // 26: projects.v1.ProjectsService.ValidateHierarchy:output_type -> projects.v1.ValidateHierarchyResponse
+	13, // 27: projects.v1.ProjectsService.UpdateOrganizationStatus:output_type -> projects.v1.UpdateOrganizationStatusResponse
+	17, // 28: projects.v1.ProjectsService.DeleteProjectsInOrg:output_type -> projects.v1.DeleteProjectsInOrgResponse
+	15, // 29: projects.v1.ProjectsService.HasActiveProjects:output_type -> projects.v1.HasActiveProjectsResponse
+	20, // 30: projects.v1.ProjectsService.SetOrganizationLimits:output_type -> projects.v1.SetOrganizationLimitsResponse
+	22, // 31: projects.v1.ProjectsService.GetOrganizationLimits:output_type -> projects.v1.GetOrganizationLimitsResponse
+	24, // 32: projects.v1.ProjectsService.CreateProject:output_type -> projects.v1.CreateProjectResponse
+	28, // 33: projects.v1.ProjectsService.CreateBranch:output_type -> projects.v1.CreateBranchResponse
+	30, // 34: projects.v1.ProjectsService.DeleteProject:output_type -> projects.v1.DeleteProjectResponse
+	32, // 35: projects.v1.ProjectsService.GetBranchConnectionString:output_type -> projects.v1.GetBranchConnectionStringResponse
+	22, // [22:36] is the sub-list for method output_type
+	8,  // [8:22] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_projects_v1_projects_proto_init() }
@@ -1494,13 +2211,18 @@ func file_projects_v1_projects_proto_init() {
 	file_projects_v1_projects_proto_msgTypes[8].OneofWrappers = []any{}
 	file_projects_v1_projects_proto_msgTypes[9].OneofWrappers = []any{}
 	file_projects_v1_projects_proto_msgTypes[18].OneofWrappers = []any{}
+	file_projects_v1_projects_proto_msgTypes[25].OneofWrappers = []any{}
+	file_projects_v1_projects_proto_msgTypes[27].OneofWrappers = []any{
+		(*CreateBranchRequest_FromConfiguration)(nil),
+		(*CreateBranchRequest_FromParentBranchId)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_projects_v1_projects_proto_rawDesc), len(file_projects_v1_projects_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

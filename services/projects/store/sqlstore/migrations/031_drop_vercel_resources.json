@@ -1,0 +1,14 @@
+{
+    "operations": [
+        {
+            "drop_table": {
+                "name": "vercel_resource_branches"
+            }
+        },
+        {
+            "drop_table": {
+                "name": "vercel_resources"
+            }
+        }
+    ]
+}

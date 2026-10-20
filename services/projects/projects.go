@@ -179,6 +179,20 @@ func (s *ProjectsService) Init(ctx context.Context) error {
 		return fmt.Errorf("failed to create scheduler: %w", err)
 	}
 
+	// Build the one branch.Service here (single-threaded, before the HTTP and
+	// gRPC servers start), so both the REST handler and the provisioning gRPC
+	// share it without a startup race.
+	s.branches = branch.New(
+		s.store,
+		s.cells,
+		s.feat,
+		s.scheduler,
+		s.config.GatewayHostPort,
+		&postgrescfg.DefaultPostgresConfigProvider{},
+		&postgresversions.DefaultImageProvider{},
+		provisioner.NewBranchProvisioner(s.store, s.cells),
+	)
+
 	return nil
 }
 
@@ -206,18 +220,8 @@ func (s *ProjectsService) RegisterHTTPHandlers(o *o11y.O, router *echo.Group) er
 		opts = append(opts, api.WithGithubInstallationValidator(s.githubInstallationValidator))
 	}
 
-	s.branches = branch.New(
-		s.store,
-		cellsConn,
-		s.feat,
-		s.scheduler,
-		s.config.GatewayHostPort,
-		&postgrescfg.DefaultPostgresConfigProvider{},
-		&postgresversions.DefaultImageProvider{},
-		prov,
-	)
-	// Share the one branch.Service between the REST handler and the Branches()
-	// accessor instead of building a second instance inside the handler.
+	// Share the one branch.Service (built in Init) between the REST handler, the
+	// Branches() accessor, and the provisioning gRPC.
 	opts = append(opts, api.WithBranchService(s.branches))
 
 	spec.RegisterHandlers(group,
@@ -267,6 +271,8 @@ func (s *ProjectsService) Cells() cells.Cells {
 func (s *ProjectsService) RegisterGRPCHandlers(o *o11y.O, server *grpc.Server) {
 	rpcService := rpc.NewProjectsService(s.store, s.cells)
 	rpcService.SetNudger(s.orgStatusWorker)
+	rpcService.SetBranches(s.branches)
+	rpcService.SetFeat(s.feat)
 	projectsv1.RegisterProjectsServiceServer(server, rpcService)
 }
 
