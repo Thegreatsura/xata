@@ -2662,6 +2662,30 @@ func TestGetBackup(t *testing.T) {
 			expectedStatus: http.StatusInternalServerError,
 			expectError:    true,
 		},
+		"branch without backups": {
+			backupID: backupID,
+			setupMocks: func() (*mocks.ProjectsStore, *protomocks.ClustersServiceClient) {
+				mockStore := mocks.NewProjectsStore(t)
+				mockClusters := protomocks.NewClustersServiceClient(t)
+
+				branch := &store.Branch{
+					ID:        backupID,
+					Name:      "test-branch",
+					CreatedAt: yesterday,
+					UpdatedAt: yesterday,
+					CellID:    cellID,
+				}
+
+				mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, projectID, backupID).Return(branch, nil).Once()
+				mockClusters.EXPECT().GetRecoveryWindow(mock.Anything, &clustersv1.GetRecoveryWindowRequest{
+					Id: backupID,
+				}).Return(nil, status.Error(codes.NotFound, "branch has no backups")).Once()
+
+				return mockStore, mockClusters
+			},
+			expectedStatus: http.StatusNotFound,
+			expectError:    true,
+		},
 		"invalid recovery window data": {
 			backupID: backupID,
 			setupMocks: func() (*mocks.ProjectsStore, *protomocks.ClustersServiceClient) {

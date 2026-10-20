@@ -2007,12 +2007,20 @@ func TestGetRecoveryWindow(t *testing.T) {
 
 	barmanBranch := &v1alpha1.Branch{
 		Name: "branch-1",
+		Spec: v1alpha1.BranchSpec{
+			BackupSpec: &v1alpha1.BackupSpec{Method: v1alpha1.BackupMethodBarman},
+		},
+	}
+
+	branchWithoutBackups := &v1alpha1.Branch{
+		Name: "branch-1",
 	}
 
 	tests := map[string]struct {
 		branch    *v1alpha1.Branch
 		setupMock func(m *cnpgmocks.Connector)
 		wantErr   string
+		wantCode  codes.Code
 		validate  func(t *testing.T, resp *clustersv1.GetRecoveryWindowResponse)
 	}{
 		"pgbackrest branch reads the Branch status": {
@@ -2061,10 +2069,26 @@ func TestGetRecoveryWindow(t *testing.T) {
 				require.Empty(t, resp.LastFailedBackup)
 			},
 		},
+		"barman branch without an ObjectStore": {
+			branch: barmanBranch,
+			setupMock: func(m *cnpgmocks.Connector) {
+				m.EXPECT().GetObjectStore(mock.Anything, "branch-1", "xata-clusters").
+					Return(nil, errors.NewNotFound(schema.GroupResource{Group: "barmancloud.cnpg.io", Resource: "objectstores"}, "branch-1"))
+			},
+			wantErr:  "object store not found",
+			wantCode: codes.NotFound,
+		},
+		"branch without backups": {
+			branch:    branchWithoutBackups,
+			setupMock: func(_ *cnpgmocks.Connector) {},
+			wantErr:   "has no backups",
+			wantCode:  codes.NotFound,
+		},
 		"branch not found": {
 			branch:    nil,
 			setupMock: func(_ *cnpgmocks.Connector) {},
 			wantErr:   "not found",
+			wantCode:  codes.NotFound,
 		},
 	}
 
@@ -2084,6 +2108,9 @@ func TestGetRecoveryWindow(t *testing.T) {
 
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
+				if tt.wantCode != codes.OK {
+					require.Equal(t, tt.wantCode, status.Code(err))
+				}
 				return
 			}
 			require.NoError(t, err)

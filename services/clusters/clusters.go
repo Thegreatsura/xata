@@ -654,6 +654,10 @@ func (c *ClustersService) GetRecoveryWindow(ctx context.Context, request *cluste
 		return nil, k8sErrorToGRPCError(err)
 	}
 
+	if branch.Spec.BackupSpec == nil {
+		return nil, status.Errorf(codes.NotFound, "branch %s has no backups", request.Id)
+	}
+
 	if branch.Spec.BackupSpec.IsPgBackRest() {
 		return &clustersv1.GetRecoveryWindowResponse{
 			FirstRecoverabilityPoint: branch.Status.FirstRecoverabilityPoint,
@@ -665,8 +669,8 @@ func (c *ClustersService) GetRecoveryWindow(ctx context.Context, request *cluste
 
 	objectStore, err := c.cnpgConnector.GetObjectStore(ctx, request.Id, c.config.ClustersNamespace)
 	if err != nil {
-		if strings.Contains(err.Error(), fmt.Sprintf("objectstores.barman.io \"%s\" not found", request.Id)) {
-			return nil, fmt.Errorf("object store not found for cluster %s", request.Id)
+		if apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "object store not found for branch %s", request.Id)
 		}
 		return nil, fmt.Errorf("get object store status: %w", err)
 	}

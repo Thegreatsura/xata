@@ -481,6 +481,10 @@ func (s *handler) GetBackup(c echo.Context, organizationID spec.OrganizationID, 
 			Id: branch.ID,
 		})
 		if err != nil {
+			// The cell returns NotFound when the branch has no backups.
+			if status.Code(err) == codes.NotFound {
+				return ErrorBackupNotFound{ID: backupID}
+			}
 			return err
 		}
 
