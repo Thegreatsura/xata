@@ -355,25 +355,21 @@ func TestReconcilePgBackRestIdentityGCP(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			branch.Spec.BackupSpec.PgBackRest.RepoPath = spec.repoPath
 			branch.Spec.BackupSpec.PgBackRest.StanzaName = spec.stanza
-			sa.Annotations[pgbackrest.GCSBucketAnnotation] = "some-bucket"
 			require.NoError(t, c.Update(ctx, sa))
 			_, err := r.reconcilePgBackRestServiceAccount(ctx, branch)
 			require.NoError(t, err)
 			require.NoError(t, c.Get(ctx, saKey, sa))
 			require.Equal(t, "gs://some-bucket/"+spec.want+"/", sa.Annotations[pgbackrest.GCSFolderAnnotation])
-			require.NotContains(t, sa.Annotations, pgbackrest.GCSBucketAnnotation)
 		})
 	}
 	t.Run("migrates the account without an assigned cluster", func(t *testing.T) {
 		branch.Spec.ClusterSpec.Name = nil
-		sa.Annotations[pgbackrest.GCSBucketAnnotation] = "some-bucket"
 		delete(sa.Annotations, pgbackrest.GCSFolderAnnotation)
 		require.NoError(t, c.Update(ctx, sa))
 		refreshIn, err := r.reconcilePgBackRestIdentity(ctx, branch)
 		require.NoError(t, err)
 		require.Zero(t, refreshIn)
 		require.NoError(t, c.Get(ctx, saKey, sa))
-		require.NotContains(t, sa.Annotations, pgbackrest.GCSBucketAnnotation)
 		require.Contains(t, sa.Annotations, pgbackrest.GCSFolderAnnotation)
 	})
 }

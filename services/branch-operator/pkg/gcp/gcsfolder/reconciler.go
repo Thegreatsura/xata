@@ -10,7 +10,6 @@ import (
 	"slices"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,9 +29,6 @@ const (
 	// Finalizer keeps the ServiceAccount until its managed folder is deleted.
 	Finalizer = "xata.io/gcs-managed-folder"
 
-	// FolderAnnotation is the completion marker removed during URI migration.
-	FolderAnnotation = "xata.io/gcs-managed-folder"
-
 	// Role is the role of the ServiceAccount on its managed folder.
 	Role = "roles/storage.objectUser"
 )
@@ -50,14 +46,14 @@ type Reconciler struct {
 }
 
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
-	hasBucket := predicate.NewPredicateFuncs(func(o client.Object) bool {
+	hasFolder := predicate.NewPredicateFuncs(func(o client.Object) bool {
 		a := o.GetAnnotations()
-		return a[pgbackrest.GCSBucketAnnotation] != "" || a[pgbackrest.GCSFolderAnnotation] != ""
+		return a[pgbackrest.GCSFolderAnnotation] != "" || controllerutil.ContainsFinalizer(o, Finalizer)
 	})
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(ReconcilerName).
-		For(&corev1.ServiceAccount{}, builder.WithPredicates(hasBucket)).
+		For(&corev1.ServiceAccount{}, builder.WithPredicates(hasFolder)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: r.MaxConcurrentReconciles}).
 		Complete(r)
 }
@@ -68,29 +64,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	branch := metav1.GetControllerOf(sa)
-	bucket := sa.Annotations[pgbackrest.GCSBucketAnnotation]
-	if branch == nil {
+	location := sa.Annotations[pgbackrest.GCSFolderAnnotation]
+	if location == "" {
 		return ctrl.Result{}, nil
 	}
-	folder := Folder(branch.Name)
-	if location := sa.Annotations[pgbackrest.GCSFolderAnnotation]; location != "" {
-		var err error
-		bucket, folder, err = pgbackrest.ParseGCSFolderURI(location)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-	}
-	if bucket == "" {
-		return ctrl.Result{}, nil
+	bucket, folder, err := pgbackrest.ParseGCSFolderURI(location)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	if !sa.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, r.delete(ctx, sa, bucket, folder)
 	}
 
-	// Add the finalizer before the folder exists, so that a folder never
-	// outlives its ServiceAccount.
+	// Keep the ServiceAccount until its requested folder is deleted.
 	if !controllerutil.ContainsFinalizer(sa, Finalizer) {
 		patch := client.MergeFromWithOptions(sa.DeepCopy(), client.MergeFromWithOptimisticLock{})
 		controllerutil.AddFinalizer(sa, Finalizer)
@@ -104,14 +91,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	if err := r.grant(ctx, bucket, folder, r.Principal(sa.Namespace, sa.Name)); err != nil {
 		return ctrl.Result{}, err
-	}
-
-	if _, legacy := sa.Annotations[FolderAnnotation]; legacy {
-		patch := client.MergeFromWithOptions(sa.DeepCopy(), client.MergeFromWithOptimisticLock{})
-		delete(sa.Annotations, FolderAnnotation)
-		if err := r.Client.Patch(ctx, sa, patch); err != nil {
-			return ctrl.Result{}, fmt.Errorf("remove legacy folder annotation: %w", err)
-		}
 	}
 
 	return ctrl.Result{}, nil
@@ -173,12 +152,6 @@ func (r *Reconciler) Principal(namespace, serviceAccount string) string {
 		"principal://iam.googleapis.com/projects/%s/locations/global/workloadIdentityPools/%s/subject/ns/%s/sa/%s",
 		r.ProjectNumber, r.WorkloadIdentityPool, namespace, serviceAccount,
 	)
-}
-
-// Folder is the managed folder of a Branch. The pgBackRest repo path of the
-// Branch must be the same path.
-func Folder(branch string) string {
-	return branch + "/"
 }
 
 func isStatus(err error, code int) bool {

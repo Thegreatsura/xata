@@ -124,14 +124,14 @@ func serviceAccount(name string) *corev1.ServiceAccount {
 func branchServiceAccount(branch string) *corev1.ServiceAccount {
 	sa := serviceAccount(pgbackrest.ServiceAccountName(branch))
 	sa.OwnerReferences = []metav1.OwnerReference{{Kind: "Branch", Name: branch, Controller: new(true)}}
-	sa.Annotations = map[string]string{pgbackrest.GCSBucketAnnotation: bucket}
+	sa.Annotations = map[string]string{pgbackrest.GCSFolderAnnotation: "gs://" + bucket + "/" + branch + "/"}
 	return sa
 }
 
 func TestReconcile(t *testing.T) {
 	t.Parallel()
 
-	folder := gcsfolder.Folder("b123")
+	folder := "b123/"
 	ctx := context.Background()
 
 	t.Run("creates folder and grant idempotently", func(t *testing.T) {
@@ -151,7 +151,6 @@ func TestReconcile(t *testing.T) {
 		got := &corev1.ServiceAccount{}
 		require.NoError(t, r.Client.Get(ctx, client.ObjectKeyFromObject(serviceAccount("b123-pgbackrest")), got))
 		require.Contains(t, got.Finalizers, gcsfolder.Finalizer)
-		require.NotContains(t, got.Annotations, gcsfolder.FolderAnnotation)
 
 		reconcile(t, r, "b123-pgbackrest")
 		require.Len(t, gcs.policies[bucket+"/"+folder].Bindings, 1)
@@ -198,7 +197,7 @@ func TestReconcile(t *testing.T) {
 func TestReconcileGrantKeepsOtherBindings(t *testing.T) {
 	t.Parallel()
 	r, gcs := setup(t, branchServiceAccount("b123"))
-	folder := gcsfolder.Folder("b123")
+	folder := "b123/"
 
 	other := &storage.PolicyBindings{Role: "roles/storage.objectViewer", Members: []string{"principal://restore"}}
 	gcs.policies[bucket+"/"+folder] = &storage.Policy{Etag: "0", Bindings: []*storage.PolicyBindings{other}}
@@ -215,7 +214,6 @@ func TestReconcileGrantKeepsOtherBindings(t *testing.T) {
 func TestReconcileFolderURI(t *testing.T) {
 	t.Parallel()
 	sa := branchServiceAccount("b123")
-	delete(sa.Annotations, pgbackrest.GCSBucketAnnotation)
 	sa.Annotations[pgbackrest.GCSFolderAnnotation] = "gs://other-backups/team/repository/"
 	r, gcs := setup(t, sa)
 	reconcile(t, r, sa.Name)
@@ -223,16 +221,4 @@ func TestReconcileFolderURI(t *testing.T) {
 	require.NoError(t, r.Client.Delete(t.Context(), sa))
 	reconcile(t, r, sa.Name)
 	require.Empty(t, gcs.policies)
-}
-
-func TestReconcileRemovesLegacyFolderAnnotation(t *testing.T) {
-	t.Parallel()
-	sa := branchServiceAccount("b123")
-	sa.Annotations[gcsfolder.FolderAnnotation] = "b123/"
-	sa.Annotations[pgbackrest.GCSFolderAnnotation] = "gs://backups/b123/"
-	r, gcs := setup(t, sa)
-	reconcile(t, r, sa.Name)
-	require.Len(t, gcs.policies["backups/b123/"].Bindings, 1)
-	require.NoError(t, r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa))
-	require.NotContains(t, sa.Annotations, gcsfolder.FolderAnnotation)
 }

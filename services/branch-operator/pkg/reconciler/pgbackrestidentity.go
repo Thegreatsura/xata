@@ -151,7 +151,6 @@ func (r *BranchReconciler) reconcilePgBackRestServiceAccount(
 			sa.Annotations[pgbackrest.GCSFolderAnnotation] = pgbackrest.GCSFolderURI(
 				b.PgBackRest.GCS.Bucket, b.PgBackRest.GetRepoPath(branch.Name),
 			)
-			delete(sa.Annotations, pgbackrest.GCSBucketAnnotation)
 		}
 		// The token is only for pgBackRest, which reads it from the Secret.
 		sa.AutomountServiceAccountToken = new(false)
