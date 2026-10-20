@@ -29,6 +29,9 @@ const (
 	// Finalizer keeps the ServiceAccount until its managed folder is deleted.
 	Finalizer = "xata.io/gcs-managed-folder"
 
+	// ObservedFolderAnnotation records the last provisioned gs://bucket/folder/.
+	ObservedFolderAnnotation = "xata.io/gcs-managed-folder-observed"
+
 	// Role is the role of the ServiceAccount on its managed folder.
 	Role = "roles/storage.objectUser"
 )
@@ -64,20 +67,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	location := sa.Annotations[pgbackrest.GCSFolderAnnotation]
-	if location == "" {
-		return ctrl.Result{}, nil
+	var bucket, folder, previousBucket, previousFolder string
+	var err error
+	if location := sa.Annotations[pgbackrest.GCSFolderAnnotation]; location != "" {
+		bucket, folder, err = pgbackrest.ParseGCSFolderURI(location)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
-	bucket, folder, err := pgbackrest.ParseGCSFolderURI(location)
-	if err != nil {
-		return ctrl.Result{}, err
+	if location := sa.Annotations[ObservedFolderAnnotation]; location != "" {
+		previousBucket, previousFolder, err = pgbackrest.ParseGCSFolderURI(location)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+	if !sa.DeletionTimestamp.IsZero() || bucket == "" {
+		return ctrl.Result{}, r.delete(ctx, sa, bucket, folder, previousBucket, previousFolder)
 	}
 
-	if !sa.DeletionTimestamp.IsZero() {
-		return ctrl.Result{}, r.delete(ctx, sa, bucket, folder)
-	}
-
-	// Keep the ServiceAccount until its requested folder is deleted.
 	if !controllerutil.ContainsFinalizer(sa, Finalizer) {
 		patch := client.MergeFromWithOptions(sa.DeepCopy(), client.MergeFromWithOptimisticLock{})
 		controllerutil.AddFinalizer(sa, Finalizer)
@@ -85,33 +92,61 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, fmt.Errorf("add finalizer: %w", err)
 		}
 	}
-
+	location := pgbackrest.GCSFolderURI(bucket, folder)
+	if sa.Annotations[ObservedFolderAnnotation] == location {
+		return ctrl.Result{}, nil
+	}
 	if err := r.createFolder(ctx, bucket, folder); err != nil {
 		return ctrl.Result{}, err
 	}
 	if err := r.grant(ctx, bucket, folder, r.Principal(sa.Namespace, sa.Name)); err != nil {
 		return ctrl.Result{}, err
 	}
-
-	return ctrl.Result{}, nil
-}
-
-// delete deletes the managed folder and its grant. The objects in the folder
-// stay in the bucket.
-func (r *Reconciler) delete(ctx context.Context, sa *corev1.ServiceAccount, bucket, folder string) error {
-	if !controllerutil.ContainsFinalizer(sa, Finalizer) {
-		return nil
-	}
-
-	err := r.Storage.ManagedFolders.Delete(bucket, folder).AllowNonEmpty(true).Context(ctx).Do()
-	if err != nil && !isStatus(err, http.StatusNotFound) {
-		return fmt.Errorf("delete managed folder %s: %w", folder, err)
+	if previousFolder != "" && (previousBucket != bucket || previousFolder != folder) {
+		if err := r.deleteFolder(ctx, previousBucket, previousFolder); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	patch := client.MergeFromWithOptions(sa.DeepCopy(), client.MergeFromWithOptimisticLock{})
+	if sa.Annotations == nil {
+		sa.Annotations = map[string]string{}
+	}
+	sa.Annotations[ObservedFolderAnnotation] = location
+	if err := r.Client.Patch(ctx, sa, patch); err != nil {
+		return ctrl.Result{}, fmt.Errorf("record observed folder: %w", err)
+	}
+	return ctrl.Result{}, nil
+}
+
+// delete removes managed folders and grants while keeping backup objects.
+func (r *Reconciler) delete(ctx context.Context, sa *corev1.ServiceAccount, bucket, folder, previousBucket, previousFolder string) error {
+	if !controllerutil.ContainsFinalizer(sa, Finalizer) {
+		return nil
+	}
+	if previousFolder != "" && (previousBucket != bucket || previousFolder != folder) {
+		if err := r.deleteFolder(ctx, previousBucket, previousFolder); err != nil {
+			return err
+		}
+	}
+	if folder != "" {
+		if err := r.deleteFolder(ctx, bucket, folder); err != nil {
+			return err
+		}
+	}
+	patch := client.MergeFromWithOptions(sa.DeepCopy(), client.MergeFromWithOptimisticLock{})
 	controllerutil.RemoveFinalizer(sa, Finalizer)
+	delete(sa.Annotations, ObservedFolderAnnotation)
 	if err := r.Client.Patch(ctx, sa, patch); err != nil {
 		return fmt.Errorf("remove finalizer: %w", err)
+	}
+	return nil
+}
+
+func (r *Reconciler) deleteFolder(ctx context.Context, bucket, folder string) error {
+	err := r.Storage.ManagedFolders.Delete(bucket, folder).AllowNonEmpty(true).Context(ctx).Do()
+	if err != nil && !isStatus(err, http.StatusNotFound) {
+		return fmt.Errorf("delete managed folder %s/%s: %w", bucket, folder, err)
 	}
 	return nil
 }

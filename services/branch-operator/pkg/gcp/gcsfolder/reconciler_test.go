@@ -16,10 +16,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"xata/internal/pgbackrest"
 	"xata/services/branch-operator/pkg/gcp/gcsfolder"
@@ -134,7 +136,7 @@ func TestReconcile(t *testing.T) {
 	folder := "b123/"
 	ctx := context.Background()
 
-	t.Run("creates folder and grant idempotently", func(t *testing.T) {
+	t.Run("creates folder and grant, then skips GCS", func(t *testing.T) {
 		t.Parallel()
 		r, gcs := setup(t, branchServiceAccount("b123"))
 
@@ -151,9 +153,11 @@ func TestReconcile(t *testing.T) {
 		got := &corev1.ServiceAccount{}
 		require.NoError(t, r.Client.Get(ctx, client.ObjectKeyFromObject(serviceAccount("b123-pgbackrest")), got))
 		require.Contains(t, got.Finalizers, gcsfolder.Finalizer)
+		require.Equal(t, "gs://"+bucket+"/"+folder, got.Annotations[gcsfolder.ObservedFolderAnnotation])
 
+		calls := len(gcs.calls)
 		reconcile(t, r, "b123-pgbackrest")
-		require.Len(t, gcs.policies[bucket+"/"+folder].Bindings, 1)
+		require.Len(t, gcs.calls, calls)
 	})
 
 	t.Run("existing folder and grant are kept", func(t *testing.T) {
@@ -161,6 +165,11 @@ func TestReconcile(t *testing.T) {
 		r, gcs := setup(t, branchServiceAccount("b123"))
 
 		reconcile(t, r, "b123-pgbackrest")
+		// Lose the annotation, as if the reconciler stopped before it wrote it.
+		sa := &corev1.ServiceAccount{}
+		require.NoError(t, r.Client.Get(ctx, client.ObjectKeyFromObject(serviceAccount("b123-pgbackrest")), sa))
+		delete(sa.Annotations, gcsfolder.ObservedFolderAnnotation)
+		require.NoError(t, r.Client.Update(ctx, sa))
 
 		reconcile(t, r, "b123-pgbackrest")
 		require.Len(t, gcs.policies[bucket+"/"+folder].Bindings, 1)
@@ -211,6 +220,63 @@ func TestReconcileGrantKeepsOtherBindings(t *testing.T) {
 	require.Equal(t, other, gcs.policies[bucket+"/"+folder].Bindings[0])
 }
 
+func TestReconcileBucketChange(t *testing.T) {
+	t.Parallel()
+	for name, deletion := range map[string]bool{"moves grant": false, "deletes before move": true} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			r, gcs := setup(t, branchServiceAccount("b123"))
+			reconcile(t, r, "b123-pgbackrest")
+			sa := serviceAccount("b123-pgbackrest")
+			require.NoError(t, r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa))
+			sa.Annotations[pgbackrest.GCSFolderAnnotation] = "gs://new-backups/b123/"
+			require.NoError(t, r.Client.Update(t.Context(), sa))
+			if deletion {
+				require.NoError(t, r.Client.Delete(t.Context(), sa))
+			}
+			reconcile(t, r, sa.Name)
+			require.NotContains(t, gcs.policies, bucket+"/b123/")
+			if deletion {
+				require.Empty(t, gcs.policies)
+				require.True(t, apierrors.IsNotFound(r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa)))
+				return
+			}
+			require.Len(t, gcs.policies["new-backups/b123/"].Bindings, 1)
+			require.NoError(t, r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa))
+			require.Equal(t, "gs://new-backups/b123/", sa.Annotations[gcsfolder.ObservedFolderAnnotation])
+			require.NoError(t, r.Client.Delete(t.Context(), sa))
+			reconcile(t, r, sa.Name)
+			require.Empty(t, gcs.policies)
+		})
+	}
+}
+
+func TestReconcileBucketChangeRetry(t *testing.T) {
+	t.Parallel()
+	for name, failedRequest := range map[string]string{"old folder deletion": "DELETE " + bucket, "new folder creation": "POST new-backups", "new folder grant": "PUT new-backups"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			r, gcs := setup(t, branchServiceAccount("b123"))
+			reconcile(t, r, "b123-pgbackrest")
+			sa := serviceAccount("b123-pgbackrest")
+			require.NoError(t, r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa))
+			sa.Annotations[pgbackrest.GCSFolderAnnotation] = "gs://new-backups/b123/"
+			require.NoError(t, r.Client.Update(t.Context(), sa))
+			gcs.failRequest = failedRequest
+			_, err := r.Reconcile(t.Context(), ctrl.Request{Namespace: namespace, Name: sa.Name})
+			require.Error(t, err)
+			require.NoError(t, r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa))
+			want := "gs://" + bucket + "/b123/"
+			require.Equal(t, want, sa.Annotations[gcsfolder.ObservedFolderAnnotation])
+			require.Contains(t, gcs.policies, bucket+"/b123/")
+			gcs.failRequest = ""
+			reconcile(t, r, sa.Name)
+			require.NotContains(t, gcs.policies, bucket+"/b123/")
+			require.Len(t, gcs.policies["new-backups/b123/"].Bindings, 1)
+		})
+	}
+}
+
 func TestReconcileFolderURI(t *testing.T) {
 	t.Parallel()
 	sa := branchServiceAccount("b123")
@@ -221,4 +287,89 @@ func TestReconcileFolderURI(t *testing.T) {
 	require.NoError(t, r.Client.Delete(t.Context(), sa))
 	reconcile(t, r, sa.Name)
 	require.Empty(t, gcs.policies)
+}
+
+func TestReconcileRepositoryLocationChange(t *testing.T) {
+	t.Parallel()
+	for name, target := range map[string]string{
+		"bucket":          "gs://new-backups/b123/",
+		"repository path": "gs://backups/team/repository/",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			sa := branchServiceAccount("b123")
+			sa.Annotations[pgbackrest.GCSFolderAnnotation] = "gs://backups/b123/"
+			r, gcs := setup(t, sa)
+			reconcile(t, r, sa.Name)
+			require.NoError(t, r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa))
+			sa.Annotations[pgbackrest.GCSFolderAnnotation] = target
+			require.NoError(t, r.Client.Update(t.Context(), sa))
+			reconcile(t, r, sa.Name)
+			require.NotContains(t, gcs.policies, "backups/b123/")
+			require.Len(t, gcs.policies[strings.TrimPrefix(target, "gs://")].Bindings, 1)
+			require.NoError(t, r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa))
+			require.Equal(t, target, sa.Annotations[gcsfolder.ObservedFolderAnnotation])
+			require.NoError(t, r.Client.Delete(t.Context(), sa))
+			reconcile(t, r, sa.Name)
+			require.Empty(t, gcs.policies)
+		})
+	}
+}
+
+func TestReconcileObservedWriteRetry(t *testing.T) {
+	t.Parallel()
+	for name, deleteAccount := range map[string]bool{"retry": false, "delete before retry": true} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			sa := branchServiceAccount("b123")
+			r, gcs := setup(t, sa)
+			reconcile(t, r, sa.Name)
+			require.NoError(t, r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa))
+			sa.Annotations[pgbackrest.GCSFolderAnnotation] = "gs://new-backups/b123/"
+			require.NoError(t, r.Client.Update(t.Context(), sa))
+			watchClient, ok := r.Client.(client.WithWatch)
+			require.True(t, ok)
+			r.Client = interceptor.NewClient(watchClient, interceptor.Funcs{
+				Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+					if obj.GetAnnotations()[gcsfolder.ObservedFolderAnnotation] == "gs://new-backups/b123/" {
+						return apierrors.NewConflict(schema.GroupResource{Resource: "serviceaccounts"}, obj.GetName(), nil)
+					}
+					return c.Patch(ctx, obj, patch, opts...)
+				},
+			})
+			_, err := r.Reconcile(t.Context(), ctrl.Request{Namespace: namespace, Name: sa.Name})
+			require.Error(t, err)
+			require.Len(t, gcs.policies["new-backups/b123/"].Bindings, 1)
+			require.NoError(t, r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa))
+			require.Equal(t, "gs://backups/b123/", sa.Annotations[gcsfolder.ObservedFolderAnnotation])
+			r.Client = watchClient
+			if deleteAccount {
+				require.NoError(t, r.Client.Delete(t.Context(), sa))
+			}
+			reconcile(t, r, sa.Name)
+			if deleteAccount {
+				require.Empty(t, gcs.policies)
+			} else {
+				require.Len(t, gcs.policies["new-backups/b123/"].Bindings, 1)
+				require.NoError(t, r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa))
+				require.Equal(t, "gs://new-backups/b123/", sa.Annotations[gcsfolder.ObservedFolderAnnotation])
+			}
+		})
+	}
+}
+
+func TestReconcileRemovedFolderRequest(t *testing.T) {
+	t.Parallel()
+	sa := branchServiceAccount("b123")
+	sa.Annotations[pgbackrest.GCSFolderAnnotation] = "gs://backups/b123/"
+	r, gcs := setup(t, sa)
+	reconcile(t, r, sa.Name)
+	require.NoError(t, r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa))
+	delete(sa.Annotations, pgbackrest.GCSFolderAnnotation)
+	require.NoError(t, r.Client.Update(t.Context(), sa))
+	reconcile(t, r, sa.Name)
+	require.Empty(t, gcs.policies)
+	require.NoError(t, r.Client.Get(t.Context(), client.ObjectKeyFromObject(sa), sa))
+	require.NotContains(t, sa.Finalizers, gcsfolder.Finalizer)
+	require.NotContains(t, sa.Annotations, gcsfolder.ObservedFolderAnnotation)
 }
