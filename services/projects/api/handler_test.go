@@ -2760,6 +2760,44 @@ func TestGetBackupErrorTypes(t *testing.T) {
 	})
 }
 
+// TestGetBackupAuthorizesBranchScope verifies that a branch-scoped key cannot
+// read another branch's backup metadata by passing that branch's ID as the
+// backupID. The branch resolves successfully, but the claims do not grant
+// access to it, so the handler must return not-found and must not reach out to
+// the cluster for the recovery window.
+func TestGetBackupAuthorizesBranchScope(t *testing.T) {
+	projectID := "project_id"
+	backupID := "other-branch-456"
+
+	mockStore := mocks.NewProjectsStore(t)
+	mockClusters := protomocks.NewClustersServiceClient(t)
+	mockCells := cellsmock.NewCellsMock(t, mockClusters)
+
+	branch := &store.Branch{ID: backupID, Name: "other-branch", CellID: "cell-1"}
+	mockStore.EXPECT().DescribeBranch(mock.Anything, apitest.TestOrganization, projectID, backupID).Return(branch, nil).Once()
+
+	feat := openfeaturetest.NewClient(nil)
+	sched := &scheduler.Scheduler{DefaultStrategy: &strategy.Random{}}
+	handler := NewAPIHandler(feat, mockStore, mockCells, "", nil, sched, analyticsmocks.NewClient(t), nil, nil, nil)
+
+	// Key scoped to a different branch than the one backupID resolves to.
+	scopedClaims := apitest.TestClaims
+	scopedClaims.Branches = []string{"my-branch-123"}
+	e := apitest.New(t).WithOpenAPISpec(projectsSpec).WithClaims(scopedClaims)
+
+	c, _ := e.GET("/organizations/" + apitest.TestOrganization + "/projects/projectID/backups/" + backupID).Context()
+	err := handler.GetBackup(c, apitest.TestOrganization, projectID, backupID)
+
+	require.NotNil(t, err)
+	var apiErr ErrorBackupNotFound
+	require.True(t, errors.As(err, &apiErr), "expected ErrorBackupNotFound type")
+	assert.Equal(t, backupID, apiErr.ID)
+
+	// GetRecoveryWindow must never be called for an unauthorized branch.
+	mockClusters.AssertNotCalled(t, "GetRecoveryWindow", mock.Anything, mock.Anything)
+	mockStore.AssertExpectations(t)
+}
+
 func TestDescribeBranch(t *testing.T) {
 	mockStore := mocks.NewProjectsStore(t)
 	mockStore.EXPECT().GetCell(mock.Anything, mock.Anything, mock.Anything).Return(&store.Cell{ID: "cell_id"}, nil).Maybe()

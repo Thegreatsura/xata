@@ -461,6 +461,15 @@ func (s *handler) GetBackup(c echo.Context, organizationID spec.OrganizationID, 
 			}
 			return err
 		}
+
+		// Authorize the key against the resolved branch, not just the
+		// organization: backupID is used as the branch ID, so a branch-scoped
+		// key must not read another branch's recovery-window metadata. Return
+		// not-found rather than forbidden to avoid leaking branch existence.
+		if !api.GetUserClaims(c).HasAccessToBranch(branch.ID) {
+			return ErrorBackupNotFound{ID: backupID}
+		}
+
 		setRegionReqAttribute(c, branch.Region)
 		client, err := s.cells.GetCellConnection(c.Request().Context(), organizationID, branch.CellID)
 		if err != nil {
