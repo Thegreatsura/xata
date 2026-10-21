@@ -24,6 +24,7 @@ func TestSync(t *testing.T) {
 	tests := map[string]struct {
 		setupMock   func(*mocks.ProjectsStore, *cellsmock.Cells)
 		authRequest *projectsv1.UpdateOrganizationStatusRequest
+		dryRun      bool
 	}{
 		"disable org with S2Z configured branches": {
 			setupMock: func(mockStore *mocks.ProjectsStore, cells *cellsmock.Cells) {
@@ -95,6 +96,29 @@ func TestSync(t *testing.T) {
 				OrganizationId: apitest.TestOrganization,
 				Disabled:       true,
 			},
+		},
+		"dry run reads branches without applying changes": {
+			setupMock: func(mockStore *mocks.ProjectsStore, cells *cellsmock.Cells) {
+				mockStore.EXPECT().ListProjects(mock.Anything, apitest.TestOrganization).
+					Return([]store.Project{{ID: "proj-1"}}, nil).Once()
+				mockStore.EXPECT().ListBranches(mock.Anything, apitest.TestOrganization, "proj-1").
+					Return([]store.Branch{{ID: "branch-1", CellID: "cell-1"}}, nil).Once()
+				cellClient := cellsmock.NewCellClient(t)
+				cells.EXPECT().GetCellConnection(mock.Anything, apitest.TestOrganization, "cell-1").Return(cellClient, nil).Once()
+				cellClient.EXPECT().DescribePostgresCluster(mock.Anything, &clustersv1.DescribePostgresClusterRequest{Id: "branch-1"}).
+					Return(&clustersv1.DescribePostgresClusterResponse{
+						Status: &clustersv1.ClusterStatus{StatusType: clustersv1.ClusterStatus_STATUS_TYPE_HEALTHY},
+						Configuration: &clustersv1.ClusterConfiguration{
+							ScaleToZero: &clustersv1.ScaleToZero{Enabled: true, InactivityPeriodMinutes: 30},
+						},
+					}, nil).Once()
+				cellClient.EXPECT().Close().Return(nil).Once()
+			},
+			authRequest: &projectsv1.UpdateOrganizationStatusRequest{
+				OrganizationId: apitest.TestOrganization,
+				Disabled:       true,
+			},
+			dryRun: true,
 		},
 		"disable already disabled branch is a no-op": {
 			setupMock: func(mockStore *mocks.ProjectsStore, cells *cellsmock.Cells) {
@@ -277,7 +301,11 @@ func TestSync(t *testing.T) {
 			mockCells := cellsmock.NewCells(t)
 			tt.setupMock(mockStore, mockCells)
 
-			err := Sync(ctx, mockStore, mockCells, tt.authRequest.OrganizationId, tt.authRequest.Disabled)
+			sync := Sync
+			if tt.dryRun {
+				sync = SyncDryRun
+			}
+			err := sync(ctx, mockStore, mockCells, tt.authRequest.OrganizationId, tt.authRequest.Disabled)
 
 			require.NoError(t, err)
 		})

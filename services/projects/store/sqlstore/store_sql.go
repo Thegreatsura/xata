@@ -539,6 +539,27 @@ func (s *sqlProjectStore) getCell(ctx context.Context, tx *sql.Tx, organizationI
 	return &cell, nil
 }
 
+// ListOrganizationIDs is ONLY for ad-hoc maintenance scripts.
+// DO NOT use this in production code.
+// Use Keycloak when you need an authoritative organization list.
+func (s *sqlProjectStore) ListOrganizationIDs(ctx context.Context) ([]string, error) {
+	rows, err := s.sql.QueryContext(ctx, "SELECT DISTINCT organization_id FROM projects ORDER BY organization_id")
+	if err != nil {
+		return nil, fmt.Errorf("list organization IDs: %w", err)
+	}
+	defer rows.Close()
+
+	var organizationIDs []string
+	for rows.Next() {
+		var organizationID string
+		if err := rows.Scan(&organizationID); err != nil {
+			return nil, fmt.Errorf("scan organization ID: %w", err)
+		}
+		organizationIDs = append(organizationIDs, organizationID)
+	}
+	return organizationIDs, rows.Err()
+}
+
 func (s *sqlProjectStore) ListProjects(ctx context.Context, organizationID string) ([]store.Project, error) {
 	rows, err := s.sql.QueryContext(ctx, `SELECT
 		id,
