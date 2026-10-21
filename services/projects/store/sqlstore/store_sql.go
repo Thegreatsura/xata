@@ -742,7 +742,8 @@ func (s *sqlProjectStore) ListBranches(ctx context.Context, organizationID strin
 			b.updated_at,
 			b.cell_id,
 			r.id,
-			r.public_access
+			r.public_access,
+			r.backups_enabled
 			FROM branches b
 				INNER JOIN cells c ON b.cell_id = c.id
 				INNER JOIN regions r ON c.region_id = r.id
@@ -764,7 +765,8 @@ func (s *sqlProjectStore) ListBranches(ctx context.Context, organizationID strin
 			&branch.UpdatedAt,
 			&branch.CellID,
 			&branch.Region,
-			&branch.PublicAccess)
+			&branch.PublicAccess,
+			&branch.BackupsEnabled)
 		if err != nil {
 			return nil, err
 		}

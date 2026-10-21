@@ -1001,6 +1001,29 @@ func TestSQLStore(t *testing.T) {
 		require.Equal(t, description, *listed.Description)
 	})
 
+	t.Run("ListBranches returns backupsEnabled like DescribeBranch", func(t *testing.T) {
+		created, err := sqlStore.CreateBranch(ctx, "organizationID", project.ID, "cell", createBranchConfig("listedBackupsEnabled", nil, nil), func(b *store.Branch) error {
+			return nil
+		})
+		require.NoError(t, err)
+
+		described, err := sqlStore.DescribeBranch(ctx, "organizationID", project.ID, created.ID)
+		require.NoError(t, err)
+		require.True(t, described.BackupsEnabled, "the test region has backups enabled")
+
+		branches, err := sqlStore.ListBranches(ctx, "organizationID", project.ID)
+		require.NoError(t, err)
+
+		var listed *store.Branch
+		for i := range branches {
+			if branches[i].ID == created.ID {
+				listed = &branches[i]
+			}
+		}
+		require.NotNil(t, listed, "created branch missing from ListBranches")
+		require.Equal(t, described.BackupsEnabled, listed.BackupsEnabled)
+	})
+
 	t.Run("org_limits", func(t *testing.T) {
 		const orgID = "test-org"
 		const projectID = "test-project"
