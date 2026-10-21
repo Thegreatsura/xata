@@ -2,6 +2,7 @@ package clusters
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -424,6 +425,13 @@ func (c *ClustersService) UpdatePostgresCluster(ctx context.Context, req *cluste
 			return err
 		}
 
+		// A backup configuration change can only change the schedule and
+		// retention. It cannot enable backups, which requires the storage,
+		// identity and cipher setup that only branch creation does.
+		if req.GetUpdateConfiguration().GetBackupConfiguration() != nil && existing.Spec.BackupSpec == nil {
+			return errBackupsNotEnabled
+		}
+
 		branch = NewBranchBuilder().
 			FromExistingBranch(existing).
 			WithUpdatesFrom(req, c.config.UseStorageQoSClasses).
@@ -433,6 +441,9 @@ func (c *ClustersService) UpdatePostgresCluster(ctx context.Context, req *cluste
 
 		return c.kubeClient.Update(ctx, branch)
 	})
+	if errors.Is(err, errBackupsNotEnabled) {
+		return nil, status.Errorf(codes.InvalidArgument, "branch %s has no backups to configure", req.GetId())
+	}
 	if err != nil {
 		return nil, k8sErrorToGRPCError(err)
 	}

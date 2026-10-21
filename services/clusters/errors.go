@@ -1,10 +1,16 @@
 package clusters
 
 import (
+	stderrors "errors"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
+
+// errBackupsNotEnabled is returned when an update sets the backup
+// configuration of a branch that has no backups.
+var errBackupsNotEnabled = stderrors.New("backups are not enabled on the branch")
 
 // ClusterNotFoundError is returned when trying to retrieve/update/delete a cluster that does not exist
 func ClusterNotFoundError(clusterID string) error {

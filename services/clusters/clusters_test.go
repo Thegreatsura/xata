@@ -1240,7 +1240,7 @@ func TestUpdatePostgresCluster(t *testing.T) {
 			},
 		},
 		{
-			name: "update backup config enables backups when BackupSpec is nil",
+			name: "update backup config is rejected when BackupSpec is nil",
 			inputBranchFn: func(b *v1alpha1.Branch) {
 				b.Spec.BackupSpec = nil
 			},
@@ -1251,14 +1251,7 @@ func TestUpdatePostgresCluster(t *testing.T) {
 					BackupSchedule:  "0 7 * * *",
 				}
 			},
-			expectedBranchFn: func(b *v1alpha1.Branch) {
-				b.Spec.BackupSpec = &v1alpha1.BackupSpec{
-					Retention: "14d",
-					ScheduledBackup: &v1alpha1.ScheduledBackupSpec{
-						Schedule: "0 7 * * *",
-					},
-				}
-			},
+			expectedStatusCode: codes.InvalidArgument,
 		},
 		{
 			name:        "storage QoS class update - replaces the VolumeAttributesClass",
