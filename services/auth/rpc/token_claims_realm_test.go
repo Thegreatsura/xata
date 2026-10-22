@@ -259,3 +259,53 @@ func TestRealmOrganizationMappers(t *testing.T) {
 		})
 	}
 }
+
+// Keycloak deprecated the full scope switch; once removed, a client only
+// receives the roles in its scope mappings.
+func TestRealmClientsMapRolesExplicitly(t *testing.T) {
+	raw, err := os.ReadFile(realmFile)
+	require.NoError(t, err)
+
+	var realm struct {
+		Clients []struct {
+			ClientID         string `json:"clientId"`
+			FullScopeAllowed bool   `json:"fullScopeAllowed"`
+		} `json:"clients"`
+		ClientScopeMappings map[string][]struct {
+			Client string   `json:"client"`
+			Roles  []string `json:"roles"`
+		} `json:"clientScopeMappings"`
+		ScopeMappings []struct {
+			ClientScope string   `json:"clientScope"`
+			Roles       []string `json:"roles"`
+		} `json:"scopeMappings"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &realm))
+
+	for _, c := range realm.Clients {
+		if c.ClientID == "frontend" || c.ClientID == "cli" {
+			require.False(t, c.FullScopeAllowed, "%s must not use full scope", c.ClientID)
+		}
+	}
+
+	roles := func(roleClient string) []string {
+		var roles []string
+		for _, m := range realm.ClientScopeMappings[roleClient] {
+			if m.Client == "frontend" {
+				roles = append(roles, m.Roles...)
+			}
+		}
+		return roles
+	}
+	require.ElementsMatch(t, []string{"manage-account", "view-profile"}, roles("account"))
+	require.Equal(t, []string{"read-token"}, roles("broker"))
+
+	// The cli refreshes offline through the offline_access client scope.
+	require.True(t, slices.ContainsFunc(realm.ScopeMappings, func(m struct {
+		ClientScope string   `json:"clientScope"`
+		Roles       []string `json:"roles"`
+	},
+	) bool {
+		return m.ClientScope == "offline_access" && slices.Contains(m.Roles, "offline_access")
+	}))
+}

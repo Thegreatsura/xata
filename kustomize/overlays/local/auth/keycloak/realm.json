@@ -42,7 +42,7 @@
       "implicitFlowEnabled": false,
       "serviceAccountsEnabled": false,
       "consentRequired": false,
-      "fullScopeAllowed": true,
+      "fullScopeAllowed": false,
       "frontchannelLogout": true,
       "protocol": "openid-connect",
       "redirectUris": [
