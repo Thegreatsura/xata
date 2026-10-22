@@ -1,15 +1,21 @@
 package grpc
 
 import (
+	"time"
+
 	"xata/internal/o11y"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 )
 
 // DefaultMaxRecvMsgBytes raises the per-call receive limit above gRPC's 4 MiB
 // default. Callers can override it with their own grpc.WithDefaultCallOptions.
 const DefaultMaxRecvMsgBytes = 16 * 1024 * 1024
+
+// KeepaliveInterval is shared to prevent servers from rejecting client probes.
+const KeepaliveInterval = 10 * time.Second
 
 // Default retry policy for gRPC clients
 const RetryPolicy = `{
@@ -38,6 +44,11 @@ func NewClient(o *o11y.O, url string, extraOpts ...grpc.DialOption) (*ClientConn
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(DefaultMaxRecvMsgBytes)),
 		o11y.GRPCUnaryInterceptorLogs(&logger),
 		grpc.WithDefaultServiceConfig(RetryPolicy),
+		// RPC cancellation does not close pooled transports.
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:    KeepaliveInterval,
+			Timeout: 10 * time.Second,
+		}),
 	}
 	opts = append(opts, o11y.GRPCClientStatHandlers(o)...)
 	opts = append(opts, extraOpts...)

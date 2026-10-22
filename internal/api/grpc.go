@@ -7,6 +7,7 @@ import (
 
 	"go.opentelemetry.io/otel/propagation"
 
+	internalgrpc "xata/internal/grpc"
 	"xata/internal/o11y"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -14,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 )
@@ -25,6 +27,9 @@ func SetupGRPC(o *o11y.O, cfg Config) *grpc.Server {
 	s := grpc.NewServer(
 		grpc.MaxConcurrentStreams(cfg.MaxConcurrentStreams),
 		grpc.ConnectionTimeout(cfg.ConnectionTimeout),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime: internalgrpc.KeepaliveInterval,
+		}),
 		grpc.ChainUnaryInterceptor(
 			o11y.GRPCLoggingUnaryServerInterceptor(&logger, o),
 			o11y.GRPCRecoverUnaryServerInterceptor(&logger),
