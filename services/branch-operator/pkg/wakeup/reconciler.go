@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/events"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -284,7 +285,12 @@ func (r *WakeupReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manage
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.WakeupRequest{}, onGenerationChanged).
-		WithOptions(controller.Options{MaxConcurrentReconciles: r.MaxConcurrentReconciles}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: r.MaxConcurrentReconciles,
+			RateLimiter: workqueue.NewTypedItemExponentialFailureRateLimiter[ctrl.Request](
+				5*time.Millisecond, 300*time.Second,
+			),
+		}).
 		Complete(r)
 }
 

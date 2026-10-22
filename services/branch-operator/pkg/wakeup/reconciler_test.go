@@ -447,7 +447,7 @@ func TestWakeupReconciler(t *testing.T) {
 		require.NoError(t, k8sClient.Create(ctx, pool))
 
 		// Create a CNPG Cluster with 0 ready instances, owned by the pool
-		_, err := setupPoolCluster(ctx, pool, clusterName, TestNamespace, 0)
+		cluster, err := setupPoolCluster(ctx, pool, clusterName, TestNamespace, 0)
 		require.NoError(t, err)
 
 		// Create a Branch with pool annotation and no cluster name
@@ -465,6 +465,12 @@ func TestWakeupReconciler(t *testing.T) {
 
 		// Expect an event to be recorded on the WakeupRequest with PoolExhausted
 		requireEventEventually(t, ctx, wr, corev1.EventTypeNormal, v1alpha1.PoolExhaustedReason)
+
+		require.NoError(t, seedPasswordSync(ctx, branch, cluster))
+		require.NoError(t, k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster))
+		cluster.Status.ReadyInstances = 1
+		require.NoError(t, k8sClient.Status().Update(ctx, cluster))
+		requireWakeupSucceededCondition(t, ctx, wr, metav1.ConditionTrue, v1alpha1.WakeupSucceededReason)
 	})
 
 	t.Run("sets BranchNotFound when the branch does not exist", func(t *testing.T) {
