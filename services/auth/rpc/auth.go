@@ -109,20 +109,28 @@ func (a *AuthService) validateJWT(ctx context.Context, tokenStr, organizationID 
 		return nil, fmt.Errorf("failed to get user ID from JWT claims: %w", err)
 	}
 
-	tokenClaims, fromToken := a.trustedClaims(userID, organizationID, *claims)
-	trace.SpanFromContext(ctx).SetAttributes(attribute.Bool("xata.auth.claims_from_token", fromToken))
-	if fromToken {
+	tokenClaims, reason := a.trustedClaims(userID, organizationID, *claims)
+	recordClaimsSource(trace.SpanFromContext(ctx), reason)
+	if reason == reasonTrusted {
 		return tokenClaims, nil
 	}
 	return a.buildUserClaims(ctx, userID)
 }
 
-// trustedClaims reports whether the request can be authorized from the access
-// token alone. organizationID is the organization the request targets, if any.
-func (a *AuthService) trustedClaims(userID, organizationID string, mc jwt.MapClaims) (*token.Claims, bool) {
-	claims, ok := claimsFromAccessToken(userID, mc)
-	if !ok {
-		return nil, false
+func recordClaimsSource(span trace.Span, reason fallbackReason) {
+	span.SetAttributes(attribute.Bool("xata.auth.claims_from_token", reason == reasonTrusted))
+	if reason != reasonTrusted {
+		span.SetAttributes(attribute.String("xata.auth.claims_fallback", string(reason)))
+	}
+}
+
+// trustedClaims reports why the request cannot be authorized from the access
+// token alone, or an empty reason when it can. organizationID is the
+// organization the request targets, if any.
+func (a *AuthService) trustedClaims(userID, organizationID string, mc jwt.MapClaims) (*token.Claims, fallbackReason) {
+	claims, reason := claimsFromAccessToken(userID, mc)
+	if reason != reasonTrusted {
+		return nil, reason
 	}
 	addDefaultOrganization(claims.Organizations, a.defaultOrgID)
 
@@ -130,11 +138,14 @@ func (a *AuthService) trustedClaims(userID, organizationID string, mc jwt.MapCla
 	// produce is revalidated against Keycloak: a new organization is disabled until its trial credits land.
 	if organizationID != "" {
 		organization, member := claims.Organizations[organizationID]
-		if !member || organization.Status != token.OrgEnabledStatus {
-			return nil, false
+		if !member {
+			return nil, reasonOrgNotInToken
+		}
+		if organization.Status != token.OrgEnabledStatus {
+			return nil, reasonOrgNotEnabled
 		}
 	}
-	return claims, true
+	return claims, reasonTrusted
 }
 
 // ValidateAccess checks if the given token can call the specified endpoint

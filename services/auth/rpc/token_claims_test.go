@@ -10,6 +10,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 // mapClaims parses the JSON shape Keycloak emits, so the tests exercise the
@@ -23,10 +26,10 @@ func mapClaims(t *testing.T, raw string) jwt.MapClaims {
 
 func TestClaimsFromAccessToken(t *testing.T) {
 	for name, test := range map[string]struct {
-		raw      string
-		wantOK   bool
-		wantOrgs map[string]token.Organization
-		wantMail string
+		raw        string
+		wantReason fallbackReason
+		wantOrgs   map[string]token.Organization
+		wantMail   string
 	}{
 		"enabled organization with attributes": {
 			raw: `{
@@ -40,7 +43,6 @@ func TestClaimsFromAccessToken(t *testing.T) {
 					}
 				}
 			}`,
-			wantOK:   true,
 			wantMail: "user@xata.io",
 			wantOrgs: map[string]token.Organization{
 				"acme": {
@@ -59,52 +61,51 @@ func TestClaimsFromAccessToken(t *testing.T) {
 					"globex": {"billingStatus": ["invoice_overdue"], "usageTier": ["t1"]}
 				}
 			}`,
-			wantOK: true,
 			wantOrgs: map[string]token.Organization{
 				"acme":   {ID: "acme", Status: "enabled", UsageTier: "t2"},
 				"globex": {ID: "globex", Status: "disabled", UsageTier: "t1"},
 			},
 		},
 		"disabled by admin is disabled": {
-			raw:    `{"email": "user@xata.io", "organization": {"acme": {"billingStatus": ["ok"], "disabledByAdmin": ["true"], "usageTier": ["t1"]}}}`,
-			wantOK: true,
+			raw: `{"email": "user@xata.io", "organization": {"acme": {"billingStatus": ["ok"], "disabledByAdmin": ["true"], "usageTier": ["t1"]}}}`,
 			wantOrgs: map[string]token.Organization{
 				"acme": {ID: "acme", Status: "disabled", UsageTier: "t1"},
 			},
 		},
 		"marketplace is carried over": {
-			raw:    `{"email": "user@xata.io", "organization": {"acme": {"billingStatus": ["ok"], "usageTier": ["t1"], "marketplace": ["aws"]}}}`,
-			wantOK: true,
+			raw: `{"email": "user@xata.io", "organization": {"acme": {"billingStatus": ["ok"], "usageTier": ["t1"], "marketplace": ["aws"]}}}`,
 			wantOrgs: map[string]token.Organization{
 				"acme": {ID: "acme", Status: "enabled", UsageTier: "t1", Marketplace: "aws"},
 			},
 		},
 		"marketplace and usage tier are carried over": {
-			raw:    `{"email": "user@xata.io", "organization": {"acme": {"billingStatus": ["ok"], "usageTier": ["t2"], "marketplace": ["aws"]}}}`,
-			wantOK: true,
+			raw: `{"email": "user@xata.io", "organization": {"acme": {"billingStatus": ["ok"], "usageTier": ["t2"], "marketplace": ["aws"]}}}`,
 			wantOrgs: map[string]token.Organization{
 				"acme": {ID: "acme", Status: "enabled", UsageTier: "t2", Marketplace: "aws"},
 			},
 		},
 		"missing claim falls back": {
-			raw:    `{"email": "user@xata.io"}`,
-			wantOK: false,
+			raw:        `{"email": "user@xata.io"}`,
+			wantReason: reasonNoOrgClaim,
+		},
+		"missing email falls back": {
+			raw:        `{"organization": {"acme": {"billingStatus": ["ok"]}}}`,
+			wantReason: reasonNoEmail,
 		},
 		"empty claim falls back": {
-			raw:    `{"email": "user@xata.io", "organization": {}}`,
-			wantOK: false,
+			raw:        `{"email": "user@xata.io", "organization": {}}`,
+			wantReason: reasonEmptyOrgClaim,
 		},
 		// The String-typed mapper emits aliases without attributes, which would
 		// make a suspended organization read as enabled.
 		"alias list without attributes falls back": {
-			raw:    `{"email": "user@xata.io", "organization": ["acme"]}`,
-			wantOK: false,
+			raw:        `{"email": "user@xata.io", "organization": ["acme"]}`,
+			wantReason: reasonOrgClaimMalformed,
 		},
 		// Organizations created before status attributes existed carry only a
 		// display name, and Keycloak defaults them to enabled/ok/t1.
 		"legacy organization with only a display name": {
-			raw:    `{"email": "user@xata.io", "organization": {"acme": {"displayName": ["Acme Inc"], "lastUpdated": ["2026-04-30T13:23:06Z"]}}}`,
-			wantOK: true,
+			raw: `{"email": "user@xata.io", "organization": {"acme": {"displayName": ["Acme Inc"], "lastUpdated": ["2026-04-30T13:23:06Z"]}}}`,
 			wantOrgs: map[string]token.Organization{
 				"acme": {ID: "acme", Status: "enabled", UsageTier: "t1"},
 			},
@@ -114,7 +115,6 @@ func TestClaimsFromAccessToken(t *testing.T) {
 				"acme": {"displayName": ["Acme Inc"]},
 				"globex": {"billingStatus": ["invoice_overdue"], "usageTier": ["t2"]}
 			}}`,
-			wantOK: true,
 			wantOrgs: map[string]token.Organization{
 				"acme":   {ID: "acme", Status: "enabled", UsageTier: "t1"},
 				"globex": {ID: "globex", Status: "disabled", UsageTier: "t2"},
@@ -127,7 +127,6 @@ func TestClaimsFromAccessToken(t *testing.T) {
 				"acme": {"billingStatus": ["ok"], "usageTier": ["t1"]},
 				"gone": {"billingStatus": ["ok"], "deletedAt": ["2026-07-01T00:00:00Z"]}
 			}}`,
-			wantOK: true,
 			wantOrgs: map[string]token.Organization{
 				"acme": {ID: "acme", Status: "enabled", UsageTier: "t1"},
 			},
@@ -135,26 +134,25 @@ func TestClaimsFromAccessToken(t *testing.T) {
 		// No attributes at all means the mapper is not mapping them, so a
 		// suspended organization would read as enabled.
 		"organization without attributes falls back": {
-			raw:    `{"email": "user@xata.io", "organization": {"acme": {}}}`,
-			wantOK: false,
+			raw:        `{"email": "user@xata.io", "organization": {"acme": {}}}`,
+			wantReason: reasonOrgNotXata,
 		},
 		"scalar claim falls back": {
-			raw:    `{"email": "user@xata.io", "organization": "acme"}`,
-			wantOK: false,
+			raw:        `{"email": "user@xata.io", "organization": "acme"}`,
+			wantReason: reasonOrgClaimMalformed,
 		},
 		"scalar attribute values fall back": {
-			raw:    `{"email": "user@xata.io", "organization": {"acme": {"billingStatus": "ok"}}}`,
-			wantOK: false,
+			raw:        `{"email": "user@xata.io", "organization": {"acme": {"billingStatus": "ok"}}}`,
+			wantReason: reasonOrgClaimMalformed,
 		},
 		// Only keys Xata never writes: the mapper is emitting organizations
 		// without their attributes, so status cannot be trusted.
 		"organization with only foreign attributes falls back": {
-			raw:    `{"email": "user@xata.io", "organization": {"acme": {"id": ["42c3e46f"], "domain": ["xata.io"]}}}`,
-			wantOK: false,
+			raw:        `{"email": "user@xata.io", "organization": {"acme": {"id": ["42c3e46f"], "domain": ["xata.io"]}}}`,
+			wantReason: reasonOrgNotXata,
 		},
 		"every organization soft-deleted yields no memberships": {
 			raw:      `{"email": "user@xata.io", "organization": {"gone": {"displayName": ["Gone"], "deletedAt": ["2026-07-01T00:00:00Z"]}}}`,
-			wantOK:   true,
 			wantOrgs: map[string]token.Organization{},
 		},
 		// The Xata mapper's addRole setting adds the caller's role to each organization.
@@ -163,28 +161,26 @@ func TestClaimsFromAccessToken(t *testing.T) {
 				"acme": {"billingStatus": ["ok"], "usageTier": ["t2"], "role": ["admin"]},
 				"globex": {"billingStatus": ["ok"], "usageTier": ["t1"], "role": []}
 			}}`,
-			wantOK: true,
 			wantOrgs: map[string]token.Organization{
 				"acme":   {ID: "acme", Status: "enabled", UsageTier: "t2"},
 				"globex": {ID: "globex", Status: "enabled", UsageTier: "t1"},
 			},
 		},
 		"role alone falls back": {
-			raw:    `{"email": "user@xata.io", "organization": {"acme": {"role": ["admin"]}}}`,
-			wantOK: false,
+			raw:        `{"email": "user@xata.io", "organization": {"acme": {"role": ["admin"]}}}`,
+			wantReason: reasonOrgNotXata,
 		},
 		"empty deletedAt is not deleted": {
-			raw:    `{"email": "user@xata.io", "organization": {"acme": {"displayName": ["Acme Inc"], "deletedAt": [""]}}}`,
-			wantOK: true,
+			raw: `{"email": "user@xata.io", "organization": {"acme": {"displayName": ["Acme Inc"], "deletedAt": [""]}}}`,
 			wantOrgs: map[string]token.Organization{
 				"acme": {ID: "acme", Status: "enabled", UsageTier: "t1"},
 			},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			got, ok := claimsFromAccessToken("user-1", mapClaims(t, test.raw))
-			require.Equal(t, test.wantOK, ok)
-			if !test.wantOK {
+			got, reason := claimsFromAccessToken("user-1", mapClaims(t, test.raw))
+			require.Equal(t, test.wantReason, reason)
+			if test.wantReason != reasonTrusted {
 				require.Nil(t, got)
 				return
 			}
@@ -246,9 +242,9 @@ func TestAddDefaultOrganization(t *testing.T) {
 func TestTrustedClaimsDefaultOrganizationOrdering(t *testing.T) {
 	svc := &AuthService{defaultOrgID: "default-org"}
 
-	got, fromToken := svc.trustedClaims("user-1", "default-org",
+	got, reason := svc.trustedClaims("user-1", "default-org",
 		mapClaims(t, `{"email": "user@xata.io", "organization": {"acme": {"displayName": ["Acme Inc"]}}}`))
-	require.True(t, fromToken)
+	require.Empty(t, reason)
 	require.Contains(t, got.Organizations, "default-org")
 }
 
@@ -258,13 +254,13 @@ func TestTrustedClaimsRevalidation(t *testing.T) {
 	for name, test := range map[string]struct {
 		organizationID string
 		billingStatus  string
-		wantFromToken  bool
+		wantReason     fallbackReason
 	}{
-		"no target org":         {wantFromToken: true},
-		"a known org":           {organizationID: "acme", wantFromToken: true},
-		"an unknown org":        {organizationID: "brand-new", wantFromToken: false},
-		"a disabled org":        {organizationID: "acme", billingStatus: "no_payment_method", wantFromToken: false},
-		"ignores another's org": {billingStatus: "no_payment_method", wantFromToken: true},
+		"no target org":         {},
+		"a known org":           {organizationID: "acme"},
+		"an unknown org":        {organizationID: "brand-new", wantReason: reasonOrgNotInToken},
+		"a disabled org":        {organizationID: "acme", billingStatus: "no_payment_method", wantReason: reasonOrgNotEnabled},
+		"ignores another's org": {billingStatus: "no_payment_method"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			svc := &AuthService{}
@@ -275,14 +271,47 @@ func TestTrustedClaimsRevalidation(t *testing.T) {
 			}
 			claim := mapClaims(t, fmt.Sprintf(`{"email": "user@xata.io", "organization": {"acme": {%s}}}`, attributes))
 
-			got, fromToken := svc.trustedClaims("user-1", test.organizationID, claim)
-			require.Equal(t, test.wantFromToken, fromToken)
-			if !test.wantFromToken {
+			got, reason := svc.trustedClaims("user-1", test.organizationID, claim)
+			require.Equal(t, test.wantReason, reason)
+			if test.wantReason != reasonTrusted {
 				require.Nil(t, got)
 				return
 			}
 			require.Equal(t, "user-1", got.ID)
 			require.Contains(t, got.Organizations, "acme")
+		})
+	}
+}
+
+func TestRecordClaimsSource(t *testing.T) {
+	for name, test := range map[string]struct {
+		raw  string
+		want []attribute.KeyValue
+	}{
+		"trusted token": {
+			raw:  `{"email": "user@xata.io", "organization": {"acme": {"displayName": ["Acme Inc"]}}}`,
+			want: []attribute.KeyValue{attribute.Bool("xata.auth.claims_from_token", true)},
+		},
+		"no organization claim": {
+			raw: `{"email": "user@xata.io"}`,
+			want: []attribute.KeyValue{
+				attribute.Bool("xata.auth.claims_from_token", false),
+				attribute.String("xata.auth.claims_fallback", "no_org_claim"),
+			},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			recorder := tracetest.NewSpanRecorder()
+			_, span := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)).Tracer("test").Start(t.Context(), "validate")
+
+			svc := &AuthService{}
+			_, reason := svc.trustedClaims("user-1", "", mapClaims(t, test.raw))
+			recordClaimsSource(span, reason)
+			span.End()
+
+			ended := recorder.Ended()
+			require.Len(t, ended, 1)
+			require.ElementsMatch(t, test.want, ended[0].Attributes())
 		})
 	}
 }

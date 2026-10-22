@@ -29,35 +29,56 @@ var xataOrganizationAttributes = []string{
 	keycloak.OrganizationLastUpdatedKey,
 }
 
+// fallbackReason is a span attribute value, so keep it low-cardinality; empty means trusted.
+type fallbackReason string
+
+const (
+	reasonTrusted           fallbackReason = ""
+	reasonNoEmail           fallbackReason = "no_email"
+	reasonNoOrgClaim        fallbackReason = "no_org_claim"
+	reasonEmptyOrgClaim     fallbackReason = "empty_org_claim"
+	reasonOrgClaimMalformed fallbackReason = "org_claim_malformed"
+	reasonOrgNotXata        fallbackReason = "org_not_xata"
+	reasonOrgNotInToken     fallbackReason = "org_not_in_token"
+	reasonOrgNotEnabled     fallbackReason = "org_not_enabled"
+)
+
 // claimsFromAccessToken rebuilds what buildUserClaims fetches over the Keycloak
-// Admin REST API out of the signed access token itself. It reports false when
+// Admin REST API out of the signed access token itself. It returns a reason when
 // the token cannot be trusted to carry the full picture, so the caller falls
 // back to Keycloak: a user with no organizations is indistinguishable from a
 // missing claim, so a miss is not an error.
-func claimsFromAccessToken(userID string, mc jwt.MapClaims) (*token.Claims, bool) {
+func claimsFromAccessToken(userID string, mc jwt.MapClaims) (*token.Claims, fallbackReason) {
 	// The email reaches billing customer creation and analytics targeting, so an
 	// absent claim falls back rather than recording a blank address.
 	email, _ := mc[emailClaim].(string)
 	if email == "" {
-		return nil, false
+		return nil, reasonNoEmail
 	}
 
-	encoded, err := json.Marshal(mc[organizationClaim])
+	rawClaim, present := mc[organizationClaim]
+	if !present {
+		return nil, reasonNoOrgClaim
+	}
+	encoded, err := json.Marshal(rawClaim)
 	if err != nil {
-		return nil, false
+		return nil, reasonOrgClaimMalformed
 	}
 
 	// Anything that is not a map of attribute lists (a bare alias list, scalar
 	// attributes) fails to decode, which is the safe direction.
 	var claimed map[string]map[string][]string
-	if err := json.Unmarshal(encoded, &claimed); err != nil || len(claimed) == 0 {
-		return nil, false
+	if err := json.Unmarshal(encoded, &claimed); err != nil {
+		return nil, reasonOrgClaimMalformed
+	}
+	if len(claimed) == 0 {
+		return nil, reasonEmptyOrgClaim
 	}
 
 	organizations := make(map[string]token.Organization, len(claimed))
 	for alias, attributes := range claimed {
 		if !hasXataAttributes(attributes) {
-			return nil, false
+			return nil, reasonOrgNotXata
 		}
 		// ListOrganizations hides soft-deleted organizations; the mapper does not.
 		if _, ok := keycloak.FirstAttr(attributes, keycloak.OrganizationDeletedAtKey); ok {
@@ -73,7 +94,7 @@ func claimsFromAccessToken(userID string, mc jwt.MapClaims) (*token.Claims, bool
 		Scopes:        []string{"*"},
 		Projects:      []string{"*"},
 		Branches:      []string{"*"},
-	}, true
+	}, reasonTrusted
 }
 
 func hasXataAttributes(attributes map[string][]string) bool {

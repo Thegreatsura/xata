@@ -207,15 +207,15 @@ func TestRealmOrganizationClaimTrim(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			want, wantOK := claimsFromAccessToken("user-1", mapClaims(t, tokenWith(t, test.organizations)))
-			require.True(t, wantOK, "the full claim must be trusted")
+			want, wantReason := claimsFromAccessToken("user-1", mapClaims(t, tokenWith(t, test.organizations)))
+			require.Empty(t, wantReason, "the full claim must be trusted")
 
-			got, ok := claimsFromAccessToken("user-1", mapClaims(t, tokenWith(t, trimOrganizations(test.organizations, included))))
+			got, reason := claimsFromAccessToken("user-1", mapClaims(t, tokenWith(t, trimOrganizations(test.organizations, included))))
 			if test.wantFallback {
-				require.False(t, ok)
+				require.NotEmpty(t, reason)
 				return
 			}
-			require.True(t, ok)
+			require.Empty(t, reason)
 			require.Equal(t, want, got)
 		})
 	}
