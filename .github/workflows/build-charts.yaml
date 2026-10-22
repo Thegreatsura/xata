@@ -16,6 +16,7 @@ on:
 env:
   CHART_REGISTRY: oci://ghcr.io/xataio/xata/charts
   CHARTS: "auth clusters gateway projects branch-operator keycloak"
+  CHART_DIRS: charts
 
 jobs:
   push-charts:
