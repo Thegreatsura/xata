@@ -13,6 +13,23 @@ service:
   loadBalancerClass: ""
   annotations: {}
 
+# Authentication of incoming gRPC calls (projects and gateway -> clusters).
+grpc:
+  auth:
+    # off: accept every call. log: verify tokens, log failures, allow all.
+    # enforce: reject calls without a valid token.
+    # Quoted because a bare off is YAML for false.
+    mode: "off"
+    audience: clusters
+    # PEM bundle of the Ed25519 public keys or X.509 certificates of every
+    # allowed caller. Public material, so it can live in values.
+    trustedKeys: ""
+    # Secret holding the PEM bundle instead, e.g. a cert-manager Certificate
+    # secret and its ca.crt or tls.crt. Takes precedence over trustedKeys.
+    trustedKeysSecret:
+      name: ""
+      key: ca.crt
+
 config:
   clusters:
     clustersNamespace: xata-clusters

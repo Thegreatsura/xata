@@ -43,6 +43,17 @@ spec:
           env:
             - name: OTEL_SERVICE_NAME
               value: "clusters"
+            {{- with .Values.grpc.auth.trustedKeysSecret }}
+            {{- if .name }}
+            # Explicit env entries win over envFrom, so this overrides any
+            # trustedKeys value from the configmap.
+            - name: XATA_GRPC_AUTH_TRUSTED_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .name | quote }}
+                  key: {{ .key | quote }}
+            {{- end }}
+            {{- end }}
           envFrom:
             - configMapRef:
                 name: otel-config

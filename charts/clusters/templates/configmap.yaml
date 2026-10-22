@@ -6,6 +6,11 @@ metadata:
   labels:
     app: clusters
 data:
+  XATA_GRPC_AUTH_MODE: {{ .Values.grpc.auth.mode | quote }}
+  XATA_GRPC_AUTH_AUDIENCE: {{ .Values.grpc.auth.audience | quote }}
+  {{- if .Values.grpc.auth.trustedKeys }}
+  XATA_GRPC_AUTH_TRUSTED_KEYS: {{ .Values.grpc.auth.trustedKeys | quote }}
+  {{- end }}
   XATA_CLUSTERS_NAMESPACE: {{ .Values.config.clusters.clustersNamespace | quote }}
   XATA_CLUSTERS_STORAGE_CLASS: {{ .Values.config.clusters.storageClass | quote }}
   {{- if .Values.config.clusters.nodeSelector }}

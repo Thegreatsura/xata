@@ -8,6 +8,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 
 	internalgrpc "xata/internal/grpc"
+	grpcauth "xata/internal/grpc/auth"
 	"xata/internal/o11y"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -24,21 +25,43 @@ import (
 func SetupGRPC(o *o11y.O, cfg Config) *grpc.Server {
 	logger := o.Logger()
 
+	unary := []grpc.UnaryServerInterceptor{
+		o11y.GRPCLoggingUnaryServerInterceptor(&logger, o),
+		o11y.GRPCRecoverUnaryServerInterceptor(&logger),
+	}
+	stream := []grpc.StreamServerInterceptor{
+		o11y.GRPCLoggingStreamServerInterceptor(&logger),
+		o11y.GRPCRecoverStreamServerInterceptor(&logger),
+	}
+
+	authCfg, err := cfg.GRPCAuth()
+	if err != nil {
+		// Config.AfterRead already rejected invalid settings when the
+		// environment was read; a hand-built Config that fails here is a
+		// programming error.
+		panic(fmt.Sprintf("invalid grpc auth config: %v", err))
+	}
+	if authCfg.Mode != grpcauth.ModeOff {
+		auth, err := grpcauth.New(o, authCfg)
+		if err != nil {
+			panic(fmt.Sprintf("setup grpc auth: %v", err))
+		}
+		logger.Info().Str("mode", string(authCfg.Mode)).
+			Strs("trusted_key_ids", authCfg.Verifier.KeyIDs()).
+			Msg("gRPC token verification enabled")
+		unary = append(unary, auth.Unary())
+		stream = append(stream, auth.Stream())
+	}
+	unary = append(unary, httpStatusCodeErrInterceptor)
+
 	s := grpc.NewServer(
 		grpc.MaxConcurrentStreams(cfg.MaxConcurrentStreams),
 		grpc.ConnectionTimeout(cfg.ConnectionTimeout),
+		grpc.ChainUnaryInterceptor(unary...),
+		grpc.ChainStreamInterceptor(stream...),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			MinTime: internalgrpc.KeepaliveInterval,
 		}),
-		grpc.ChainUnaryInterceptor(
-			o11y.GRPCLoggingUnaryServerInterceptor(&logger, o),
-			o11y.GRPCRecoverUnaryServerInterceptor(&logger),
-			httpStatusCodeErrInterceptor,
-		),
-		grpc.ChainStreamInterceptor(
-			o11y.GRPCLoggingStreamServerInterceptor(&logger),
-			o11y.GRPCRecoverStreamServerInterceptor(&logger),
-		),
 		grpc.StatsHandler(otelgrpc.NewServerHandler(
 			otelgrpc.WithTracerProvider(o),
 			otelgrpc.WithMeterProvider(o),
