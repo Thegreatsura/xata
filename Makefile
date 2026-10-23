@@ -2,7 +2,7 @@ SHELL := /bin/bash
 GOVERSION := $(shell go version | awk '{print $$3}')
 GO := GOTOOLCHAIN=$(GOVERSION) go
 BUF := $(GO) run github.com/bufbuild/buf/cmd/buf
-GOLANGCI := $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+GOLANGCI := $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
 GOMPLATE := $(GO) run github.com/hairyhenderson/gomplate/v4/cmd/gomplate@latest
 DOCKER_FLAGS=--rm --user $(shell id -u):$(shell id -g)
 DOCKER_OPA := docker run $(DOCKER_FLAGS) -v $(PWD)/internal/opa:/policy openpolicyagent/opa:latest
